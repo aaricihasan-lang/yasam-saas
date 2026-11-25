@@ -8,6 +8,7 @@ import { Plus, Search } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/numeroloji/numerolojiListe.module.css";
 import { usePathname } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
@@ -16,19 +17,37 @@ import { NumerolojiListeKarti, type NumerolojiListeSatir } from "../components/N
 import { RowErrorBoundary } from "../components/RowErrorBoundary";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { WordPersonSectionPicker } from "../components/WordPersonSectionPicker";
-import type { WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
+import { WORD_TAB_LABELS, WORD_TAB_ORDER, type WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
 import { numApi, numApiError, authHeaders } from "../helpers/numApiClient";
-import { buildNumerolojiDeleteConfirm } from "../utils/deleteConfirmMessage";
+import { buildNumerolojiDeleteConfirm, buildNumerolojiDeleteConfirmEn } from "../utils/deleteConfirmMessage";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { localizeApiError, type ApiErrorPayload } from "@/lib/i18n/apiError";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+
+// Demo kaydının adı (lib/demo/demoNumeroloji kaydı) — kullanıcı verisi; çevrilmez.
+const DEMO_OPEN_RECORD_NAME = "Hasan YILMAZ";
 
 
 
 export default function NumerolojiListePage() {
   const pathname = usePathname();
+  const t = useTranslations("numerology.app.list");
+  const tPicker = useTranslations("numerology.app.picker");
+  const tApi = useTranslations("common.apiErrors");
+  const tDel = useTranslations("numerology.analysis.deleteConfirm");
+  const locale = useLocale();
+  // Sunucu/yardımcı ayrıntısı: TR'de birebir; diğer dillerde kod eşlemesi ya da genel metin (karışık dil yok).
+  const detailOf = (payload: ApiErrorPayload): string => localizeApiError(tApi, locale, payload);
+  // X-Empty-Tabs başlığı sunucunun Türkçe sekme adlarını taşır → ekran dilinde sekme adına eşlenir.
+  const emptyTabLabel = (label: string): string => {
+    if (locale === DEFAULT_LOCALE) return label;
+    const key = WORD_TAB_ORDER.find((k) => WORD_TAB_LABELS[k] === label);
+    return key ? tPicker(`tabs.${key}`) : label;
+  };
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
   const { isDemo } = useDemoGuard();
@@ -47,21 +66,21 @@ export default function NumerolojiListePage() {
     setLoading(true);
     const tenantId = await resolveNumerolojiTenantId();
     if (!tenantId) {
-      setError("Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.");
+      setError(t("tenantMissing"));
       setRows([]);
       setLoading(false);
       return;
     }
     const { data, error: e } = await listNumerologyAnalyses(tenantId);
     if (e) {
-      setError(`Kayıtlar yüklenemedi: ${e}`);
+      setError(t("loadFailed", { detail: locale === DEFAULT_LOCALE ? e : localizeApiError(tApi, locale, { error: e }) }));
       setRows([]);
     } else {
       setError(null);
       setRows(data ?? []);
     }
     setLoading(false);
-  }, []);
+  }, [t, tApi, locale]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -111,7 +130,7 @@ export default function NumerolojiListePage() {
 
   async function handleBulkDelete() {
     if (isDemo) {
-      showToast({ title: "Demo Modu", message: "Demo hesapta silme işlemi gerçekleştirilemez.", type: "error" });
+      showToast({ title: t("demoTitle"), message: t("demoNoDelete"), type: "error" });
       return;
     }
     if (deleteLoading) return; // çift-tık koruması (modal + buton disable üstüne ek kalkan)
@@ -121,14 +140,16 @@ export default function NumerolojiListePage() {
 
     const tenantId = await resolveNumerolojiTenantId();
     if (!tenantId) {
-      showToast({ title: "Hata", message: MISSING_SESSION_TENANT_MESSAGE, type: "error" });
+      // TR: paylaşımlı sabit birebir (lib/auth/sessionTenant); diğer dillerde aynı anlamın çevirisi.
+      showToast({ title: t("errorTitle"), message: locale === DEFAULT_LOCALE ? MISSING_SESSION_TENANT_MESSAGE : t("tenantMissing"), type: "error" });
       return;
     }
 
     // Silme onayında yalnız adet değil, silinecek kayıt adları da gösterilir.
     const nameById = new Map(rows.map((r) => [r.id, `${r.name} ${r.surname}`]));
     const names = ids.map((id) => nameById.get(id) ?? "").filter((n) => n.trim().length > 0);
-    const { title, message, secondMessage } = buildNumerolojiDeleteConfirm(ids.length, names);
+    const { title, message, secondMessage } =
+      locale === DEFAULT_LOCALE ? buildNumerolojiDeleteConfirm(ids.length, names) : buildNumerolojiDeleteConfirmEn(tDel, ids.length, names);
 
     const confirmed = await deleteConfirm({ title, message, secondMessage, count: ids.length, noun: "analiz" });
     if (!confirmed) return;
@@ -143,7 +164,7 @@ export default function NumerolojiListePage() {
         body: JSON.stringify({ ids }),
       });
     } catch (e) {
-      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${e instanceof Error ? e.message : "Bilinmeyen hata"}`, type: "error" });
+      showToast({ title: t("errorTitle"), message: t("deleteFailed", { detail: e instanceof Error ? e.message : t("unknownError") }), type: "error" });
       return;
     } finally {
       setDeleteLoading(false);
@@ -151,14 +172,14 @@ export default function NumerolojiListePage() {
 
     const err = numApiError(res);
     if (err) {
-      showToast({ title: "Hata", message: `Seçili kayıtlar silinemedi: ${err}`, type: "error" });
+      showToast({ title: t("errorTitle"), message: t("deleteFailed", { detail: locale === DEFAULT_LOCALE ? err : detailOf(res.json as ApiErrorPayload) }), type: "error" });
       return;
     }
 
     const deletedIds = Array.isArray(res.json.ids) ? (res.json.ids as string[]) : ids;
     const deletedCount = typeof res.json.deleted === "number" ? res.json.deleted : deletedIds.length;
     if (deletedCount === 0) {
-      showToast({ title: "Hata", message: "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.", type: "error" });
+      showToast({ title: t("errorTitle"), message: t("deleteNothing"), type: "error" });
       return;
     }
 
@@ -170,17 +191,17 @@ export default function NumerolojiListePage() {
       deletedIdSet.forEach((id) => next.delete(id));
       return next;
     });
-    showToast({ title: "Başarılı", message: `${deletedCount} analiz başarıyla silindi.`, type: "success" });
+    showToast({ title: t("successTitle"), message: t("deleted", { countText: String(deletedCount) }), type: "success" });
   }
 
   async function exportWord(mode: "selected" | "all" | "filtered", sections: WordPersonSections, referenceDate?: string) {
     if (isDemo) {
-      showToast({ title: "Demo Modu", message: "Demo hesapta toplu Word raporu alınamaz.", type: "error" });
+      showToast({ title: t("demoTitle"), message: t("demoNoWord"), type: "error" });
       return;
     }
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
-      showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
+      showToast({ title: t("errorTitle"), message: t("noSession"), type: "error" });
       return;
     }
     setWordBusy(true);
@@ -200,20 +221,20 @@ export default function NumerolojiListePage() {
         body: JSON.stringify({ exportMode: mode === "all" ? "all" : "selected", ids, sections, referenceDate }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        const err = await res.json().catch(() => ({})) as { error?: string; code?: string };
+        showToast({ title: t("errorTitle"), message: locale === DEFAULT_LOCALE ? err.error || t("reportFailed") : localizeApiError(tApi, locale, err, t("reportFailed")), type: "error" });
         return;
       }
       await downloadFileResponse(res, `numeroloji-${mode === "selected" ? "secili" : mode === "filtered" ? "filtreli" : "tumu"}-${reportFileDate()}.docx`);
-      showToast({ title: "Başarılı", message: "Numeroloji raporu indirildi.", type: "success" });
+      showToast({ title: t("successTitle"), message: t("reportDownloaded"), type: "success" });
       setWordPicker(null);
       const emptyRaw = res.headers.get("X-Empty-Tabs");
       const empty = emptyRaw ? decodeURIComponent(emptyRaw).split("|").filter(Boolean) : [];
       if (empty.length > 0) {
-        showToast({ title: "Bilgi", message: `Bazı bölümlerde içerik yoktu ve eklenmedi: ${empty.join(", ")}`, type: "info" });
+        showToast({ title: t("infoTitle"), message: t("emptyTabs", { list: empty.map(emptyTabLabel).join(", ") }), type: "info" });
       }
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("errorTitle"), message: err instanceof Error ? err.message : t("unknownError"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -228,14 +249,14 @@ export default function NumerolojiListePage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.heroArt} src="/premium/numeroloji/liste-hero.webp" width={1324} height={356} alt="" aria-hidden decoding="async" draggable={false} />
           <div className={styles.heroBody}>
-            <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
+            <nav className={styles.heroNav} aria-label={t("pageNavAria")}>
               <Link href="/numeroloji/analiz" className={`${styles.nBtn} ${styles.nPrimary}`}>
                 <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden />
-                Yeni analiz
+                {t("newAnalysis")}
               </Link>
             </nav>
-            <h1 className={styles.title}>Kayıtlı analizler</h1>
-            <p className={styles.sub}>Tüm numeroloji kayıtlarınızı görüntüleyin ve yönetin.</p>
+            <h1 className={styles.title}>{t("title")}</h1>
+            <p className={styles.sub}>{t("sub")}</p>
           </div>
         </header>
 
@@ -245,10 +266,9 @@ export default function NumerolojiListePage() {
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
               <div>
-                <p className="text-sm font-black text-blue-900">Demo Modu — Örnek Analiz Listesi</p>
+                <p className="text-sm font-black text-blue-900">{t("demoBannerTitle")}</p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                  <span className="font-black">Hasan YILMAZ</span> örnek analizi tamamen açıktır ve tüm içeriğe erişilebilir.
-                  Diğer kayıtlar sistemi göstermek için eklenmiştir; analiz içerikleri demo güvenliği nedeniyle flu gösterilir.
+                  {t.rich("demoBannerText", { name: DEMO_OPEN_RECORD_NAME, b: (chunks) => <span className="font-black">{chunks}</span> })}
                 </p>
               </div>
             </div>
@@ -261,11 +281,11 @@ export default function NumerolojiListePage() {
               <Search className={styles.sIcon} width={20} height={20} strokeWidth={2} aria-hidden />
               <input
                 id="noj-liste-ara"
-                aria-label="Ad veya soyad ara"
+                aria-label={t("searchAria")}
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Ad veya soyad ara…"
+                placeholder={t("searchPlaceholder")}
                 autoComplete="off"
               />
             </label>
@@ -295,7 +315,7 @@ export default function NumerolojiListePage() {
 
         {loading ? (
           <div className={styles.notice}>
-            Yükleniyor…
+            {t("loading")}
           </div>
         ) : null}
 
@@ -307,13 +327,13 @@ export default function NumerolojiListePage() {
 
         {!loading && !error && rows.length === 0 ? (
           <div className={styles.notice}>
-            Henüz kayıtlı analiz yok.
+            {t("empty")}
           </div>
         ) : null}
 
         {!loading && !error && rows.length > 0 && displayRows.length === 0 ? (
           <div className={styles.notice}>
-            Aramanızla eşleşen kayıt bulunamadı.
+            {t("noMatch")}
           </div>
         ) : null}
 

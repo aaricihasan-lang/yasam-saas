@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
 import GateClient from "./GateClient";
 
-export const metadata: Metadata = {
-  title: "Numeroloji Merkezi · Yaşam Sistemi",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("numerology.app.gate");
+  return {
+    title: t("metaTitle"),
+    robots: { index: false, follow: false },
+  };
+}
 
 /**
  * Yöntem seçim ekranı. Sunucu bayrağı kapalıysa Klasik Numeroloji yoktur → Bütüncül Numeroloji'ye (/numeroloji)

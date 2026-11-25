@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { numApiErrorCode } from "../../helpers/numApiClient";
 import { ANALIZ_TURU_LABELS } from "../helpers/bilgiBankaLabels";
 import {
   normalizeStoneList,
@@ -13,6 +16,7 @@ import {
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 import { KULVAR_SECTION_TEMPLATE, isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
 import { EMPTY_KULVAR_BODIES, bodiesFromRecord, sectionsFromBodies, type KulvarBodies } from "../helpers/kulvarFormLogic";
 import { useKulvarSources } from "../helpers/useKulvarSources";
@@ -22,11 +26,11 @@ import { KulvarSourceReadonlyList } from "./KulvarSourceReadonlyList";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
-const ANALIZ_TURU_OPTIONS = Object.entries(ANALIZ_TURU_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
+// I18N: seçenek değerleri kanonik analiz türü kodudur; görünen ad numerology.knowledge.shared.analysisTypes.<kod>
+// (TR katalog değerleri ANALIZ_TURU_LABELS ile birebir).
+const ANALIZ_TURU_OPTIONS = Object.keys(ANALIZ_TURU_LABELS).map((value) => ({ value }));
 
+// i18n-ignore: "Ateş | AZ Destek" vb. Bilgi Bankası eşleşme anahtarıdır (DB value); çevrilmez, aynen gösterilir.
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
   `${el} | AZ Destek`,
   `${el} | FAZLA Destek`,
@@ -71,8 +75,25 @@ function kayitTuruBadge(tur: KayitTuru) {
   return "bg-emerald-100 text-emerald-900 ring-emerald-200/80";
 }
 
-function kayitTuruLabel(tur: KayitTuru) {
-  return tur === "aciklama" ? "Açıklama Kaydı" : "Doğaltaş Atama";
+type KbT = ReturnType<typeof useTranslations>;
+
+/** Kayıt türü rozeti: numerology.knowledge.list.recordTypes.<kayitTuru> (TR birebir: "Açıklama Kaydı" / "Doğaltaş Atama"). */
+function kayitTuruLabel(t: KbT, tur: KayitTuru) {
+  return t(`list.recordTypes.${tur}`);
+}
+
+/**
+ * I18N — EN'de sunucu hata ayrıntısı: numApiClient'ın sakladığı dil-bağımsız `code` → katalog
+ * (önce numerology.knowledge.apiErrors, sonra common.apiErrors). Kod yoksa null (çağıran genel metni gösterir).
+ * TR'de kullanılmaz (sunucu metni birebir).
+ */
+function enApiErrorDetail(t: KbT, tApi: KbT, serverText: string): string | null {
+  const code = numApiErrorCode(serverText);
+  if (!code) return null;
+  if (t.has(`apiErrors.${code}`)) return t(`apiErrors.${code}`);
+  if (code === "NETWORK") return tApi("network");
+  if (tApi.has(`codes.${code}`)) return tApi(`codes.${code}`);
+  return null;
 }
 
 function rowToForm(row: BilgiBankaListeSatir): ModalFormState {
@@ -134,6 +155,14 @@ export function KayitDetayModal({
 }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("numerology.knowledge");
+  const tApi = useTranslations("common.apiErrors");
+  // I18N: TR'de satır etiketi / sunucu metni birebir; EN'de katalog.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
+  const turGoster = (key: string, fallback: string): string =>
+    isSourceLocale ? fallback : t.has(`shared.analysisTypes.${key}`) ? t(`shared.analysisTypes.${key}`) : fallback;
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<ModalFormState>(() => rowToForm(row));
   const [baseline, setBaseline] = useState(() => formSnapshot(row, rowToForm(row)));
@@ -148,16 +177,16 @@ export function KayitDetayModal({
   const requestClose = useCallback(async () => {
     if (dirty) {
       const ok = await confirm({
-        title: "Kapat",
-        message: "Kaydedilmemiş değişiklikler var. Kapatmak istediğinize emin misiniz?",
+        title: t("detail.close"),
+        message: t("detail.unsavedMessage"),
         tone: "warning",
-        confirmText: "Kapat",
-        cancelText: "Vazgeç",
+        confirmText: t("detail.close"),
+        cancelText: t("shared.cancel"),
       });
       if (!ok) return;
     }
     onClose();
-  }, [dirty, confirm, onClose]);
+  }, [dirty, confirm, onClose, t]);
 
   // Kayıt değişince formu tazele + modal body'yi en üste al.
   useEffect(() => {
@@ -201,9 +230,9 @@ export function KayitDetayModal({
     if (isCakraOmurga(form.analizTuruKey)) {
       return (
         <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
-          <option value="">Seçiniz...</option>
+          <option value="">{t("form.selectPlaceholder")}</option>
           {CHAKRA_VALUE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>{kbView(opt)}</option>
           ))}
         </select>
       );
@@ -211,9 +240,9 @@ export function KayitDetayModal({
     if (isElement(form.analizTuruKey)) {
       return (
         <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
-          <option value="">Seçiniz...</option>
+          <option value="">{t("form.selectPlaceholder")}</option>
           {ELEMENT_DEGER_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>{kbView(opt)}</option>
           ))}
         </select>
       );
@@ -224,7 +253,7 @@ export function KayitDetayModal({
         type="text"
         value={form.deger}
         onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))}
-        placeholder="Örn. 19, 11, 33/6, 22…"
+        placeholder={t("form.valuePlaceholder")}
         className={modalInputClass}
       />
     );
@@ -232,11 +261,11 @@ export function KayitDetayModal({
 
   async function handleKaydet() {
     if (!form.analizTuruKey) {
-      showToast({ message: "Analiz türü seçin.", type: "warning" });
+      showToast({ message: t("form.chooseAnalysisType"), type: "warning" });
       return;
     }
     if (!form.deger.trim()) {
-      showToast({ message: "Değer alanını doldurun.", type: "warning" });
+      showToast({ message: t("form.fillValue"), type: "warning" });
       return;
     }
 
@@ -271,11 +300,12 @@ export function KayitDetayModal({
     setKaydediliyor(false);
 
     if (error) {
-      showToast({ message: `Kayıt güncellenemedi: ${error}`, type: "error" });
+      const detail = isSourceLocale ? error : enApiErrorDetail(t, tApi, error);
+      showToast({ message: detail ? t("detail.updateFailed", { error: detail }) : t("detail.updateFailedGeneric"), type: "error" });
       return;
     }
 
-    showToast({ message: "Kayıt güncellendi", type: "success" });
+    showToast({ message: t("detail.updated"), type: "success" });
     setEditMode(false);
     setBaseline(formSnapshot(row, form));
     await onSaved();
@@ -293,7 +323,7 @@ export function KayitDetayModal({
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
-        aria-label="Kapat"
+        aria-label={t("detail.close")}
         onClick={() => void requestClose()}
       />
       <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[1000px] flex-col overflow-hidden rounded-2xl border-2 border-violet-200/80 bg-white shadow-2xl ring-1 ring-purple-200">
@@ -301,16 +331,16 @@ export function KayitDetayModal({
         <div className="shrink-0 border-b border-violet-100/90 bg-gradient-to-r from-violet-50/95 via-white to-indigo-50/80 px-5 py-4 sm:px-7">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700/80">Bilgi bankası</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-700/80">{t("detail.eyebrow")}</p>
               <h2 id="bilgi-detay-baslik" className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">
-                Kayıt detayı
+                {t("detail.title")}
               </h2>
               <span className={`mt-2 inline-block rounded-lg px-3 py-1 text-xs font-bold ring-1 ${kayitTuruBadge(row.kayitTuru)}`}>
-                {kayitTuruLabel(row.kayitTuru)}
+                {kayitTuruLabel(t, row.kayitTuru)}
               </span>
             </div>
             <button type="button" onClick={() => void requestClose()} className={modalCloseBtn}>
-              Kapat
+              {t("detail.close")}
             </button>
           </div>
         </div>
@@ -319,34 +349,34 @@ export function KayitDetayModal({
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6">
           <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
             <div>
-              <label htmlFor="detay-analiz-turu" className={modalLabelClass}>Analiz türü</label>
+              <label htmlFor="detay-analiz-turu" className={modalLabelClass}>{t("detail.analysisType")}</label>
               {editMode ? (
                 <select id="detay-analiz-turu" value={form.analizTuruKey} onChange={(e) => handleAnalizChange(e.target.value)} className={modalSelectClass}>
                   {ANALIZ_TURU_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    <option key={opt.value} value={opt.value}>{t(`shared.analysisTypes.${opt.value}`)}</option>
                   ))}
                 </select>
               ) : (
-                <div className={modalReadonlyClass}>{row.analizTuru}</div>
+                <div className={modalReadonlyClass}>{turGoster(row.analizTuruKey, row.analizTuru)}</div>
               )}
             </div>
 
             <div>
-              <label htmlFor="detay-deger" className={modalLabelClass}>Değer</label>
+              <label htmlFor="detay-deger" className={modalLabelClass}>{t("detail.value")}</label>
               {renderDegerField(!editMode)}
             </div>
 
             {row.kayitTuru === "aciklama" ? (
               <>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-kaynak" className={modalLabelClass}>Bilgi kaynağı</label>
+                  <label htmlFor="detay-kaynak" className={modalLabelClass}>{t("detail.source")}</label>
                   {editMode ? (
                     <input
                       id="detay-kaynak"
                       type="text"
                       value={form.source}
                       onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
-                      placeholder="Örn. Eğitim notu, kitap, uzman yorumu…"
+                      placeholder={t("form.sourcePlaceholder")}
                       className={modalInputClass}
                     />
                   ) : (
@@ -355,7 +385,7 @@ export function KayitDetayModal({
                 </div>
                 {isKulvarAnalysisType(form.analizTuruKey) ? (
                   <div className="lg:col-span-2">
-                    <label className={modalLabelClass}>Yapılandırılmış bölümler</label>
+                    <label className={modalLabelClass}>{t("form.structuredSections")}</label>
                     {editMode ? (
                       <KulvarSectionEditor
                         bodies={form.kulvarBodies}
@@ -365,12 +395,13 @@ export function KayitDetayModal({
                         disabled={kaydediliyor}
                         idPrefix="detay-kulvar"
                       />
-                    ) : KULVAR_SECTION_TEMPLATE.some((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "") ? (
+                    ) : KULVAR_SECTION_TEMPLATE.some((s) => (form.kulvarBodies[s.key] ?? "").trim() !== "") ? (
                       <div className="grid gap-3">
-                        {KULVAR_SECTION_TEMPLATE.filter((t) => (form.kulvarBodies[t.key] ?? "").trim() !== "").map((t) => (
-                          <div key={t.key} className="min-w-0">
-                            <p className="text-sm font-black text-violet-800">{t.label}</p>
-                            <div className={modalSectionViewClass}>{form.kulvarBodies[t.key]}</div>
+                        {KULVAR_SECTION_TEMPLATE.filter((s) => (form.kulvarBodies[s.key] ?? "").trim() !== "").map((s) => (
+                          <div key={s.key} className="min-w-0">
+                            {/* I18N: bölüm etiketi kanonik şablondur; TR'de şablon etiketi aynen, EN'de shared.sectionLabels.<key>. */}
+                            <p className="text-sm font-black text-violet-800">{isSourceLocale ? s.label : t(`shared.sectionLabels.${s.key}`)}</p>
+                            <div className={modalSectionViewClass}>{form.kulvarBodies[s.key]}</div>
                           </div>
                         ))}
                       </div>
@@ -380,14 +411,14 @@ export function KayitDetayModal({
                   </div>
                 ) : (
                   <div className="lg:col-span-2">
-                    <label htmlFor="detay-aciklama" className={modalLabelClass}>Açıklama metni</label>
+                    <label htmlFor="detay-aciklama" className={modalLabelClass}>{t("detail.description")}</label>
                     {editMode ? (
                       <textarea
                         id="detay-aciklama"
                         value={form.description}
                         onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                         rows={8}
-                        placeholder="Numeroloji açıklama ve yorum metnini buraya yazın…"
+                        placeholder={t("detail.descriptionPlaceholder")}
                         className={modalTextareaClass}
                       />
                     ) : (
@@ -397,7 +428,7 @@ export function KayitDetayModal({
                 )}
                 {isKulvarAnalysisType(form.analizTuruKey) ? (
                   <div className="lg:col-span-2">
-                    <label className={modalLabelClass}>Kaynaklar</label>
+                    <label className={modalLabelClass}>{t("form.sources")}</label>
                     {editMode ? (
                       <KulvarSourceManager
                         recordId={row.recordId}
@@ -416,14 +447,14 @@ export function KayitDetayModal({
             ) : (
               <>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-oneri" className={modalLabelClass}>Öneri açıklaması</label>
+                  <label htmlFor="detay-oneri" className={modalLabelClass}>{t("detail.reason")}</label>
                   {editMode ? (
                     <textarea
                       id="detay-oneri"
                       value={form.reason}
                       onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
                       rows={5}
-                      placeholder="Doğaltaş öneri ve kullanım açıklaması…"
+                      placeholder={t("detail.reasonPlaceholder")}
                       className={modalTextareaClass}
                     />
                   ) : (
@@ -431,7 +462,7 @@ export function KayitDetayModal({
                   )}
                 </div>
                 <div className="lg:col-span-2">
-                  <label htmlFor="detay-taslar" className={modalLabelClass}>Taş listesi</label>
+                  <label htmlFor="detay-taslar" className={modalLabelClass}>{t("detail.stones")}</label>
                   {editMode ? (
                     <>
                       <textarea
@@ -439,10 +470,10 @@ export function KayitDetayModal({
                         value={form.stonesText}
                         onChange={(e) => setForm((p) => ({ ...p, stonesText: e.target.value }))}
                         rows={6}
-                        placeholder="Her satıra bir taş veya virgülle ayırarak yazın…"
+                        placeholder={t("detail.stonesPlaceholder")}
                         className={modalTextareaClass}
                       />
-                      <p className="mt-1.5 text-xs font-medium text-slate-500">Virgül, nokta veya satır sonu ile ayırabilirsiniz.</p>
+                      <p className="mt-1.5 text-xs font-medium text-slate-500">{t("detail.stonesHint")}</p>
                     </>
                   ) : form.stonesText.trim() ? (
                     <ul className="mt-1.5 space-y-1.5 rounded-xl border-2 border-emerald-100/80 bg-emerald-50/50 p-4">
@@ -464,16 +495,16 @@ export function KayitDetayModal({
           <div>
             {editMode ? (
               <button type="button" disabled={kaydediliyor} onClick={() => void handleKaydet()} className={modalPrimaryBtn}>
-                {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
+                {kaydediliyor ? t("shared.saving") : t("shared.save")}
               </button>
             ) : (
               <button type="button" onClick={() => setEditMode(true)} className={modalPrimaryBtn}>
-                Güncelle
+                {t("detail.edit")}
               </button>
             )}
           </div>
           <button type="button" onClick={() => void requestClose()} className={modalSecondaryBtn}>
-            Kapat
+            {t("detail.close")}
           </button>
         </div>
       </div>

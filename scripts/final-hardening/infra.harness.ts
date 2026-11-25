@@ -618,6 +618,8 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
   // ── 9) Gelecek zaman metinleri ────────────────────────────────────────────
   await t("gelecek zaman metinleri düzeltildi", () => {
     assert.ok(!read("app/numeroloji/bilgi-bankasi/page.tsx").includes("yönetilecek"));
+    // I18N (numerology.knowledge): Bilgi Bankası alt başlığı TR kataloğuna taşındı; niyet (gelecek zaman yok) orada da korunur.
+    assert.ok(!read("messages/tr/numerology.knowledge.json").includes("yönetilecek"));
     assert.ok(!read("messages/tr/clients.analizler.json").includes("toplanacak"));
     assert.ok(!read("messages/tr/clients.memory.json").includes("yakında (Paket 2)"));
   });

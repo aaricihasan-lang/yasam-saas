@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import type { HarfYankilanisiSegment, NumerolojiResult } from "@/lib/numeroloji";
 import { ELEMENT_ORDER, type ElementName } from "@/lib/numeroloji";
 import {
@@ -15,20 +17,44 @@ import {
   type StoneAssignmentForAnalysis,
 } from "../bilgi-bankasi/helpers/stoneLookup";
 import { useStoneStock } from "../bilgi-bankasi/helpers/useStoneStock";
-import { matchStock, stockLabel, STOCK_HINT, type StockIndex } from "../bilgi-bankasi/helpers/stoneStockLogic";
+import { matchStock, stockLabel, STOCK_HINT, type StockIndex, type StockInfo } from "../bilgi-bankasi/helpers/stoneStockLogic";
 
 const STONE_TYPE_CAKRA = "cakra-omurga";
 const STONE_TYPE_ELEMENT = "element";
 
 // "Taş Notlarım" sekmesinde gösterilecek tüm taş bölümleri (Doğaltaş Ata türleriyle bire bir).
-const STONE_SECTION_ORDER: { key: string; title: string }[] = [
-  { key: "ana-kulvar", title: "Ana Kulvar Taş Destekleri" },
-  { key: "yan-kulvar", title: "Yan Kulvar Taş Destekleri" },
-  { key: "ifade-sayisi", title: "İfade Sayısı Taş Destekleri" },
-  { key: "hayat-yolu", title: "Hayat Yolu Taş Destekleri" },
-  { key: STONE_TYPE_CAKRA, title: "Çakra Omurgası Taş Destekleri" },
-  { key: STONE_TYPE_ELEMENT, title: "Element Taş Destekleri" },
+// I18N: `key` kanonik tür kodu (filtre bununla); başlık yalnız gösterim → katalog anahtarı.
+const STONE_SECTION_ORDER: { key: string; titleKey: string }[] = [
+  { key: "ana-kulvar", titleKey: "anaKulvar" },
+  { key: "yan-kulvar", titleKey: "yanKulvar" },
+  { key: "ifade-sayisi", titleKey: "ifadeSayisi" },
+  { key: "hayat-yolu", titleKey: "hayatYolu" },
+  { key: STONE_TYPE_CAKRA, titleKey: "cakraOmurgasi" },
+  { key: STONE_TYPE_ELEMENT, titleKey: "element" },
 ];
+
+type TabsT = ReturnType<typeof useTranslations>;
+
+/** I18N: kanonik element adı (veri/karşılaştırma) → yalnız gösterim için katalog anahtarı. */
+const ELEMENT_KEY: Record<ElementName, "air" | "water" | "fire" | "earth"> = {
+  Hava: "air",
+  Su: "water",
+  Ateş: "fire",
+  Toprak: "earth",
+};
+
+/** "10. Çakra" — TR'de önceki düğüm yapısı korunur (sayı + metin ayrı metin düğümü). */
+function CakraNo({ n }: { n: number }) {
+  const t = useTranslations("numerology.result.tabs");
+  return <>{t.rich("chakraNo", { n: () => n })}</>;
+}
+
+/** Stok rozeti: TR'de yardımcı metin birebir; EN'de yapısal alandan (stocked/adet) katalog. */
+function stockLabelFor(info: StockInfo, isSourceLocale: boolean, t: TabsT): string {
+  if (isSourceLocale) return stockLabel(info);
+  if (!info.stocked) return "";
+  return info.adet > 0 ? t("stockCount", { n: String(info.adet) }) : t("inStock");
+}
 import {
   buildPlainAnalizFull,
   degisimBoundedText,
@@ -55,8 +81,6 @@ import {
   alternativeChakraExclusionNote,
   type AlternativeChakraColumn,
 } from "@/lib/numeroloji/alternativeChakra";
-
-const OZET_VERI_YOK = "Bu bölüm için veri üretilemedi.";
 
 // NUM-MOB-2: Mobil (0–767px) KUTUSUZ / tam genişlik doküman görünümü; md+ (768px+) mevcut
 // kart tasarımı KORUNUR. Dinamik typography padding değerlerinin (boxPadding + infoBoxPadding,
@@ -91,17 +115,18 @@ function OzetRow({ label, value }: { label: string; value: string }) {
 // kayıt güncellemez, yeniden hesap tetiklemez, resmî Çakra Omurgası'na/Word'e karışmaz.
 // Aynı anda tek panel açık; aynı düğmeye tekrar basınca kapanır.
 function KulvarAltKombinasyonlar({ out }: { out: NumerolojiMotorOut }) {
+  const t = useTranslations("numerology.result.tabs");
   const [acik, setAcik] = useState<string | null>(null);
   const rows = [
-    { kind: "ana" as const, label: "Ana Kulvar", cols: alternativeChakraColumns(out, "ana") },
-    { kind: "yan" as const, label: "Yan Kulvar", cols: alternativeChakraColumns(out, "yan") },
+    { kind: "ana" as const, label: t("labels.anaKulvar"), cols: alternativeChakraColumns(out, "ana") },
+    { kind: "yan" as const, label: t("labels.yanKulvar"), cols: alternativeChakraColumns(out, "yan") },
   ].filter((r) => r.cols.length > 0);
   if (!rows.length) return null;
   return (
     <section className="min-w-0 rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/60 to-white p-3 shadow-sm ring-1 ring-violet-100/50">
-      <p className="text-[11px] font-black uppercase tracking-wider text-violet-600/90">Farklı özel sayı kombinasyonları</p>
+      <p className="text-[11px] font-black uppercase tracking-wider text-violet-600/90">{t("alt.title")}</p>
       <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-        Ana sonuç değişmez. Aynı harf değerleri farklı gruplandığında ortaya çıkan özel sayı okumalarıdır (uzman hatırlatması).
+        {t("alt.lead")}
       </p>
       <div className="mt-2 space-y-2">
         {rows.map((r) => {
@@ -134,7 +159,7 @@ function KulvarAltKombinasyonlar({ out }: { out: NumerolojiMotorOut }) {
                               : "border-violet-100 text-violet-600 hover:bg-violet-50"
                           }`}
                         >
-                          Çakra Sütunu
+                          {t("alt.chakraColumn")}
                           <span aria-hidden className={`inline-block text-[9px] transition-transform ${secili ? "rotate-180" : ""}`}>
                             ▾
                           </span>
@@ -163,6 +188,7 @@ function destekMetni(list: readonly number[]): string {
 
 /** Sayılar hücresi: sabit (resmî/kayıttaki) katkılar soluk, alternatif katkılar halkalı ve belirgin. */
 function AltSayiDaireleri({ sabit, alternatif, hex }: { sabit: number; alternatif: number; hex: string }) {
+  const t = useTranslations("numerology.result.tabs");
   if (sabit + alternatif === 0) {
     return (
       <div className="flex min-h-[1.25rem] min-w-0 flex-1 flex-wrap content-center justify-end gap-1.5">
@@ -184,7 +210,7 @@ function AltSayiDaireleri({ sabit, alternatif, hex }: { sabit: number; alternati
         <span
           key={`a${i}`}
           data-tur="alternatif"
-          title="Alternatif kombinasyon katkısı"
+          title={t("alt.dotTitle")}
           className="h-3 w-3 shrink-0 rounded-full ring-2 ring-violet-600 ring-offset-1 ring-offset-white"
           style={{ backgroundColor: hex }}
         />
@@ -194,73 +220,73 @@ function AltSayiDaireleri({ sabit, alternatif, hex }: { sabit: number; alternati
 }
 
 function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
+  const t = useTranslations("numerology.result.tabs");
   const ana = col.kind === "ana";
-  const altEtiket = ana ? "alternatif Ana Kulvar" : "alternatif Yan Kulvar";
+  const altEtiket = ana ? t("alt.altAnaLower") : t("alt.altYanLower");
   return (
     <div
       id={altCakraPanelId(col)}
       role="region"
-      aria-label={`${col.path} çakra sütunu`}
+      aria-label={t("alt.panelAria", { path: col.path })}
       data-testid="alt-cakra-panel"
       className="mt-2 min-w-0 rounded-xl border border-violet-200/70 bg-white/90 p-2.5 shadow-sm"
     >
       <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">
-        {ana ? "Alternatif Ana Kulvar Çakra Sütunu" : "Alternatif Yan Kulvar — Karşılaştırmalı Çakra Sütunu"} · {col.path}
+        {ana ? t("alt.panelTitleAna") : t("alt.panelTitleYan")} · {col.path}
       </p>
       {!ana ? (
         <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
-          Resmî Çakra Omurgası&apos;nın sabit katkıları korunmuştur. Alternatif Yan Kulvar destekleri karşılaştırma amacıyla ayrıca
-          gösterilmektedir. Resmî analiz değişmez.
+          {t("alt.yanNote")}
         </p>
       ) : null}
       <dl className="mt-1 space-y-0.5 text-[11px] leading-snug text-slate-600">
         <div className="flex flex-wrap gap-x-1">
-          <dt className="font-semibold text-violet-800">{ana ? "Bu kombinasyonun katkısı:" : "Alternatif Yan Kulvar katkısı:"}</dt>
+          <dt className="font-semibold text-violet-800">{ana ? t("alt.thisContrib") : t("alt.altYanContrib")}</dt>
           <dd>{destekMetni(col.altSupports)}</dd>
         </div>
         {col.fixed ? (
           <div className="flex flex-wrap gap-x-1">
-            <dt className="font-semibold text-slate-700">{ana ? "Sabit katkılar:" : "Sabit resmî katkılar:"}</dt>
+            <dt className="font-semibold text-slate-700">{ana ? t("alt.fixedContribs") : t("alt.fixedOfficialContribs")}</dt>
             <dd>
-              Hayat Yolu {destekMetni(col.fixed.hayatYolu)} · PİN {destekMetni(col.fixed.pin)}
-              {!ana && col.fixed.anaKulvar ? <> · Resmî Ana Kulvar {destekMetni(col.fixed.anaKulvar)}</> : null}
+              {t("alt.fixedLine", { hy: destekMetni(col.fixed.hayatYolu), pin: destekMetni(col.fixed.pin) })}
+              {!ana && col.fixed.anaKulvar ? <>{t("alt.fixedOfficialAna", { v: destekMetni(col.fixed.anaKulvar) })}</> : null}
             </dd>
           </div>
         ) : null}
         {ana ? (
           <div className="flex flex-wrap gap-x-1">
-            <dt className="font-semibold text-slate-700">Yerine geçtiği resmî Ana Kulvar katkısı:</dt>
+            <dt className="font-semibold text-slate-700">{t("alt.replacedOfficial")}</dt>
             <dd>{destekMetni(col.officialAnaSupports ?? [])}</dd>
           </div>
         ) : null}
       </dl>
       {col.ozelSayilar.length > 1 ? (
         <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-          Bu yolda {col.ozelSayilar.length} özel sayı var ({col.ozelSayilar.join(", ")}); 10. çakraya tek destek verilir.
+          {t("alt.multiSpecial", { n: String(col.ozelSayilar.length), list: col.ozelSayilar.join(", ") })}
         </p>
       ) : null}
       {col.variantCount > 1 ? (
         <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-          Bu sonuç {col.variantCount} farklı gruplamayla oluşur; katkısı bir kez sayılır.
+          {t("alt.variants", { n: String(col.variantCount) })}
         </p>
       ) : null}
       <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500" data-testid="alt-cakra-lejant">
         <span className="inline-flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400 opacity-50" aria-hidden />
-          {ana ? "Sabit katkı (Hayat Yolu + PİN)" : "Sabit resmî katkı"}
+          {ana ? t("alt.legendFixedAna") : t("alt.legendFixedYan")}
         </span>
         <span className="inline-flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500 ring-2 ring-violet-600 ring-offset-1" aria-hidden />
-          {ana ? "Alternatif Ana Kulvar katkısı" : "Alternatif Yan Kulvar katkısı"}
+          {ana ? t("alt.legendAltAna") : t("alt.legendAltYan")}
         </span>
-        <span>Alt. = alternatif katkı adedi (0: bu çakraya alternatif katkı yok)</span>
+        <span>{t("alt.legendAltCount")}</span>
       </p>
       <div className="mx-auto mt-1.5 w-full max-w-md">
         <div className="flex items-center justify-between gap-2 px-0.5 pb-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-          <span className="flex-1 text-right">Sayılar</span>
-          <span className="w-7 shrink-0 text-center">Alt.</span>
-          <span className="w-14 shrink-0 text-center">Çakra</span>
-          <span className="flex-1">Harfler</span>
+          <span className="flex-1 text-right">{t("alt.colNumbers")}</span>
+          <span className="w-7 shrink-0 text-center">{t("alt.colAlt")}</span>
+          <span className="w-14 shrink-0 text-center">{t("alt.colChakra")}</span>
+          <span className="flex-1">{t("alt.colLetters")}</span>
         </div>
         <div className="space-y-0.5">
           {CAKRA_TABLO_SIRA.map((cNo) => {
@@ -280,11 +306,11 @@ function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
                 <AltSayiDaireleri sabit={sabit} alternatif={alt} hex={hex} />
                 <span
                   className={`w-7 shrink-0 text-center text-[10px] font-black ${alt > 0 ? "rounded bg-violet-100 text-violet-800" : "text-slate-300"}`}
-                  aria-label={alt > 0 ? `${altEtiket} katkısı ${alt}` : `${altEtiket} katkısı yok`}
+                  aria-label={alt > 0 ? t("alt.contribAria", { label: altEtiket, n: String(alt) }) : t("alt.noContribAria", { label: altEtiket })}
                 >
                   {alt > 0 ? `+${alt}` : "0"}
                 </span>
-                <span className="w-14 shrink-0 text-center text-[10px] font-black tracking-wide text-slate-700">{cNo}. Çakra</span>
+                <span className="w-14 shrink-0 text-center text-[10px] font-black tracking-wide text-slate-700"><CakraNo n={cNo} /></span>
                 {col.harfler ? (
                   <CakraEnerjiDaireleri count={col.harfler[cNo] ?? 0} hex={hex} tone="aktif" align="right" />
                 ) : (
@@ -306,18 +332,19 @@ function AltCakraSutunuPanel({ col }: { col: AlternativeChakraColumn }) {
 // Numeric path TEKİL; altında onu oluşturan TÜM gerçek yollar ("Oluşabilecek yollar").
 // Yalnız kısa köken (ör. "3+8 → 11"); YENİ numeroloji yorumu DEĞİL.
 function KulvarAltKombinasyonlarDetay({ r }: { r: NumerolojiResult }) {
+  const t = useTranslations("numerology.result.tabs");
   const items = kulvarAlternativeProvenance(r);
   if (!items.length) return null;
   return (
     <div className="mt-3 border-t border-violet-100 pt-3">
-      <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">Farklı özel sayı kombinasyonları</p>
-      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">Ana sonuç değişmez; alternatif özel sayı gruplamaları (uzman hatırlatması).</p>
+      <p className="text-[11px] font-black uppercase tracking-wide text-violet-700/90">{t("alt.title")}</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{t("alt.leadShort")}</p>
       <div className="mt-2 space-y-2">
         {items.map((it) => (
           <div key={it.path} className="rounded-lg border border-violet-100 bg-violet-50/40 px-2.5 py-1.5">
             <p className="text-sm font-black text-violet-900">{it.path}</p>
             {it.variants.length > 1 ? (
-              <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-600/70">Oluşabilecek yollar</p>
+              <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-600/70">{t("alt.possiblePaths")}</p>
             ) : null}
             <div className="mt-0.5 space-y-1.5">
               {it.variants.map((v, vi) => (
@@ -347,8 +374,9 @@ function OzetSectionCard({ title, children }: { title: string; children: ReactNo
 
 function OzetMetinPre({ text }: { text: string | undefined | null }) {
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   const metin = (text || "").trim();
-  if (!metin) return <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>;
+  if (!metin) return <p className={`${typo.body} text-slate-600`}>{t("noData")}</p>;
   return <pre className={`whitespace-pre-wrap ${typo.pre} text-slate-800`}>{text}</pre>;
 }
 
@@ -425,10 +453,11 @@ function CakraEnerjiDaireleri({
 
 export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
   // NUM-MOB-2-FIX1: mobilde dış kart yok (yalnız başlık + gösterge satırları); md+ kart korunur.
+  const t = useTranslations("numerology.result.tabs");
   return (
     <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-violet-200/70 md:bg-white/85 md:p-3 md:shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       <div className="flex flex-wrap items-center gap-1.5">
-        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Çakra Sütunu & Çakra Omurgası</h3>
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">{t("titles.cakraTable")}</h3>
       </div>
       <div className="mt-2 space-y-0.5">
         {CAKRA_TABLO_SIRA.map((cNo) => {
@@ -442,7 +471,7 @@ export function CakraOmurgasiTablo({ out }: { out: NumerolojiMotorOut }) {
             >
               <CakraEnerjiDaireleri count={sol} hex={hex} tone="pasif" align="left" />
               <span className="shrink-0 px-1 text-center text-[10px] font-black tracking-wide text-slate-700">
-                {cNo}. Çakra
+                <CakraNo n={cNo} />
               </span>
               <CakraEnerjiDaireleri count={sag > 0 ? sag : 0} hex={hex} tone="aktif" align="right" />
             </div>
@@ -465,8 +494,10 @@ const HARF_KART_TINT: Record<number, string> = {
   9: "border-violet-200/70 bg-gradient-to-b from-violet-50/95 to-violet-100/70 hover:from-violet-100 hover:to-violet-50/90 hover:shadow-violet-200/50",
 };
 
-function harfYasMetni(ageStart: number, ageEnd: number): string {
-  return ageStart === ageEnd ? `${ageStart} yaş` : `${ageStart}–${ageEnd} yaş`;
+function harfYasMetni(t: TabsT, ageStart: number, ageEnd: number): string {
+  return ageStart === ageEnd
+    ? t("ageSingle", { age: String(ageStart) })
+    : t("ageRange", { start: String(ageStart), end: String(ageEnd) });
 }
 
 function harfYilMetni(yearStart?: number, yearEnd?: number): string | null {
@@ -485,15 +516,16 @@ function HarflerBuyukPanel({ segments, currentYear }: { segments: HarfCutoffSegm
   // NUM-MOB-2-FIX1: mobilde dış kart yok (yalnız başlık + harf hücre ızgarası); md+ kart korunur.
   // OWNER: başlangıç yılı ≤ currentYear olan segmentler ORİJİNAL (tam) aralıkla; gelecekte
   // başlayanlar gizli. Kırpma / "gösterilen bölüm" YOK. Ana sonuç/canonical değişmez.
+  const t = useTranslations("numerology.result.tabs");
   return (
     <section className="col-span-full min-w-0 w-full md:rounded-[14px] md:border md:border-amber-300/35 md:bg-white/80 md:p-3 md:shadow-[0_0_12px_rgba(245,158,11,0.07)] md:backdrop-blur-xl">
       <div className="flex flex-wrap items-center gap-1.5">
-        <h3 className="text-xs font-black uppercase tracking-wider text-violet-600">Harflerin Yankılanışı</h3>
+        <h3 className="text-xs font-black uppercase tracking-wider text-violet-600">{t("titles.harf")}</h3>
       </div>
       <div className="mt-2 grid w-full min-w-0 grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
         {segments.length === 0 ? (
           <p className="col-span-full py-3 text-center text-xs font-medium text-slate-600">
-            Harf dönemi hesaplanamadı.
+            {t("harfNone")}
           </p>
         ) : (
           segments.map((seg, idx) => {
@@ -507,13 +539,13 @@ function HarflerBuyukPanel({ segments, currentYear }: { segments: HarfCutoffSegm
               >
                 {aktif ? (
                   <span className="absolute -top-1.5 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-1.5 py-px text-center text-[8px] font-black tracking-wide text-white shadow-sm">
-                    Aktif
+                    {t("active")}
                   </span>
                 ) : null}
                 <span className="w-full text-lg font-black leading-none text-slate-900">{seg.letter}</span>
                 <span className="mt-0.5 w-full text-sm font-black tabular-nums text-violet-700">{seg.chakra}</span>
                 <span className="mt-0.5 w-full whitespace-nowrap text-[9px] font-medium leading-3 text-slate-600">
-                  {harfYasMetni(seg.ageStart, harfDisplayAgeEnd(seg))}
+                  {harfYasMetni(t, seg.ageStart, harfDisplayAgeEnd(seg))}
                 </span>
                 {yilMetin ? (
                   <span className="mt-0.5 w-full whitespace-nowrap text-[9px] font-medium leading-3 tabular-nums text-slate-500">
@@ -596,6 +628,7 @@ function TabSonucOzetiPremium({
   lastName?: string;
 }) {
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   // limitYear: gösterim sınırı (yetki KAPALI → currentYear). currentYear: "Aktif" vurgusu.
   const { currentYear, limitYear } = useChronoView();
   const el = out.elementler.counts;
@@ -603,10 +636,10 @@ function TabSonucOzetiPremium({
 
   // NUM-MOB-2-FIX1: tint yalnız md+ (mobilde kutu/bg yok). md:* literalleri Tailwind JIT için burada.
   const ustKartlar = [
-    { title: "Ana Kulvar", value: formatKulvarSummaryDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
-    { title: "Yan Kulvar", value: formatKulvarSummaryDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
-    { title: "İfade Sayısı", value: nrDisplay(out.ifadeSayisi), tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
-    { title: "Hayat Yolu / DM", value: nrDisplay(out.hayatYolu), tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
+    { title: t("labels.anaKulvar"), value: formatKulvarSummaryDisplay(out.anaKulvar), tint: "md:bg-gradient-to-br md:from-violet-50/80 md:to-white/90", icon: "♔", gold: false },
+    { title: t("labels.yanKulvar"), value: formatKulvarSummaryDisplay(out.yanKulvar), tint: "md:bg-gradient-to-br md:from-indigo-50/80 md:to-white/90", icon: "⚖", gold: false },
+    { title: t("labels.ifadeSayisi"), value: nrDisplay(out.ifadeSayisi), tint: "md:bg-gradient-to-br md:from-fuchsia-50/80 md:to-white/90", icon: "✦", gold: false },
+    { title: t("labels.hayatYoluDm"), value: nrDisplay(out.hayatYolu), tint: "md:bg-gradient-to-br md:from-amber-50/90 md:to-white/90", icon: "☤", gold: true },
   ];
 
   return (
@@ -619,9 +652,9 @@ function TabSonucOzetiPremium({
           </svg>
         </div>
         <div className="relative max-w-[calc(100%-3rem)]">
-          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-violet-500">Numerolojik sonuç özeti</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-violet-500">{t("summaryEyebrow")}</p>
           <p className="mt-1 text-xl font-black text-slate-950">{isimGoster}</p>
-          <p className="mt-0.5 text-xs font-medium text-slate-500">Doğum: {dogumGoster}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-500">{t("birthPrefix")}{dogumGoster}</p>
         </div>
       </div>
 
@@ -653,13 +686,13 @@ function TabSonucOzetiPremium({
 
         <section className={`min-w-0 w-full md:border md:border-violet-200/70 md:bg-white/85 md:shadow-[0_0_10px_rgba(139,92,246,0.06)] ${mdPad(typo.boxPadding)}`}>
           <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Elementler</h3>
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">{t("labels.elementler")}</h3>
           </div>
           <div className="mt-2 w-full min-w-0 space-y-2">
             {ELEMENT_ORDER.map((name) => (
               <div key={name} className="min-w-0 w-full">
                 <div className="mb-1 flex w-full min-w-0 justify-between gap-3 text-xs font-black tracking-wide text-slate-700">
-                  <span className="min-w-0">{name}</span>
+                  <span className="min-w-0">{t(`elements.${ELEMENT_KEY[name]}`)}</span>
                   <span>{el[name]}</span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -697,8 +730,9 @@ export function TabSonucOzeti({
   // Hook'lar erken return'den ÖNCE, koşulsuz çağrılır (rules-of-hooks). Premium dalı
   // kendi hook'larını kullanan TabSonucOzetiPremium'a devreder.
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   // Gösterim sınırı: yetki KAPALI → currentYear (önceki davranış); AÇIK → tüm dönemler.
-  const { limitYear } = useChronoView();
+  const { limitYear, recordBirthDate } = useChronoView();
 
   if (layout === "premium") {
     return (
@@ -724,22 +758,22 @@ export function TabSonucOzeti({
   return (
     <div className="space-y-3">
       <div className={`rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50/95 via-white to-amber-50/25 shadow-sm ring-1 ring-violet-100/50 ${typo.boxPadding}`}>
-        <p className={`${typo.sectionTitle} text-violet-700/90`}>Numerolojik sonuç özeti</p>
+        <p className={`${typo.sectionTitle} text-violet-700/90`}>{t("summaryEyebrow")}</p>
         <p className={`mt-2 ${typo.body} font-bold tracking-tight text-slate-900`}>{isimGoster}</p>
-        <p className={`mt-1 ${typo.caption} text-slate-600`}>Doğum tarihi: {dogumGoster}</p>
+        <p className={`mt-1 ${typo.caption} text-slate-600`}>{t("birthDateLine", { date: dogumGoster })}</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-1 px-4 shadow-sm ring-1 ring-slate-100/80 sm:px-5">
-        <OzetRow label="Ana Kulvar" value={formatKulvarSummaryDisplay(out.anaKulvar)} />
-        <OzetRow label="Yan Kulvar" value={formatKulvarSummaryDisplay(out.yanKulvar)} />
-        <OzetRow label="İfade Sayısı" value={nrDisplay(out.ifadeSayisi)} />
-        <OzetRow label="Hayat Yolu / DM" value={nrDisplay(out.hayatYolu)} />
+        <OzetRow label={t("labels.anaKulvar")} value={formatKulvarSummaryDisplay(out.anaKulvar)} />
+        <OzetRow label={t("labels.yanKulvar")} value={formatKulvarSummaryDisplay(out.yanKulvar)} />
+        <OzetRow label={t("labels.ifadeSayisi")} value={nrDisplay(out.ifadeSayisi)} />
+        <OzetRow label={t("labels.hayatYoluDm")} value={nrDisplay(out.hayatYolu)} />
       </div>
 
       <KulvarAltKombinasyonlar out={out} />
 
       <div className={`rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white shadow-sm ring-1 ring-sky-100/50 ${typo.boxPadding}`}>
-        <p className={`${typo.sectionTitle} text-sky-800/90`}>PIN Kodu</p>
+        <p className={`${typo.sectionTitle} text-sky-800/90`}>{t("labels.pinKodu")}</p>
         <p className={`mt-2 break-all ${typo.pre} font-semibold text-slate-800`}>{pinOneLine(out.pinKodu)}</p>
         <pre
           className={
@@ -753,29 +787,29 @@ export function TabSonucOzeti({
       </div>
 
       <div className={`rounded-2xl border border-slate-200/90 bg-white/90 shadow-sm ring-1 ring-amber-100/60 ${typo.boxPadding}`}>
-        <p className={`${typo.sectionTitle} text-amber-900/85`}>Elementler (kısa)</p>
+        <p className={`${typo.sectionTitle} text-amber-900/85`}>{t("titles.elementsShort")}</p>
         <p className={`mt-2 ${typo.body} font-semibold text-slate-900`}>{elementShort(out.elementler)}</p>
         <pre className={`mt-2 line-clamp-4 whitespace-pre-wrap ${typo.pre} text-slate-600`}>{elementMetinKisa}</pre>
       </div>
 
-      <OzetSectionCard title="Çakra Omurgası Özeti"><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
+      <OzetSectionCard title={t("titles.cakraSummary")}><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
 
-      <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">
-        <OzetMetinPre text={degisimBoundedText(out, limitYear)} />
+      <OzetSectionCard title={t("titles.degisimSummary")}>
+        <OzetMetinPre text={degisimBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
-      <OzetSectionCard title="Zirve Yılları Özeti">
-        <OzetMetinPre text={zirveBoundedText(out, limitYear)} />
+      <OzetSectionCard title={t("titles.zirveSummary")}>
+        <OzetMetinPre text={zirveBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
-      <OzetSectionCard title="Mücadele Yılları Özeti">
-        <OzetMetinPre text={mucadeleBoundedText(out, limitYear)} />
+      <OzetSectionCard title={t("titles.mucadeleSummary")}>
+        <OzetMetinPre text={mucadeleBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
-      <OzetSectionCard title="Harflerin Yankılanışı Özeti">
+      <OzetSectionCard title={t("titles.harfSummary")}>
         {harfCut.length ? (
           <ul className={`space-y-2 ${typo.body} font-medium text-slate-800`}>
             {/* OWNER: başlangıç yılı ≤ currentYear → ORİJİNAL (tam) aralık; gelecekte başlayan
@@ -784,18 +818,24 @@ export function TabSonucOzeti({
               const yearEnd = harfDisplayYearEnd(seg);
               const y =
                 seg.yearStart != null
-                  ? ` · yıl ${seg.yearStart}${yearEnd != null ? `–${yearEnd}` : ""}`
+                  ? t("harfYear", { range: `${seg.yearStart}${yearEnd != null ? `–${yearEnd}` : ""}` })
                   : "";
               return (
                 <li key={`${seg.letter}-${idx}`} className="border-b border-slate-100/80 pb-1.5 last:border-b-0 last:pb-0">
-                  {idx + 1}. {seg.letter} — çakra {seg.chakra} — yaş {seg.ageStart}–{harfDisplayAgeEnd(seg)}
+                  {t("harfLine", {
+                    i: String(idx + 1),
+                    letter: seg.letter,
+                    chakra: String(seg.chakra),
+                    start: String(seg.ageStart),
+                    end: String(harfDisplayAgeEnd(seg)),
+                  })}
                   {y}
                 </li>
               );
             })}
           </ul>
         ) : (
-          <p className={`${typo.body} text-slate-600`}>{OZET_VERI_YOK}</p>
+          <p className={`${typo.body} text-slate-600`}>{t("noData")}</p>
         )}
         {harfCut.length ? <ChronoNote /> : null}
       </OzetSectionCard>
@@ -817,21 +857,23 @@ function DetayCard({ title, children }: { title: string; children: ReactNode }) 
 
 function TasDestekItem({ item, stockIndex }: { item: StoneAssignmentForAnalysis; stockIndex: StockIndex }) {
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   return (
     <div className="border-t border-emerald-100/90 pt-3 first:border-t-0 first:pt-0">
       <p className={`${typo.body} font-bold text-emerald-950`}>{item.value}</p>
       {item.reason ? (
         <p className={`mt-2 ${typo.body} text-slate-800`}>
-          <span className="font-bold text-slate-700">Öneri:</span> {item.reason}
+          <span className="font-bold text-slate-700">{t("stones.suggestion")}</span> {item.reason}
         </p>
       ) : null}
       {item.stones.length ? (
         <div className="mt-2">
-          <p className={`mb-1.5 ${typo.body} font-bold text-slate-700`}>Taşlar:</p>
+          <p className={`mb-1.5 ${typo.body} font-bold text-slate-700`}>{t("stones.stones")}</p>
           <div className="flex flex-wrap gap-1.5">
             {item.stones.map((stone, i) => {
               const info = matchStock(stone, stockIndex);
-              const label = stockLabel(info);
+              const label = stockLabelFor(info, isSourceLocale, t);
               return info.stocked ? (
                 <span
                   key={`${stone}-${i}`}
@@ -893,18 +935,20 @@ function TasDestekSectionBlock({
 // adımlar ve kartlar her hâlükârda görünür; yalnız yorum bölgesi bu notu taşır.
 function BilgiBankasiBosNot() {
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   return (
     <div
       className={`mt-4 border-t border-violet-100 pt-4 md:mt-4 md:border-t-0 md:pt-0 md:border md:border-violet-200/60 md:bg-violet-50/40 md:ring-1 md:ring-violet-100/50 ${mdPad(typo.infoBoxPadding)}`}
     >
-      <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
-      <p className={`mt-2 ${typo.body} text-slate-500`}>Bu sonuç için bilgi bankası kaydı bulunamadı.</p>
+      <p className={`${typo.sectionTitle} text-violet-800/95`}>{t("kb.title")}</p>
+      <p className={`mt-2 ${typo.body} text-slate-500`}>{t("kb.empty")}</p>
     </div>
   );
 }
 
 function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   if (!notes.length) return <BilgiBankasiBosNot />;
 
   const kartlar = notes
@@ -918,7 +962,7 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
     <div
       className={`mt-4 border-t border-violet-100 pt-4 md:mt-4 md:border-t-0 md:pt-0 md:border md:border-violet-200/80 md:bg-gradient-to-br md:from-violet-50/90 md:to-white/95 md:ring-1 md:ring-violet-100/70 ${mdPad(typo.infoBoxPadding)}`}
     >
-      <p className={`${typo.sectionTitle} text-violet-800/95`}>Bilgi Bankası Yorumu</p>
+      <p className={`${typo.sectionTitle} text-violet-800/95`}>{t("kb.title")}</p>
       <div className="mt-3 space-y-4 md:space-y-3">
         {kartlar.map(({ note, sections }) => (
           <div
@@ -940,7 +984,7 @@ function BilgiBankasiYorumBlock({ notes }: { notes: KnowledgeNote[] }) {
                 Yalnız include_in_analysis=true notlar; her notta kaynak etiketi. */}
             {note.sourceEntries?.length ? (
               <div className="mt-2.5 border-t border-fuchsia-100 pt-2.5">
-                <p className={`${typo.caption} font-bold uppercase tracking-wide text-fuchsia-700/90`}>Uzman Kaynak Notları</p>
+                <p className={`${typo.caption} font-bold uppercase tracking-wide text-fuchsia-700/90`}>{t("kb.expertNotes")}</p>
                 <div className="mt-1.5 space-y-2">
                   {note.sourceEntries.map((se) => (
                     <div key={se.id} className="rounded-lg border border-fuchsia-100 bg-fuchsia-50/40 px-2.5 py-1.5">
@@ -967,6 +1011,7 @@ function NumeroCardBody({
 }) {
   const k = (r.key || "").trim();
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   // Ana/Yan Kulvar (componentValues var): ana result CLEAN (legacy parantez YOK) gösterilir;
   // detaylı canonical aritmetik `steps`'te KORUNUR; alternatifler ayrıca listelenir.
   const isKulvar = Array.isArray(r.componentValues);
@@ -976,7 +1021,7 @@ function NumeroCardBody({
   return (
     <div className="space-y-1.5">
       <p className="text-3xl font-black text-violet-900">{mainDisplay}</p>
-      {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>Anahtar: {k}</p> : null}
+      {k ? <p className={`${typo.caption} font-semibold uppercase tracking-wide text-slate-500`}>{t("keyPrefix")}{k}</p> : null}
       {isKulvar ? <KulvarAltKombinasyonlarDetay r={r} /> : null}
       {/* NKB-V2-H: iç scroll kaldırıldı → hesap dökümü normal document-scroll ile akar. */}
       {r.steps?.length ? (
@@ -992,8 +1037,9 @@ function NumeroCardBody({
 }
 
 export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
-  const { limitYear, note } = useChronoView();
-  const raw = buildPlainAnalizFull(out, limitYear, note);
+  const t = useTranslations("numerology.result.tabs");
+  const { limitYear, note, recordBirthDate } = useChronoView();
+  const raw = buildPlainAnalizFull(out, limitYear, note, recordBirthDate);
   const blocks = raw
     .split(/\n——————————\n/)
     .map((chunk) => {
@@ -1007,7 +1053,7 @@ export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
   return (
     <>
     <p className="mb-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-1.5 text-[11px] font-medium text-violet-800">
-      💡 Bilgi bankası yorumlarınız ve doğaltaş önerileriniz <span className="font-black">Sayısal Hesaplama</span> sekmesinde her sayının altında görünür.
+      {t.rich("kbHint", { b: (chunks) => <span className="font-black">{chunks}</span> })}
     </p>
     <div className="overflow-hidden md:rounded-[12px] md:border md:border-violet-200/70 md:bg-white/90 md:shadow-[0_0_12px_rgba(139,92,246,0.06)]">
       {blocks.map((blok, i) => (
@@ -1039,6 +1085,8 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   const [stoneAssignments, setStoneAssignments] = useState<StoneAssignmentForAnalysis[]>([]);
   const [loaded, setLoaded] = useState(false);
   const stockIndex = useStoneStock();
+  const t = useTranslations("numerology.result.tabs");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
 
   useEffect(() => {
     let cancelled = false;
@@ -1063,7 +1111,7 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   if (!stoneAssignments.length) {
     if (!loaded) {
       return (
-        <div className="py-12 text-center text-sm font-medium text-slate-400">Taş notlarınız yükleniyor…</div>
+        <div className="py-12 text-center text-sm font-medium text-slate-400">{t("stones.loading")}</div>
       );
     }
     return (
@@ -1071,16 +1119,15 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/60 bg-gradient-to-br from-violet-100/70 to-amber-50/80 text-2xl text-violet-700 shadow-inner" aria-hidden>
           ◈
         </div>
-        <h3 className="mt-4 text-base font-black text-violet-950">Bu analiz için henüz taş notunuz yok</h3>
+        <h3 className="mt-4 text-base font-black text-violet-950">{t("stones.emptyTitle")}</h3>
         <p className="mx-auto mt-1.5 max-w-md text-sm font-medium leading-relaxed text-slate-600">
-          Taş önerileriniz kendi sisteminize aittir. Sayı ve değerlere kendi taş notlarınızı tanımladığınızda
-          bu sayfada otomatik olarak görünür.
+          {t("stones.emptyBody")}
         </p>
         <Link
           href="/numeroloji/bilgi-bankasi"
           className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/70 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white no-underline shadow-[0_8px_22px_-8px_rgba(91,33,182,0.45)] ring-1 ring-amber-300/30 transition hover:brightness-110"
         >
-          Bilgi Bankası › Doğaltaş Ata
+          {t("stones.emptyCta")}
           <span aria-hidden>→</span>
         </Link>
       </div>
@@ -1090,10 +1137,10 @@ export function TabTasAtamalari({ out }: { out: NumerolojiMotorOut }) {
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
       <p className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-        <span aria-hidden className="text-emerald-600">✓</span> {STOCK_HINT}
+        <span aria-hidden className="text-emerald-600">✓</span> {isSourceLocale ? STOCK_HINT : t("stockHint")}
       </p>
       {stoneSections.map((sec) => (
-        <TasDestekSectionBlock key={sec.key} title={sec.title} items={sec.items} stockIndex={stockIndex} />
+        <TasDestekSectionBlock key={sec.key} title={t(`stoneSections.${sec.titleKey}`)} items={sec.items} stockIndex={stockIndex} />
       ))}
     </div>
   );
@@ -1121,9 +1168,10 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   const elementStoneItems = stoneAssignments.filter((s) => s.typeKey === STONE_TYPE_ELEMENT);
 
   const typo = useContentTypography();
+  const t = useTranslations("numerology.result.tabs");
   // OWNER (detaylı sekmede de gelecek gizli): kronolojik bölümler limitYear'a sınırlanır (yetki
   // KAPALI → currentYear; AÇIK → tüm dönemler). Harflerin Yankılanışı TEK KEZ gösterilir.
-  const { limitYear } = useChronoView();
+  const { limitYear, recordBirthDate } = useChronoView();
   const harfListe = harfBoundedText(out, limitYear);
   const preScroll =
     layout === "detay"
@@ -1143,42 +1191,42 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
       : `mb-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/40 p-3 ${typo.pre} text-slate-800`;
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
-      <DetayCard title="Ana Kulvar">
+      <DetayCard title={t("labels.anaKulvar")}>
         <NumeroCardBody
           r={out.anaKulvar}
           knowledgeNotes={knowledgeNotes?.anaKulvar}
         />
       </DetayCard>
-      <DetayCard title="Yan Kulvar">
+      <DetayCard title={t("labels.yanKulvar")}>
         <NumeroCardBody
           r={out.yanKulvar}
           knowledgeNotes={knowledgeNotes?.yanKulvar}
         />
       </DetayCard>
-      <DetayCard title="İfade Sayısı">
+      <DetayCard title={t("labels.ifadeSayisi")}>
         <NumeroCardBody
           r={out.ifadeSayisi}
           knowledgeNotes={knowledgeNotes?.ifadeSayisi}
         />
       </DetayCard>
-      <DetayCard title="Hayat Yolu">
+      <DetayCard title={t("labels.hayatYolu")}>
         <NumeroCardBody
           r={out.hayatYolu}
           knowledgeNotes={knowledgeNotes?.hayatYolu}
         />
       </DetayCard>
-      <DetayCard title="PIN">
+      <DetayCard title={t("labels.pin")}>
         <p className={`break-all ${typo.pre} font-semibold text-slate-800`}>{pinOneLine(out.pinKodu)}</p>
         <pre className={preScrollSm}>{out.pinKoduMetni || "—"}</pre>
       </DetayCard>
-      <DetayCard title="Çakra">
+      <DetayCard title={t("labels.cakra")}>
         <pre className={preScroll}>{out.cakraOmurgasiMetni || "—"}</pre>
         {knowledgeNotes ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.cakraOmurga} />
         ) : null}
-        <TasDestekSectionBlock title="Çakra Omurgası Taş Destekleri" items={cakraStoneItems} stockIndex={stockIndex} />
+        <TasDestekSectionBlock title={t("stoneSections.cakraOmurgasi")} items={cakraStoneItems} stockIndex={stockIndex} />
       </DetayCard>
-      <DetayCard title="Elementler">
+      <DetayCard title={t("labels.elementler")}>
         {/* AŞAMA 1 P3: elementlerMetni zaten adım dökümünü içerir; adımlar yalnız metin yoksa gösterilir (çift döküm yok). */}
         {out.elementlerMetni ? (
           <pre className={preScroll}>{out.elementlerMetni}</pre>
@@ -1190,21 +1238,21 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         {knowledgeNotes ? (
           <BilgiBankasiYorumBlock notes={knowledgeNotes.element} />
         ) : null}
-        <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
+        <TasDestekSectionBlock title={t("stoneSections.element")} items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
-      <DetayCard title="Değişim Dönüşüm">
-        <pre className={preScroll}>{degisimBoundedText(out, limitYear)}</pre>
+      <DetayCard title={t("labels.degisim")}>
+        <pre className={preScroll}>{degisimBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
-      <DetayCard title="Zirve">
-        <pre className={preScroll}>{zirveBoundedText(out, limitYear)}</pre>
+      <DetayCard title={t("labels.zirve")}>
+        <pre className={preScroll}>{zirveBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
-      <DetayCard title="Mücadele">
-        <pre className={preScroll}>{mucadeleBoundedText(out, limitYear)}</pre>
+      <DetayCard title={t("labels.mucadele")}>
+        <pre className={preScroll}>{mucadeleBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
-      <DetayCard title="Harflerin Yankılanışı">
+      <DetayCard title={t("titles.harf")}>
         {harfListe && harfListe !== "—" ? (
           <>
             <pre className={harfPre}>{harfListe}</pre>

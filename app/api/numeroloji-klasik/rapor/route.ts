@@ -11,6 +11,7 @@ import { contentDisposition } from "@/lib/numeroloji-klasik/report/filename";
 import { classicError, classicJson, classicNotFound, NO_STORE, readClassicBody, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { buildClassicReport, validateReportRequest } from "@/lib/numeroloji-klasik/server/reportService";
 import { resolveDraftRow } from "@/lib/numeroloji-klasik/server/draftRoute";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,7 +50,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     out = await buildClassicReport(
       // F3A: branding — oturum sahibinin profili (anahtar kapalı / tablo yok / hata → null = markasız).
-      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones"), branding: await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }) },
+      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones"), branding: await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }),
+        // I18N-F1-R5 (P37): çıktı dili = ekran dili (çerez + yayın kapısı). #855 birleşince: resolveReportLocale(req, hesap).
+        output: resolveOutputLocale(req) },
       v.value,
       undefined,
       draftRow,

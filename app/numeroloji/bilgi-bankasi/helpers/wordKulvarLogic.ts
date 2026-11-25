@@ -43,22 +43,34 @@ export type RecordSourceView = {
   isPrimary: boolean;
 };
 
+/**
+ * I18N-F1-R5: Word çıktısının sistem metinleri (çıktı dili; sunucu katalogdan verir). Yok → Türkçe (bugünkü çıktı
+ * birebir). Kaynak adı / başlık / konum kullanıcı içeriğidir, çevrilmez.
+ */
+export type RecordSourceText = {
+  missing: string;
+  primary: string;
+  section: (key: Exclude<RecordSourceRow["section_key"], null>) => string;
+  page: (start: number | null, end: number | null) => string;
+};
+
 /** Kayıt-altı kaynak görünümü. internal_note KESİNLİKLE yok. section_key=null → etiket "". */
-export function recordSourceView(link: RecordSourceRow, source: NumerologySourceRow | null): RecordSourceView {
+export function recordSourceView(link: RecordSourceRow, source: NumerologySourceRow | null, text?: RecordSourceText): RecordSourceView {
+  const page = pageDisplay(link);
   return {
-    displayLabel: source?.display_label ?? "(kaynak bulunamadı)",
+    displayLabel: source?.display_label ?? text?.missing ?? "(kaynak bulunamadı)",
     title: source?.title ?? null,
-    page: pageDisplay(link),
+    page: text && page ? text.page(link.page_start, link.page_end) : page,
     locator: link.locator,
-    sectionLabel: link.section_key === null ? "" : sectionKeyLabel(link.section_key),
+    sectionLabel: link.section_key === null ? "" : text ? text.section(link.section_key) : sectionKeyLabel(link.section_key),
     isPrimary: link.is_primary,
   };
 }
 
 /** Kayıt-altı kaynak ana satırı (display_label + birincil + kapsam + sayfa + locator). */
-export function recordSourceMainLine(view: RecordSourceView): string {
+export function recordSourceMainLine(view: RecordSourceView, text?: Pick<RecordSourceText, "primary">): string {
   const parts: string[] = [view.displayLabel];
-  if (view.isPrimary) parts.push("(Birincil kaynak)");
+  if (view.isPrimary) parts.push(text?.primary ?? "(Birincil kaynak)");
   if (view.sectionLabel) parts.push(`— ${view.sectionLabel}`);
   if (view.page) parts.push(`— ${view.page}`);
   if (view.locator) parts.push(`— ${view.locator}`);

@@ -4,10 +4,12 @@
 // Tüm metin React ile kaçışlanır; dangerouslySetInnerHTML YOK. Sınıflar nk- önekli (nkm.css).
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useCallback, useEffect, useId, useRef, type ReactNode, type PointerEvent as RPointerEvent } from "react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import type { ClassicNumber, MeaningBlock, Verification } from "@/lib/numeroloji-klasik/model";
-import { INTERPRETATION_HEADING, NUMBER_KIND_LABELS } from "@/lib/numeroloji-klasik/labels";
+// Etiket metinleri numerology.classic.labels katalogundan (TR değerleri lib/numeroloji-klasik/labels.ts ile birebir; labels.ts değişmez).
 import { trTrace } from "../_lib/format";
 import "./nkm.css";
 
@@ -46,12 +48,13 @@ export function Icon({ name, className = "nk-ico" }: { name: keyof typeof ICONS 
 export type Crumb = { href?: string; label: string };
 
 export function Shell({ theme, crumbs, children }: { theme?: "gate" | "compare"; crumbs?: Crumb[]; children: ReactNode }) {
+  const t = useTranslations("numerology.classic.kit");
   return (
     <div className={`nk-root ${energyFontVars}`}>
       <div className="nk-scene" data-theme={theme}>
         <main className="nk-inner" id="icerik">
           {crumbs && crumbs.length > 0 ? (
-            <nav className="nk-crumbs" aria-label="Konum">
+            <nav className="nk-crumbs" aria-label={t("crumbsLabel")}>
               {crumbs.map((c, i) => (
                 <span key={`${c.label}-${i}`} className="nk-crumb">
                   {i > 0 ? <span aria-hidden="true" className="nk-crumb-sep">/</span> : null}
@@ -137,10 +140,11 @@ export function Alert({ tone = "info", title, children, action, live }: { tone?:
   );
 }
 
-export function Skeleton({ lines = 3, label = "Yükleniyor…" }: { lines?: number; label?: string }) {
+export function Skeleton({ lines = 3, label }: { lines?: number; label?: string }) {
+  const t = useTranslations("numerology.classic.kit");
   return (
     <div className="nk-card nk-panel nk-skel" aria-busy="true" aria-live="polite">
-      <span className="nk-sr-only">{label}</span>
+      <span className="nk-sr-only">{label ?? t("loading")}</span>
       <div className="nk-skel-bar nk-w40" />
       {Array.from({ length: lines }, (_, i) => (
         <div key={i} className={`nk-skel-bar${i % 3 === 2 ? " nk-w60" : i % 2 ? " nk-w80" : ""}`} />
@@ -169,7 +173,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
-  cancelLabel = "Vazgeç",
+  cancelLabel,
   danger,
   busy,
   onConfirm,
@@ -185,6 +189,7 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("numerology.classic.kit");
   const titleId = useId();
   const boxRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -230,9 +235,9 @@ export function ConfirmDialog({
         <h2 className="nk-h2" id={titleId}>{title}</h2>
         <div className="nk-modal-body">{children}</div>
         <div className="nk-btn-row nk-modal-actions">
-          <button ref={cancelRef} type="button" className="nk-btn" onClick={onCancel} disabled={busy}>{cancelLabel}</button>
+          <button ref={cancelRef} type="button" className="nk-btn" onClick={onCancel} disabled={busy}>{cancelLabel ?? t("cancel")}</button>
           <button type="button" className={`nk-btn ${danger ? "nk-danger" : "nk-primary"}`} onClick={onConfirm} disabled={busy}>
-            {busy ? "Lütfen bekleyin…" : confirmLabel}
+            {busy ? t("pleaseWait") : confirmLabel}
           </button>
         </div>
       </div>
@@ -242,70 +247,82 @@ export function ConfirmDialog({
 
 // ── Sayı kartı parçaları ──────────────────────────────────────────────────────────────────────
 export function VerificationBadge({ v }: { v: Verification | null | undefined }) {
+  const t = useTranslations("numerology.classic");
+  // `status` kanonik koddur (VerificationStatus); yalnız gösterim katalogdan.
   const status = v?.status;
   if (status === "match") {
     return (
-      <span className="nk-verified" title="Bağımsız hesapla doğrulandı">
-        <Icon name="check" /> Doğrulandı
+      <span className="nk-verified" title={t("labels.verification.match")}>
+        <Icon name="check" /> {t("kit.verified")}
       </span>
     );
   }
   if (status === "mismatch") {
     return (
-      <span className="nk-verified nk-mismatch" title="Bağımsız hesapla uyuşmuyor">
-        <Icon name="alert" /> Uyuşmazlık
+      <span className="nk-verified nk-mismatch" title={t("labels.verification.mismatch")}>
+        <Icon name="alert" /> {t("kit.mismatch")}
       </span>
     );
   }
-  return <span className="nk-verified nk-unverified">Doğrulanmadı</span>;
+  return <span className="nk-verified nk-unverified">{t("labels.verification.unverified")}</span>;
 }
 
 export function MismatchNote({ v }: { v: Verification | null | undefined }) {
+  const t = useTranslations("numerology.classic.kit");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   if (v?.status !== "mismatch") return null;
   const ov = v.oracleValue;
-  const shown = Array.isArray(ov) ? ov.join(", ") : typeof ov === "boolean" ? (ov ? "evet" : "hayır") : ov ?? null;
+  const shown = Array.isArray(ov) ? ov.join(", ") : typeof ov === "boolean" ? (ov ? t("yes") : t("no")) : ov ?? null;
+  // v.note kayıtla saklanan doğrulayıcı (Türkçe teknik) notudur → TR'de aynen; diğer dillerde gösterilmez
+  // (I18N-F1-R5: karışık dil yok; uyuşmazlık bilgisi + değer katalog metniyle verilir).
   return (
     <p className="nk-mismatch-note">
-      Bağımsız hesap farklı sonuç verdi{shown !== null && shown !== "" ? ` (bağımsız hesap: ${String(shown)})` : ""}.
-      {v.note ? ` ${v.note}` : ""} Karar uzmanındır.
+      {shown !== null && shown !== "" ? t("mismatchWithValue", { value: String(shown) }) : t("mismatchPlain")}
+      {v.note && isSourceLocale ? ` ${v.note}` : ""} {t("expertDecides")}
     </p>
   );
 }
 
-export function Trace({ text, label = "Nasıl Hesaplandı?" }: { text: string | null | undefined; label?: string }) {
+export function Trace({ text, label }: { text: string | null | undefined; label?: string }) {
+  const t = useTranslations("numerology.classic.kit");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   if (!text || !text.trim()) return null;
+  // Hesap izi (text) sağlayıcının İngilizce iz metnidir; trTrace yalnız TR ekranda Türkçeleştirir (I18N-F1-R5:
+  // diğer dillerde ham iz gösterilir — EN ekranda Türkçeye çevrilmiş iz görünmez).
   return (
     <details className="nk-trace">
-      <summary>{label}</summary>
-      <div className="nk-trace-body">{trTrace(text)}</div>
+      <summary>{label ?? t("traceLabel")}</summary>
+      <div className="nk-trace-body">{isSourceLocale ? trTrace(text) : text}</div>
     </details>
   );
 }
 
 export function NumberBadges({ n }: { n: Pick<ClassicNumber, "type" | "karmicDebt" | "value"> }) {
+  const t = useTranslations("numerology.classic");
   const out: ReactNode[] = [];
-  if (n.type === "master" || [11, 22, 33].includes(n.value)) out.push(<span key="m" className="nk-badge nk-master">{NUMBER_KIND_LABELS.master} {n.value}</span>);
-  if (n.type === "compound") out.push(<span key="c" className="nk-badge nk-ice">{NUMBER_KIND_LABELS.compound}</span>);
-  if (n.karmicDebt) out.push(<span key="k" className="nk-badge nk-karmic">Karmik borç {n.karmicDebt}</span>);
+  if (n.type === "master" || [11, 22, 33].includes(n.value)) out.push(<span key="m" className="nk-badge nk-master">{t("labels.numberKind.master")} {n.value}</span>);
+  if (n.type === "compound") out.push(<span key="c" className="nk-badge nk-ice">{t("labels.numberKind.compound")}</span>);
+  if (n.karmicDebt) out.push(<span key="k" className="nk-badge nk-karmic">{t("kit.karmicDebt", { value: String(n.karmicDebt) })}</span>);
   if (!out.length) return null;
   return <div className="nk-badges">{out}</div>;
 }
 
-export function MeaningDetails({ m, summaryLabel = INTERPRETATION_HEADING }: { m: MeaningBlock | null | undefined; summaryLabel?: string }) {
+export function MeaningDetails({ m, summaryLabel }: { m: MeaningBlock | null | undefined; summaryLabel?: string }) {
+  const t = useTranslations("numerology.classic.labels");
   if (!m) return null;
   const has = m.description || m.strengths.length || m.challenges.length || m.career || m.relationships || m.spirituality;
   if (!has) return null;
   return (
     <details className="nk-trace nk-meaning">
-      <summary>{summaryLabel}</summary>
+      <summary>{summaryLabel ?? t("interpretationHeading")}</summary>
       <div className="nk-meaning-body">
         {m.keywords.length ? <p className="nk-keywords">{m.keywords.join(" · ")}</p> : null}
         {m.description ? <p>{m.description}</p> : null}
-        {m.strengths.length ? (<><p className="nk-mh">Güçlü yönler</p><ul>{m.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
-        {m.challenges.length ? (<><p className="nk-mh">Zorlayıcı yönler</p><ul>{m.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
-        {m.career ? (<><p className="nk-mh">Kariyer</p><p>{m.career}</p></>) : null}
-        {m.relationships ? (<><p className="nk-mh">İlişkiler</p><p>{m.relationships}</p></>) : null}
-        {m.spirituality ? (<><p className="nk-mh">Ruhsallık</p><p>{m.spirituality}</p></>) : null}
+        {m.strengths.length ? (<><p className="nk-mh">{t("meaning.strengths")}</p><ul>{m.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
+        {m.challenges.length ? (<><p className="nk-mh">{t("meaning.challenges")}</p><ul>{m.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
+        {m.career ? (<><p className="nk-mh">{t("meaning.career")}</p><p>{m.career}</p></>) : null}
+        {m.relationships ? (<><p className="nk-mh">{t("meaning.relationships")}</p><p>{m.relationships}</p></>) : null}
+        {m.spirituality ? (<><p className="nk-mh">{t("meaning.spirituality")}</p><p>{m.spirituality}</p></>) : null}
       </div>
     </details>
   );

@@ -8,7 +8,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { listSources, type NumerologySourceRow } from "../helpers/sourcesApi";
 import {
   createSourceEntry,
@@ -44,6 +46,17 @@ function shortBody(b: string, n = 60): string {
 
 export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
   const { confirm } = useConfirm();
+  const t = useTranslations("numerology.knowledge");
+  const tn = useTranslations("numerology.knowledge.sourceNotes");
+  // I18N: TR'de yardımcı (helpers/sourceEntryUiLogic) ve sunucu metinleri birebir; EN'de katalog.
+  // EXPERT_OWN_NOTE_VALUE kanonik seçim değeridir (NULL source_id) — değişmez; yalnız etiketi eşlenir.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const expertOwnNoteLabel = isSourceLocale ? EXPERT_OWN_NOTE_LABEL : tn("expertOwnNote");
+  const entryLabel = (entry: SourceEntryRow, byId: Map<string, string>): string => {
+    if (isSourceLocale) return sourceEntryLabel(entry, byId);
+    if (entry.source_id === null) return expertOwnNoteLabel;
+    return byId.get(entry.source_id) ?? tn("unknownSource");
+  };
 
   const [sources, setSources] = useState<NumerologySourceRow[]>([]);
   const [entries, setEntries] = useState<SourceEntryRow[]>([]);
@@ -103,7 +116,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
       include_in_analysis: includeInAnalysis,
     });
     setBusy(false);
-    finalize(classifyEntryWrite(res), res.error, "Kaynak notu eklendi.");
+    finalize(classifyEntryWrite(res), res.error, tn("added"));
   }
 
   async function runUpdate(id: string, sourceId: string | null) {
@@ -114,16 +127,16 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
       include_in_analysis: includeInAnalysis,
     });
     setBusy(false);
-    finalize(classifyEntryWrite(res), res.error, "Kaynak notu güncellendi.");
+    finalize(classifyEntryWrite(res), res.error, tn("updated"));
   }
 
   function finalize(outcome: ReturnType<typeof classifyEntryWrite>, error: string | null, successMsg: string) {
     if (outcome === "demo") {
-      setAck({ type: "error", message: "Demo hesabında yazma işlemi yapılamaz." });
+      setAck({ type: "error", message: tn("demoWrite") });
       return; // form korunur
     }
     if (outcome === "error") {
-      setAck({ type: "error", message: error ?? "İşlem tamamlanamadı." });
+      setAck({ type: "error", message: isSourceLocale ? error ?? tn("operationFailed") : tn("operationFailed") });
       return; // HATA: form verisi korunur
     }
     // BAŞARI: form temizle + liste yenile + kalıcı panel
@@ -134,7 +147,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
 
   function handleKaydet() {
     if (!body.trim()) {
-      setAck({ type: "error", message: MSG_SE_EMPTY_BODY });
+      setAck({ type: "error", message: isSourceLocale ? MSG_SE_EMPTY_BODY : tn("emptyBody") });
       return;
     }
     setAck(null);
@@ -151,32 +164,32 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
     }
     // Aynı kaynakta mevcut not(lar) var → karar diyaloğu
     const label =
-      sourceId === null ? EXPERT_OWN_NOTE_LABEL : sourceLabelById.get(sourceId) ?? "seçili kaynak";
+      sourceId === null ? expertOwnNoteLabel : sourceLabelById.get(sourceId) ?? tn("selectedSource");
     if (decision.kind === "prompt-single") {
       const existing = decision.existing;
       setDialog({
-        title: "Aynı kaynakta not var",
-        message: `"${label}" için zaten bir not mevcut. Ne yapmak istersiniz?`,
+        title: tn("sameSourceTitle"),
+        message: tn("sameSourceMessage", { label }),
         choices: [
-          { label: "Yeni Not Ekle", value: `new`, tone: "primary" },
-          { label: "Mevcut Notu Güncelle", value: `upd:${existing.id}` },
-          { label: "Vazgeç", value: "cancel" },
+          { label: tn("addNew"), value: `new`, tone: "primary" },
+          { label: tn("updateExisting"), value: `upd:${existing.id}` },
+          { label: t("shared.cancel"), value: "cancel" },
         ],
       });
       return;
     }
     // prompt-multi: kullanıcı hangi mevcut notu güncelleyeceğini AÇIKÇA seçer (rastgele YOK)
     const choices: Choice[] = [
-      { label: "Yeni Not Ekle", value: "new", tone: "primary" },
+      { label: tn("addNew"), value: "new", tone: "primary" },
       ...decision.existing.map((e, i) => ({
-        label: `Güncelle #${i + 1}: ${shortBody(e.body)}`,
+        label: tn("updateNth", { n: i + 1, preview: shortBody(e.body) }),
         value: `upd:${e.id}`,
       })),
-      { label: "Vazgeç", value: "cancel" },
+      { label: t("shared.cancel"), value: "cancel" },
     ];
     setDialog({
-      title: "Aynı kaynakta birden fazla not var",
-      message: `"${label}" için birden fazla not mevcut. Yeni not mu eklemek istersiniz, yoksa hangisini güncelleyeceksiniz?`,
+      title: tn("sameSourceMultiTitle"),
+      message: tn("sameSourceMultiMessage", { label }),
       choices,
     });
   }
@@ -196,10 +209,10 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
 
   async function handleDelete(entry: SourceEntryRow) {
     const ok = await confirm({
-      title: "Kaynak notunu sil",
-      message: "Bu kaynak notu kalıcı olarak silinecek. Onaylıyor musunuz?",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      title: tn("deleteTitle"),
+      message: tn("deleteMessage"),
+      confirmText: t("shared.delete"),
+      cancelText: t("shared.cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -207,15 +220,15 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
     const res = await deleteSourceEntry(entry.id);
     setBusy(false);
     if (res.demo) {
-      setAck({ type: "error", message: "Demo hesabında silme yapılamaz." });
+      setAck({ type: "error", message: tn("demoDelete") });
       return;
     }
     if (res.error) {
-      setAck({ type: "error", message: res.error });
+      setAck({ type: "error", message: isSourceLocale ? res.error : tn("operationFailed") });
       return;
     }
     if (editingId === entry.id) resetForm();
-    setAck({ type: "success", message: "Kaynak notu silindi." });
+    setAck({ type: "success", message: tn("deleted") });
     void reload();
   }
 
@@ -234,7 +247,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="se-kaynak" className={labelClass}>
-            Kaynak
+            {tn("source")}
           </label>
           <select
             id="se-kaynak"
@@ -242,7 +255,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
             onChange={(e) => setSourceSel(e.target.value)}
             className={selectClass}
           >
-            <option value={EXPERT_OWN_NOTE_VALUE}>{EXPERT_OWN_NOTE_LABEL}</option>
+            <option value={EXPERT_OWN_NOTE_VALUE}>{expertOwnNoteLabel}</option>
             {sources.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.display_label}
@@ -258,18 +271,18 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
               onChange={(e) => setIncludeInAnalysis(e.target.checked)}
               className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
             />
-            Analizde kullan (Hesap Özetli)
+            {tn("useInAnalysis")}
           </label>
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="se-body" className={labelClass}>
-            Not Metni
+            {tn("bodyLabel")}
           </label>
           <textarea
             id="se-body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Bu kaynağa (veya kendi yorumunuza) ait notu yazın…"
+            placeholder={tn("bodyPlaceholder")}
             className={textareaClass}
           />
         </div>
@@ -282,7 +295,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
           onClick={handleKaydet}
           className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-5 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {editingId ? "Güncelle" : busy ? "Kaydediliyor…" : "Not Ekle"}
+          {editingId ? tn("update") : busy ? t("shared.saving") : tn("addNote")}
         </button>
         {editingId ? (
           <button
@@ -290,7 +303,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
             onClick={resetForm}
             className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200/90 bg-white px-4 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm transition hover:bg-violet-50/80"
           >
-            Formu Temizle
+            {tn("clearForm")}
           </button>
         ) : null}
       </div>
@@ -299,11 +312,11 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
 
       {/* Liste */}
       <div className="mt-4">
-        <p className="mb-2 text-xs font-bold text-violet-800">Mevcut Notlar ({entries.length})</p>
+        <p className="mb-2 text-xs font-bold text-violet-800">{tn("existingNotes", { count: entries.length })}</p>
         {loading ? (
-          <p className="text-sm font-medium text-slate-500">Yükleniyor…</p>
+          <p className="text-sm font-medium text-slate-500">{t("shared.loading")}</p>
         ) : entries.length === 0 ? (
-          <p className="text-sm font-medium text-slate-500">Henüz kaynak notu eklenmemiş.</p>
+          <p className="text-sm font-medium text-slate-500">{tn("noNotes")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {entries.map((e) => (
@@ -313,7 +326,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md bg-violet-100/80 px-2 py-0.5 text-[11px] font-black text-violet-800">
-                    {sourceEntryLabel(e, sourceLabelById)}
+                    {entryLabel(e, sourceLabelById)}
                   </span>
                   <span
                     className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
@@ -322,7 +335,7 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
                         : "bg-slate-100 text-slate-500"
                     }`}
                   >
-                    {e.include_in_analysis ? "Analizde kullanılıyor" : "Analizde kullanılmıyor"}
+                    {e.include_in_analysis ? tn("usedInAnalysis") : tn("notUsedInAnalysis")}
                   </span>
                   <div className="ml-auto flex gap-1.5">
                     <button
@@ -330,14 +343,14 @@ export function KaynakNotlariYonetimi({ recordId }: { recordId: string }) {
                       onClick={() => startEdit(e)}
                       className="h-7 rounded-lg border border-violet-200 bg-white px-2.5 text-xs font-bold text-violet-800 transition hover:bg-violet-50"
                     >
-                      Düzenle
+                      {t("shared.edit")}
                     </button>
                     <button
                       type="button"
                       onClick={() => void handleDelete(e)}
                       className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-50"
                     >
-                      Sil
+                      {t("shared.delete")}
                     </button>
                   </div>
                 </div>

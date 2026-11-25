@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import {
   SILME_ONAY_METNI,
   silmeBaslat,
@@ -43,6 +44,9 @@ export function MobileSilmeDialog({
   onConfirm: () => Promise<void>;
   onClose: () => void;
 }) {
+  const t = useTranslations("numerology.knowledge.mobileDelete");
+  const tShared = useTranslations("numerology.knowledge.shared");
+  const em = (c: ReactNode) => <span className="font-black text-rose-700">{c}</span>;
   const [state, setState] = useState<SilmeState>(() => silmeBaslat());
   const [busy, setBusy] = useState(false);
 
@@ -90,14 +94,14 @@ export function MobileSilmeDialog({
       <button
         type="button"
         className="absolute inset-0"
-        aria-label="Kapat"
+        aria-label={t("close")}
         onClick={kapat}
       />
       <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/40 bg-white shadow-2xl">
         <div className="bg-gradient-to-r from-rose-600 to-red-700 px-5 py-4 text-white">
           <p id="mobil-silme-baslik" className="text-base font-black">{baslik}</p>
           <p className="mt-0.5 text-xs font-semibold text-white/85">
-            {state.asama === "onay2" ? "Son adım — bu işlem geri alınamaz" : "Bu işlem kalıcıdır"}
+            {state.asama === "onay2" ? t("finalStep") : t("permanent")}
           </p>
         </div>
 
@@ -105,7 +109,7 @@ export function MobileSilmeDialog({
           {state.asama === "onay1" ? (
             <>
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
-                <span className="font-black text-rose-700">{kimlik}</span> silmek istediğinize emin misiniz?
+                {t.rich("areYouSure", { target: kimlik, em })}
               </p>
               {ek ? <p className="mt-2 text-xs font-semibold leading-relaxed text-rose-800">{ek}</p> : null}
               <div className="mt-6 flex gap-2.5">
@@ -114,25 +118,26 @@ export function MobileSilmeDialog({
                   onClick={kapat}
                   className="min-h-[44px] flex-1 rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-200"
                 >
-                  İptal
+                  {t("cancel")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setState((s) => silmeIleri(s))}
                   className="min-h-[44px] flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-700 px-4 text-sm font-black text-white shadow-md transition hover:brightness-105"
                 >
-                  Devam
+                  {t("continue")}
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
-                <span className="font-black text-rose-700">{kimlik}</span> kalıcı olarak silinecek.
+                {t.rich("willBeDeleted", { target: kimlik, em })}
               </p>
               {ek ? <p className="mt-2 text-xs font-semibold leading-relaxed text-rose-800">{ek}</p> : null}
               <label htmlFor="mobil-silme-onay" className="mt-4 block text-xs font-bold text-slate-600">
-                Onaylamak için <span className="font-black text-rose-700">{SILME_ONAY_METNI}</span> yazın
+                {/* i18n-ignore: SILME_ONAY_METNI ("SİL") kanonik doğrulama ifadesidir; her dilde aynen yazılır. */}
+                {t.rich("typeToConfirm", { word: SILME_ONAY_METNI, b: (c) => <span className="font-black text-rose-700">{c}</span> })}
               </label>
               <input
                 id="mobil-silme-onay"
@@ -151,7 +156,7 @@ export function MobileSilmeDialog({
                   disabled={busy}
                   className="min-h-[44px] flex-1 rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
                 >
-                  İptal
+                  {t("cancel")}
                 </button>
                 <button
                   type="button"
@@ -159,7 +164,7 @@ export function MobileSilmeDialog({
                   disabled={!onaylanabilir || busy}
                   className="min-h-[44px] flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-700 px-4 text-sm font-black text-white shadow-md transition hover:brightness-105 disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-500 disabled:opacity-70"
                 >
-                  {busy ? "Siliniyor…" : "Kaydı Kalıcı Olarak Sil"}
+                  {busy ? tShared("deleting") : t("deletePermanently")}
                 </button>
               </div>
             </>

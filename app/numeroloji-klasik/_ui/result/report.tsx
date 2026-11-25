@@ -4,33 +4,18 @@
 // (0 sağlayıcı çağrısı; taslak raporu kayıt OLUŞTURMAZ).
 
 import { useEffect, useId, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PERSON_REPORT_GROUPS, type PersonReportGroup, type ReportVariant } from "@/lib/numeroloji-klasik/report/types";
 import { API_BASE, apiBlob, errorMessage, saveBlob, type ApiErr } from "../../_lib/api";
 import { sourceBody, type ResultSource } from "../../_lib/draft";
 import { Alert, Icon } from "../kit";
 
-export const REPORT_GROUP_LABELS: Readonly<Record<PersonReportGroup, string>> = Object.freeze({
-  core: "Çekirdek sayılar",
-  karmic: "Karmik dersler ve borçlar",
-  timing: "Zirveler, zorluklar, kişisel döngüler",
-  bridge: "Köprü sayıları",
-  name_letters: "İsim harfleri",
-  hidden_subconscious: "Gizli tutku ve bilinçaltı benlik",
-  birthday_profile: "Doğum günü profili",
-  maturity: "Olgunluk",
-  chaldean: "Kalde (Cheiro)",
-  dual: "İki sistem karşılaştırması",
-  lucky: "Uğurlu ilişkiler",
-  stones: "Taş önerileri (bilgilendirme notuyla)",
-});
-
-const VARIANTS: { v: ReportVariant; label: string; desc: string }[] = [
-  { v: "summary", label: "Özet", desc: "Sayılar ve kısa anlamlar" },
-  { v: "technical", label: "Teknik", desc: "Hesap izleri ve doğrulama durumu" },
-  { v: "full", label: "Tam", desc: "Tüm bölümler ve yorumlar" },
-];
+// Bölüm (PersonReportGroup) ve ayrıntı düzeyi (ReportVariant) kodları API'ye giden kanonik değerlerdir; yalnız gösterim
+// numerology.classic.report.groups.<kod> / variants.<kod> katalogundan. Üretilen Word/PNG içeriği sunucuda (bu dosya değil).
+const VARIANTS: ReportVariant[] = ["summary", "technical", "full"];
 
 export function ReportPanel({ source, kind, title, subtitle, available }: { source: ResultSource; kind: string; title: string; subtitle: string; available: PersonReportGroup[] }) {
+  const t = useTranslations("numerology.classic.report");
   const uid = useId();
   const isPerson = kind === "person";
   const [variant, setVariant] = useState<ReportVariant>("technical");
@@ -58,49 +43,49 @@ export function ReportPanel({ source, kind, title, subtitle, available }: { sour
   return (
     <div className="nk-report-grid">
       <div className="nk-card nk-panel">
-        <h2 className="nk-h2">Word raporu</h2>
-        <p className="nk-lead">{isPerson ? "Rapora girecek bölümleri seçin." : "Analiz sonucundan Word raporu üretilir."}</p>
+        <h2 className="nk-h2">{t("wordTitle")}</h2>
+        <p className="nk-lead">{isPerson ? t("leadPerson") : t("leadOther")}</p>
         {isPerson ? (
           <fieldset style={{ border: 0, padding: 0, margin: "10px 0 0" }} disabled={variant === "full"}>
-            <legend className="nk-sr-only">Rapor bölümleri</legend>
+            <legend className="nk-sr-only">{t("sectionsLegend")}</legend>
             {available.map((g) => (
               <label key={g} className="nk-check">
                 <input type="checkbox" checked={variant === "full" || include.includes(g)} onChange={(e) => setInclude((cur) => (e.target.checked ? [...cur, g] : cur.filter((x) => x !== g)))} />
-                {REPORT_GROUP_LABELS[g]}
+                {t(`groups.${g}`)}
               </label>
             ))}
-            {variant === "full" ? <p className="nk-hint" style={{ marginTop: 8 }}>Tam raporda tüm bölümler yer alır.</p> : null}
+            {variant === "full" ? <p className="nk-hint" style={{ marginTop: 8 }}>{t("fullHint")}</p> : null}
           </fieldset>
         ) : null}
         {showVariants ? (
           <>
-            <p className="nk-flabel nk-h3" style={{ marginTop: 14 }} id={`${uid}-ad`}>Ayrıntı düzeyi</p>
+            <p className="nk-flabel nk-h3" style={{ marginTop: 14 }} id={`${uid}-ad`}>{t("detailLevel")}</p>
             <div className="nk-radio-row" role="radiogroup" aria-labelledby={`${uid}-ad`}>
-              {VARIANTS.map((x) => (
-                <label key={x.v} className="nk-radio" title={x.desc}>
-                  <input type="radio" name={`${uid}-variant`} checked={variant === x.v} onChange={() => setVariant(x.v)} />
-                  <span>{x.label}</span>
+              {VARIANTS.map((v) => (
+                <label key={v} className="nk-radio" title={t(`variants.${v}.desc`)}>
+                  <input type="radio" name={`${uid}-variant`} checked={variant === v} onChange={() => setVariant(v)} />
+                  <span>{t(`variants.${v}.label`)}</span>
                 </label>
               ))}
             </div>
           </>
         ) : null}
         {error ? <Alert tone="error">{error}</Alert> : null}
-        {done ? <Alert tone="ok" live>Rapor indirildi.</Alert> : null}
+        {done ? <Alert tone="ok" live>{t("downloaded")}</Alert> : null}
         <div className="nk-btn-row nk-stretch" style={{ marginTop: 18 }}>
           <button className="nk-btn nk-primary" type="button" onClick={() => void download(false)} disabled={busy || (isPerson && variant !== "full" && include.length === 0)} data-testid="word-download">
-            <Icon name="doc" />{busy ? "Hazırlanıyor…" : "Word indir"}
+            <Icon name="doc" />{busy ? t("preparing") : t("wordDownload")}
           </button>
           {isPerson && available.includes("stones") ? (
             <button className="nk-btn" type="button" onClick={() => void download(true)} disabled={busy} data-testid="word-stones">
-              <Icon name="gem" />Taş raporu (Word)
+              <Icon name="gem" />{t("stonesWord")}
             </button>
           ) : null}
         </div>
       </div>
       {isPerson ? <PngReportCard source={source} /> : null}
       <div className="nk-card nk-panel">
-        <p className="nk-label-cap">Önizleme</p>
+        <p className="nk-label-cap">{t("preview")}</p>
         <div className="nk-doc-preview" style={{ marginTop: 10 }} aria-hidden="true">
           <p className="nk-doc-title">{title}</p>
           <p className="nk-num-key">{subtitle}</p>
@@ -114,6 +99,7 @@ export function ReportPanel({ source, kind, title, subtitle, available }: { sour
 
 /** Görsel (PNG) rapor — kayıtlı veriden / doğrulanmış taslaktan sunucuda üretilir (0 sağlayıcı çağrısı); önce önizleme, sonra indirme. */
 function PngReportCard({ source }: { source: ResultSource }) {
+  const t = useTranslations("numerology.classic.report");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [img, setImg] = useState<{ url: string; blob: Blob; filename: string } | null>(null);
@@ -128,23 +114,23 @@ function PngReportCard({ source }: { source: ResultSource }) {
   }
   return (
     <div className="nk-card nk-panel" data-testid="png-card">
-      <h2 className="nk-h2">Görsel rapor (PNG)</h2>
-      <p className="nk-lead">Temel sayılar, karmik ve dönemsel bilgiler tek sayfalık yüksek çözünürlüklü görselde. Paylaşım ve baskı için uygundur.</p>
+      <h2 className="nk-h2">{t("png.title")}</h2>
+      <p className="nk-lead">{t("png.lead")}</p>
       {error ? <Alert tone="error">{error}</Alert> : null}
       {img ? (
         <figure style={{ margin: "14px 0 0" }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob önizlemesi */}
-          <img src={img.url} alt="Klasik Numeroloji görsel raporu önizlemesi" data-testid="png-preview" style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid var(--b-line)" }} />
+          <img src={img.url} alt={t("png.alt")} data-testid="png-preview" style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid var(--b-line)" }} />
         </figure>
       ) : null}
       <div className="nk-btn-row nk-stretch" style={{ marginTop: 18 }}>
         {img ? (
           <button className="nk-btn nk-primary" type="button" onClick={() => saveBlob(img.blob, img.filename)} data-testid="png-download">
-            <Icon name="doc" />PNG indir
+            <Icon name="doc" />{t("png.download")}
           </button>
         ) : (
           <button className="nk-btn nk-primary" type="button" onClick={() => void build()} disabled={busy} data-testid="png-build">
-            <Icon name="doc" />{busy ? "Hazırlanıyor…" : "Görsel raporu oluştur"}
+            <Icon name="doc" />{busy ? t("preparing") : t("png.build")}
           </button>
         )}
       </div>

@@ -9,7 +9,7 @@
  * Çalıştır: npx tsx scripts/numeroloji-presale/prebirth.harness.ts
  */
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../numeroloji/intlRender"; // I18N: TR katalog sağlayıcısıyla çizim (beklentiler değişmedi)
 import { computeCycleTiming, computePersonalTiming } from "@/lib/numeroloji/timing";
 import { hesaplaNumeroloji } from "@/lib/numeroloji";
 import { isPreBirth, preBirthActiveYearText, preBirthEvreText, preBirthNote } from "@/app/numeroloji/utils/preBirth";

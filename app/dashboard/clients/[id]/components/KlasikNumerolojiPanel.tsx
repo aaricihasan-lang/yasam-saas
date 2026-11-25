@@ -7,19 +7,24 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 type Row = { id: string; kind: string; title: string; status: "complete" | "partial"; createdAt: string };
 
-const KIND_TR: Record<string, string> = { person: "Kişi analizi", relationship: "İlişki uyumu", business: "İşletme adı", names: "İsim seçenekleri" };
+// I18N-0010: `kind` kanonik koddur (DB/API); yalnız GÖSTERİMİ katalogdan (numerology.clientPanel.kinds.*).
+const KNOWN_KINDS = new Set(["person", "relationship", "business", "names"]);
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, localeTag: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat(localeTag, { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
 }
 
 export default function KlasikNumerolojiPanel({ clientId }: { clientId: string }) {
+  const t = useTranslations("numerology.clientPanel");
+  const localeTag = useLocale() === "en" ? "en-GB" : "tr-TR";
+  const kindLabel = (k: string): string | null => (KNOWN_KINDS.has(k) ? t(`kinds.${k}`) : null);
   const [state, setState] = useState<{ status: "loading" | "hidden" | "error" | "ready"; rows: Row[] }>({ status: "loading", rows: [] });
 
   useEffect(() => {
@@ -50,17 +55,17 @@ export default function KlasikNumerolojiPanel({ clientId }: { clientId: string }
     >
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ minWidth: 0 }}>
-          <h3 id="klasik-numeroloji-baslik" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#2c2257" }}>Klasik Numeroloji</h3>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b5677" }}>Numeroloji Merkezi’ndeki Klasik Numeroloji analizleri (yukarıdaki Bütüncül Numeroloji kayıtlarından ayrıdır).</p>
+          <h3 id="klasik-numeroloji-baslik" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#2c2257" }}>{t("title")}</h3>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b5677" }}>{t("intro")}</p>
         </div>
         <Link href={newHref} data-testid="klasik-numeroloji-yeni" style={{ display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 14px", borderRadius: 999, background: "#3b2a7a", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-          Yeni Klasik Numeroloji analizi
+          {t("new")}
         </Link>
       </div>
       {state.status === "error" ? (
-        <p role="alert" style={{ margin: "12px 0 0", fontSize: 13, color: "#b42318" }}>Klasik Numeroloji kayıtları şu an yüklenemedi.</p>
+        <p role="alert" style={{ margin: "12px 0 0", fontSize: 13, color: "#b42318" }}>{t("loadError")}</p>
       ) : state.rows.length === 0 ? (
-        <p style={{ margin: "12px 0 0", fontSize: 13, color: "#5b5677" }}>Bu danışana bağlı Klasik Numeroloji analizi yok.</p>
+        <p style={{ margin: "12px 0 0", fontSize: 13, color: "#5b5677" }}>{t("empty")}</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gap: 8 }}>
           {state.rows.map((r) => (
@@ -70,9 +75,9 @@ export default function KlasikNumerolojiPanel({ clientId }: { clientId: string }
                 data-testid="klasik-numeroloji-kayit"
                 style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", padding: "10px 12px", borderRadius: 12, background: "#fff", border: "1px solid #ebe8f5", color: "#2c2257", textDecoration: "none", fontSize: 14 }}
               >
-                <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{r.title || KIND_TR[r.kind] || "Analiz"}</span>
+                <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{r.title || kindLabel(r.kind) || t("analysisFallback")}</span>
                 <span style={{ color: "#5b5677", fontSize: 12.5 }}>
-                  {KIND_TR[r.kind] ?? "Analiz"} · {fmtDate(r.createdAt)}{r.status === "partial" ? " · kısmi" : ""}
+                  {kindLabel(r.kind) ?? t("analysisFallback")} · {fmtDate(r.createdAt, localeTag)}{r.status === "partial" ? t("partial") : ""}
                 </span>
               </Link>
             </li>

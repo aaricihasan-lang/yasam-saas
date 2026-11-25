@@ -5,20 +5,26 @@
 // vitrin görselidir (public/premium/numeroloji/hero-sol.webp). Klasik görseli projede üretilmiş SVG'dir (premiumArt.tsx).
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Icon, Shell, TiltLink } from "@/app/numeroloji-klasik/_ui/kit";
 import { ClassicHeroArt, Emblem, SceneOrnament } from "@/app/numeroloji-klasik/_ui/premiumArt";
 
+// I18N: chip anahtarları yalnız gösterim (numerology.app.gate.{a,b}.chips.*); kanonik değer değildir.
+const CHIPS_A = ["pin", "anaKulvar", "yanKulvar", "cakraOmurgasi", "elementler", "hayatYolu"] as const;
+const CHIPS_B = ["cekirdek", "karmik", "zirveler", "kopruler", "kaldeBilesik", "ikiSistem"] as const;
+
 export default function GateClient() {
+  const t = useTranslations("numerology.app.gate");
   return (
     <Shell theme="gate">
       <header className="nk-gate-hero" aria-labelledby="nk-gate-title">
         <SceneOrnament className="nk-gate-orn" />
-        <p className="nk-eyebrow">Numeroloji Merkezi</p>
-        <h1 className="nk-title" id="nk-gate-title">Hangi numeroloji yöntemiyle çalışacaksınız?</h1>
-        <p className="nk-sub">İki yöntem bağımsızdır; hesap kuralları ve kayıtlar ayrı tutulur. Dilediğiniz zaman iki kaydı yan yana inceleyebilirsiniz.</p>
+        <p className="nk-eyebrow">{t("eyebrow")}</p>
+        <h1 className="nk-title" id="nk-gate-title">{t("title")}</h1>
+        <p className="nk-sub">{t("sub")}</p>
       </header>
 
-      <section className="nk-gate-grid" aria-label="Numeroloji yöntemleri">
+      <section className="nk-gate-grid" aria-label={t("methodsAria")}>
         <Link className="nk-card nk-link-card nk-school nk-tone-a" href="/numeroloji" aria-describedby="nk-a-not" data-testid="gate-a">
           <span className="nk-school-art nk-art-a" aria-hidden="true">
             {/* eslint-disable-next-line @next/next/no-img-element -- sabit dekor; mevcut modülün kendi görseli */}
@@ -27,23 +33,23 @@ export default function GateClient() {
           <div className="nk-school-head">
             <span className="nk-school-mark" aria-hidden="true">A</span>
             <div>
-              <h2 className="nk-school-title">Bütüncül Numeroloji</h2>
-              <p className="nk-school-sub">Eğitim tekniklerine dayalı, bütüncül numeroloji çalışma alanı.</p>
+              <h2 className="nk-school-title">{t("a.title")}</h2>
+              <p className="nk-school-sub">{t("a.sub")}</p>
             </div>
           </div>
-          <dl className="nk-idcard" aria-label="Yöntem kimlik kartı — Bütüncül Numeroloji">
-            <div className="nk-idrow"><dt>Harf tablosu</dt><dd>Pisagor harf tablosu + eğitim teknikleri</dd></div>
-            <div className="nk-idrow"><dt>Usta sayı</dt><dd>Tüm rakamlar tek seferde toplanır, ara toplam gösterilir (ör. 32/5).</dd></div>
+          <dl className="nk-idcard" aria-label={t("a.idcardAria")}>
+            <div className="nk-idrow"><dt>{t("idLetterTable")}</dt><dd>{t("a.letterTable")}</dd></div>
+            <div className="nk-idrow"><dt>{t("idMasterNumber")}</dt><dd>{t("a.masterNumber")}</dd></div>
             <div className="nk-idrow">
-              <dt>Temel teknikler</dt>
+              <dt>{t("idTechniques")}</dt>
               <dd className="nk-chips">
-                {["PİN", "Ana Kulvar", "Yan Kulvar", "Çakra Omurgası", "Elementler", "Hayat Yolu"].map((c) => <span key={c} className="nk-chip">{c}</span>)}
+                {CHIPS_A.map((c) => <span key={c} className="nk-chip">{t(`a.chips.${c}`)}</span>)}
               </dd>
             </div>
           </dl>
           <p className="nk-school-foot" id="nk-a-not">
-            <Icon name="lock" />Kendi çalışma alanında açılır.
-            <span className="nk-school-cta" aria-hidden="true">Bütüncül Numeroloji’yi aç →</span>
+            <Icon name="lock" />{t("a.foot")}
+            <span className="nk-school-cta" aria-hidden="true">{t("a.cta")}</span>
           </p>
         </Link>
 
@@ -54,23 +60,23 @@ export default function GateClient() {
           <div className="nk-school-head">
             <span className="nk-school-mark" aria-hidden="true">B</span>
             <div>
-              <h2 className="nk-school-title">Klasik Numeroloji</h2>
-              <p className="nk-school-sub">Batı ve Kalde gelenekleri; adım adım doğrulanabilir hesap.</p>
+              <h2 className="nk-school-title">{t("b.title")}</h2>
+              <p className="nk-school-sub">{t("b.sub")}</p>
             </div>
           </div>
-          <dl className="nk-idcard" aria-label="Yöntem kimlik kartı — Klasik Numeroloji">
-            <div className="nk-idrow"><dt>Harf tablosu</dt><dd>Pisagor (Batı) ve Kalde (Cheiro) — iki ayrı yöntem</dd></div>
-            <div className="nk-idrow"><dt>Usta sayı</dt><dd>Ay, gün ve yıl ayrı indirgenir; 11 · 22 · 33 korunur.</dd></div>
+          <dl className="nk-idcard" aria-label={t("b.idcardAria")}>
+            <div className="nk-idrow"><dt>{t("idLetterTable")}</dt><dd>{t("b.letterTable")}</dd></div>
+            <div className="nk-idrow"><dt>{t("idMasterNumber")}</dt><dd>{t("b.masterNumber")}</dd></div>
             <div className="nk-idrow">
-              <dt>Temel teknikler</dt>
+              <dt>{t("idTechniques")}</dt>
               <dd className="nk-chips">
-                {["Çekirdek Sayılar", "Karmik Dersler", "Zirveler", "Köprüler", "Kalde Bileşik", "İki Sistem"].map((c) => <span key={c} className="nk-chip">{c}</span>)}
+                {CHIPS_B.map((c) => <span key={c} className="nk-chip">{t(`b.chips.${c}`)}</span>)}
               </dd>
             </div>
           </dl>
           <p className="nk-school-foot">
-            <Icon name="shield" />Her sayının hesabı adım adım gösterilir.
-            <span className="nk-school-cta" aria-hidden="true">Klasik Numeroloji’yi aç →</span>
+            <Icon name="shield" />{t("b.foot")}
+            <span className="nk-school-cta" aria-hidden="true">{t("b.cta")}</span>
           </p>
         </TiltLink>
       </section>
@@ -78,10 +84,10 @@ export default function GateClient() {
       <TiltLink className="nk-compare-card" href="/numeroloji-karsilastirma" data-testid="gate-compare">
         <Emblem name="compare" className="nk-compare-emblem" />
         <span>
-          <span className="nk-h3" style={{ display: "block" }}>Karşılaştırmalı İnceleme</span>
-          <span className="nk-lead" style={{ display: "block" }}>Aynı danışanın iki yöntemdeki kayıtlarını kavram kavram yan yana inceleyin. Sayılar birleştirilmez; orijinal analizler değişmez.</span>
+          <span className="nk-h3" style={{ display: "block" }}>{t("compare.title")}</span>
+          <span className="nk-lead" style={{ display: "block" }}>{t("compare.lead")}</span>
         </span>
-        <span className="nk-badge nk-violet">İki yöntem</span>
+        <span className="nk-badge nk-violet">{t("compare.badge")}</span>
       </TiltLink>
     </Shell>
   );

@@ -234,7 +234,33 @@ async function main() {
       try {
         diff = (await import("node:child_process")).execSync("git diff origin/main -- app components lib messages", { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
       } catch { diff = "__git_error__"; }
-      const ihlal = diff === "__git_error__" ? ["__git_error__"] : elementlerDiffIhlalleri(diff);
+      // I18N (#857): Numeroloji Merkezi kapısındaki chip metni koddan TR mesaj dosyasına taşındı.
+      // Dar, satır-birebir istisna: yalnız aşağıdaki silinen satır ve YALNIZ TR mesaj değeri hâlâ birebir
+      // "Elementler" ise ve bileşen hâlâ o anahtarı kullanıyorsa serbesttir (ad değişmedi, yalnız yer değişti).
+      const gateTr = (JSON.parse(read("messages/tr/numerology.app.json")) as { numerology?: { app?: { gate?: { a?: { chips?: Record<string, string> } } } } }).numerology?.app?.gate?.a?.chips;
+      const gateSrc = read("app/numeroloji-merkezi/GateClient.tsx");
+      const gateTasimaKanitli = gateTr?.elementler === "Elementler" && /CHIPS_A = \[[^\]]*"elementler"/.test(gateSrc) && gateSrc.includes("t(`a.chips.${c}`)");
+      const I18N_TASINAN = gateTasimaKanitli
+        ? new Set([`a/app/numeroloji-merkezi/GateClient.tsx b/app/numeroloji-merkezi/GateClient.tsx: {["PİN", "Ana Kulvar", "Yan Kulvar", "Çakra Omurgası", "Elementler", "Hayat Yolu"].map((c) => <span key={c} className="nk-chip">{c}</span>)}`])
+        : new Set<string>();
+      // I18N-F1-R5 (#857): Numeroloji sonuç / görsel rapor / ilişki ekranlarında aynı dar desen — her satır YALNIZ
+      // (i) TR mesaj değeri hâlâ BİREBİR aynı metinse ve (ii) bileşen o satırın yerinde tam o anahtarı kullanıyorsa serbest.
+      type Tr = Record<string, unknown>;
+      const trAt = (file: string, keyPath: string): unknown =>
+        keyPath.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Tr)[k] : undefined), JSON.parse(read(file)) as Tr);
+      const R5_TASINAN: { line: string; file: string; msgFile: string; key: string; tr: string; use: string }[] = [
+        { file: "app/numeroloji/components/NumerolojiAnalizSonucTabs.tsx", line: `<h3 className="text-xs font-black uppercase tracking-wider text-slate-500">Elementler</h3>`, msgFile: "messages/tr/numerology.result.json", key: "numerology.result.tabs.labels.elementler", tr: "Elementler", use: `<h3 className="text-xs font-black uppercase tracking-wider text-slate-500">{t("labels.elementler")}</h3>` },
+        { file: "app/numeroloji/components/NumerolojiAnalizSonucTabs.tsx", line: "<p className={`${typo.sectionTitle} text-amber-900/85`}>Elementler (kısa)</p>", msgFile: "messages/tr/numerology.result.json", key: "numerology.result.tabs.titles.elementsShort", tr: "Elementler (kısa)", use: "<p className={`${typo.sectionTitle} text-amber-900/85`}>{t(\"titles.elementsShort\")}</p>" },
+        { file: "app/numeroloji/components/NumerolojiAnalizSonucTabs.tsx", line: `<DetayCard title="Elementler">`, msgFile: "messages/tr/numerology.result.json", key: "numerology.result.tabs.labels.elementler", tr: "Elementler", use: `<DetayCard title={t("labels.elementler")}>` },
+        { file: "app/numeroloji/components/NumerolojiGorselRaporInfografik.tsx", line: `<GorselKutuBaslik className="text-center text-xl">Elementler</GorselKutuBaslik>`, msgFile: "messages/tr/numerology.tabs.json", key: "numerology.tabs.visual.elements", tr: "Elementler", use: `<GorselKutuBaslik className="text-center text-xl">{t("elements")}</GorselKutuBaslik>` },
+        { file: "app/numeroloji/components/NumerolojiIliskiAnaliziTab.tsx", line: `<span className="text-[10px] font-bold text-slate-500">Öne Çıkan Elementler:</span>`, msgFile: "messages/tr/numerology.tabs.json", key: "numerology.tabs.relationship.highlighted", tr: "Öne Çıkan Elementler:", use: `<span className="text-[10px] font-bold text-slate-500">{t("highlighted")}</span>` },
+        // R5 NUM-RAPOR (P35 Bilgi Bankası Word): bölüm başlığı katalogdan — aynı dar desen (TR değeri birebir + yerinde anahtar).
+        { file: "app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", line: `blocks.push(subHeading("Elementler"));`, msgFile: "messages/tr/reports.numerology.json", key: "reports.numerology.word.h.elements", tr: "Elementler", use: `blocks.push(subHeading(w("word.h.elements")));` },
+      ];
+      for (const r of R5_TASINAN) {
+        if (trAt(r.msgFile, r.key) === r.tr && read(r.file).includes(r.use)) I18N_TASINAN.add(`a/${r.file} b/${r.file}: ${r.line}`);
+      }
+      const ihlal = diff === "__git_error__" ? ["__git_error__"] : elementlerDiffIhlalleri(diff).filter((x) => !I18N_TASINAN.has(x));
       ok(ihlal.length === 0, "'Elementler' adı değişmedi (var olan satır silinmedi/değişmedi)", ihlal.slice(0, 5).join(" | "));
       // Saf denetimin sözleşmesi (sentetik farklar; git'e bağlı değil).
       const h = (dosya: string, govde: string) => `diff --git a/${dosya} b/${dosya}\n--- a/${dosya}\n+++ b/${dosya}\n@@ -1,3 +1,3 @@\n${govde}\n`;

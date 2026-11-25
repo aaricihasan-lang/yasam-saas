@@ -5,19 +5,27 @@
 // `limitYear` = gösterim sınırı (yetki KAPALI → currentYear, önceki davranış birebir;
 // AÇIK → yöntemin doğal bitişine kadar tüm dönemler); `note` = yetkiye uygun bilgi notu.
 
-import { chronoLimitYear, chronoNoteText } from "../utils/chronoCutoff";
+// I18N-0003: `recordBirthDate` = kaydın yapısal doğum tarihi (ChronoRecordProvider; yoksa null → eski kayıt
+// metin geri dönüşü). Sunucu kaydı kısıtlı süzdüyse (futureYearsView.restricted) istemci yetki önbelleği
+// sınırı GENİŞLETEMEZ.
+
+import { chronoNoteText, chronoViewLimit } from "../utils/chronoCutoff";
+import { useChronoRecord } from "./ChronoRecordContext";
 import { useCurrentYear } from "./useCurrentYear";
 import { useNumerolojiFutureYears } from "./useNumerolojiFutureYears";
 
-export type ChronoView = { currentYear: number; limitYear: number; futureYears: boolean; note: string };
+export type ChronoView = { currentYear: number; limitYear: number; futureYears: boolean; note: string; recordBirthDate: string | null };
 
 export function useChronoView(): ChronoView {
   const currentYear = useCurrentYear();
-  const futureYears = useNumerolojiFutureYears();
+  const granted = useNumerolojiFutureYears();
+  const rec = useChronoRecord();
+  const { limitYear, futureYears } = chronoViewLimit(currentYear, granted, rec.restrictedLimitYear);
   return {
     currentYear,
-    limitYear: chronoLimitYear(currentYear, futureYears),
+    limitYear,
     futureYears,
     note: chronoNoteText(futureYears),
+    recordBirthDate: rec.birthDate,
   };
 }

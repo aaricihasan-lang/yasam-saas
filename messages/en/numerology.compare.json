@@ -1,0 +1,220 @@
+{
+  "numerology": {
+    "compare": {
+      "futureHidden": "This period has not started yet, so it is not shown.",
+      "meta": {
+        "title": "Comparative Review · Numerology Centre"
+      },
+      "crumbCentre": "Numerology Centre",
+      "title": "Comparative Review",
+      "schoolA": "A · Holistic Numerology",
+      "schoolB": "B · Classical Numerology",
+      "colA": "A · Holistic",
+      "colB": "B · Classical",
+      "birth": "Born {date}",
+      "birthUnreadable": "Birth date could not be read",
+      "recordDate": "Saved {date}",
+      "untitled": "Untitled analysis",
+      "analysisFallback": "Analysis",
+      "noRecord": "No record selected",
+      "kinds": {
+        "person": "Personal analysis",
+        "relationship": "Relationship analysis",
+        "business": "Business name",
+        "names": "Name options"
+      },
+      "relation": {
+        "same_value": "Same value",
+        "same_root": "Same root",
+        "different": "Different",
+        "one_missing": "Missing on one side",
+        "not_comparable": "Not comparable"
+      },
+      "classicMissing": {
+        "no_result": "No Classical Numerology record selected.",
+        "field_missing": "This section is not present in the Classical record.",
+        "not_requested": "This technique was not calculated in the Classical record."
+      },
+      "legacyMissing": {
+        "no_snapshot": "No Holistic Numerology record selected.",
+        "invalid_snapshot": "The saved analysis could not be read.",
+        "unsupported_version": "The version of the saved analysis is not supported.",
+        "field_missing": "This section is not present in this record.",
+        "empty": "The value is empty in this record.",
+        "unparseable": "The saved display value could not be parsed as a number."
+      },
+      "slot": {
+        "bileklik": "Bracelet",
+        "kolye": "Necklace",
+        "kutle": "Kütle"
+      },
+      "method": {
+        "provider_direct": "Chart suggestion",
+        "vibration_exact": "Vibration",
+        "vibration_root": "Root number",
+        "planet": "Planet",
+        "pairs_with": "Pairs with",
+        "element": "Element"
+      },
+      "back": {
+        "toAnalysis": "Back to Analysis",
+        "toCentre": "Back to Numerology Centre"
+      },
+      "person": {
+        "birthDiffTitle": "Birth dates differ",
+        "birthDiffBody": "The Holistic record shows {legacyDate}, the Classical analysis shows {classicDate}. Check that both records belong to the same person.",
+        "noBirthTitle": "The birth date could not be read in the Holistic record",
+        "noBirthBody": "Check the person match using the name and the record date. The record is not changed.",
+        "nameDiffTitle": "Names are spelt differently",
+        "nameDiffBody": "The birth dates match, but the names do not match exactly. Make sure it is the same person."
+      },
+      "legacy": {
+        "notInSnapshot": "Not stored in the Holistic Numerology record",
+        "special19": "Special number 19: {fields}",
+        "noSpecial19": "No special number 19 in the Main Lane or Side Lane",
+        "digitRoot": "Digital root {root}",
+        "kulvarNoKey": "The key is not stored in this record; no comparison is made",
+        "kulvarKeyRoot": "Compared: key {key} (root {root})",
+        "kulvarKey": "Compared: key {key}"
+      },
+      "classic": {
+        "karmicDebt": "Karmic debt",
+        "noKarmicDebt": "No karmic debt",
+        "missingNumbers": "missing numbers: {list}",
+        "none": "none",
+        "master": "Master number",
+        "karmicDebtN": "Karmic debt {n}",
+        "age": "Age {range}",
+        "targetDate": "Target date {date}"
+      },
+      "drawer": {
+        "title": "{label} — why do they differ?",
+        "close": "Close",
+        "bothCorrect": "Both results are correct within their own method. This screen shows them side by side; it does not merge them."
+      },
+      "hero": {
+        "eyebrow": "A · B side by side",
+        "sub": "The same client's records in the two methods are shown concept by concept. Numbers are not merged or averaged.",
+        "aside": "The original analyses do not change"
+      },
+      "pick": {
+        "title": "Record selection",
+        "lead": "Select one or two records. If only one side is selected, the other column stays empty.",
+        "clientFilter": " Client filter active.",
+        "legendA": "A · Holistic Numerology record",
+        "searchALabel": "Search Holistic Numerology records by name",
+        "searchAPlaceholder": "A · Search by name",
+        "legendB": "B · Classical Numerology record",
+        "searchBLabel": "Search Classical Numerology records by name",
+        "searchBPlaceholder": "B · Search by name or title",
+        "picked": "Selected: <b>{name}</b> (not shown in the search results; the selection is kept)",
+        "loadingA": "Loading Holistic records…",
+        "loadingB": "Loading Classical records…",
+        "notSelected": "Not selected",
+        "emptyASearch": "No Holistic Numerology records match the search.",
+        "emptyA": "No Holistic Numerology records found.",
+        "emptyBSearch": "No Classical Numerology records match the search.",
+        "emptyB": "No Classical Numerology records found.",
+        "newAnalysis": "New analysis",
+        "alignBtn": "Show side by side",
+        "aligning": "Aligning…",
+        "alignHint": "Alignment only reads saved values; nothing is recalculated."
+      },
+      "missing": {
+        "legacy": "The Holistic Numerology side is empty; only the Classical record is shown.",
+        "classic": "The Classical Numerology side is empty; only the Holistic Numerology record is shown.",
+        "oldMethod": "The Holistic Numerology record was saved with an older calculation version; values are shown as saved."
+      },
+      "sourcesAria": "Selected records",
+      "concepts": {
+        "title": "Concept alignment",
+        "lead": "Concepts with the same name may be calculated with different formulas; the status column indicates this.",
+        "colConcept": "Concept",
+        "colStatus": "Status",
+        "sameNameDiff": "Same name, different formula",
+        "why": "Why different?"
+      },
+      "only": {
+        "aria": "Techniques found in only one method",
+        "titleA": "Only in A",
+        "leadA": "Holistic Numerology techniques; no equivalent in the Classical method.",
+        "titleB": "Only in B",
+        "leadB": "Classical method techniques; no equivalent in Holistic Numerology.",
+        "present": "Present in this record",
+        "absent": "Not in this record",
+        "absentSuffix": " · not in record"
+      },
+      "stones": {
+        "title": "Stones — by source",
+        "lead": "Each column shows its own source; the lists are not merged.",
+        "aExpert": "A · Practitioner assignment",
+        "bDirect": "B · Chart suggestion",
+        "bDerived": "B · Derived",
+        "noStones": "No stones in the record.",
+        "ambiguous": "More than one possible stone",
+        "unmatched": "Not in the library",
+        "noSuggestion": "No suggestions.",
+        "noDerived": "No derived suggestions.",
+        "overlap": "Stones appearing on both sides (origin is preserved): {list}",
+        "disclaimer": "Stone suggestions are symbolic and traditional interpretations; they do not constitute a medical diagnosis, treatment or health claim."
+      },
+      "notes": {
+        "title": "Practitioner assessment",
+        "lead": "Your interpretation; saved as a record separate from the two analyses.",
+        "edit": "Edit",
+        "delete": "Delete",
+        "editLabel": "Edit note",
+        "newLabel": "New assessment",
+        "refresh": "Refresh notes",
+        "conflict": "The note was changed in another session. Refresh the notes and apply your change again (the text you have written is kept).",
+        "empty": "The note cannot be empty.",
+        "tooLong": "The note can be at most {max} characters.",
+        "saved": "Assessment saved. The original analyses were not changed.",
+        "deleted": "Note deleted.",
+        "lock": "This note is saved separately. <b>The original analyses do not change.</b> No single “combined number” is produced.",
+        "saving": "Saving…",
+        "saveChange": "Save changes",
+        "saveNew": "Save assessment",
+        "cancel": "Cancel"
+      },
+      "word": {
+        "title": "Comparison report (Word)",
+        "lead": "The two records side by side; numbers are not merged. You can add a practitioner note to the report if you wish.",
+        "noteLabel": "Note to include in the report",
+        "noNote": "Do not include a note",
+        "noteFallback": "Note",
+        "preparing": "Preparing…"
+      },
+      "confirm": {
+        "title": "Delete the note?",
+        "body": "The practitioner note will be deleted. The original analyses are not affected."
+      },
+      "errors": {
+        "generic": "The operation could not be completed.",
+        "network": "Could not connect. Check your internet connection and try again.",
+        "rateLimited": "Too many requests; please try again shortly.",
+        "module": "You do not have access to this module. Please contact your administrator.",
+        "membership": "Your membership is not active for this action.",
+        "clientsPermission": "You need Client Management permission for this action.",
+        "status401": "Your session may have expired. Please sign in again.",
+        "status403": "You are not authorised to perform this action.",
+        "status404": "The record was not found or no longer exists.",
+        "status409": "The record was changed in another session. Refresh the page and try again.",
+        "status413": "The request is too large.",
+        "status5xx": "The operation could not be completed right now. Please try again later.",
+        "codes": {
+          "INVALID_CLIENT_ID": "Invalid client ID.",
+          "INVALID_ID": "Invalid record ID.",
+          "SOURCE_REQUIRED": "At least one record must be selected.",
+          "BODY_TOO_LONG": "The note can be at most 20,000 characters.",
+          "CLIENT_MISMATCH": "The note cannot be linked to a client other than the one the selected records belong to.",
+          "CLIENT_NOT_FOUND": "Client not found.",
+          "DEMO_READONLY": "On a demo account, new analyses cannot be calculated and records cannot be changed.",
+          "DB_ERROR": "The operation could not be completed. Please try again.",
+          "KIND_MISMATCH": "The selected analysis is not suitable for this report type.",
+          "STONES_NOT_AVAILABLE": "This analysis has no personal chart for stone matching."
+        }
+      }
+    }
+  }
+}

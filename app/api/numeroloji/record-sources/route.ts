@@ -11,6 +11,12 @@ import {
 
 export const runtime = "nodejs";
 
+/** I18N: safeDbError eşlemesinin dil-bağımsız kodu (yanıta ek `code`; TR `error` metni ve HTTP durumu aynen). */
+function dbErrorCode(error: unknown): string {
+  const c = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
+  return c === "23505" ? "DUPLICATE" : c === "23503" ? "RELATED_RECORD" : "DB_ERROR";
+}
+
 /**
  * /api/numeroloji/record-sources — numerology_record_sources güvenli sunucu kapısı (NKB-V2-C).
  *
@@ -77,8 +83,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const knowledgeRecordId = str(url.searchParams.get("knowledge_record_id"));
   const sourceId = str(url.searchParams.get("source_id"));
 
-  if (knowledgeRecordId && !isUuid(knowledgeRecordId)) return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
-  if (sourceId && !isUuid(sourceId)) return NextResponse.json({ ok: false, error: "Geçersiz source_id." }, { status: 400 });
+  if (knowledgeRecordId && !isUuid(knowledgeRecordId)) return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id.", code: "INVALID_ID" }, { status: 400 });
+  if (sourceId && !isUuid(sourceId)) return NextResponse.json({ ok: false, error: "Geçersiz source_id.", code: "INVALID_ID" }, { status: 400 });
 
   // NUM-F09: sayfalı tam okuma (sessiz 1000 kesmesi yok).
   const { rows: data, error } = await readAllPaged((from, to) => {
@@ -89,7 +95,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
   if (error) {
     const e = safeDbError(error);
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
@@ -101,14 +107,14 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   // Sahiplik ön-kontrolü için önce kimlikleri güvenle çöz.
   if (!isUuid(body.knowledge_record_id)) {
-    return NextResponse.json({ ok: false, error: "knowledge_record_id geçerli bir UUID olmalı." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "knowledge_record_id geçerli bir UUID olmalı.", code: "INVALID_ID" }, { status: 400 });
   }
   if (!isUuid(body.source_id)) {
-    return NextResponse.json({ ok: false, error: "source_id geçerli bir UUID olmalı." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "source_id geçerli bir UUID olmalı.", code: "INVALID_ID" }, { status: 400 });
   }
   const knowledgeRecordId = str(body.knowledge_record_id);
   const sourceId = str(body.source_id);
@@ -116,15 +122,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Uygulama katmanı sahiplik: her ikisi de bu tenant'a ait olmalı (yoksa 404, sızdırma yok).
   const recordAnalysisType = await ownedKnowledgeAnalysisType(db, tenantId, knowledgeRecordId);
   if (recordAnalysisType === null) {
-    return NextResponse.json({ ok: false, error: "Bilgi kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Bilgi kaydı bulunamadı veya bu tenant'a ait değil.", code: "RECORD_NOT_FOUND" }, { status: 404 });
   }
   if (!(await sourceOwned(db, tenantId, sourceId))) {
-    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil.", code: "SOURCE_NOT_FOUND" }, { status: 404 });
   }
 
   // Tam doğrulama (section_key kuralı hedef kaydın türüne göre).
   const parsed = validateRecordSourceInput(body, { partial: false, recordAnalysisType });
-  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error, code: "INVALID_INPUT" }, { status: parsed.status });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -142,7 +148,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const e = safeDbError(error);
     const message = e.status === 409 ? "Bu kaynak bu kayda (aynı bölüm) zaten bağlı." : e.message;
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: message, code: e.status === 409 ? "LINK_DUPLICATE" : dbErrorCode(error) }, { status: e.status });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "source_link", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
@@ -155,10 +161,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const id = str(body.id);
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur.", code: "INVALID_ID" }, { status: 400 });
 
   // Bağlantı bu tenant'a ait mi? (ve section_key doğrulaması için kaydın türü lazım)
   const { data: link, error: linkErr } = await db
@@ -169,10 +175,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .maybeSingle();
   if (linkErr) {
     const e = safeDbError(linkErr);
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(linkErr) }, { status: e.status });
   }
   if (!link) {
-    return NextResponse.json({ ok: false, error: "Bağlantı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Bağlantı bulunamadı veya bu tenant'a ait değil.", code: "LINK_NOT_FOUND" }, { status: 404 });
   }
 
   let recordAnalysisType: string | null = null;
@@ -187,7 +193,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const { id: _omit, ...rest } = body;
   void _omit;
   const parsed = validateRecordSourceInput(rest, { partial: true, recordAnalysisType });
-  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error, code: "INVALID_INPUT" }, { status: parsed.status });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -203,10 +209,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     const e = safeDbError(error);
     const message = e.status === 409 ? "Bu kaynak bu kayda (aynı bölüm) zaten bağlı." : e.message;
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: message, code: e.status === 409 ? "LINK_DUPLICATE" : dbErrorCode(error) }, { status: e.status });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Bağlantı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Bağlantı bulunamadı veya bu tenant'a ait değil.", code: "LINK_NOT_FOUND" }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "source_link", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -224,7 +230,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 1000)
     : str(body.id) ? [str(body.id)] : [];
-  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli." }, { status: 400 });
+  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli.", code: "INVALID_ID" }, { status: 400 });
 
   const { data, error } = await db
     .from(TABLE)
@@ -235,7 +241,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (error) {
     const e = safeDbError(error);
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "source_link", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
   if (deletedIds.length > 0) {
@@ -243,6 +249,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source_link", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
   // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
-  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", code: "NOT_FOUND", deleted: 0 }, { status: 404 });
   return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }

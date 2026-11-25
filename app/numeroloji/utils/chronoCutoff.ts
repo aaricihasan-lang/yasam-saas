@@ -28,6 +28,15 @@ import {
   type DegisimFullDate,
 } from "@/lib/numeroloji";
 import { filterHarfSegmentsThroughActive } from "./harfSummary";
+import {
+  CHRONO_UNLIMITED_YEAR,
+  chronoBirthYear,
+  isRedactedAge,
+  isRedactedTopic,
+  isRedactedYear,
+  isUnlimitedYear,
+  resolveChronoBirth,
+} from "./chronoBirth";
 
 /** Her kronolojik bölümde TEK KEZ gösterilecek bilgilendirme notu. Yıl NUMARASI içermez. */
 export const CHRONO_CUTOFF_NOTE =
@@ -40,11 +49,27 @@ export const CHRONO_CUTOFF_NOTE =
 // → sınır = currentYear (önceki davranış birebir). "Aktif dönem" vurgusu HER ZAMAN currentYear'dır.
 
 /** Yetki açıkken sınır yılı: motorun ürettiği tüm yılları (≤ 2100+80) kapsayan sonlu üst değer. */
-export const CHRONO_NO_LIMIT_YEAR = 9999;
+export const CHRONO_NO_LIMIT_YEAR = CHRONO_UNLIMITED_YEAR;
 
 /** Kronolojik filtrelerde kullanılacak sınır yılı (yetki KAPALI → currentYear; AÇIK → sınırsız). */
 export function chronoLimitYear(currentYear: number, futureYears: boolean): number {
   return futureYears === true ? CHRONO_NO_LIMIT_YEAR : currentYear;
+}
+
+/**
+ * I18N-0003 — Ekranın etkin sınırı (saf). `granted`: istemcinin sunucudan okuduğu yetki önbelleği.
+ * `restrictedLimitYear`: sunucu bu kaydı yetkisiz süzdüyse onun sınır yılı (yoksa null). Sunucu kısıtı
+ * varken istemci önbelleği sınırı GENİŞLETEMEZ (yer tutucular / yeniden hesaplanan Değişim açılmaz).
+ */
+export function chronoViewLimit(
+  currentYear: number,
+  granted: boolean,
+  restrictedLimitYear: number | null,
+): { limitYear: number; futureYears: boolean } {
+  const restricted = restrictedLimitYear !== null;
+  const futureYears = granted === true && !restricted;
+  const base = chronoLimitYear(currentYear, futureYears);
+  return { limitYear: restricted ? Math.min(base, restrictedLimitYear as number) : base, futureYears };
 }
 
 /** Yetki AÇIK iken gösterilen not (gelecek dönemler dahil). Yıl NUMARASI içermez. */
@@ -57,16 +82,9 @@ export function chronoNoteText(futureYears: boolean): string {
 }
 
 // ── Doğum yılı: motor snapshot'ından güvenle çıkar (yeni motor alanı GEREKMEZ) ──
-function firstDogumTarihi(...sources: (string | undefined | null)[]): string | null {
-  for (const s of sources) {
-    if (!s) continue;
-    const m = s.match(/Doğum Tarihi:\s*([^\n\r]+)/i);
-    const v = m?.[1]?.trim();
-    if (v) return v;
-  }
-  return null;
-}
-
+// I18N-0003: karar tek çözücüden (chronoBirth.resolveChronoBirth) gelir — dilden bağımsız etiket eşleme,
+// yapısal kayıt alanı birincil, belirsiz/bozuk veride FAIL-CLOSED. Bu iki yardımcı geriye dönük uyum
+// içindir; `recordBirthDate` (kayıt `birth_date`) verilirse metin yalnız eski kayıt geri dönüşüdür.
 type OutMetinler = {
   degisimDonusumMetni?: string;
   zirveYillariMetni?: string;
@@ -75,22 +93,15 @@ type OutMetinler = {
   elementlerMetni?: string;
 };
 
-/** Motor çıktısından (metinlerde gömülü) doğum tarihini (ham "gg.aa.yyyy") çözer; yoksa null. */
-export function dogumTarihiFromOut(out: OutMetinler): string | null {
-  return firstDogumTarihi(
-    out.degisimDonusumMetni,
-    out.zirveYillariMetni,
-    out.mucadeleYillariMetni,
-    out.elementlerMetni,
-    out.harflerinYankilanisiMetni,
-  );
+/** Doğum tarihini ("GG.AA.YYYY") çözer; çözülemez/çelişkiliyse null (çağıran kronolojiyi GİZLER). */
+export function dogumTarihiFromOut(out: OutMetinler, recordBirthDate?: string | null): string | null {
+  const b = resolveChronoBirth(out, recordBirthDate);
+  return b.ok ? b.engineText : null;
 }
 
-/** Motor çıktısından (metinlerde gömülü) doğum yılını çözer; bulunamazsa null. */
-export function dogumYilindanOut(out: OutMetinler): number | null {
-  const bd = dogumTarihiFromOut(out);
-  const parts = bd ? parseBirthDate(bd) : null;
-  return parts?.year ?? null;
+/** Doğum yılını çözer; bulunamaz/çelişkiliyse null (çağıran kronolojiyi GİZLER). */
+export function dogumYilindanOut(out: OutMetinler, recordBirthDate?: string | null): number | null {
+  return chronoBirthYear(out, recordBirthDate);
 }
 
 // ── HARFLERİN YANKILANIŞI ──────────────────────────────────────────────────────
@@ -107,8 +118,30 @@ export function cutoffHarfSegments(
   segments: HarfYankilanisiSegment[],
   currentYear: number,
 ): HarfCutoffSegment[] {
+  // I18N-0003 FAIL-CLOSED: gizli yer tutucu segmentler (REDACTED_*) HİÇBİR sınırda gösterilmez; yetki
+  // KAPALI iken yıl bilgisi olmayan segment varsa zaman ekseni kurulamaz → hiçbiri gösterilmez.
+  const real = segments.filter((s) => !isRedactedHarfSegment(s));
+  if (!isUnlimitedYear(currentYear) && real.some((s) => typeof s.yearStart !== "number" || typeof s.yearEnd !== "number")) return [];
   // filterHarfSegmentsThroughActive = geçmiş + aktif (yearStart ≤ currentYear seti). Kırpma YOK.
-  return filterHarfSegmentsThroughActive(segments, currentYear).map((s) => ({ ...s }));
+  return filterHarfSegmentsThroughActive(real, currentYear).map((s) => ({ ...s }));
+}
+
+/** Sunucu gizlemesinin bıraktığı yer tutucu harf segmenti mi? (gerçek zamanlama değildir) */
+export function isRedactedHarfSegment(s: { ageStart?: unknown; ageEnd?: unknown; yearStart?: unknown; yearEnd?: unknown } | null | undefined): boolean {
+  if (!s) return true;
+  return isRedactedAge(s.ageStart) || isRedactedAge(s.ageEnd) || isRedactedYear(s.yearStart) || isRedactedYear(s.yearEnd);
+}
+
+/**
+ * Yaş tabanlı görünürlük (Zirve / Mücadele ortak). Yer tutucu yaş hiçbir zaman görünmez.
+ * Yetki AÇIK (sınırsız) → tümü (önceki davranış). Yetki KAPALI → doğum yılı ŞART; yoksa FAIL-CLOSED.
+ */
+function ageVisible(birthYear: number | null, limitYear: number): (age: number) => boolean {
+  return (age: number) => {
+    if (typeof age !== "number" || !Number.isFinite(age) || isRedactedAge(age)) return false;
+    if (isUnlimitedYear(limitYear)) return true;
+    return birthYear != null && birthYear + age <= limitYear;
+  };
 }
 
 /** Segmentin gösterilecek bitiş yılı (ORİJİNAL, tam aralık). */
@@ -122,15 +155,15 @@ export function harfDisplayAgeEnd(s: HarfCutoffSegment): number {
 }
 
 // ── ZİRVE (yaş-tabanlı; gelecekte başlayan gizli) ───────────────────────────────
-/** birthYear + yaş ≤ currentYear olan zirveler görünür. birthYear yoksa (nadir) tümü. */
+/** birthYear + yaş ≤ currentYear olan zirveler görünür. birthYear yoksa: yetki KAPALI → hiçbiri (fail-closed), AÇIK → tümü. */
 export function cutoffZirvePeaks(
   peaks: Zirve[] | undefined,
   birthYear: number | null,
   currentYear: number,
 ): Zirve[] {
   if (!peaks?.length) return [];
-  if (birthYear == null) return peaks.slice();
-  return peaks.filter((p) => birthYear + p.age <= currentYear);
+  const vis = ageVisible(birthYear, currentYear);
+  return peaks.filter((p) => !!p && typeof p === "object" && vis(p.age));
 }
 
 export const ZIRVE_METOT1_LABEL = "Metot 1 — İlk Zirve Sayısına Göre";
@@ -153,8 +186,11 @@ export function zirveYasGorunumu(
   currentYear: number,
 ): ZirveYasGorunumu | null {
   if (!Array.isArray(peaks) || !peaks.length) return null;
+  // Bozuk kayıt: nesne olmayan zirve öğeleri yok sayılır (çökme yerine güvenli boş görünüm).
+  peaks = peaks.filter((p): p is Zirve => !!p && typeof p === "object");
+  if (!peaks.length) return null;
   const ok = (age: unknown): age is number => typeof age === "number" && Number.isFinite(age);
-  const vis = (age: number) => birthYear == null || birthYear + age <= currentYear;
+  const vis = ageVisible(birthYear, currentYear);
   const row = (p: Zirve, age: number): ZirveYasSatiri => ({ index: p.index, age, topic: p.topic, display: p.display });
   const ikiMetot = peaks.every((p) => ok(p.yasMetot1) && ok(p.yasMetot2));
   if (ikiMetot) {
@@ -188,12 +224,13 @@ export function cutoffMucadele(
 ): MucadeleCutoff | null {
   const d = mucadeleDonemleri(m);
   if (!d) return null;
-  const vis = (startYearAge: number) => birthYear == null || birthYear + startYearAge <= currentYear;
-  if (d.format === "onceki") return { format: "onceki", points: d.points.filter((p) => vis(p.age)) };
+  const vis = ageVisible(birthYear, currentYear);
+  const realTopic = (t: unknown) => !isRedactedTopic(t);
+  if (d.format === "onceki") return { format: "onceki", points: d.points.filter((p) => vis(p.age) && realTopic(p.topic)) };
   return {
     format: "kitap2",
-    periods: d.periods.filter((p) => vis(p.startAge)),
-    ana: d.ana && vis(d.ana.startAge) ? d.ana : null,
+    periods: d.periods.filter((p) => vis(p.startAge) && realTopic(p.topic)),
+    ana: d.ana && vis(d.ana.startAge) && realTopic(d.ana.topic) ? d.ana : null,
   };
 }
 

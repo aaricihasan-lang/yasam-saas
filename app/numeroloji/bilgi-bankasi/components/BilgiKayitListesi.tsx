@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
@@ -22,13 +24,15 @@ import { WordSectionPicker } from "./WordSectionPicker";
 import type { WordSections } from "../helpers/wordSectionLogic";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
+// I18N: filtre değerleri kanonik koddur (kayitTuru); görünen ad numerology.knowledge.list.* (TR birebir).
 const KAYIT_TURU_FILTRE = [
-  { value: "", label: "Tüm kayıt türleri" },
-  { value: "aciklama", label: "Açıklama Kaydı" },
-  { value: "dogaltas", label: "Doğaltaş Atama" },
+  { value: "" },
+  { value: "aciklama" },
+  { value: "dogaltas" },
 ] as const;
 
 // NKB-V2-H: premium-kompakt yoğunluk (dev padding/font/min-h/blur küçültüldü; butonlar ≥44px).
@@ -73,13 +77,56 @@ function kayitTuruBadge(tur: KayitTuru) {
   return "bg-emerald-100 text-emerald-900 ring-emerald-200/80";
 }
 
-function kayitTuruLabel(tur: KayitTuru) {
-  return tur === "aciklama" ? "Açıklama Kaydı" : "Doğaltaş Atama";
+type ListT = ReturnType<typeof useTranslations>;
+
+/**
+ * I18N — EN silme onay/etki metinleri. TR'de helpers/kbDeleteImpact (kbSilmeOnayMetni / kbSilmeEtkisiMetni)
+ * AYNEN kullanılır (TR birebir); bu iki saf yardımcı aynı yapıyı (≤10 madde + "+N", etki, geri alınamaz) EN'de kurar.
+ */
+const OZET_LIMIT = 10;
+function enSatirEtiketi(t: ListT, r: BilgiBankaListeSatir): string {
+  return t("list.confirm.rowLabel", { type: analizTuruGoster(t, r), value: kbValueDisplay(r.deger, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT), kind: t(`list.confirm.rowKind.${r.kayitTuru}`) });
+}
+function enSilmeEtkisiMetni(t: ListT, satirlar: readonly BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string {
+  if (!satirlar.some((r) => r.kayitTuru === "aciklama")) return "";
+  if (etki.notSayisi === null || etki.baglantiSayisi === null) return t("list.confirm.impactUnknown");
+  if (etki.notSayisi === 0 && etki.baglantiSayisi === 0) return "";
+  return t("list.confirm.impact", { notes: etki.notSayisi, links: etki.baglantiSayisi });
+}
+function enSilmeOnayMetni(t: ListT, satirlar: readonly BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string {
+  const n = satirlar.length;
+  const lines: string[] = [];
+  if (n === 1) lines.push(t("list.confirm.one", { label: enSatirEtiketi(t, satirlar[0]) }));
+  else {
+    lines.push(t("list.confirm.many", { count: n }));
+    for (const r of satirlar.slice(0, OZET_LIMIT)) lines.push(`• ${enSatirEtiketi(t, r)}`);
+    if (n > OZET_LIMIT) lines.push(t("list.confirm.more", { count: n - OZET_LIMIT }));
+  }
+  const etkiMetni = enSilmeEtkisiMetni(t, satirlar, etki);
+  if (etkiMetni) lines.push("", etkiMetni);
+  lines.push("", t("list.confirm.irreversible"));
+  return lines.join("\n");
+}
+
+/** Analiz türü gösterimi: kod biliniyorsa katalogdan (TR değerleri ANALIZ_TURU_LABELS ile birebir), yoksa satırdaki etiket. */
+function analizTuruGoster(t: ListT, r: Pick<BilgiBankaListeSatir, "analizTuruKey" | "analizTuru">): string {
+  return t.has(`shared.analysisTypes.${r.analizTuruKey}`) ? t(`shared.analysisTypes.${r.analizTuruKey}`) : r.analizTuru;
 }
 
 export function BilgiKayitListesi() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("numerology.knowledge");
+  // I18N: TR'de yardımcı ve sunucu metinleri birebir (isSourceLocale); EN'de katalog / modül genel hata metni.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const turGoster = (r: Pick<BilgiBankaListeSatir, "analizTuruKey" | "analizTuru">): string =>
+    isSourceLocale ? r.analizTuru : analizTuruGoster(t, r);
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
+  const onayMetni = (satirlar: BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string =>
+    isSourceLocale ? kbSilmeOnayMetni(satirlar, etki) : enSilmeOnayMetni(t, satirlar, etki);
+  const etkiMetni = (satirlar: BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string =>
+    isSourceLocale ? kbSilmeEtkisiMetni(satirlar, etki) : enSilmeEtkisiMetni(t, satirlar, etki);
   const [kayitTuruFiltre, setKayitTuruFiltre] = useState("");
   const [analizTuruFiltre, setAnalizTuruFiltre] = useState("");
   const [arama, setArama] = useState("");
@@ -104,25 +151,28 @@ export function BilgiKayitListesi() {
     setYukleniyor(false);
     if (error) {
       // AŞAMA 1 P3: okuma hatası "boş bilgi bankası" gibi görünmesin; doğru mesaj.
-      showToast({ message: "Bilgi bankası kayıtları yüklenemedi. Lütfen “Listeyi yenile” ile tekrar deneyin.", type: "error" });
+      showToast({ message: t("list.loadError"), type: "error" });
       setTumSatirlar([]);
       return;
     }
     setTumSatirlar(rows);
     setSeciliIds(new Set());
-  }, [showToast]);
+  }, [showToast, t]);
 
   const detayGuncelleVeYenile = useCallback(async () => {
     const { rows, error } = await listBilgiBankaKayitlari();
     if (error) {
-      showToast({ message: "Kayıt sırasında hata oluştu", type: "error" });
+      showToast({ message: t("list.refreshError"), type: "error" });
       return;
     }
     setTumSatirlar(rows);
     setDetayRow((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
-  }, [showToast]);
+  }, [showToast, t]);
 
   useEffect(() => {
+    // Standart "external data load" effect'i (HEAD'de de aynı eslint hatası vardı; davranış değişmedi).
+    // Repo genelindeki bilinçli suppression deseni (bkz. KaynakNotlariYonetimi / useKulvarSources).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void yukleListe();
   }, [yukleListe]);
 
@@ -192,13 +242,13 @@ export function BilgiKayitListesi() {
     setTopluSiliniyor(false);
 
     if (error) {
-      showToast({ message: `Seçili kayıtlar silinemedi: ${error}`, type: "error" });
+      showToast({ message: isSourceLocale ? t("list.bulkDeleteFailed", { error: String(error) }) : t("list.bulkDeleteFailedGeneric"), type: "error" });
       // İki aşamalı silmede bir kısmı silinmiş olabilir → liste sunucudan tazelenir (bayat satır kalmaz).
       void yukleListe();
       return;
     }
 
-    showToast({ message: "Seçili kayıtlar silindi", type: "success" });
+    showToast({ message: t("list.bulkDeleted"), type: "success" });
     if (detayRow && seciliIds.has(detayRow.id)) setDetayRow(null);
     setSeciliIds(new Set());
     void yukleListe();
@@ -219,7 +269,7 @@ export function BilgiKayitListesi() {
   async function mobilSilAc(hedef: { mode: "tek"; row: BilgiBankaListeSatir } | { mode: "toplu" }) {
     const satirlar = hedef.mode === "tek" ? [hedef.row] : seciliSatirlar;
     const etki = await silmeEtkisiGetir(satirlar);
-    setMobilSilEk(kbSilmeEtkisiMetni(satirlar, etki));
+    setMobilSilEk(etkiMetni(satirlar, etki));
     setMobilSilHedef(hedef);
   }
 
@@ -232,13 +282,13 @@ export function BilgiKayitListesi() {
 
       // 3+ kayıt → sistem geneli 3 aşamalı toplu silme (masaüstü + mobil aynı akış).
       const ok = requiresBulkDeleteGuard(hedef.length)
-        ? await runBulkDeleteConfirm(confirm, { count: hedef.length, detail: kbSilmeOnayMetni(hedef, etki) })
+        ? await runBulkDeleteConfirm(confirm, { count: hedef.length, detail: onayMetni(hedef, etki) })
         : await confirm({
-            title: "Seçili kayıtları sil",
-            message: kbSilmeOnayMetni(hedef, etki),
+            title: t("list.deleteSelectedTitle"),
+            message: onayMetni(hedef, etki),
             tone: "danger",
-            confirmText: "Sil",
-            cancelText: "Vazgeç",
+            confirmText: t("shared.delete"),
+            cancelText: t("shared.cancel"),
           });
       if (!ok) return;
       await silTopluUygula();
@@ -264,7 +314,7 @@ export function BilgiKayitListesi() {
     const { authHeaders } = await import("../../helpers/numApiClient");
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
-      showToast({ title: "Hata", message: "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.", type: "error" });
+      showToast({ title: t("list.errorTitle"), message: t("list.noSession"), type: "error" });
       return;
     }
 
@@ -283,14 +333,14 @@ export function BilgiKayitListesi() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        showToast({ title: t("list.errorTitle"), message: (isSourceLocale ? err.error : undefined) || t("list.reportFailed"), type: "error" });
         return;
       }
       await downloadFileResponse(res, `numeroloji-bilgi-bankasi-${mode === "filtered" ? "filtreli" : "tumu"}-${reportFileDate()}.docx`);
-      showToast({ title: "Başarılı", message: "Bilgi bankası raporu indirildi.", type: "success" });
+      showToast({ title: t("list.successTitle"), message: t("list.reportDownloaded"), type: "success" });
       setWordPicker(null);
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("list.errorTitle"), message: err instanceof Error ? err.message : t("shared.unknownError"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -303,12 +353,12 @@ export function BilgiKayitListesi() {
     setSiliniyorId(null);
 
     if (error) {
-      showToast({ message: `Kayıt silinemedi: ${error}`, type: "error" });
+      showToast({ message: isSourceLocale ? t("list.deleteFailed", { error: String(error) }) : t("list.deleteFailedGeneric"), type: "error" });
       void yukleListe();
       return;
     }
 
-    showToast({ message: "Kayıt silindi", type: "success" });
+    showToast({ message: t("list.deleted"), type: "success" });
     if (detayRow?.id === row.id) setDetayRow(null);
     void yukleListe();
   }
@@ -316,11 +366,11 @@ export function BilgiKayitListesi() {
   async function handleSil(row: BilgiBankaListeSatir) {
     const etki = await silmeEtkisiGetir([row]);
     const ok = await confirm({
-      title: "Kaydı sil",
-      message: kbSilmeOnayMetni([row], etki),
+      title: t("list.deleteOneTitle"),
+      message: onayMetni([row], etki),
       tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      confirmText: t("shared.delete"),
+      cancelText: t("shared.cancel"),
     });
     if (!ok) return;
     await silTekUygula(row);
@@ -334,7 +384,7 @@ export function BilgiKayitListesi() {
           {/* NUM-MOB-1: Kayıt türü filtresi mobilde gizli (veri/mantık korunur, yalnız sunum). */}
           <div className="hidden min-w-0 md:block">
             <label htmlFor="liste-kayit-turu" className={filterLabelClass}>
-              Kayıt türü
+              {t("list.filterRecordType")}
             </label>
             <select
               id="liste-kayit-turu"
@@ -344,7 +394,7 @@ export function BilgiKayitListesi() {
             >
               {KAYIT_TURU_FILTRE.map((opt) => (
                 <option key={opt.value || "tum"} value={opt.value}>
-                  {opt.label}
+                  {opt.value ? t(`list.recordTypes.${opt.value}`) : t("list.recordTypeAll")}
                 </option>
               ))}
             </select>
@@ -352,7 +402,7 @@ export function BilgiKayitListesi() {
 
           <div className="min-w-0">
             <label htmlFor="liste-analiz-turu" className={filterLabelClass}>
-              Analiz türü
+              {t("list.filterAnalysisType")}
             </label>
             <select
               id="liste-analiz-turu"
@@ -362,7 +412,11 @@ export function BilgiKayitListesi() {
             >
               {ANALIZ_TURU_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value || "tum"} value={opt.value}>
-                  {opt.label}
+                  {isSourceLocale
+                    ? opt.label
+                    : opt.value
+                      ? analizTuruGoster(t, { analizTuruKey: opt.value, analizTuru: opt.label })
+                      : t("list.analysisTypeAll")}
                 </option>
               ))}
             </select>
@@ -370,21 +424,21 @@ export function BilgiKayitListesi() {
 
           <div className="min-w-0">
             <label htmlFor="liste-arama" className={filterLabelClass}>
-              Arama
+              {t("list.filterSearch")}
             </label>
             <input
               id="liste-arama"
               type="search"
               value={arama}
               onChange={(e) => setArama(e.target.value)}
-              placeholder="Analiz türü, değer, kaynak, açıklama veya taş adı ile arayın…"
+              placeholder={t("list.searchPlaceholder")}
               className={searchInputClass}
             />
           </div>
 
           <div className="min-w-0">
             <span className="mb-2.5 hidden text-base font-bold text-transparent xl:block" aria-hidden>
-              Yenile
+              {t("list.refreshSpacer")}
             </span>
             <button
               type="button"
@@ -392,12 +446,12 @@ export function BilgiKayitListesi() {
               onClick={() => void yukleListe()}
               className={refreshButtonClass}
             >
-              {yukleniyor ? "Yükleniyor…" : "Listeyi yenile"}
+              {yukleniyor ? t("shared.loading") : t("list.refresh")}
             </button>
           </div>
 
           <div className="min-w-0">
-            <span className="mb-2.5 block text-base font-bold text-slate-800">Toplu işlem</span>
+            <span className="mb-2.5 block text-base font-bold text-slate-800">{t("list.bulkActions")}</span>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -406,10 +460,10 @@ export function BilgiKayitListesi() {
                 className={secilileriSilBtnClass}
               >
                 {topluSiliniyor
-                  ? "Siliniyor…"
+                  ? t("shared.deleting")
                   : seciliSayisi > 0
-                    ? `Seçilileri Sil (${seciliSayisi})`
-                    : "Seçilileri Sil"}
+                    ? t("list.deleteSelectedCount", { count: seciliSayisi })
+                    : t("list.deleteSelected")}
               </button>
               {/* Word butonları Android dahil tüm cihazlarda ve telefon genişliğinde görünür (2026-10-14 owner kararı;
                   HD ve Astroloji kendi kurallarını korur). */}
@@ -419,7 +473,7 @@ export function BilgiKayitListesi() {
                 onClick={() => setWordPicker({ mode: "all" })}
                 className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-blue-300/80 bg-blue-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {wordBusy ? "⏳ Hazırlanıyor…" : "📄 Tümünü Word"}
+                {wordBusy ? t("list.wordPreparing") : t("list.wordAll")}
               </button>
               {(kayitTuruFiltre || analizTuruFiltre || arama) && (
                 <button
@@ -428,7 +482,7 @@ export function BilgiKayitListesi() {
                   onClick={() => setWordPicker({ mode: "filtered" })}
                   className="inline-flex min-h-[3.25rem] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-violet-600 px-5 py-2 text-base font-bold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {wordBusy ? "⏳…" : `📄 Filtrelenmiş Word (${filtrelenmis.length})`}
+                  {wordBusy ? t("list.wordBusyShort") : t("list.wordFiltered", { count: filtrelenmis.length })}
                 </button>
               )}
             </div>
@@ -438,25 +492,24 @@ export function BilgiKayitListesi() {
 
       {yukleniyor ? (
         <div className="rounded-[32px] border-2 border-violet-200/80 bg-white/95 px-10 py-20 text-center shadow-xl ring-1 ring-purple-200">
-          <p className="text-lg font-medium text-slate-600">Kayıtlar yükleniyor…</p>
+          <p className="text-lg font-medium text-slate-600">{t("list.loadingRecords")}</p>
         </div>
       ) : hicKayitYok ? (
         <div className="rounded-[32px] border-2 border-dashed border-violet-300/80 bg-gradient-to-br from-violet-50/50 to-white/95 px-10 py-20 text-center shadow-xl ring-1 ring-purple-200 backdrop-blur-md sm:py-24">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-violet-200/80 bg-violet-100/70 text-3xl text-violet-700 shadow-inner" aria-hidden>
             ✦
           </div>
-          <h3 className="mt-5 text-2xl font-black text-violet-950">Kendi bilgi arşiviniz burada başlıyor</h3>
+          <h3 className="mt-5 text-2xl font-black text-violet-950">{t("list.emptyTitle")}</h3>
           <p className="mx-auto mt-3 max-w-2xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
-            Bu alan tamamen size aittir. Kendi eğitiminize ve yorum sisteminize göre numeroloji notlarınızı,
-            açıklamalarınızı ve taş atamalarınızı buradan oluşturun; eklediğiniz her kayıt bu listede görünür.
+            {t("list.emptyBody")}
           </p>
           <p className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-white/80 px-5 py-2 text-sm font-bold text-violet-800 shadow-sm">
-            Başlamak için yukarıdaki <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-900">Kayıt Ekle / Düzenle</span> sekmesini açın
+            {t.rich("list.emptyCta", { tab: (c) => <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-900">{c}</span> })}
           </p>
         </div>
       ) : filtreBos ? (
         <div className="rounded-[32px] border-2 border-dashed border-amber-200/80 bg-amber-50/40 px-10 py-16 text-center shadow-lg ring-1 ring-amber-100/60">
-          <p className="text-lg font-medium text-amber-950/85">Filtreye uygun kayıt bulunamadı.</p>
+          <p className="text-lg font-medium text-amber-950/85">{t("list.filterEmpty")}</p>
         </div>
       ) : (
         <>
@@ -478,10 +531,10 @@ export function BilgiKayitListesi() {
                     checked={secili}
                     onChange={() => toggleSec(row.id)}
                     className={`${checkboxClass} shrink-0`}
-                    aria-label={`${mobileKayitKimligi({ analizTuru: row.analizTuru, deger: row.deger })} seç`}
+                    aria-label={t("list.selectRowAria", { label: mobileKayitKimligi({ analizTuru: turGoster(row), deger: kbView(row.deger) }) })}
                   />
                   <p className="min-w-0 flex-1 break-words text-sm font-black leading-snug text-violet-900">
-                    {mobileKayitKimligi({ analizTuru: row.analizTuru, deger: row.deger })}
+                    {mobileKayitKimligi({ analizTuru: turGoster(row), deger: kbView(row.deger) })}
                   </p>
                 </div>
                 <AdminTransferBadge originType={row.origin_type} />
@@ -491,7 +544,7 @@ export function BilgiKayitListesi() {
                     className={`${detayBtnClass} flex-1`}
                     onClick={() => setDetayRow(row)}
                   >
-                    Detay
+                    {t("list.detail")}
                   </button>
                   <button
                     type="button"
@@ -499,15 +552,15 @@ export function BilgiKayitListesi() {
                     disabled={siliniyorId === row.id || topluSiliniyor}
                     onClick={() => void mobilSilAc({ mode: "tek", row })}
                   >
-                    {siliniyorId === row.id ? "Siliniyor…" : "Sil"}
+                    {siliniyorId === row.id ? t("shared.deleting") : t("shared.delete")}
                   </button>
                 </div>
               </div>
             );
           })}
           <p className="px-1 py-1 text-xs font-medium text-slate-500">
-            {filtrelenmis.length} kayıt gösteriliyor
-            {tumSatirlar.length !== filtrelenmis.length ? ` (toplam ${tumSatirlar.length})` : null}
+            {t("list.showing", { count: filtrelenmis.length })}
+            {tumSatirlar.length !== filtrelenmis.length ? t("list.showingTotal", { total: tumSatirlar.length }) : null}
           </p>
         </div>
 
@@ -524,16 +577,16 @@ export function BilgiKayitListesi() {
                         checked={filtrelenmisHepsiSecili}
                         onChange={toggleTumunu}
                         className={checkboxClass}
-                        aria-label="Tümünü seç veya tümünü kaldır"
+                        aria-label={t("list.selectAllAria")}
                       />
                     </div>
                   </th>
-                  <th className={tableThClass}>Kayıt Türü</th>
-                  <th className={tableThClass}>Analiz Türü</th>
-                  <th className={tableThClass}>Değer</th>
-                  <th className={`min-w-[220px] ${tableThClass}`}>Bilgi Kaynağı / Açıklama</th>
+                  <th className={tableThClass}>{t("list.colRecordType")}</th>
+                  <th className={tableThClass}>{t("list.colAnalysisType")}</th>
+                  <th className={tableThClass}>{t("list.colValue")}</th>
+                  <th className={`min-w-[220px] ${tableThClass}`}>{t("list.colInfo")}</th>
                   <th className={`rounded-r-2xl border-2 border-violet-200/90 bg-violet-100/80 text-right ${tableThClass}`}>
-                    İşlemler
+                    {t("list.colActions")}
                   </th>
                 </tr>
               </thead>
@@ -549,7 +602,7 @@ export function BilgiKayitListesi() {
                           checked={secili}
                           onChange={() => toggleSec(row.id)}
                           className={checkboxClass}
-                          aria-label={`${row.analizTuru} ${row.deger} seç`}
+                          aria-label={t("list.selectRowAria", { label: `${turGoster(row)} ${kbView(row.deger)}` })}
                         />
                       </div>
                     </td>
@@ -559,7 +612,7 @@ export function BilgiKayitListesi() {
                       }`}
                     >
                       <span className={`${kayitTuruRozetClass} ${kayitTuruBadge(row.kayitTuru)}`}>
-                        {kayitTuruLabel(row.kayitTuru)}
+                        {t(`list.recordTypes.${row.kayitTuru}`)}
                       </span>
                       <AdminTransferBadge originType={row.origin_type} className="mt-1 block w-fit" />
                     </td>
@@ -568,14 +621,14 @@ export function BilgiKayitListesi() {
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
-                      {row.analizTuru}
+                      {turGoster(row)}
                     </td>
                     <td
                       className={`${tableTdClass} ${
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
-                      {row.deger}
+                      {kbView(row.deger)}
                     </td>
                     <td
                       className={`max-w-md ${tableTdClass} ${
@@ -595,7 +648,7 @@ export function BilgiKayitListesi() {
                           className={detayBtnClass}
                           onClick={() => setDetayRow(row)}
                         >
-                          Detay
+                          {t("list.detail")}
                         </button>
                         <button
                           type="button"
@@ -603,7 +656,7 @@ export function BilgiKayitListesi() {
                           disabled={siliniyorId === row.id || topluSiliniyor}
                           onClick={() => void handleSil(row)}
                         >
-                          {siliniyorId === row.id ? "Siliniyor…" : "Sil"}
+                          {siliniyorId === row.id ? t("shared.deleting") : t("shared.delete")}
                         </button>
                       </div>
                     </td>
@@ -614,9 +667,9 @@ export function BilgiKayitListesi() {
             </table>
           </div>
           <p className="border-t border-violet-100/90 px-6 py-4 text-base font-medium text-slate-500">
-            {filtrelenmis.length} kayıt gösteriliyor
+            {t("list.showing", { count: filtrelenmis.length })}
             {tumSatirlar.length !== filtrelenmis.length
-              ? ` (toplam ${tumSatirlar.length})`
+              ? t("list.showingTotal", { total: tumSatirlar.length })
               : null}
           </p>
         </div>
@@ -644,11 +697,11 @@ export function BilgiKayitListesi() {
       {/* NUM-MOB-1: mobil iki-aşamalı silme onayı (tek + toplu). API yalnız nihai onayda bir kez. */}
       {mobilSilHedef !== null ? (
         <MobileSilmeDialog
-          baslik={mobilSilHedef.mode === "toplu" ? "Seçili kayıtları sil" : "Kaydı sil"}
+          baslik={mobilSilHedef.mode === "toplu" ? t("list.deleteSelectedTitle") : t("list.deleteOneTitle")}
           kimlik={
             mobilSilHedef.mode === "toplu"
-              ? `${seciliSayisi} kayıt`
-              : mobileKayitKimligi({ analizTuru: mobilSilHedef.row.analizTuru, deger: mobilSilHedef.row.deger })
+              ? t("list.recordCount", { count: seciliSayisi })
+              : mobileKayitKimligi({ analizTuru: turGoster(mobilSilHedef.row), deger: kbView(mobilSilHedef.row.deger) })
           }
           ek={mobilSilEk}
           onClose={() => setMobilSilHedef(null)}

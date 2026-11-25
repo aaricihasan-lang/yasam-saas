@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getStoneAssignment,
@@ -9,6 +11,7 @@ import {
   stonesToTextarea,
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 
 // NKB-V2: kompakt düzen (Bilgi Bankası ekranını gereksiz uzatmaz; mobilde taşma yok).
 // 2026-10-20 premium görünüm (owner GÖRSEL PASS — numeroloji-bilgi-bankasi): yalnız sınıf; alanlar/mantık aynen.
@@ -23,17 +26,20 @@ const textareaClass = `${fieldBase} min-h-[120px] resize-y py-3 text-base leadin
 
 const labelClass = "mb-1.5 block text-[15px] font-bold text-[#241d45]";
 
+// I18N: analiz türü değerleri kanonik koddur (DB analysis_type); görünen ad
+// numerology.knowledge.shared.analysisTypes.<kod> (TR birebir). Boş değer = "Seçiniz...".
 const ANALIZ_TURU_OPTIONS = [
-  { value: "", label: "Seçiniz..." },
-  { value: "ana-kulvar", label: "Ana Kulvar" },
-  { value: "yan-kulvar", label: "Yan Kulvar" },
-  { value: "ifade-sayisi", label: "İfade Sayısı" },
-  { value: "hayat-yolu", label: "Hayat Yolu" },
-  { value: "cakra-omurga", label: "Çakra Omurga" },
-  { value: "element", label: "Element" },
-  { value: "diger", label: "Diğer" },
+  { value: "" },
+  { value: "ana-kulvar" },
+  { value: "yan-kulvar" },
+  { value: "ifade-sayisi" },
+  { value: "hayat-yolu" },
+  { value: "cakra-omurga" },
+  { value: "element" },
+  { value: "diger" },
 ] as const;
 
+// i18n-ignore: "Ateş | AZ Destek" vb. Bilgi Bankası eşleşme anahtarıdır (DB value); çevrilmez, aynen gösterilir.
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
   `${el} | AZ Destek`,
   `${el} | FAZLA Destek`,
@@ -51,6 +57,10 @@ function isElement(tur: string): tur is "element" {
 
 export function BilgiDogaltasAta() {
   const { showToast } = useToast();
+  const t = useTranslations("numerology.knowledge");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [oneriAciklamasi, setOneriAciklamasi] = useState("");
@@ -130,15 +140,15 @@ export function BilgiDogaltasAta() {
 
   async function handleKaydet() {
     if (!analizTuru) {
-      showToast({ message: "Analiz türü seçin.", type: "warning" });
+      showToast({ message: t("stoneAssign.chooseAnalysisType"), type: "warning" });
       return;
     }
     if (!deger.trim()) {
-      showToast({ message: "Değer alanını doldurun.", type: "warning" });
+      showToast({ message: t("stoneAssign.fillValue"), type: "warning" });
       return;
     }
     if (yuklemeHatasi) {
-      showToast({ message: "Mevcut atama okunamadı; üzerine yazmamak için kayıt yapılmadı. Lütfen tekrar deneyin.", type: "error" });
+      showToast({ message: t("stoneAssign.loadBlocked"), type: "error" });
       return;
     }
     const stones = normalizeStoneList(tasListesi);
@@ -153,8 +163,9 @@ export function BilgiDogaltasAta() {
       const { error } = await saveStoneAssignment(payload);
       if (error) {
         // Hata: seçimler KORUNUR.
+        // I18N: sunucu/DB hata metni TR'de aynen; EN'de modülün genel hata metni (dil-bağımsız kod yok).
         showToast({
-          message: `Kayıt sırasında hata oluştu: ${error}`,
+          message: isSourceLocale ? t("stoneAssign.saveFailed", { error: String(error) }) : t("stoneAssign.saveFailedGeneric"),
           type: "error",
         });
         return;
@@ -166,11 +177,11 @@ export function BilgiDogaltasAta() {
       setDeger("");
       setOneriAciklamasi("");
       setTasListesi("");
-      showToast({ message: mevcutAtama ? "Doğaltaş ataması güncellendi" : "Doğaltaş ataması kaydedildi", type: "success" });
+      showToast({ message: mevcutAtama ? t("stoneAssign.updated") : t("stoneAssign.saved"), type: "success" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      const msg = err instanceof Error ? err.message : t("shared.unknownError");
       showToast({
-        message: `Kayıt sırasında hata oluştu: ${msg}`,
+        message: t("stoneAssign.saveFailed", { error: msg }),
         type: "error",
       });
     } finally {
@@ -183,7 +194,7 @@ export function BilgiDogaltasAta() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="tas-ata-analiz-turu" className={labelClass}>
-            Analiz Türü
+            {t("stoneAssign.analysisType")}
           </label>
           <select
             id="tas-ata-analiz-turu"
@@ -193,7 +204,7 @@ export function BilgiDogaltasAta() {
           >
             {ANALIZ_TURU_OPTIONS.map((opt) => (
               <option key={opt.value || "seciniz"} value={opt.value}>
-                {opt.label}
+                {opt.value ? t(`shared.analysisTypes.${opt.value}`) : t("stoneAssign.selectPlaceholder")}
               </option>
             ))}
           </select>
@@ -201,7 +212,7 @@ export function BilgiDogaltasAta() {
 
         <div>
           <label htmlFor="tas-ata-deger" className={labelClass}>
-            Değer
+            {t("stoneAssign.value")}
           </label>
           {isCakraOmurga(analizTuru) ? (
             <select
@@ -210,10 +221,10 @@ export function BilgiDogaltasAta() {
               onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
-              <option value="">Seçiniz...</option>
+              <option value="">{t("stoneAssign.selectPlaceholder")}</option>
               {CHAKRA_VALUE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -224,10 +235,10 @@ export function BilgiDogaltasAta() {
               onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
-              <option value="">Seçiniz...</option>
+              <option value="">{t("stoneAssign.selectPlaceholder")}</option>
               {ELEMENT_DEGER_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -237,7 +248,7 @@ export function BilgiDogaltasAta() {
               type="text"
               value={deger}
               onChange={(e) => handleDegerChange(e.target.value)}
-              placeholder="Örn. 19, 11, 33/6, 22…"
+              placeholder={t("stoneAssign.valuePlaceholder")}
               className={inputClass}
             />
           )}
@@ -245,12 +256,11 @@ export function BilgiDogaltasAta() {
 
         {yuklemeHatasi ? (
           <div role="alert" className="lg:col-span-2 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-900">
-            Bu değer için mevcut atama okunamadı. Var olan bir atamanın üzerine yanlışlıkla yazılmaması için kayıt
-            geçici olarak engellendi; değeri yeniden seçerek tekrar deneyin.
+            {t("stoneAssign.loadErrorBox")}
           </div>
         ) : mevcutAtama ? (
           <div role="status" className="lg:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-            Bu analiz türü ve değer için kayıtlı bir doğaltaş ataması var. Kaydederseniz mevcut atamanın yerine geçer.
+            {t("stoneAssign.existingBox")}
             {oneriAciklamasi !== mevcutAtama.reason || tasListesi !== stonesToTextarea(mevcutAtama.stones) ? (
               <button
                 type="button"
@@ -261,7 +271,7 @@ export function BilgiDogaltasAta() {
                 }}
                 className="ml-2 rounded-lg border border-amber-400 bg-white px-2 py-1 font-black text-amber-900 hover:bg-amber-100"
               >
-                Kayıtlı atamayı yükle
+                {t("stoneAssign.loadExisting")}
               </button>
             ) : null}
           </div>
@@ -269,32 +279,32 @@ export function BilgiDogaltasAta() {
 
         <div className="lg:col-span-2">
           <label htmlFor="tas-ata-oneri" className={labelClass}>
-            Öneri Açıklaması
+            {t("stoneAssign.reasonLabel")}
           </label>
           <textarea
             id="tas-ata-oneri"
             value={oneriAciklamasi}
             onChange={(e) => { icerikKirliRef.current = true; setOneriAciklamasi(e.target.value); }}
             rows={4}
-            placeholder="Bu analiz türü ve değer için doğaltaş öneri açıklamasını yazın…"
+            placeholder={t("stoneAssign.reasonPlaceholder")}
             className={textareaClass}
           />
         </div>
 
         <div className="lg:col-span-2">
           <label htmlFor="tas-ata-liste" className={labelClass}>
-            Taş Listesi
+            {t("stoneAssign.stonesLabel")}
           </label>
           <textarea
             id="tas-ata-liste"
             value={tasListesi}
             onChange={(e) => { icerikKirliRef.current = true; setTasListesi(e.target.value); }}
             rows={5}
-            placeholder="Taşları alt alta veya virgülle yazın. Örn: ametist, sitrin, turmalin"
+            placeholder={t("stoneAssign.stonesPlaceholder")}
             className={textareaClass}
           />
           <p className="mt-1.5 text-xs font-medium text-slate-500">
-            Kayıtta taşlar normalize edilir (virgül, nokta, satır sonu); her taşın ilk harfi büyük yazılır.
+            {t("stoneAssign.stonesHint")}
           </p>
         </div>
       </div>
@@ -305,7 +315,7 @@ export function BilgiDogaltasAta() {
           onClick={handleYeni}
           className="inline-flex h-11 items-center justify-center rounded-xl border-[1.5px] border-[#e2dcef] bg-white px-6 text-base font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
-          Yeni
+          {t("stoneAssign.new")}
         </button>
         <button
           type="button"
@@ -313,7 +323,7 @@ export function BilgiDogaltasAta() {
           onClick={() => void handleKaydet()}
           className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 via-violet-500 to-violet-700 px-7 text-base font-black uppercase tracking-wide text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.8)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
+          {kaydediliyor ? t("shared.saving") : t("shared.save")}
         </button>
       </div>
     </div>

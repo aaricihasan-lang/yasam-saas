@@ -7,7 +7,14 @@
 //   • Developer jargonu (raw/primitive/fallback/activeCalendarYear/trace ...) kullanıcıya BASILMAZ.
 //
 // Her builder { explanation, value } döndürür (value = engine ile eşitlik testi için).
+//
+// I18N (R5, 25.11.2026): metinler `numerology.analysis.explain` kataloğundan gelir. Her builder'ın SON opsiyonel
+// parametresi `tx` (ekran dilinin çevirisi, ör. `useTranslations("numerology.analysis.explain")`). Verilmezse
+// KAYNAK dil (tr) kataloğu kullanılır → TR çıktı önceki literal'lerle BAYT-BİREBİR (teach/final-methodology
+// harness'ları). Hesap (value, sayılar, sadeleştirme) dilden bağımsızdır; yalnız etiket/cümle çevrilir.
 
+import { createTranslator } from "next-intl";
+import trAnalysis from "@/messages/tr/numerology.analysis.json";
 import {
   CHAKRA_LETTER_MAP,
   parseBirthDate,
@@ -20,17 +27,27 @@ import type { CalculationExplanation } from "../components/NumerolojiCalculation
 
 export type ExplainOut = { explanation: CalculationExplanation; value: number };
 
-const TR_MONTHS = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-];
+/** Ekran dilinin çeviri fonksiyonu (`numerology.analysis.explain` ad alanı). Sayılar string geçirilir. */
+export type ExplainT = (key: string, values?: Record<string, string>) => string;
+
+const TR_EXPLAIN: ExplainT = createTranslator({
+  locale: "tr",
+  messages: trAnalysis as unknown as Record<string, never>,
+  namespace: "numerology.analysis.explain" as never,
+}) as unknown as ExplainT;
+
+const s = (n: number | string): string => String(n);
 
 function parse(birthDate: string): BirthDateParts | null {
   return parseBirthDate((birthDate || "").replace(/\//g, "."));
 }
 
-function monthLabel(month: number, monthText: string): string {
-  return `${TR_MONTHS[month - 1] ?? "?"} (${monthText})`;
+function monthName(tx: ExplainT, month: number): string {
+  return month >= 1 && month <= 12 ? tx(`months.${month}`) : "?";
+}
+
+function monthLabel(tx: ExplainT, month: number, monthText: string): string {
+  return `${monthName(tx, month)} (${monthText})`;
 }
 
 /** Tek geçişli rakam toplamı satırı (engine sumDigits ile aynı; ör. "14 → 1 + 4 = 5"). */
@@ -54,13 +71,13 @@ function reduce1To9Lines(total: number): { lines: string[]; value: number } {
 }
 
 /** Ana sayı (11/22, iste 33) korunan sadeleştirme satırları. */
-function reduceKeepMasterLines(total: number, masters: number[]): { lines: string[]; value: number } {
+function reduceKeepMasterLines(total: number, masters: number[], tx: ExplainT): { lines: string[]; value: number } {
   const lines: string[] = [];
   let cur = Math.abs(total);
   while (cur > 9) {
     if (masters.includes(cur)) break;
     const next = sumDigits(cur);
-    const kept = masters.includes(next) ? " (ana sayı — burada durur)" : "";
+    const kept = masters.includes(next) ? tx("masterStops") : "";
     lines.push(`${cur} → ${String(cur).split("").join(" + ")} = ${next}${kept}`);
     cur = next;
   }
@@ -90,46 +107,45 @@ function letterLine(lv: LetterVals): string {
 // ─── Kişisel Yıl (nominal / aktif) ────────────────────────────────────────────
 
 /** Kişisel Yıl aritmetiği (gün + ay + verilen takvim yılı → 1–9), nominal/aktif için ortak. */
-function personalYearMath(p: BirthDateParts, calendarYear: number) {
+function personalYearMath(p: BirthDateParts, calendarYear: number, tx: ExplainT) {
   const d = digitSumLine(p.dayText);
   const m = digitSumLine(p.monthText);
   const y = digitSumLine(String(calendarYear));
   const total = d.sum + m.sum + y.sum;
   const red = reduce1To9Lines(total);
   const steps = [
-    { title: "Adım 1 — Doğum günü", lines: [d.line] },
-    { title: "Adım 2 — Doğum ayı", lines: [m.line] },
-    { title: "Adım 3 — Hesaplanan takvim yılı", lines: [y.line] },
-    { title: "Adım 4 — Toplam", lines: [`${d.sum} + ${m.sum} + ${y.sum} = ${total}`] },
+    { title: tx("step", { n: "1", label: tx("l.birthDay") }), lines: [d.line] },
+    { title: tx("step", { n: "2", label: tx("l.birthMonth") }), lines: [m.line] },
+    { title: tx("step", { n: "3", label: tx("l.calcYear") }), lines: [y.line] },
+    { title: tx("step", { n: "4", label: tx("l.total") }), lines: [`${d.sum} + ${m.sum} + ${y.sum} = ${total}`] },
   ];
   return { steps, reduction: red.lines, value: red.value, total };
 }
 
-export function nominalPersonalYearExplain(birthDate: string, calendarYear: number): ExplainOut | null {
+export function nominalPersonalYearExplain(birthDate: string, calendarYear: number, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
-  const math = personalYearMath(p, calendarYear);
+  const math = personalYearMath(p, calendarYear, tx);
   return {
     value: math.value,
     explanation: {
       usedInputs: [
-        { label: "Doğum günü", value: p.dayText },
-        { label: "Doğum ayı", value: monthLabel(p.month, p.monthText) },
-        { label: "Hesaplanan takvim yılı", value: String(calendarYear) },
+        { label: tx("l.birthDay"), value: p.dayText },
+        { label: tx("l.birthMonth"), value: monthLabel(tx, p.month, p.monthText) },
+        { label: tx("l.calcYear"), value: String(calendarYear) },
       ],
       unusedInputs: [
         {
-          label: "Doğum yılı",
+          label: tx("l.birthYear"),
           value: p.yearText,
-          note: "Kişisel Yıl hesabında doğum yılınız kullanılmaz. Kaynak yönteminde doğduğunuz gün, doğduğunuz ay ve hesaplanan takvim yılı kullanılır.",
+          note: tx("nominalPy.unusedNote"),
         },
       ],
-      rationale: `Burada ${calendarYear} kullanılmasının nedeni, ${calendarYear} takvim yılı için kişisel yıl sayısının hesaplanıyor olmasıdır.`,
+      rationale: tx("nominalPy.rationale", { year: s(calendarYear) }),
       steps: math.steps,
       reduction: math.reduction.length ? math.reduction : undefined,
-      result: `${calendarYear} Nominal Kişisel Yıl: ${math.value}`,
-      resultNote:
-        "Bu değer seçilen takvim yılı için hesaplanan kişisel yıl sayısıdır. Referans tarihinde fiilen aktif olan kişisel yıl ayrıca Aktif Kişisel Yıl kartında gösterilir.",
+      result: tx("nominalPy.result", { year: s(calendarYear), value: s(math.value) }),
+      resultNote: tx("nominalPy.resultNote"),
     },
   };
 }
@@ -140,25 +156,29 @@ export function activePersonalYearExplain(
   activeCalendarYear: number,
   periodStartText: string,
   periodEndText: string,
+  tx: ExplainT = TR_EXPLAIN,
 ): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
-  const math = personalYearMath(p, activeCalendarYear);
+  const math = personalYearMath(p, activeCalendarYear, tx);
   const refText = `${String(ref.day).padStart(2, "0")}/${String(ref.month).padStart(2, "0")}/${ref.year}`;
   return {
     value: math.value,
     explanation: {
       usedInputs: [
-        { label: "Doğum", value: birthDate },
-        { label: "Referans", value: refText },
-        { label: "Doğum günü", value: `${p.day} ${TR_MONTHS[p.month - 1] ?? ""}`.trim() },
+        { label: tx("l.birth"), value: birthDate },
+        { label: tx("l.reference"), value: refText },
+        { label: tx("l.birthDay"), value: `${p.day} ${p.month >= 1 && p.month <= 12 ? monthName(tx, p.month) : ""}`.trim() },
       ],
-      rationale:
-        `Kaynak yönteminde yeni Kişisel Yıl, kişinin doğum gününde aktif olur ve bir sonraki doğum gününe kadar devam eder. ` +
-        `${refText} tarihi ${periodStartText} tarihinden sonra olduğu için, ${activeCalendarYear} için hesaplanan Kişisel Yıl ${math.value} bu tarihte aktiftir.`,
+      rationale: tx("activePy.rationale", {
+        ref: refText,
+        start: periodStartText,
+        year: s(activeCalendarYear),
+        value: s(math.value),
+      }),
       steps: math.steps,
       reduction: math.reduction.length ? math.reduction : undefined,
-      result: `Referans tarihinde aktif olan Kişisel Yıl: ${math.value}`,
+      result: tx("activePy.result", { value: s(math.value) }),
       period: `${periodStartText} – ${periodEndText}`,
     },
   };
@@ -169,10 +189,11 @@ export function activePersonalYearExplain(
 export function personalMonthExplain(
   birthDate: string,
   ref: { month: number; year: number },
+  tx: ExplainT = TR_EXPLAIN,
 ): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
-  const py = nominalPersonalYearExplain(birthDate, ref.year)?.value;
+  const py = nominalPersonalYearExplain(birthDate, ref.year, tx)?.value;
   if (py === undefined) return null;
   const monthRed = reduce1To9Lines(ref.month);
   const monthReduced = monthRed.value;
@@ -182,21 +203,20 @@ export function personalMonthExplain(
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: `Nominal Kişisel Yıl (${ref.year})`, value: String(py) },
-        { label: "Takvim ayı", value: monthLabel(ref.month, String(ref.month)) },
+        { label: tx("l.nominalPyYear", { year: s(ref.year) }), value: String(py) },
+        { label: tx("l.calendarMonth"), value: monthLabel(tx, ref.month, String(ref.month)) },
       ],
-      rationale:
-        "Kişisel Ay hesabında bu kaynak yöntemine göre takvim yılı için hesaplanan Nominal Kişisel Yıl kullanılır (o tarihte aktif olan kişisel yıl değil).",
+      rationale: tx("personalMonth.rationale"),
       steps: [
-        { title: "Adım 1 — Nominal Kişisel Yıl", lines: [`${ref.year} için: ${py}`] },
+        { title: tx("step", { n: "1", label: tx("l.nominalPy") }), lines: [tx("forYear", { year: s(ref.year), value: s(py) })] },
         {
-          title: "Adım 2 — Takvim ayı",
+          title: tx("step", { n: "2", label: tx("l.calendarMonth") }),
           lines: ref.month > 9 ? [monthRed.lines.join("  ·  "), `= ${monthReduced}`] : [`${ref.month}`],
         },
-        { title: "Adım 3 — Toplam", lines: [`${py} + ${monthReduced} = ${total}`] },
+        { title: tx("step", { n: "3", label: tx("l.total") }), lines: [`${py} + ${monthReduced} = ${total}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
-      result: `Kişisel Ay: ${finalRed.value}`,
+      result: tx("result", { label: tx("l.personalMonth"), value: s(finalRed.value) }),
     },
   };
 }
@@ -204,10 +224,11 @@ export function personalMonthExplain(
 export function personalDayExplain(
   birthDate: string,
   ref: { day: number; month: number; year: number },
+  tx: ExplainT = TR_EXPLAIN,
 ): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
-  const pm = personalMonthExplain(birthDate, ref)?.value;
+  const pm = personalMonthExplain(birthDate, ref, tx)?.value;
   if (pm === undefined) return null;
   const dayRed = reduce1To9Lines(ref.day);
   const dayReduced = dayRed.value;
@@ -217,43 +238,42 @@ export function personalDayExplain(
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: "Kişisel Ay", value: String(pm) },
-        { label: "Seçilen gün", value: String(ref.day) },
+        { label: tx("l.personalMonth"), value: String(pm) },
+        { label: tx("l.selectedDay"), value: String(ref.day) },
       ],
-      rationale:
-        "Kişisel Gün, Kişisel Ay ile seçilen günün tek haneye indirilmiş değeri toplanarak bulunur (Kişisel Yıl, Kişisel Ay'ın içinde zaten yer alır).",
+      rationale: tx("personalDay.rationale"),
       steps: [
-        { title: "Adım 1 — Kişisel Ay", lines: [String(pm)] },
+        { title: tx("step", { n: "1", label: tx("l.personalMonth") }), lines: [String(pm)] },
         {
-          title: "Adım 2 — Seçilen gün",
+          title: tx("step", { n: "2", label: tx("l.selectedDay") }),
           lines: ref.day > 9 ? [...dayRed.lines] : [`${ref.day}`],
         },
-        { title: "Adım 3 — Toplam", lines: [`${pm} + ${dayReduced} = ${total}`] },
+        { title: tx("step", { n: "3", label: tx("l.total") }), lines: [`${pm} + ${dayReduced} = ${total}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
-      result: `Kişisel Gün: ${finalRed.value}`,
+      result: tx("result", { label: tx("l.personalDay"), value: s(finalRed.value) }),
     },
   };
 }
 
 // ─── Evrensel Yıl / Ay / Gün ───────────────────────────────────────────────────
 
-export function universalYearExplain(year: number): ExplainOut {
+export function universalYearExplain(year: number, tx: ExplainT = TR_EXPLAIN): ExplainOut {
   const line = digitSumLine(String(year));
   const red = reduce1To9Lines(line.sum);
   return {
     value: red.value,
     explanation: {
-      usedInputs: [{ label: "Seçilen takvim yılı", value: String(year) }],
-      rationale: "Evrensel Yıl kişiye özel değildir. Seçilen takvim yılının rakamları toplanıp tek haneye indirilir.",
-      steps: [{ title: "Adım 1 — Yılın rakamları", lines: [line.line] }],
+      usedInputs: [{ label: tx("l.selectedYear"), value: String(year) }],
+      rationale: tx("universalYear.rationale"),
+      steps: [{ title: tx("step", { n: "1", label: tx("l.yearDigits") }), lines: [line.line] }],
       reduction: red.lines.length ? red.lines : undefined,
-      result: `Evrensel Yıl: ${red.value}`,
+      result: tx("result", { label: tx("l.universalYear"), value: s(red.value) }),
     },
   };
 }
 
-export function universalMonthExplain(year: number, month: number): ExplainOut {
+export function universalMonthExplain(year: number, month: number, tx: ExplainT = TR_EXPLAIN): ExplainOut {
   const uy = reduce1To9(sumDigits(year));
   const total = uy + month;
   const red = reduce1To9Lines(total);
@@ -261,21 +281,21 @@ export function universalMonthExplain(year: number, month: number): ExplainOut {
     value: red.value,
     explanation: {
       usedInputs: [
-        { label: "Evrensel Yıl", value: `${year} → ${uy}` },
-        { label: "Takvim ayı", value: monthLabel(month, String(month)) },
+        { label: tx("l.universalYear"), value: `${year} → ${uy}` },
+        { label: tx("l.calendarMonth"), value: monthLabel(tx, month, String(month)) },
       ],
-      rationale: "Önce yılın Evrensel Yıl değeri bulunur, sonra seçilen ayın numarası eklenir ve tek haneye indirilir. Kişiye özel değildir.",
+      rationale: tx("universalMonth.rationale"),
       steps: [
-        { title: "Adım 1 — Evrensel Yıl", lines: [`${year} → ${uy}`] },
-        { title: "Adım 2 — Takvim ayı eklenir", lines: [`${uy} + ${month} = ${total}`] },
+        { title: tx("step", { n: "1", label: tx("l.universalYear") }), lines: [`${year} → ${uy}`] },
+        { title: tx("step", { n: "2", label: tx("l.calendarMonthAdded") }), lines: [`${uy} + ${month} = ${total}`] },
       ],
       reduction: red.lines.length ? red.lines : undefined,
-      result: `Evrensel Ay: ${red.value}`,
+      result: tx("result", { label: tx("l.universalMonth"), value: s(red.value) }),
     },
   };
 }
 
-export function universalDayExplain(year: number, month: number, day: number): ExplainOut {
+export function universalDayExplain(year: number, month: number, day: number, tx: ExplainT = TR_EXPLAIN): ExplainOut {
   const uy = reduce1To9(sumDigits(year));
   const um = reduce1To9(uy + month);
   const dayRed = reduce1To9Lines(day);
@@ -286,24 +306,24 @@ export function universalDayExplain(year: number, month: number, day: number): E
     value: red.value,
     explanation: {
       usedInputs: [
-        { label: "Evrensel Ay", value: String(um) },
-        { label: "Seçilen gün", value: String(day) },
+        { label: tx("l.universalMonth"), value: String(um) },
+        { label: tx("l.selectedDay"), value: String(day) },
       ],
-      rationale: "Önce ayın Evrensel Ay değeri bulunur, sonra seçilen günün tek haneye indirilmiş değeri eklenir. Kişiye özel değildir.",
+      rationale: tx("universalDay.rationale"),
       steps: [
-        { title: "Adım 1 — Evrensel Ay", lines: [String(um)] },
-        { title: "Adım 2 — Seçilen gün", lines: day > 9 ? [...dayRed.lines] : [`${day}`] },
-        { title: "Adım 3 — Toplam", lines: [`${um} + ${dayReduced} = ${total}`] },
+        { title: tx("step", { n: "1", label: tx("l.universalMonth") }), lines: [String(um)] },
+        { title: tx("step", { n: "2", label: tx("l.selectedDay") }), lines: day > 9 ? [...dayRed.lines] : [`${day}`] },
+        { title: tx("step", { n: "3", label: tx("l.total") }), lines: [`${um} + ${dayReduced} = ${total}`] },
       ],
       reduction: red.lines.length ? red.lines : undefined,
-      result: `Evrensel Gün: ${red.value}`,
+      result: tx("result", { label: tx("l.universalDay"), value: s(red.value) }),
     },
   };
 }
 
 // ─── Güncel Yıl Çakrası ────────────────────────────────────────────────────────
 
-export function yearChakraExplain(birthDate: string, refYear: number): ExplainOut | null {
+export function yearChakraExplain(birthDate: string, refYear: number, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
   const d = digitSumLine(p.dayText);
@@ -315,88 +335,85 @@ export function yearChakraExplain(birthDate: string, refYear: number): ExplainOu
     value: red.value,
     explanation: {
       usedInputs: [
-        { label: "Doğum günü", value: p.dayText },
-        { label: "Doğum ayı", value: monthLabel(p.month, p.monthText) },
-        { label: "Referans yıl", value: String(refYear) },
+        { label: tx("l.birthDay"), value: p.dayText },
+        { label: tx("l.birthMonth"), value: monthLabel(tx, p.month, p.monthText) },
+        { label: tx("l.refYear"), value: String(refYear) },
       ],
       unusedInputs: [
         {
-          label: "Doğum yılı",
+          label: tx("l.birthYear"),
           value: p.yearText,
-          note: "Güncel Yıl Çakrası hesabında doğum yılınız kullanılmaz; doğum günü, doğum ayı ve referans yıl kullanılır.",
+          note: tx("yearChakra.unusedNote"),
         },
       ],
-      rationale:
-        "Bu hesap seçilen referans yılın çakra etkisini gösterir. Kişisel Yıl ile matematiksel olarak aynı sayıya ulaşabilir; ancak kavramsal kimliği farklıdır (Yıl Çakrası, Kişisel Yıl ile aynı hesap değildir).",
+      rationale: tx("yearChakra.rationale"),
       steps: [
-        { title: "Adım 1 — Doğum günü", lines: [d.line] },
-        { title: "Adım 2 — Doğum ayı", lines: [m.line] },
-        { title: "Adım 3 — Referans yıl", lines: [y.line] },
-        { title: "Adım 4 — Toplam", lines: [`${d.sum} + ${m.sum} + ${y.sum} = ${total}`] },
+        { title: tx("step", { n: "1", label: tx("l.birthDay") }), lines: [d.line] },
+        { title: tx("step", { n: "2", label: tx("l.birthMonth") }), lines: [m.line] },
+        { title: tx("step", { n: "3", label: tx("l.refYear") }), lines: [y.line] },
+        { title: tx("step", { n: "4", label: tx("l.total") }), lines: [`${d.sum} + ${m.sum} + ${y.sum} = ${total}`] },
       ],
       reduction: red.lines.length ? red.lines : undefined,
-      result: `Güncel Yıl Çakrası: ${red.value}`,
+      result: tx("result", { label: tx("l.yearChakra"), value: s(red.value) }),
     },
   };
 }
 
 // ─── Olgunluk ──────────────────────────────────────────────────────────────────
 
-export function maturityExplain(firstName: string, lastName: string, birthDate: string): ExplainOut | null {
+export function maturityExplain(firstName: string, lastName: string, birthDate: string, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
   const dobTotal = sumDigits(p.day) + sumDigits(p.month) + sumDigits(p.year);
-  const dobRed = reduceKeepMasterLines(dobTotal, [11, 22]);
+  const dobRed = reduceKeepMasterLines(dobTotal, [11, 22], tx);
   const dobSide = dobRed.value;
   const lv = letterValues(firstName, lastName);
-  const nameRed = reduceKeepMasterLines(lv.total, [11, 22]);
+  const nameRed = reduceKeepMasterLines(lv.total, [11, 22], tx);
   const nameSide = nameRed.value;
   const finalTotal = dobSide + nameSide;
-  const finalRed = reduceKeepMasterLines(finalTotal, [11, 22]);
+  const finalRed = reduceKeepMasterLines(finalTotal, [11, 22], tx);
   return {
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: "Doğum tarihi tarafı", value: `${dobTotal} → ${dobSide}` },
-        { label: "Ad + soyad tarafı", value: `${lv.total} → ${nameSide}` },
+        { label: tx("l.dobSide"), value: `${dobTotal} → ${dobSide}` },
+        { label: tx("l.nameSide"), value: `${lv.total} → ${nameSide}` },
       ],
-      rationale:
-        "Olgunluk, doğum tarihi tarafı ile ad-soyad tarafının birlikte değerlendirilmesinden elde edilir. Bu hesapta yalnız 11 ve 22 ana sayı olarak korunur.",
+      rationale: tx("maturity.rationale"),
       steps: [
         {
-          title: "Adım 1 — Doğum tarihi tarafı",
+          title: tx("step", { n: "1", label: tx("l.dobSide") }),
           lines: [`${sumDigits(p.day)} + ${sumDigits(p.month)} + ${sumDigits(p.year)} = ${dobTotal}`, ...dobRed.lines, `= ${dobSide}`],
         },
         {
-          title: "Adım 2 — Ad + soyad tarafı",
-          lines: [letterLine(lv), `Toplam: ${lv.total}`, ...nameRed.lines, `= ${nameSide}`],
+          title: tx("step", { n: "2", label: tx("l.nameSide") }),
+          lines: [letterLine(lv), tx("totalLine", { total: s(lv.total) }), ...nameRed.lines, `= ${nameSide}`],
         },
-        { title: "Adım 3 — Toplam", lines: [`${dobSide} + ${nameSide} = ${finalTotal}`] },
+        { title: tx("step", { n: "3", label: tx("l.total") }), lines: [`${dobSide} + ${nameSide} = ${finalTotal}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
-      result: `Olgunluk: ${finalRed.value}`,
+      result: tx("result", { label: tx("l.maturity"), value: s(finalRed.value) }),
     },
   };
 }
 
 // ─── Doğum Günü Enerjisi (exact 1–31) / Kişilik Enerjisi ───────────────────────
 
-export function birthDayEnergyExplain(birthDate: string): ExplainOut | null {
+export function birthDayEnergyExplain(birthDate: string, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
   return {
     value: p.day,
     explanation: {
-      usedInputs: [{ label: "Doğduğunuz ayın günü", value: String(p.day) }],
-      rationale:
-        `Bu hesap doğduğunuz ayın gününü aynen kullanır ve sadeleştirme yapılmaz. Örneğin ${p.day} doğum günü, Doğum Günü Enerjisi ${p.day} olarak değerlendirilir.`,
-      result: `Doğum Günü Enerjisi: ${p.day}`,
-      resultNote: "Bu, tek haneye indirilen Kişilik Enerjisi ile karıştırılmamalıdır.",
+      usedInputs: [{ label: tx("l.dayOfBirthMonth"), value: String(p.day) }],
+      rationale: tx("birthDayEnergy.rationale", { day: s(p.day) }),
+      result: tx("result", { label: tx("l.birthDayEnergy"), value: s(p.day) }),
+      resultNote: tx("birthDayEnergy.resultNote"),
     },
   };
 }
 
-export function personalityEnergyExplain(birthDate: string): ExplainOut | null {
+export function personalityEnergyExplain(birthDate: string, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
   const red = reduce1To9Lines(p.day);
@@ -404,113 +421,108 @@ export function personalityEnergyExplain(birthDate: string): ExplainOut | null {
   return {
     value,
     explanation: {
-      usedInputs: [{ label: "Doğum günü", value: String(p.day) }],
-      rationale:
-        `Kişilik Enerjisi, doğum gününüzün tek haneye sadeleştirilmiş halidir. Bu nedenle Doğum Günü Enerjisi ${p.day} iken Kişilik Enerjisi ${value} olabilir.`,
-      steps: [{ title: "Doğum gününün sadeleştirilmesi", lines: p.day > 9 ? [...red.lines] : [`${p.day}`] }],
-      result: `Kişilik Enerjisi: ${value}`,
+      usedInputs: [{ label: tx("l.birthDay"), value: String(p.day) }],
+      rationale: tx("personalityEnergy.rationale", { day: s(p.day), value: s(value) }),
+      steps: [{ title: tx("personalityEnergy.stepTitle"), lines: p.day > 9 ? [...red.lines] : [`${p.day}`] }],
+      result: tx("result", { label: tx("l.personalityEnergy"), value: s(value) }),
     },
   };
 }
 
 // ─── Hayat Dersi ─────────────────────────────────────────────────────────────
 
-export function lifeLessonExplain(birthDate: string): ExplainOut | null {
+export function lifeLessonExplain(birthDate: string, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const p = parse(birthDate);
   if (!p) return null;
   const persRed = reduce1To9Lines(p.day);
   const personality = persRed.value;
   const hyTotal = sumDigits(p.day) + sumDigits(p.month) + sumDigits(p.year);
-  const hyRed = reduceKeepMasterLines(hyTotal, [11, 22, 33]);
+  const hyRed = reduceKeepMasterLines(hyTotal, [11, 22, 33], tx);
   const hayatYolu = hyRed.value;
   const total = personality + hayatYolu;
-  const finalRed = reduceKeepMasterLines(total, [11, 22]);
+  const finalRed = reduceKeepMasterLines(total, [11, 22], tx);
   return {
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: "Kişilik Enerjisi", value: String(personality) },
-        { label: "Hayat Yolu", value: String(hayatYolu) },
+        { label: tx("l.personalityEnergy"), value: String(personality) },
+        { label: tx("l.lifePath"), value: String(hayatYolu) },
       ],
-      rationale:
-        "Hayat Dersi, Kişilik Enerjisi ile Hayat Yolu tarafının birlikte değerlendirilmesinden elde edilir. Bu hesap, PIN kodundaki 5. hane 'Yaşam Dersi' ile aynı hesap değildir.",
+      rationale: tx("lifeLesson.rationale"),
       steps: [
-        { title: "Adım 1 — Kişilik Enerjisi", lines: p.day > 9 ? [...persRed.lines] : [`${p.day}`] },
-        { title: "Adım 2 — Hayat Yolu", lines: [`${sumDigits(p.day)} + ${sumDigits(p.month)} + ${sumDigits(p.year)} = ${hyTotal}`, ...hyRed.lines, `= ${hayatYolu}`] },
-        { title: "Adım 3 — Toplam", lines: [`${personality} + ${hayatYolu} = ${total}`] },
+        { title: tx("step", { n: "1", label: tx("l.personalityEnergy") }), lines: p.day > 9 ? [...persRed.lines] : [`${p.day}`] },
+        { title: tx("step", { n: "2", label: tx("l.lifePath") }), lines: [`${sumDigits(p.day)} + ${sumDigits(p.month)} + ${sumDigits(p.year)} = ${hyTotal}`, ...hyRed.lines, `= ${hayatYolu}`] },
+        { title: tx("step", { n: "3", label: tx("l.total") }), lines: [`${personality} + ${hayatYolu} = ${total}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
-      result: `Hayat Dersi: ${finalRed.value}`,
+      result: tx("result", { label: tx("l.lifeLesson"), value: s(finalRed.value) }),
     },
   };
 }
 
 // ─── Kader Sayısı ──────────────────────────────────────────────────────────────
 
-export function destinyExplain(firstName: string, lastName: string): ExplainOut | null {
+export function destinyExplain(firstName: string, lastName: string, tx: ExplainT = TR_EXPLAIN): ExplainOut | null {
   const lv = letterValues(firstName, lastName);
   if (lv.total === 0) return null;
-  const finalRed = reduceKeepMasterLines(lv.total, [11, 22]);
+  const finalRed = reduceKeepMasterLines(lv.total, [11, 22], tx);
   return {
     value: finalRed.value,
     explanation: {
       usedInputs: [
-        { label: "Ad + soyad harfleri", value: `${firstName} ${lastName}`.trim() },
+        { label: tx("l.nameLetters"), value: `${firstName} ${lastName}`.trim() },
       ],
-      rationale:
-        "Kader Sayısı, ad ve soyadınızdaki bütün harflerin sayısal değerlerinden elde edilir. Bu hesapta 11 ve 22 ana sayı olarak korunur.",
+      rationale: tx("destiny.rationale"),
       steps: [
-        { title: "Adım 1 — Harf değerleri", lines: [letterLine(lv)] },
-        { title: "Adım 2 — Toplam", lines: [`${lv.values.join(" + ")} = ${lv.total}`] },
+        { title: tx("step", { n: "1", label: tx("l.letterValues") }), lines: [letterLine(lv)] },
+        { title: tx("step", { n: "2", label: tx("l.total") }), lines: [`${lv.values.join(" + ")} = ${lv.total}`] },
       ],
       reduction: finalRed.lines.length ? finalRed.lines : undefined,
-      result: `Kader Sayısı: ${finalRed.value}`,
+      result: tx("result", { label: tx("l.destiny"), value: s(finalRed.value) }),
     },
   };
 }
 
 // ─── Evre / Döngü ──────────────────────────────────────────────────────────────
 
-function evreRangeLines(currentEvre: number): string[] {
+function evreRangeLines(currentEvre: number, tx: ExplainT): string[] {
   const lines: string[] = [];
   for (let i = 1; i <= 9; i++) {
     const start = (i - 1) * 9 + 1;
     const end = i * 9;
-    lines.push(`${start}–${end} yaş → ${i}. Evre${i === currentEvre ? "   ← siz buradasınız" : ""}`);
+    lines.push(`${tx("evre.rangeLine", { start: s(start), end: s(end), i: s(i) })}${i === currentEvre ? tx("evre.youAreHere") : ""}`);
   }
   return lines;
 }
 
-export function evreExplain(age: number, evreIndex: number, energy: number): ExplainOut {
+export function evreExplain(age: number, evreIndex: number, energy: number, tx: ExplainT = TR_EXPLAIN): ExplainOut {
   return {
     value: evreIndex,
     explanation: {
       usedInputs: [
-        { label: "Hesaplanan yaş", value: String(age) },
+        { label: tx("l.calcAge"), value: String(age) },
       ],
-      rationale:
-        "Kaynak yöntemi yaşamı dokuz yıllık Evrelere ayırır. Bulunduğunuz Evre, referans tarihteki yaşınıza göre belirlenir; Evre enerjisi PIN kodunuzdan gelir.",
+      rationale: tx("evre.rationale"),
       steps: [
-        { title: "Yaşın Evreye yerleşimi", lines: evreRangeLines(evreIndex) },
-        { title: "Sonuç yerleşimi", lines: [`Yaş ${age} → ${evreIndex}. Evre`] },
+        { title: tx("evre.placementTitle"), lines: evreRangeLines(evreIndex, tx) },
+        { title: tx("evre.resultTitle"), lines: [tx("evre.ageToEvre", { age: s(age), i: s(evreIndex) })] },
       ],
-      result: `${evreIndex}. Evre · Enerji ${energy}`,
-      resultNote: "Enerji değeri, bu Evreye karşılık gelen PIN hanesinden gelir.",
+      result: tx("evre.result", { i: s(evreIndex), energy: s(energy) }),
+      resultNote: tx("evre.resultNote"),
     },
   };
 }
 
-export function donguExplain(age: number, donguIndex: number): ExplainOut {
+export function donguExplain(age: number, donguIndex: number, tx: ExplainT = TR_EXPLAIN): ExplainOut {
   return {
     value: donguIndex,
     explanation: {
-      usedInputs: [{ label: "Hesaplanan yaş", value: String(age) }],
-      rationale:
-        "Döngü, içinde bulunduğunuz dokuz yıllık Evrenin kaçıncı yılında olduğunuzu gösterir. Evre ile aynı şey değildir.",
+      usedInputs: [{ label: tx("l.calcAge"), value: String(age) }],
+      rationale: tx("dongu.rationale"),
       steps: [
-        { title: "Evre içi yıl", lines: [`Yaş ${age} → Evrenin ${donguIndex}. yılı`] },
+        { title: tx("dongu.stepTitle"), lines: [tx("dongu.ageToYear", { age: s(age), i: s(donguIndex) })] },
       ],
-      result: `Döngü ${donguIndex}`,
+      result: tx("dongu.result", { i: s(donguIndex) }),
     },
   };
 }

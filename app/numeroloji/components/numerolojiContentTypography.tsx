@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 export type ContentFontSize = "normal" | "large" | "xlarge";
 
@@ -86,20 +87,21 @@ export function NumerolojiFontSizeControl({
     else if (value === "large") onChange("xlarge");
   }
 
+  const t = useTranslations("numerology.app.fontSize");
   const sizeLabel = value === "normal" ? "S" : value === "large" ? "M" : "L";
 
   return (
     <div
       className="inline-flex items-center gap-0.5 rounded-lg border border-violet-200 bg-white/80 px-1 py-0.5 shadow-sm"
       role="group"
-      aria-label="Yazı boyutu"
+      aria-label={t("aria")}
     >
       <button
         type="button"
         onClick={decrease}
         disabled={value === "normal"}
         className="flex h-9 w-9 items-center justify-center rounded text-sm font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
-        aria-label="Yazıyı küçült"
+        aria-label={t("decrease")}
       >
         A−
       </button>
@@ -109,7 +111,7 @@ export function NumerolojiFontSizeControl({
         onClick={increase}
         disabled={value === "xlarge"}
         className="flex h-9 w-9 items-center justify-center rounded text-sm font-black text-violet-700 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-35"
-        aria-label="Yazıyı büyüt"
+        aria-label={t("increase")}
       >
         A+
       </button>

@@ -1,0 +1,220 @@
+{
+  "numerology": {
+    "compare": {
+      "futureHidden": "Bu dönem henüz başlamadığı için gösterilmez.",
+      "meta": {
+        "title": "Karşılaştırmalı İnceleme · Numeroloji Merkezi"
+      },
+      "crumbCentre": "Numeroloji Merkezi",
+      "title": "Karşılaştırmalı İnceleme",
+      "schoolA": "A · Bütüncül Numeroloji",
+      "schoolB": "B · Klasik Numeroloji",
+      "colA": "A · Bütüncül",
+      "colB": "B · Klasik",
+      "birth": "Doğum {date}",
+      "birthUnreadable": "Doğum tarihi okunamadı",
+      "recordDate": "Kayıt {date}",
+      "untitled": "Adsız analiz",
+      "analysisFallback": "Analiz",
+      "noRecord": "Kayıt seçilmedi",
+      "kinds": {
+        "person": "Kişi analizi",
+        "relationship": "İlişki analizi",
+        "business": "İşletme adı",
+        "names": "İsim seçenekleri"
+      },
+      "relation": {
+        "same_value": "Aynı değer",
+        "same_root": "Aynı kök",
+        "different": "Farklı",
+        "one_missing": "Bir tarafta yok",
+        "not_comparable": "Karşılaştırılamaz"
+      },
+      "classicMissing": {
+        "no_result": "Klasik Numeroloji kaydı seçilmedi.",
+        "field_missing": "Bu bölüm Klasik kayıtta bulunmuyor.",
+        "not_requested": "Bu teknik Klasik kayıtta hesaplanmadı."
+      },
+      "legacyMissing": {
+        "no_snapshot": "Bütüncül Numeroloji kaydı seçilmedi.",
+        "invalid_snapshot": "Kayıtlı analiz okunamadı.",
+        "unsupported_version": "Kayıtlı analizin sürümü desteklenmiyor.",
+        "field_missing": "Bu bölüm bu kayıtta bulunmuyor.",
+        "empty": "Bu kayıtta değer boş.",
+        "unparseable": "Kayıtlı gösterim sayısal olarak çözümlenemedi."
+      },
+      "slot": {
+        "bileklik": "Bileklik",
+        "kolye": "Kolye",
+        "kutle": "Kütle"
+      },
+      "method": {
+        "provider_direct": "Harita önerisi",
+        "vibration_exact": "Titreşim",
+        "vibration_root": "Kök sayı",
+        "planet": "Gezegen",
+        "pairs_with": "Eşlikçi",
+        "element": "Element"
+      },
+      "back": {
+        "toAnalysis": "Analize Geri Dön",
+        "toCentre": "Numeroloji Merkezi’ne Dön"
+      },
+      "person": {
+        "birthDiffTitle": "Doğum tarihleri farklı",
+        "birthDiffBody": "Bütüncül kaydında {legacyDate}, Klasik analizde {classicDate} görünüyor. İki kaydın aynı kişiye ait olduğunu kontrol edin.",
+        "noBirthTitle": "Bütüncül kaydında doğum tarihi okunamadı",
+        "noBirthBody": "Kişi eşleşmesini ad ve kayıt tarihiyle kontrol edin. Kayıt değiştirilmez.",
+        "nameDiffTitle": "Adlar farklı yazılmış",
+        "nameDiffBody": "Doğum tarihleri aynı, ancak adlar birebir eşleşmiyor. Aynı kişi olduğundan emin olun."
+      },
+      "legacy": {
+        "notInSnapshot": "Bütüncül Numeroloji kaydında saklanmıyor",
+        "special19": "Özel sayı 19: {fields}",
+        "noSpecial19": "Kulvarlarda özel sayı 19 yok",
+        "digitRoot": "Rakam kökü {root}",
+        "kulvarNoKey": "Anahtar bu kayıtta saklanmamış; karşılaştırma yapılmaz",
+        "kulvarKeyRoot": "Karşılaştırılan: anahtar {key} (kök {root})",
+        "kulvarKey": "Karşılaştırılan: anahtar {key}"
+      },
+      "classic": {
+        "karmicDebt": "Karmik borç",
+        "noKarmicDebt": "Karmik borç yok",
+        "missingNumbers": "eksik sayılar: {list}",
+        "none": "yok",
+        "master": "Usta sayı",
+        "karmicDebtN": "Karmik borç {n}",
+        "age": "{range} yaş",
+        "targetDate": "Hedef tarih {date}"
+      },
+      "drawer": {
+        "title": "{label} — neden farklı?",
+        "close": "Kapat",
+        "bothCorrect": "İki sonuç da kendi yönteminde doğrudur. Bu ekran bunları yan yana gösterir, birleştirmez."
+      },
+      "hero": {
+        "eyebrow": "A · B yan yana",
+        "sub": "Aynı danışanın iki yöntemdeki kayıtları kavram kavram gösterilir. Sayılar birleştirilmez, ortalama alınmaz.",
+        "aside": "Orijinal analizler değişmez"
+      },
+      "pick": {
+        "title": "Kayıt seçimi",
+        "lead": "Bir ya da iki kayıt seçin. Yalnız bir taraf seçilirse diğer sütun boş kalır.",
+        "clientFilter": " Danışan filtresi etkin.",
+        "legendA": "A · Bütüncül Numeroloji kaydı",
+        "searchALabel": "Bütüncül Numeroloji kayıtlarında ad ara",
+        "searchAPlaceholder": "A · Ad ile ara",
+        "legendB": "B · Klasik Numeroloji kaydı",
+        "searchBLabel": "Klasik Numeroloji kayıtlarında ad ara",
+        "searchBPlaceholder": "B · Ad ya da başlıkla ara",
+        "picked": "Seçili: <b>{name}</b> (arama sonucunda görünmüyor; seçim korunuyor)",
+        "loadingA": "Bütüncül kayıtlar yükleniyor…",
+        "loadingB": "Klasik kayıtlar yükleniyor…",
+        "notSelected": "Seçilmedi",
+        "emptyASearch": "Aramayla eşleşen Bütüncül Numeroloji kaydı yok.",
+        "emptyA": "Bütüncül Numeroloji kaydı bulunamadı.",
+        "emptyBSearch": "Aramayla eşleşen Klasik Numeroloji kaydı yok.",
+        "emptyB": "Klasik Numeroloji kaydı bulunamadı.",
+        "newAnalysis": "Yeni analiz",
+        "alignBtn": "Yan yana göster",
+        "aligning": "Hizalanıyor…",
+        "alignHint": "Hizalama yalnız kayıtlı değerleri okur; yeniden hesap yapılmaz."
+      },
+      "missing": {
+        "legacy": "Bütüncül Numeroloji tarafı boş; yalnız Klasik kayıt gösteriliyor.",
+        "classic": "Klasik Numeroloji tarafı boş; yalnız Bütüncül Numeroloji kaydı gösteriliyor.",
+        "oldMethod": "Bütüncül Numeroloji kaydı daha eski bir hesap sürümüyle saklanmış; değerler kaydedildiği gibi gösterilir."
+      },
+      "sourcesAria": "Seçilen kayıtlar",
+      "concepts": {
+        "title": "Kavram hizalaması",
+        "lead": "Aynı ad taşıyan kavramlar farklı formülle hesaplanabilir; durum sütunu bunu belirtir.",
+        "colConcept": "Kavram",
+        "colStatus": "Durum",
+        "sameNameDiff": "Aynı ad, farklı formül",
+        "why": "Neden farklı?"
+      },
+      "only": {
+        "aria": "Yalnız bir yöntemde bulunan teknikler",
+        "titleA": "Yalnız A’da",
+        "leadA": "Bütüncül Numeroloji teknikleri; Klasik yöntemde karşılığı yok.",
+        "titleB": "Yalnız B’de",
+        "leadB": "Klasik yöntem teknikleri; Bütüncül Numeroloji'de karşılığı yok.",
+        "present": "Bu kayıtta var",
+        "absent": "Bu kayıtta yok",
+        "absentSuffix": " · kayıtta yok"
+      },
+      "stones": {
+        "title": "Taşlar — kaynağa göre",
+        "lead": "Her sütun kendi kaynağını gösterir; listeler birleştirilmez.",
+        "aExpert": "A · Uzman ataması",
+        "bDirect": "B · Harita önerisi",
+        "bDerived": "B · Türetilmiş",
+        "noStones": "Kayıtta taş yok.",
+        "ambiguous": "Birden fazla olası taş",
+        "unmatched": "Kütüphanede yok",
+        "noSuggestion": "Öneri yok.",
+        "noDerived": "Türetilmiş öneri yok.",
+        "overlap": "Her iki tarafta da geçen taşlar (köken korunur): {list}",
+        "disclaimer": "Taş önerileri sembolik ve geleneksel yorumdur; tıbbi teşhis, tedavi veya sağlık iddiası taşımaz."
+      },
+      "notes": {
+        "title": "Uzman değerlendirmesi",
+        "lead": "Sizin yorumunuz; iki analizden ayrı bir kayıt olarak saklanır.",
+        "edit": "Düzenle",
+        "delete": "Sil",
+        "editLabel": "Notu düzenle",
+        "newLabel": "Yeni değerlendirme",
+        "refresh": "Notları yenile",
+        "conflict": "Not başka bir oturumda değişti. Notları yenileyip değişikliğinizi tekrar uygulayın (yazdığınız metin korunur).",
+        "empty": "Not boş olamaz.",
+        "tooLong": "Not en fazla {max} karakter olabilir.",
+        "saved": "Değerlendirme kaydedildi. Orijinal analizler değişmedi.",
+        "deleted": "Not silindi.",
+        "lock": "Bu not ayrı kaydedilir. <b>Orijinal analizler değişmez.</b> Tek bir “birleşik sayı” üretilmez.",
+        "saving": "Kaydediliyor…",
+        "saveChange": "Değişikliği kaydet",
+        "saveNew": "Değerlendirmeyi kaydet",
+        "cancel": "Vazgeç"
+      },
+      "word": {
+        "title": "Karşılaştırma raporu (Word)",
+        "lead": "İki kayıt yan yana; sayılar birleştirilmez. İsterseniz bir uzman notunu rapora ekleyin.",
+        "noteLabel": "Rapora eklenecek not",
+        "noNote": "Not eklenmesin",
+        "noteFallback": "Not",
+        "preparing": "Hazırlanıyor…"
+      },
+      "confirm": {
+        "title": "Not silinsin mi?",
+        "body": "Uzman notu silinecek. Orijinal analizler etkilenmez."
+      },
+      "errors": {
+        "generic": "İşlem tamamlanamadı.",
+        "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "rateLimited": "Çok sık istek; biraz sonra tekrar deneyin.",
+        "module": "Bu modüle erişim izniniz yok. Yöneticinizle iletişime geçin.",
+        "membership": "Üyeliğiniz bu işlem için etkin değil.",
+        "clientsPermission": "Bu işlem için Danışan Yönetimi izniniz olmalı.",
+        "status401": "Oturumunuz sona ermiş olabilir. Lütfen yeniden giriş yapın.",
+        "status403": "Bu işlem için yetkiniz yok.",
+        "status404": "Kayıt bulunamadı ya da artık mevcut değil.",
+        "status409": "Kayıt başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin.",
+        "status413": "İstek çok büyük.",
+        "status5xx": "İşlem şu an tamamlanamadı. Lütfen daha sonra tekrar deneyin.",
+        "codes": {
+          "INVALID_CLIENT_ID": "Geçersiz danışan kimliği.",
+          "INVALID_ID": "Kayıt kimliği geçersiz.",
+          "SOURCE_REQUIRED": "En az bir kayıt seçilmeli.",
+          "BODY_TOO_LONG": "Not en çok 20 000 karakter olabilir.",
+          "CLIENT_MISMATCH": "Not, seçilen kayıtların bağlı olduğu danışandan farklı bir danışana bağlanamaz.",
+          "CLIENT_NOT_FOUND": "Danışan bulunamadı.",
+          "DEMO_READONLY": "Demo hesapta yeni analiz hesaplanamaz ve kayıt değiştirilemez.",
+          "DB_ERROR": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+          "KIND_MISMATCH": "Seçilen analiz bu rapor türüne uygun değil.",
+          "STONES_NOT_AVAILABLE": "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor."
+        }
+      }
+    }
+  }
+}

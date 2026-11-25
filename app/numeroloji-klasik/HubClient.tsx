@@ -3,62 +3,63 @@
 // Klasik Numeroloji merkezi — açık premium vitrin (30.10.2026). Kartın tamamı tek bağlantı; kart / bağlantı / test kimlikleri korunur.
 // Görseller ekran düzeyi dekordur (premiumArt.tsx; projede üretilmiş SVG) — kayıt içeriğine bağlı değildir.
 
+import { useTranslations } from "next-intl";
 import { Icon, Shell, TiltLink } from "./_ui/kit";
 import { ClassicHeroArt, Emblem, SceneOrnament, type EmblemName } from "./_ui/premiumArt";
 
-type Tile = { href: string; icon: string; emblem: EmblemName; title: string; desc: string; feature?: boolean; badge?: string; testid: string };
+// Metinler numerology.classic.hub (TR birebir); `key` yalnız katalog anahtarıdır.
+type TileKey = "new" | "records" | "library" | "relationship" | "business" | "names";
+type Tile = { href: string; icon: string; emblem: EmblemName; key: TileKey; feature?: boolean; badge?: boolean; testid: string };
 
 const TILES: Tile[] = [
-  { href: "/numeroloji-klasik/yeni", icon: "plus", emblem: "analysis", title: "Yeni Analiz", desc: "Ad soyad ve doğum tarihiyle tüm teknikleri ya da seçtiklerinizi hesaplayın.", feature: true, badge: "Buradan başlayın", testid: "hub-yeni" },
-  { href: "/numeroloji-klasik/kayitlar", icon: "archive", emblem: "archive", title: "Kayıtlı Analizler", desc: "Saklanan Klasik analizler; yeniden adlandırma, silme ve Word çıktısı.", feature: true, testid: "hub-kayitlar" },
-  { href: "/numeroloji-klasik/kutuphane", icon: "book", emblem: "library", title: "Sayı Bilgi Kütüphanesi", desc: "1–9, usta sayılar ve Kalde 10–52 bileşik sayı anlamları.", testid: "hub-kutuphane" },
-  { href: "/numeroloji-klasik/iliski", icon: "link", emblem: "relation", title: "İlişki Analizi", desc: "İki kişinin çekirdek sayılarının uyumu ve tamamlayıcı yönleri.", testid: "hub-iliski" },
-  { href: "/numeroloji-klasik/isletme", icon: "building", emblem: "business", title: "İşletme Numerolojisi", desc: "Firma ve marka adının Kalde sayısı ve geleneksel değerlendirmesi.", testid: "hub-isletme" },
-  { href: "/numeroloji-klasik/isimler", icon: "tag", emblem: "names", title: "İsim Seçenekleri", desc: "En çok altı aday ismi Pisagor ve Kalde ile yan yana inceleyin.", testid: "hub-isimler" },
+  { href: "/numeroloji-klasik/yeni", icon: "plus", emblem: "analysis", key: "new", feature: true, badge: true, testid: "hub-yeni" },
+  { href: "/numeroloji-klasik/kayitlar", icon: "archive", emblem: "archive", key: "records", feature: true, testid: "hub-kayitlar" },
+  { href: "/numeroloji-klasik/kutuphane", icon: "book", emblem: "library", key: "library", testid: "hub-kutuphane" },
+  { href: "/numeroloji-klasik/iliski", icon: "link", emblem: "relation", key: "relationship", testid: "hub-iliski" },
+  { href: "/numeroloji-klasik/isletme", icon: "building", emblem: "business", key: "business", testid: "hub-isletme" },
+  { href: "/numeroloji-klasik/isimler", icon: "tag", emblem: "names", key: "names", testid: "hub-isimler" },
 ];
 
 export default function HubClient() {
+  const t = useTranslations("numerology.classic");
   return (
-    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" }, { label: "Klasik Numeroloji" }]}>
+    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: t("shared.crumbCentre") }, { label: t("shared.crumbClassic") }]}>
       <header className="nk-vitrin" aria-labelledby="nk-hub-title">
         <SceneOrnament className="nk-vitrin-orn" />
         <div className="nk-vitrin-text">
-          <p className="nk-eyebrow nk-eyebrow-left">Klasik Numeroloji</p>
-          <h1 className="nk-title" id="nk-hub-title">Batı ve Kalde gelenekleri</h1>
-          <p className="nk-sub">Pisagor çekirdek sayıları, karmik yapı, zamanlama döngüleri ve Kalde bileşik sayıları — her adımı izlenebilir hesapla.</p>
-          <ul className="nk-vitrin-chips" aria-label="Yöntemin temel ilkeleri">
-            <li><span className="nk-dot nk-dot-b" aria-hidden="true" />Pisagor (Batı)</li>
-            <li><span className="nk-dot nk-dot-g" aria-hidden="true" />Kalde (Cheiro)</li>
-            <li><span className="nk-dot nk-dot-v" aria-hidden="true" />Usta sayılar 11 · 22 · 33</li>
+          <p className="nk-eyebrow nk-eyebrow-left">{t("shared.crumbClassic")}</p>
+          <h1 className="nk-title" id="nk-hub-title">{t("hub.title")}</h1>
+          <p className="nk-sub">{t("hub.sub")}</p>
+          <ul className="nk-vitrin-chips" aria-label={t("hub.chipsLabel")}>
+            <li><span className="nk-dot nk-dot-b" aria-hidden="true" />{t("labels.method.pythagorean")}</li>
+            <li><span className="nk-dot nk-dot-g" aria-hidden="true" />{t("labels.method.chaldean")}</li>
+            <li><span className="nk-dot nk-dot-v" aria-hidden="true" />{t("hub.chipMaster")}</li>
           </ul>
         </div>
         <ClassicHeroArt className="nk-vitrin-art" />
       </header>
 
-      <section className="nk-hub-grid" aria-label="Klasik Numeroloji bölümleri">
-        {TILES.map((t) => (
-          <TiltLink key={t.href} href={t.href} className={`nk-tile${t.feature ? " nk-feature" : ""}`} data-testid={t.testid}>
-            <Emblem name={t.emblem} className="nk-tile-emblem" />
-            <span className="nk-tile-icon"><Icon name={t.icon} /></span>
+      <section className="nk-hub-grid" aria-label={t("hub.sectionsLabel")}>
+        {TILES.map((tile) => (
+          <TiltLink key={tile.href} href={tile.href} className={`nk-tile${tile.feature ? " nk-feature" : ""}`} data-testid={tile.testid}>
+            <Emblem name={tile.emblem} className="nk-tile-emblem" />
+            <span className="nk-tile-icon"><Icon name={tile.icon} /></span>
             <span className="nk-tile-body">
-              <h2 className="nk-tile-title">{t.title}</h2>
-              <p className="nk-tile-desc">{t.desc}</p>
+              <h2 className="nk-tile-title">{t(`hub.tiles.${tile.key}.title`)}</h2>
+              <p className="nk-tile-desc">{t(`hub.tiles.${tile.key}.desc`)}</p>
             </span>
-            {t.badge ? <span className="nk-badges"><span className="nk-badge nk-gold">{t.badge}</span></span> : null}
-            {t.feature ? <span className="nk-tile-go" aria-hidden="true">→</span> : null}
+            {tile.badge ? <span className="nk-badges"><span className="nk-badge nk-gold">{t(`hub.tiles.${tile.key}.badge`)}</span></span> : null}
+            {tile.feature ? <span className="nk-tile-go" aria-hidden="true">→</span> : null}
           </TiltLink>
         ))}
         <div className="nk-card nk-tile nk-wide" data-testid="hub-dogaltas">
           <Emblem name="stone" className="nk-tile-emblem" />
           <span className="nk-tile-icon"><Icon name="gem" /></span>
           <span className="nk-tile-body">
-            <h2 className="nk-tile-title">Numeroloji – Doğaltaş</h2>
-            <p className="nk-tile-desc">
-              Kişi analizinin “Taşlar” sekmesinde üç kaynak ayrı gösterilir: haritanın önerdiği taşlar, titreşim eşleşmesi ve gezegen ilişkisi;
-              stok bilginizle birlikte. Öneriler sembolik ve gelenekseldir; sağlık iddiası taşımaz.
-            </p>
+            <h2 className="nk-tile-title">{t("hub.stone.title")}</h2>
+            <p className="nk-tile-desc">{t("hub.stone.desc")}</p>
           </span>
-          <span className="nk-badges"><span className="nk-badge">Sembolik / geleneksel</span><span className="nk-badge nk-ice">Analiz sonucunda · Taşlar</span></span>
+          <span className="nk-badges"><span className="nk-badge">{t("hub.stone.badgeSymbolic")}</span><span className="nk-badge nk-ice">{t("hub.stone.badgeWhere")}</span></span>
         </div>
       </section>
     </Shell>

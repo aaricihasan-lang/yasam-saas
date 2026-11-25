@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
+import { numApiErrorCode } from "../../helpers/numApiClient";
 import { getKnowledgeRecord, saveKnowledgeRecord, updateKnowledgeRecordById } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 import { isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
 import { EMPTY_KULVAR_BODIES, bodiesFromRecord, decideSaveMethod, sectionsFromBodies, shouldResetCanonicalFormAfterSave, type KulvarBodies } from "../helpers/kulvarFormLogic";
 import { MSG_NEEDS_SAVED_RECORD } from "../helpers/sourceUiLogic";
@@ -25,17 +29,20 @@ const textareaClass = `${fieldBase} min-h-[140px] resize-y py-3 text-base leadin
 
 const labelClass = "mb-1.5 block text-[15px] font-bold text-[#241d45]";
 
+// I18N: değerler kanonik analiz türü kodudur; görünen ad numerology.knowledge.shared.analysisTypes.<kod>,
+// boş değer form.selectPlaceholder (TR katalog değerleri önceki etiketlerle birebir).
 const ANALIZ_TURU_OPTIONS = [
-  { value: "", label: "Seçiniz..." },
-  { value: "ana-kulvar", label: "Ana Kulvar" },
-  { value: "yan-kulvar", label: "Yan Kulvar" },
-  { value: "ifade-sayisi", label: "İfade Sayısı" },
-  { value: "hayat-yolu", label: "Hayat Yolu" },
-  { value: "cakra-omurga", label: "Çakra Omurga" },
-  { value: "element", label: "Element" },
-  { value: "diger", label: "Diğer" },
+  { value: "" },
+  { value: "ana-kulvar" },
+  { value: "yan-kulvar" },
+  { value: "ifade-sayisi" },
+  { value: "hayat-yolu" },
+  { value: "cakra-omurga" },
+  { value: "element" },
+  { value: "diger" },
 ] as const;
 
+// i18n-ignore: "Ateş | AZ Destek" vb. Bilgi Bankası eşleşme anahtarıdır (DB value); çevrilmez, aynen gösterilir.
 const ELEMENT_DEGER_OPTIONS = (["Ateş", "Su", "Toprak", "Hava"] as const).flatMap((el) => [
   `${el} | AZ Destek`,
   `${el} | FAZLA Destek`,
@@ -51,8 +58,30 @@ function isElement(tur: string): tur is "element" {
   return tur === "element";
 }
 
+type KbT = ReturnType<typeof useTranslations>;
+
+/**
+ * I18N — EN'de sunucu hata ayrıntısı: numApiClient'ın sakladığı dil-bağımsız `code` → katalog
+ * (önce numerology.knowledge.apiErrors, sonra common.apiErrors). Kod yoksa null (çağıran genel metni gösterir).
+ * TR'de kullanılmaz (sunucu metni birebir).
+ */
+function enApiErrorDetail(t: KbT, tApi: KbT, serverText: string): string | null {
+  const code = numApiErrorCode(serverText);
+  if (!code) return null;
+  if (t.has(`apiErrors.${code}`)) return t(`apiErrors.${code}`);
+  if (code === "NETWORK") return tApi("network");
+  if (tApi.has(`codes.${code}`)) return tApi(`codes.${code}`);
+  return null;
+}
+
 export function BilgiKayitEkleDuzenle() {
   const { showToast } = useToast();
+  const t = useTranslations("numerology.knowledge");
+  const tApi = useTranslations("common.apiErrors");
+  // I18N: TR'de sunucu / istisna metni birebir; EN'de kod → katalog, yoksa genel metin.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [bilgiKaynagi, setBilgiKaynagi] = useState("");
@@ -174,11 +203,11 @@ export function BilgiKayitEkleDuzenle() {
 
   async function handleKaydet() {
     if (!analizTuru) {
-      showToast({ message: "Analiz türü seçin.", type: "warning" });
+      showToast({ message: t("form.chooseAnalysisType"), type: "warning" });
       return;
     }
     if (!deger.trim()) {
-      showToast({ message: "Değer alanını doldurun.", type: "warning" });
+      showToast({ message: t("form.fillValue"), type: "warning" });
       return;
     }
 
@@ -228,12 +257,13 @@ export function BilgiKayitEkleDuzenle() {
         // HATA/çakışma: form verisi korunur; kalıcı panel.
         setAck({
           type: "error",
-          message: "Bu analiz türü ve değer için kayıt zaten mevcut. Düzenlemek için mevcut kaydı açın.",
+          message: t("canonical.conflict"),
         });
         return;
       }
       if (error) {
-        setAck({ type: "error", message: `Kayıt sırasında hata oluştu: ${error}` });
+        const detail = isSourceLocale ? error : enApiErrorDetail(t, tApi, error);
+        setAck({ type: "error", message: detail ? t("canonical.saveFailed", { error: detail }) : t("canonical.saveFailedGeneric") });
         return;
       }
 
@@ -245,10 +275,11 @@ export function BilgiKayitEkleDuzenle() {
         setDeger("");
         resetIcerik();
       }
-      setAck({ type: "success", message: "Kanonik açıklama kaydedildi." });
+      setAck({ type: "success", message: t("canonical.saved") });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      setAck({ type: "error", message: `Kayıt sırasında hata oluştu: ${msg}` });
+      // EN'de istisna metni (dil-bağımsız değil) gösterilmez → genel metin.
+      const msg = err instanceof Error ? err.message : t("shared.unknownError");
+      setAck({ type: "error", message: isSourceLocale ? t("canonical.saveFailed", { error: msg }) : t("canonical.saveFailedGeneric") });
     } finally {
       setKaydediliyor(false);
     }
@@ -257,16 +288,15 @@ export function BilgiKayitEkleDuzenle() {
   return (
     <div className="py-1 md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:p-4 md:shadow-sm md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
       <div className="mb-4 rounded-2xl border border-[#e3dbf5] bg-[#f6f2fd] px-4 py-3">
-        <p className="text-[17px] font-extrabold text-[#2a1866]">A. Kanonik Açıklama</p>
+        <p className="text-[17px] font-extrabold text-[#2a1866]">{t("canonical.heading")}</p>
         <p className="mt-0.5 text-xs font-medium text-slate-600">
-          Her analiz türü ve değer için tek kanonik açıklama. Kaynağa özgü uzman notları aşağıdaki
-          <span className="font-bold"> B. Kaynak Notları</span> bölümünde ayrı tutulur.
+          {t.rich("canonical.intro", { b: (chunks) => <span className="font-bold">{chunks}</span> })}
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label htmlFor="bilgi-analiz-turu" className={labelClass}>
-            Analiz Türü
+            {t("canonical.analysisType")}
           </label>
           <select
             id="bilgi-analiz-turu"
@@ -276,7 +306,7 @@ export function BilgiKayitEkleDuzenle() {
           >
             {ANALIZ_TURU_OPTIONS.map((opt) => (
               <option key={opt.value || "seciniz"} value={opt.value}>
-                {opt.label}
+                {opt.value ? t(`shared.analysisTypes.${opt.value}`) : t("form.selectPlaceholder")}
               </option>
             ))}
           </select>
@@ -284,7 +314,7 @@ export function BilgiKayitEkleDuzenle() {
 
         <div>
           <label htmlFor="bilgi-deger" className={labelClass}>
-            Değer
+            {t("canonical.value")}
           </label>
           {isCakraOmurga(analizTuru) ? (
             <select
@@ -293,10 +323,10 @@ export function BilgiKayitEkleDuzenle() {
               onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
-              <option value="">Seçiniz...</option>
+              <option value="">{t("form.selectPlaceholder")}</option>
               {CHAKRA_VALUE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -307,10 +337,10 @@ export function BilgiKayitEkleDuzenle() {
               onChange={(e) => handleDegerChange(e.target.value)}
               className={selectClass}
             >
-              <option value="">Seçiniz...</option>
+              <option value="">{t("form.selectPlaceholder")}</option>
               {ELEMENT_DEGER_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -320,7 +350,7 @@ export function BilgiKayitEkleDuzenle() {
               type="text"
               value={deger}
               onChange={(e) => handleDegerChange(e.target.value)}
-              placeholder="Örn. 19, 11, 33/6, 22…"
+              placeholder={t("form.valuePlaceholder")}
               className={inputClass}
             />
           )}
@@ -328,28 +358,27 @@ export function BilgiKayitEkleDuzenle() {
 
         {bekleyenKayit ? (
           <div role="status" className="lg:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-            Bu analiz türü ve değer için kayıtlı bir açıklama var. Yazdığınız metin korunuyor; kaydederseniz
-            mevcut kaydın yerine geçer.{" "}
+            {t("canonical.pendingRecord")}{" "}
             <button
               type="button"
               onClick={() => yukleKayit(bekleyenKayit, analizTuru)}
               className="ml-1 rounded-lg border border-amber-400 bg-white px-2 py-1 font-black text-amber-900 hover:bg-amber-100"
             >
-              Kayıtlı açıklamayı yükle
+              {t("canonical.loadPending")}
             </button>
           </div>
         ) : null}
 
         <div className="lg:col-span-2">
           <label htmlFor="bilgi-kaynak" className={labelClass}>
-            Bilgi Kaynağı
+            {t("canonical.source")}
           </label>
           <input
             id="bilgi-kaynak"
             type="text"
             value={bilgiKaynagi}
             onChange={(e) => { icerikKirliRef.current = true; setBilgiKaynagi(e.target.value); }}
-            placeholder="Örn. Eğitim notu, kitap, uzman yorumu…"
+            placeholder={t("form.sourcePlaceholder")}
             className={inputClass}
           />
         </div>
@@ -358,12 +387,12 @@ export function BilgiKayitEkleDuzenle() {
           <>
             <div className="lg:col-span-2">
               <p className="mb-2 text-xs font-bold text-violet-800">
-                {existingId ? "Kaydı düzenliyorsunuz — bölümleri güncelleyin" : "Yapılandırılmış bölümler"}
+                {existingId ? t("canonical.editingSections") : t("form.structuredSections")}
               </p>
               <KulvarSectionEditor bodies={kulvarBodies} onChange={handleKulvarBodyChange} disabled={kaydediliyor} />
             </div>
             <div className="lg:col-span-2">
-              <p className="mb-2 text-xs font-bold text-violet-800">Kaynaklar</p>
+              <p className="mb-2 text-xs font-bold text-violet-800">{t("form.sources")}</p>
               {existingId ? (
                 <KulvarSourceManager
                   recordId={existingId}
@@ -374,21 +403,21 @@ export function BilgiKayitEkleDuzenle() {
                   reload={kReload}
                 />
               ) : (
-                <p className="text-sm font-medium text-slate-500">{MSG_NEEDS_SAVED_RECORD}</p>
+                <p className="text-sm font-medium text-slate-500">{isSourceLocale ? MSG_NEEDS_SAVED_RECORD : t("canonical.needsSavedRecord")}</p>
               )}
             </div>
           </>
         ) : (
           <div className="lg:col-span-2">
             <label htmlFor="bilgi-aciklama" className={labelClass}>
-              Açıklama Metni
+              {t("canonical.description")}
             </label>
             <textarea
               id="bilgi-aciklama"
               value={aciklamaMetni}
               onChange={(e) => { icerikKirliRef.current = true; setAciklamaMetni(e.target.value); }}
               rows={6}
-              placeholder="Numeroloji açıklama ve yorum metnini buraya yazın..."
+              placeholder={t("canonical.descriptionPlaceholder")}
               className={textareaClass}
             />
           </div>
@@ -401,7 +430,7 @@ export function BilgiKayitEkleDuzenle() {
           onClick={handleYeni}
           className="inline-flex h-11 items-center justify-center rounded-xl border-[1.5px] border-[#e2dcef] bg-white px-6 text-base font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
-          Yeni
+          {t("canonical.new")}
         </button>
         <button
           type="button"
@@ -409,7 +438,7 @@ export function BilgiKayitEkleDuzenle() {
           onClick={() => void handleKaydet()}
           className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 via-violet-500 to-violet-700 px-7 text-base font-black uppercase tracking-wide text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.8)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {existingId ? (kaydediliyor ? "Güncelleniyor..." : "Kanonik Açıklamayı Güncelle") : kaydediliyor ? "Kaydediliyor..." : "Kanonik Açıklamayı Kaydet"}
+          {existingId ? (kaydediliyor ? t("canonical.updating") : t("canonical.update")) : kaydediliyor ? t("canonical.saving") : t("canonical.save")}
         </button>
       </div>
 
@@ -418,17 +447,16 @@ export function BilgiKayitEkleDuzenle() {
       {/* B. Kaynak Notları — kanonik açıklamadan AYRI; kaydedilmiş kayıt gerekir. */}
       <div className="mt-6 border-t-2 border-[#ece6f7] pt-5">
         <div className="mb-4 rounded-2xl border border-[#e3dbf5] bg-[#f6f2fd] px-4 py-3">
-          <p className="text-[17px] font-extrabold text-[#2a1866]">B. Kaynak Notları</p>
+          <p className="text-[17px] font-extrabold text-[#2a1866]">{t("canonical.notesHeading")}</p>
           <p className="mt-0.5 text-xs font-medium text-slate-600">
-            Kaynak başına ayrı uzman notları. Kanonik açıklamayı DEĞİŞTİRMEZ. “Uzmanın Kendi Notu” için
-            kaynak seçmeden kaydedin. “Analizde kullan” işaretli notlar yalnız Hesap Özetli analizde görünür.
+            {t("canonical.notesIntro")}
           </p>
         </div>
         {existingId ? (
           <KaynakNotlariYonetimi recordId={existingId} />
         ) : (
           <p className="text-sm font-medium text-slate-500">
-            Kaynak notu eklemek için önce yukarıdan analiz türü ve değeri seçip kanonik açıklamayı kaydedin.
+            {t("canonical.notesNeedRecord")}
           </p>
         )}
       </div>

@@ -90,15 +90,15 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Tekil kayıt (detay sayfası)
   const idParam = req.nextUrl.searchParams.get("id")?.trim();
   if (idParam) {
-    if (!UUID_RE.test(idParam)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    if (!UUID_RE.test(idParam)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı.", code: "NOT_FOUND" }, { status: 404 });
     const { data, error } = await db
       .from("numerology_records")
       .select("*")
       .eq("id", idParam)
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
-    if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
+    if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı.", code: "NOT_FOUND" }, { status: 404 });
     return NextResponse.json({ ok: true, row: viewRow(data as Record<string, unknown>) });
   }
 
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .from("numerology_records")
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", tenantId);
-    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
     return NextResponse.json({ ok: true, count: count ?? 0 });
   }
 
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(limit);
-    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
     return NextResponse.json({ ok: true, rows: data ?? [] });
   }
 
@@ -138,7 +138,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .range(from, to),
   );
 
-  if (error) return NextResponse.json({ ok: false, error: "Kayıtlar eksiksiz okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "Kayıtlar eksiksiz okunamadı. Lütfen tekrar deneyin.", code: "READ_FAILED" }, { status: 500 });
   return NextResponse.json({ ok: true, rows: summaryOnly ? rows : (rows as Record<string, unknown>[]).map(viewRow) });
 }
 
@@ -150,13 +150,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   // NUM-009: oluşturmada analysis_data ZORUNLU + şekil doğrulaması.
   const shape = validateAnalysisData(body.analysis_data, true);
-  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
+  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error, code: "INVALID_INPUT" }, { status: 400 });
 
   // NUM-F01 (sunucu): motor sonucu, gönderilen ad/soyad/doğum tarihinden GÜNCEL motorla
   // üretilenle birebir olmalı. Aksi halde (bilgiler değişmiş ama yeniden hesaplanmamış ya da
@@ -183,15 +183,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   let recalculatedFrom: string | null = null;
   if (recalcRaw !== undefined && recalcRaw !== null) {
     const src = String(recalcRaw).trim();
-    if (!UUID_RE.test(src)) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı." }, { status: 404 });
+    if (!UUID_RE.test(src)) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı.", code: "NOT_FOUND" }, { status: 404 });
     const { data: srcRow, error: srcErr } = await db
       .from("numerology_records")
       .select("id")
       .eq("id", src)
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    if (srcErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
-    if (!srcRow) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı." }, { status: 404 });
+    if (srcErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
+    if (!srcRow) return NextResponse.json({ ok: false, error: "Kaynak analiz bulunamadı.", code: "NOT_FOUND" }, { status: 404 });
     recalculatedFrom = src;
   }
   // NUM-F02: metodoloji sürümü SUNUCUDA damgalanır (istemci değeri yok sayılır).
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "analysis_run", subEntity: "analysis", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   const newId = (data as { id: string }).id;
   // İP-2C: başarılı analiz oluşturma → usage event (server-resolved tenant/user; idempotent; throw etmez).
@@ -235,10 +235,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const id = String(body.id ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur.", code: "INVALID_ID" }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -247,18 +247,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   // rapor ayarlarıdır (analysis_data.gorsel); sunucu kayıtlı analysis_data'ya YALNIZ onu birleştirir.
   if ("name" in body || "surname" in body || "birth_date" in body) {
     return NextResponse.json(
-      { ok: false, error: "Ad, soyad ve doğum tarihi kayıttan sonra değiştirilemez; yeni analiz oluşturun." },
+      { ok: false, error: "Ad, soyad ve doğum tarihi kayıttan sonra değiştirilemez; yeni analiz oluşturun.", code: "INVALID_INPUT" },
       { status: 400 },
     );
   }
   const shape = validateAnalysisData(body.analysis_data, true);
-  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error }, { status: 400 });
+  if (!shape.ok) return NextResponse.json({ ok: false, error: shape.error, code: "INVALID_INPUT" }, { status: 400 });
   if (!UUID_RE.test(id)) {
-    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil.", code: "NOT_FOUND" }, { status: 404 });
   }
   const gorselIn = (body.analysis_data as Record<string, unknown>).gorsel;
   if (gorselIn !== undefined && (gorselIn === null || typeof gorselIn !== "object" || Array.isArray(gorselIn))) {
-    return NextResponse.json({ ok: false, error: "Görsel ayarları geçersiz." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Görsel ayarları geçersiz.", code: "INVALID_INPUT" }, { status: 400 });
   }
 
   const { data: existing, error: readErr } = await db
@@ -267,9 +267,9 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (readErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (readErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   if (!existing) {
-    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil.", code: "NOT_FOUND" }, { status: 404 });
   }
   const current = (existing as { analysis_data: unknown }).analysis_data;
   const base = current && typeof current === "object" && !Array.isArray(current) ? (current as Record<string, unknown>) : {};
@@ -284,10 +284,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "analysis", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil.", code: "NOT_FOUND" }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "analysis", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -312,7 +312,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       }
     } catch { /* gövde yoksa query'e güven */ }
   }
-  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids zorunludur." }, { status: 400 });
+  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids zorunludur.", code: "INVALID_ID" }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
 
@@ -325,11 +325,11 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "analysis", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   const deleted = data?.length ?? 0;
   if (deleted === 0) {
-    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Analiz kaydı bulunamadı veya bu tenant'a ait değil.", code: "NOT_FOUND" }, { status: 404 });
   }
   const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
   // Toplu silme → TEK olay + itemCount.
