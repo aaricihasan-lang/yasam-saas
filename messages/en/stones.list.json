@@ -192,6 +192,7 @@
       },
       "image": {
         "none": "No photo added",
+        "fallbackName": "Image {n}",
         "notWebTitle": "Photos that can't be shown on the web",
         "notWebFormat": "The photo path isn't in a web format",
         "add": "Add Photo",

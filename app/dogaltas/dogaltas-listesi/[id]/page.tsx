@@ -242,7 +242,18 @@ function normalizeAssignments(raw: unknown): Record<string, string[][]> {
   return result;
 }
 
-function normalizeImages(raw: unknown, signed: Record<string, string> = {}): StoneImageItem[] {
+/** Adı olmayan görselin yedek adı — Türkçe varsayılan. DB'ye geri yazılan liste (toSafeStone) bunu kullanır → kayıt değişmez. */
+const imageFallbackNameTr = (n: number): string => `Görsel ${n}`;
+
+/**
+ * @param fallbackName I18N (QTM-DG-07): yalnız GÖSTERİM listesinde ekran dilinde yedek ad (stones.detail.image.fallbackName).
+ *   Kalıcı kayda giden liste (toSafeStone) bunu vermez → Türkçe yedek birebir korunur.
+ */
+function normalizeImages(
+  raw: unknown,
+  signed: Record<string, string> = {},
+  fallbackName: (n: number) => string = imageFallbackNameTr,
+): StoneImageItem[] {
   if (!Array.isArray(raw)) return [];
 
   return raw.map((item, index) => {
@@ -252,7 +263,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
       const resolved = path && signed[path] ? signed[path] : undefined;
       return {
         id: `legacy-${index}`,
-        name: path.split(/[/\\]/).pop() || `Görsel ${index + 1}`,
+        name: path.split(/[/\\]/).pop() || fallbackName(index + 1),
         url: resolved,
         file_path: path || undefined,
         displayable: Boolean(resolved),
@@ -262,7 +273,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
     if (!item || typeof item !== "object") {
       return {
         id: `unknown-${index}`,
-        name: `Görsel ${index + 1}`,
+        name: fallbackName(index + 1),
         displayable: false,
       };
     }
@@ -280,7 +291,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
     return {
       id: String(record.id ?? `img-${index}`),
       name: String(
-        record.name ?? filePath.split(/[/\\]/).pop() ?? legacyUrl ?? `Görsel ${index + 1}`,
+        record.name ?? filePath.split(/[/\\]/).pop() ?? legacyUrl ?? fallbackName(index + 1),
       ),
       url: displayable ? resolved : undefined,
       file_path: filePath || undefined,
@@ -1640,7 +1651,7 @@ function StoneDetailPage() {
 
   const hasAssignments = Object.keys(safeAssignments).length > 0;
 
-  const images = normalizeImages(safeImages, signedImageUrls);
+  const images = normalizeImages(safeImages, signedImageUrls, (n) => t("image.fallbackName", { n }));
   const imagesWithUrl = images.filter((img) => img.displayable && img.url);
   const imagesNotWebFormat = images.filter((img) => !img.displayable);
 

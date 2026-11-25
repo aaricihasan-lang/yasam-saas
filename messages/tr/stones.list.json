@@ -192,6 +192,7 @@
       },
       "image": {
         "none": "Görsel eklenmemiş",
+        "fallbackName": "Görsel {n}",
         "notWebTitle": "Web'de gösterilemeyen görseller",
         "notWebFormat": "Görsel yolu web formatında değil",
         "add": "Fotoğraf Ekle",
