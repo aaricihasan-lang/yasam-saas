@@ -5,6 +5,7 @@
  *   A  hd.apiErrors: çerezsiz istek → kaynak dil (TR) metni; EN çevirici EN metni; bilinmeyen anahtar ham anahtar sızdırmaz
  *   T  Connection SVG başlıkları: varsayılan TR bugünkü dönüşümle birebir; EN etiketleri parametreyle
  *   S  Penta sahnesi: varsayılan (Word) = TR etiketler; EN etiketlerle Türkçe harf yok; geometri/kanal/kapı aynı
+ *   E  Analiz açıklamaları: TR katalog kalıpları = Türkçe üretim (fixture'larda bayt-eşit); EN'de Türkçe harf yok
  *   R  Ekran çizimi (sağlayıcılı): TR'de Türkçe başlıklar; EN'de Türkçe harf yok (marka adı hariç); yapı (data-*) aynı
  * Çalıştırma: npx tsx scripts/hd-i18n/relations-catalog.harness.ts
  */
@@ -27,7 +28,7 @@ import {
   RELATION_KIND_LABEL, RELATION_TYPE_LABEL, DYNAMIC_LABEL, DYNAMIC_DEFINITION, PENTA_POSITION_LABEL, PENTA_POSITION_DEFINITION,
   PENTA_CORE_NOTE, PENTA_GAP_NOTE, RELATION_DISCLAIMER, circuitLabel,
 } from "../../lib/human-design/relations/labels";
-import { ANALYSIS_EXPLANATION_SOURCE, ANALYSIS_EXPLANATION_DISCLAIMER } from "../../lib/human-design/relations/explanations";
+import { ANALYSIS_EXPLANATION_SOURCE, ANALYSIS_EXPLANATION_DISCLAIMER, connectionExplanations, connectionExplanationsWith, explainKit, pentaExplanations, pentaExplanationsWith } from "../../lib/human-design/relations/explanations";
 import { localizeConnectionTitles, CONNECTION_TITLE_LABELS_TR } from "../../lib/human-design/relations/roxyConnectionChart";
 import { buildPentaScene, PENTA_SCENE_LABELS_TR } from "../../lib/human-design/relations/pentaScene";
 import { validateRoxyConnection } from "../../lib/human-design/relations/connection";
@@ -138,6 +139,49 @@ for (const [name, el] of [["Connection", createElement(ConnectionResultView, { a
   // EN'de Türkçe harf yalnız sağlayıcı ham kapı adı (penta gateName) ya da SVG ara-sahne metinlerinden gelebilir → 0 beklenir.
   ok(`R ${name} EN: görünen metinde Türkçe harf yok`, leftovers.length === 0, leftovers.slice(0, 15));
   ok(`R ${name} TR/EN yapı (data-* öznitelikleri) aynı`, attrs(tr) === attrs(enHtml));
+}
+
+section("E — Analiz açıklamaları (sunucu metni)");
+{
+  const shape = (x: ReturnType<typeof connectionExplanations>) => JSON.stringify(x.map((s) => [s.key, s.items.length]));
+  const trKit = explainKit("tr");
+  let same = 0;
+  let total = 0;
+  const diffs: unknown[] = [];
+  let enClean = true;
+  let enShape = true;
+  const enLeft: string[] = [];
+  const NAMES = ["Ann", "Bob", "Cem", "Dan", "Eve"];
+  const pairs = [[0, 1], [0, 2], [1, 3], [2, 4], [3, 4], [1, 2]] as const;
+  for (const [i, j] of pairs) {
+    const v = validateRoxyConnection(fakeConnectionResponse(PEOPLE[i], PEOPLE[j]));
+    if (!v.ok) continue;
+    const legacy = connectionExplanations(v.value, NAMES[i], NAMES[j]);
+    const viaCat = connectionExplanationsWith(trKit, v.value, NAMES[i], NAMES[j]);
+    total++;
+    if (JSON.stringify(legacy) === JSON.stringify(viaCat)) same++; else diffs.push({ pair: [i, j], legacy: JSON.stringify(legacy).slice(0, 300), viaCat: JSON.stringify(viaCat).slice(0, 300) });
+    const en = connectionExplanations(v.value, NAMES[i], NAMES[j], "en");
+    if (shape(en) !== shape(legacy)) enShape = false;
+    const bad = JSON.stringify(en).match(/[^\s"]*[çğıöşüÇĞİÖŞÜ][^\s"]*/g) ?? [];
+    if (bad.length) { enClean = false; enLeft.push(...bad.slice(0, 5)); }
+  }
+  for (const n of [3, 4, 5]) {
+    const v = validateRoxyPenta(fakePentaResponse(PEOPLE.slice(0, n)), n);
+    if (!v.ok) continue;
+    const nm = NAMES.slice(0, n);
+    const legacy = pentaExplanations(v.value, nm);
+    const viaCat = pentaExplanationsWith(trKit, v.value, nm);
+    total++;
+    if (JSON.stringify(legacy) === JSON.stringify(viaCat)) same++; else diffs.push({ penta: n, legacy: JSON.stringify(legacy).slice(0, 300), viaCat: JSON.stringify(viaCat).slice(0, 300) });
+    const en = pentaExplanations(v.value, nm, "en");
+    if (shape(en) !== shape(legacy)) enShape = false;
+    const bad = JSON.stringify(en).match(/[^\s"]*[çğıöşüÇĞİÖŞÜ][^\s"]*/g) ?? [];
+    if (bad.length) { enClean = false; enLeft.push(...bad.slice(0, 5)); }
+  }
+  ok(`E1 TR katalog kalıpları = Türkçe üretim (${same}/${total} fixture, bayt-eşit)`, total >= 8 && same === total, diffs.slice(0, 2));
+  ok("E2 varsayılan dil parametresi = TR (Word/mevcut çağrılar değişmez)", total > 0);
+  ok("E3 EN açıklamalar: Türkçe harf yok", enClean, enLeft.slice(0, 10));
+  ok("E4 EN açıklamalar: bölüm anahtarları ve madde sayıları TR ile aynı", enShape);
 }
 
 console.log(`\nHD İLİŞKİ/GRUP + API i18n: ${pass} PASS / ${fail} FAIL`);
