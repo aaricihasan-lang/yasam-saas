@@ -168,7 +168,7 @@
       "loggingIn": "Giriş yapılıyor...",
       "systemError": "Sistem hatası oluştu.",
       "emailPasswordWrong": "E-posta veya parola hatalı.",
-      "noValidRole": "Giriş başarısız: hesabınızda geçerli bir rol (admin / expert) tanımlı değil. Supabase users kaydını kontrol edin.",
+      "noValidRole": "Hesap bilgileri doğrulanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
       "userVerifyFailed": "Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.",
       "sessionLimit": "Oturum limiti nedeniyle giriş yapılamadı. Yöneticinizle iletişime geçin.",
       "securityWarningTitle": "Güvenlik Uyarısı",
