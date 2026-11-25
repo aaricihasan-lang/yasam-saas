@@ -2,8 +2,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
 import type { ApiErrorPayload } from "@/lib/i18n/apiError";
@@ -343,11 +344,12 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
   const deleteConfirm = useDeleteConfirm();
 
   // Locale-duyarlı seans tarihi görüntüsü; boş tarihte sistem etiketi döner.
-  // (Kaynak `session_date` değeri değişmez — yalnız DISPLAY.)
+  // (Kaynak `session_date` değeri değişmez — yalnız DISPLAY.) A13: tr DD.MM.YYYY · en DD/MM/YYYY.
+  const displayLocale = resolveLocale(useLocale());
   const fmtDate = useCallback(
     (date: string | null) =>
-      date ? formatDateAbsolute(date) : t("noDate"),
-    [t],
+      date ? formatDateAbsolute(date, displayLocale) : t("noDate"),
+    [t, displayLocale],
   );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);

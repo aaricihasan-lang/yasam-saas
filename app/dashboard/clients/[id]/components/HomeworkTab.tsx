@@ -2,8 +2,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
 import type { ApiErrorPayload } from "@/lib/i18n/apiError";
@@ -415,11 +416,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const statusLabelI18n = (s: string | null | undefined): string =>
     s && t.has(`status.${s}`) ? t(`status.${s}`) : (s || t("status.unknown"));
 
-  // Mutlak tarih (global sözleşme: tüm locale'lerde DD.MM.YYYY); boş tarihte sistem etiketi (DISPLAY-only).
+  // Mutlak tarih (A13: tr DD.MM.YYYY · en DD/MM/YYYY); boş tarihte sistem etiketi (DISPLAY-only).
+  const displayLocale = resolveLocale(useLocale());
   const fmtDate = useCallback(
     (date: string | null) =>
-      date ? formatDateAbsolute(date) : t("noDate"),
-    [t],
+      date ? formatDateAbsolute(date, displayLocale) : t("noDate"),
+    [t, displayLocale],
   );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);

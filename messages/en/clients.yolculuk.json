@@ -206,8 +206,8 @@
         "healthNote": "Health Note"
       },
       "num": {
-        "anaKulvar": "Soul Number",
-        "yanKulvar": "Personality Number",
+        "anaKulvar": "Main Lane",
+        "yanKulvar": "Side Lane",
         "ifadeSayisi": "Expression Number",
         "hayatYolu": "Life Path / DM",
         "kisiselYil": "Personal Year",

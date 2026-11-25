@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Hash } from "lucide-react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { DypSectionHead } from "@/app/_premium/danisan-yolculugu/DypUi";
@@ -22,6 +22,7 @@ import { RowErrorBoundary } from "@/app/numeroloji/components/RowErrorBoundary";
 import { resolveRecordMotor } from "@/app/numeroloji/utils/analysisJson";
 import { NUMEROLOJI_METHODOLOGY_LABEL } from "@/lib/numeroloji/methodology";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 type Rec = { id: string; name: string; surname: string; birth_date: string; analysis_data: unknown; created_at: string | null };
 type State =
@@ -31,6 +32,7 @@ type State =
 
 export default function NumerolojiTab({ clientId, inputsKey }: { clientId: string; inputsKey: string }) {
   const t = useTranslations("clients.detail.numerologyTab");
+  const displayLocale = resolveLocale(useLocale());
   const [state, setState] = useState<State>({ phase: "loading" });
 
   // inputsKey (ad|soyad|doğum) değişince yeniden okunur: Genel Bilgiler'de doğum tarihi girilince/değişince
@@ -95,7 +97,7 @@ export default function NumerolojiTab({ clientId, inputsKey }: { clientId: strin
   const { motor } = resolveRecordMotor(record);
   const hint = [
     t("autoNote"),
-    record.created_at ? t("createdAt", { date: formatDateTimeAbsolute(record.created_at) }) : null,
+    record.created_at ? t("createdAt", { date: formatDateTimeAbsolute(record.created_at, displayLocale) }) : null,
     NUMEROLOJI_METHODOLOGY_LABEL,
   ].filter(Boolean).join(" · ");
   return (

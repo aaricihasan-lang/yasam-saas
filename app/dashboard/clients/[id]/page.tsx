@@ -2,8 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { formatCurrency, formatDateTimeAbsolute } from "@/lib/i18n/format";
-import { resolveLocale } from "@/lib/i18n/locales";
+import { absoluteDateSeparator, formatCurrency, formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { groupClientDetailTabs, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
@@ -109,15 +109,17 @@ type Appointment = {
 type PlanningMode = "auto" | "manual";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatDateTR(date: string | undefined) {
+// A13: ayırıcı ekran dilinden (TR "." — eski çıktı birebir; EN "/"). Saklanan ISO değer değişmez.
+function formatDateTR(date: string | undefined, locale?: string) {
   if (!date) return "-";
   const parts = date.split("-");
   if (parts.length !== 3) return date;
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  const sep = absoluteDateSeparator(resolveLocale(locale));
+  return `${parts[2]}${sep}${parts[1]}${sep}${parts[0]}`;
 }
 
-function formatDateTimeTR(value: string) {
-  return formatDateTimeAbsolute(value);
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
+  return formatDateTimeAbsolute(value, locale);
 }
 
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
@@ -1042,8 +1044,8 @@ function ClientDetailPageInner() {
         </div>
           <div className={dyp.infoGrid}>
             <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" tint="#eaf2ff" icon={DYP_INFO_ICONS.phone} />
-            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
-            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
+            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum, uiLocale)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
+            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme, uiLocale)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
             <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" tint="#fff3e6" icon={DYP_INFO_ICONS.zodiac} />
             <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" tint="#ffeef0" icon={DYP_INFO_ICONS.bloodType} />
             <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" tint="#eafaf0" icon={DYP_INFO_ICONS.temperament} />
@@ -1399,7 +1401,7 @@ function ClientDetailPageInner() {
               tenantId={tenantId}
               clientName={fullName || t("clientFallback")}
               clientPhone={client.telefon}
-              clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
+              clientLastSession={client.gorusme ? formatDateTR(client.gorusme, uiLocale) : undefined}
               clientAd={client.ad}
               clientSoyad={client.soyad}
               clientDogum={client.dogum}
@@ -1484,6 +1486,7 @@ function AppointmentsTab({
   onInitialAppointmentHandled?: () => void;
 }) {
   const t = useTranslations("clients.detail");
+  const displayLocale = resolveLocale(useLocale());
   const apiErr = useClientsApiError();
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1938,7 +1941,7 @@ function AppointmentsTab({
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
+                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date, displayLocale)}</div>
                     {item.notes && (
                       <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
                     )}
@@ -1988,7 +1991,7 @@ function AppointmentsTab({
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
+                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date, displayLocale)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>
