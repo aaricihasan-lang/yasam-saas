@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { jsonNoStore, verifySelfSessionRequest } from "@/lib/auth/sessionModel";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { emailOtpConfigured, issueAndSendOtp, maskEmail, verifyOtp } from "@/lib/auth/emailOtp";
+import { EMAIL_NOT_IN_SCOPE_TEXT, emailSelfServiceAllowed } from "@/lib/auth/emailSelfService";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,10 @@ export const runtime = "nodejs";
  * Doğrulanmış adres e-posta ile ikinci doğrulama yöntemini mümkün kılar (Owner ancak o zaman zorunluluk
  * açabilir). Adres DEĞİŞTİRİLMEZ (yalnız kayıtlı adres). Demo hesabında kapalı.
  *
- * GET  → { email: maske, verified: boolean, available: boolean }
+ * F3: kapsam AUTH_EMAIL_SELF_SERVICE_ROLES (varsayılan yalnız Owner; lib/auth/emailSelfService). Kapsam dışı hesapta
+ * kod GÖNDERİLMEZ / doğrulanmaz (403 METHOD_NOT_IN_SCOPE) — yalnız arayüz gizlemesi değildir.
+ *
+ * GET  → { email: maske, verified: boolean, available: boolean, changeAvailable: boolean }
  * POST { action: "send" } → kod gönderir · POST { action: "confirm", code } → doğrular
  */
 export async function GET(req: NextRequest) {
@@ -18,10 +22,13 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { data } = await guard.db.from("users").select("email, email_verified_at").eq("id", guard.userId).maybeSingle();
   const r = (data ?? {}) as { email?: unknown; email_verified_at?: unknown };
+  const available = emailOtpConfigured() && !guard.isDemo && (await emailSelfServiceAllowed(guard.db, guard.userId, guard.role));
   return jsonNoStore({
     email: typeof r.email === "string" ? maskEmail(r.email) : null,
     verified: r.email_verified_at != null,
-    available: emailOtpConfigured() && !guard.isDemo,
+    available,
+    // F3: "e-posta adresimi değiştir" kartı da aynı kapsama bağlı (uç ayrıca kendisi denetler).
+    changeAvailable: available,
   }, 200);
 }
 
@@ -29,6 +36,9 @@ export async function POST(req: NextRequest) {
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.isDemo) return demoReadOnlyResponse();
+  if (!(await emailSelfServiceAllowed(guard.db, guard.userId, guard.role))) {
+    return jsonNoStore({ code: "METHOD_NOT_IN_SCOPE", error: EMAIL_NOT_IN_SCOPE_TEXT }, 403);
+  }
   const body = (await req.json().catch(() => null)) as { action?: unknown; code?: unknown } | null;
   const { data } = await guard.db.from("users").select("email, name, full_name, email_verified_at").eq("id", guard.userId).maybeSingle();
   const u = (data ?? {}) as { email?: unknown; name?: unknown; full_name?: unknown; email_verified_at?: unknown };

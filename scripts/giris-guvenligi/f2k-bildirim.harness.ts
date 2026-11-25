@@ -32,7 +32,7 @@ async function main() {
     const { sendSecurityNotice } = await import("@/lib/auth/securityNotice");
     const client = createClient(db.shimUrl, "f2k-l4", { auth: { persistSession: false } });
     const q = (sql: string, a: unknown[] = []) => db.admin.query(sql, a);
-    const ENV = { AUTH_OTP_PEPPER: "p".repeat(40), EMAIL_DAILY_LIMIT: "1000" };
+    const ENV = { AUTH_OTP_PEPPER: "p".repeat(40), EMAIL_DAILY_LIMIT: "1000", AUTH_EMAIL_SELF_SERVICE_ROLES: "owner,expert" /* F3: uzmana bildirim kapsamı açık */ };
     const sent: string[] = [];
     const provider = (okSend: boolean) => ({
       name: "synthetic" as const,
