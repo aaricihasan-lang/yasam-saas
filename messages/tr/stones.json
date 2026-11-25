@@ -155,7 +155,8 @@
       "stockBadgeNo": "Stok yok"
     },
     "reader": {
-      "demoProtected": "🔒 Demo hesabında bu içerik korumalıdır"
+      "demoProtected": "🔒 Demo hesabında bu içerik korumalıdır",
+      "empty": "Henüz bilgi girilmedi."
     },
     "facetLabels": {
       "Kök": "Kök",

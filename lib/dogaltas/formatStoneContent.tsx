@@ -34,7 +34,15 @@ export type FormatStoneContentOptions = {
    * tek kutu). Varsayılan false → mevcut görünüm birebir.
    */
   bare?: boolean;
+  /**
+   * I18N (QTM-DG-03): boş içerikte gösterilecek metin (çağıran ekran dilinde verir). Verilmezse Türkçe
+   * varsayılan — Biyoenerji gibi mevcut çağıranlar birebir aynı kalır.
+   */
+  emptyText?: string;
 };
+
+/** Boş içerik için Türkçe varsayılan (kaynak dil; `emptyText` verilmezse). */
+const EMPTY_TEXT_TR = "Henüz bilgi girilmedi.";
 
 function defaultRender(text: string): ReactNode {
   return text;
@@ -278,7 +286,7 @@ export function formatStoneContent(
   const normalized = normalizeText(text);
 
   if (!normalized) {
-    return <p className="italic text-slate-400">Henüz bilgi girilmedi.</p>;
+    return <p className="italic text-slate-400">{options?.emptyText ?? EMPTY_TEXT_TR}</p>;
   }
 
   const blocks = splitParagraphBlocks(normalized);
