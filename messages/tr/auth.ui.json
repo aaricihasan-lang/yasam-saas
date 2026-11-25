@@ -53,6 +53,7 @@
       },
       "recovery": {
         "loadFailed": "Kurtarma bilgileri okunamadı. Bağlantınızı kontrol edin.",
+        "emailChangeUnavailable": "E-posta adresi değişikliği bu hesap için şu anda kullanılamıyor.",
         "actionFailed": "İşlem tamamlanamadı. Bağlantınızı kontrol edin.",
         "codesFailed": "Kodlar oluşturulamadı.",
         "codesClosed": "Kurtarma kodlarınız artık yalnızca kaydettiğiniz yerde. Bu ekranda bir daha gösterilmez.",
