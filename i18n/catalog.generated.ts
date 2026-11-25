@@ -29,8 +29,19 @@ import tr_common from "@/messages/tr/common.json";
 import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference.json";
 import tr_commonReader from "@/messages/tr/common.reader.json";
 import tr_commonSubmitLock from "@/messages/tr/common.submitLock.json";
+import tr_hdApiErrors from "@/messages/tr/hd.apiErrors.json";
+import tr_hdChart from "@/messages/tr/hd.chart.json";
+import tr_hdChartEntry from "@/messages/tr/hd.chartEntry.json";
+import tr_hdClients from "@/messages/tr/hd.clients.json";
+import tr_hdForms from "@/messages/tr/hd.forms.json";
 import tr_hdHub from "@/messages/tr/hd.hub.json";
+import tr_hdKnowledge from "@/messages/tr/hd.knowledge.json";
+import tr_hdReading from "@/messages/tr/hd.reading.json";
+import tr_hdRecords from "@/messages/tr/hd.records.json";
+import tr_hdRelations from "@/messages/tr/hd.relations.json";
+import tr_hdReports from "@/messages/tr/hd.reports.json";
 import tr_hdTerms from "@/messages/tr/hd.terms.json";
+import tr_hdTransit from "@/messages/tr/hd.transit.json";
 import tr_home from "@/messages/tr/home.json";
 import tr_homeYhStatus from "@/messages/tr/home.yhStatus.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
@@ -69,8 +80,19 @@ import en_common from "@/messages/en/common.json";
 import en_commonLanguagePreference from "@/messages/en/common.languagePreference.json";
 import en_commonReader from "@/messages/en/common.reader.json";
 import en_commonSubmitLock from "@/messages/en/common.submitLock.json";
+import en_hdApiErrors from "@/messages/en/hd.apiErrors.json";
+import en_hdChart from "@/messages/en/hd.chart.json";
+import en_hdChartEntry from "@/messages/en/hd.chartEntry.json";
+import en_hdClients from "@/messages/en/hd.clients.json";
+import en_hdForms from "@/messages/en/hd.forms.json";
 import en_hdHub from "@/messages/en/hd.hub.json";
+import en_hdKnowledge from "@/messages/en/hd.knowledge.json";
+import en_hdReading from "@/messages/en/hd.reading.json";
+import en_hdRecords from "@/messages/en/hd.records.json";
+import en_hdRelations from "@/messages/en/hd.relations.json";
+import en_hdReports from "@/messages/en/hd.reports.json";
 import en_hdTerms from "@/messages/en/hd.terms.json";
+import en_hdTransit from "@/messages/en/hd.transit.json";
 import en_home from "@/messages/en/home.json";
 import en_homeYhStatus from "@/messages/en/home.yhStatus.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
@@ -85,8 +107,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "hd.hub.json", "hd.terms.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "hd.hub.json", "hd.terms.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "hd.apiErrors.json", "hd.chart.json", "hd.chartEntry.json", "hd.clients.json", "hd.forms.json", "hd.hub.json", "hd.knowledge.json", "hd.reading.json", "hd.records.json", "hd.relations.json", "hd.reports.json", "hd.terms.json", "hd.transit.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "hd.apiErrors.json", "hd.chart.json", "hd.chartEntry.json", "hd.clients.json", "hd.forms.json", "hd.hub.json", "hd.knowledge.json", "hd.reading.json", "hd.records.json", "hd.relations.json", "hd.reports.json", "hd.terms.json", "hd.transit.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -117,8 +139,19 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_commonLanguagePreference,
     tr_commonReader,
     tr_commonSubmitLock,
+    tr_hdApiErrors,
+    tr_hdChart,
+    tr_hdChartEntry,
+    tr_hdClients,
+    tr_hdForms,
     tr_hdHub,
+    tr_hdKnowledge,
+    tr_hdReading,
+    tr_hdRecords,
+    tr_hdRelations,
+    tr_hdReports,
     tr_hdTerms,
+    tr_hdTransit,
     tr_home,
     tr_homeYhStatus,
     tr_memoryPicker,
@@ -159,8 +192,19 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_commonLanguagePreference,
     en_commonReader,
     en_commonSubmitLock,
+    en_hdApiErrors,
+    en_hdChart,
+    en_hdChartEntry,
+    en_hdClients,
+    en_hdForms,
     en_hdHub,
+    en_hdKnowledge,
+    en_hdReading,
+    en_hdRecords,
+    en_hdRelations,
+    en_hdReports,
     en_hdTerms,
+    en_hdTransit,
     en_home,
     en_homeYhStatus,
     en_memoryPicker,

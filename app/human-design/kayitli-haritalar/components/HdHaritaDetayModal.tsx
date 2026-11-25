@@ -1,6 +1,6 @@
 "use client";
 
-import { HD_CENTER_STATE_LABEL as HD_CENTER_STATE_LABEL_TR } from "@/lib/human-design/chart/centerStates";
+import { HD_CENTER_STATE_LABEL as HD_CENTER_STATE_LABEL_TR, type HdCenterState } from "@/lib/human-design/chart/centerStates";
 import { useTranslations } from "next-intl";
 import { useHdLabels } from "../../_i18n/useHdLabels";
 import { useState, useEffect, useRef } from "react";

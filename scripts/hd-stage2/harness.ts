@@ -730,7 +730,7 @@ async function main() {
     const g2 = await CPS.getComputedChart(db2 as never, T1, chartId);
     ok("24b Ad yalnız aynı tenant'tan okunur (başka tenant adı sızmaz)", g2.row !== null && !("current_client_name" in (g2.row ?? {})));
     const modal = src("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx");
-    ok("24c Analiz penceresi başlığı güncel adı gösterir + ad değiştiyse açıklama", /const displayName = row\?\.current_client_name \|\| row\?\.client_name/.test(modal) && modal.includes("Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir."));
+    ok("24c Analiz penceresi başlığı güncel adı gösterir + ad değiştiyse açıklama", /const displayName = row\?\.current_client_name \|\| row\?\.client_name/.test(modal) && modal.includes('t("renamed"') && JSON.parse(readFileSync(join(ROOT, "messages/tr/hd.records.json"), "utf8")).hd.records.modal.renamed.includes("Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir.")); // I18N R5: metin katalogda
     ok("24d Yeni Word adı güncel danışan kaydından (tek kaynak)", /chart\.client\?\.name \|\| chart\.client_name/.test(src("lib/human-design/reporting/reportSnapshotV2Service.ts")));
   }
 
