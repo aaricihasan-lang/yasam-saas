@@ -8,6 +8,8 @@
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "../_components/usePlanFormat";
 import {
   CalendarDays,
   CalendarRange,
@@ -41,13 +43,7 @@ import {
   TextInput,
 } from "../../_components/primitives";
 import { Modal } from "../_components/planUi";
-import {
-  formatDateTr,
-  friendlyPlanError,
-  revisionLabel,
-  statusClass,
-  statusLabel,
-} from "../_components/planFormat";
+import { revisionLabel, statusClass } from "../_components/planFormat";
 import { PlanTools } from "../_components/PlanTools";
 import { PlanDeleteDialog } from "../_components/PlanDeleteDialog";
 import PlanClientContext from "./_components/PlanClientContext";
@@ -62,6 +58,8 @@ type View = "day" | "week" | "month";
 export default function PlanEditorPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const tdt = useTranslations("beslenme.planDetail");
+  const pf = usePlanFormat();
   const id = params?.id ?? "";
 
   // Owner-guard YOK: güvenlik server-side (requireBeslenmePlanAccess). Erişim, getPlan
@@ -93,9 +91,9 @@ export default function PlanEditorPage() {
       setSelectedDayId((prev) => (prev && ds.some((d) => d.id === prev) ? prev : ds[0]?.id ?? null));
       setErr("");
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
-  }, [id]);
+  }, [id, pf]);
 
   useEffect(() => {
     let alive = true;
@@ -122,7 +120,7 @@ export default function PlanEditorPage() {
     const r = await copyPlan(plan.id, {});
     setActionBusy(false);
     if (r.ok && r.data?.plan) router.push(`/beslenme/planlar/${r.data.plan.id}`);
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    else setActionErr(pf.error(r.code, r.status));
   }
 
   async function doRevise() {
@@ -132,7 +130,7 @@ export default function PlanEditorPage() {
     const r = await revisePlan(plan.id);
     setActionBusy(false);
     if (r.ok && r.data?.plan) router.push(`/beslenme/planlar/${r.data.plan.id}`);
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    else setActionErr(pf.error(r.code, r.status));
   }
 
   /**
@@ -159,41 +157,41 @@ export default function PlanEditorPage() {
           aynı danışana otomatik bağlanır; revizyon aynı family'de kalır. Güvenlik server-side
           (requireBeslenmePlanAccess: tenant + bound-plan). */}
       <GhostButton icon={<Copy className="h-4 w-4" />} loading={actionBusy} onClick={() => void doCopy()}>
-        Planı Kopyala
+        {tdt("copy")}
       </GhostButton>
       {!archived ? (
         <>
           <GhostButton icon={<GitBranch className="h-4 w-4" />} loading={actionBusy} onClick={() => void doRevise()}>
-            Yeni Revizyon
+            {tdt("revise")}
           </GhostButton>
           <GhostButton icon={<Settings2 className="h-4 w-4" />} onClick={() => setMetaOpen(true)}>
-            Düzenle
+            {tdt("edit")}
           </GhostButton>
         </>
       ) : null}
       <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={actionBusy} onClick={() => doDelete()}>
-        Sil
+        {tdt("delete")}
       </DangerButton>
     </div>
   ) : null;
 
   return (
     <BeslenmeShell
-      title={plan ? plan.title : "Plan"}
+      title={plan ? plan.title : tdt("planFallback")}
       subtitle={
         plan
-          ? `${formatDateTr(plan.start_date)} – ${formatDateTr(plan.end_date)}`
-          : "Beslenme planı yükleniyor…"
+          ? `${pf.date(plan.start_date)} – ${pf.date(plan.end_date)}`
+          : tdt("loadingSubtitle")
       }
       icon={<UtensilsCrossed className="h-32 w-32" strokeWidth={1} />}
       backHref={cameFromClient && boundClient ? `/dashboard/clients/${boundClient.id}?tab=beslenme` : "/beslenme/planlar"}
-      backLabel={cameFromClient && boundClient ? "Danışana Dön" : "Planlar"}
+      backLabel={cameFromClient && boundClient ? tdt("backToClient") : tdt("backToPlans")}
       actions={headerActions}
     >
       {loading ? (
-        <InlineSpinner label="Plan yükleniyor…" />
+        <InlineSpinner label={tdt("loading")} />
       ) : err || !plan ? (
-        <div className={BES_GUTTER}><StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage></div>
+        <div className={BES_GUTTER}><StatusMessage type="error">{err || tdt("notFound")}</StatusMessage></div>
       ) : (
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
@@ -202,7 +200,7 @@ export default function PlanEditorPage() {
           {/* Bilgi şeridi */}
           <div className={`flex flex-wrap items-center gap-2 ${BES_GUTTER}`}>
             <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${statusClass(plan.status)}`}>
-              {statusLabel(plan.status)}
+              {pf.status(plan.status)}
             </span>
             {plan.revision_number > 1 ? (
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-slate-600">
@@ -210,9 +208,9 @@ export default function PlanEditorPage() {
               </span>
             ) : null}
             <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700">
-              {plan.daily_energy_target ? `${plan.daily_energy_target.toLocaleString("tr-TR")} kcal/gün` : "Hedef yok"}
+              {plan.daily_energy_target ? tdt("energyPerDay", { kcal: plan.daily_energy_target.toLocaleString(pf.numTag) }) : tdt("noTarget")}
             </span>
-            <span className="text-[11px] font-bold text-slate-400">{days.length} gün</span>
+            <span className="text-[11px] font-bold text-slate-400">{tdt("daysCount", { count: days.length })}</span>
           </div>
 
           {actionErr ? <StatusMessage type="error">{actionErr}</StatusMessage> : null}
@@ -220,20 +218,20 @@ export default function PlanEditorPage() {
           {archived ? (
             <div className={`flex items-start gap-2 rounded-2xl border border-amber-200 ${BES_CARD_BLEED} bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800`}>
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <span>Bu plan düzenlemeye kapalı (eski kilitli kayıt). Düzenlemek için planı kopyalayın.</span>
+              <span>{tdt("lockedNotice")}</span>
             </div>
           ) : null}
 
           {/* Görünüm sekmeleri */}
           <div className={`inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100 ${BES_GUTTER_INLINE}`}>
             <ViewTab active={view === "day"} onClick={() => setView("day")} icon={<UtensilsCrossed className="h-4 w-4" />}>
-              Gün
+              {tdt("viewDay")}
             </ViewTab>
             <ViewTab active={view === "week"} onClick={() => setView("week")} icon={<CalendarRange className="h-4 w-4" />}>
-              Hafta
+              {tdt("viewWeek")}
             </ViewTab>
             <ViewTab active={view === "month"} onClick={() => setView("month")} icon={<CalendarDays className="h-4 w-4" />}>
-              Ay
+              {tdt("viewMonth")}
             </ViewTab>
           </div>
 
@@ -339,6 +337,8 @@ function PlanMetaDialog({
   /** BES-01: sürüm çakışmasında (409) güncel planı yeniden yükle. */
   onReloadLatest: () => Promise<void>;
 }) {
+  const tdt = useTranslations("beslenme.planDetail");
+  const pf = usePlanFormat();
   const [title, setTitle] = useState(plan.title);
   const [note, setNote] = useState(plan.note ?? "");
   const [target, setTarget] = useState(plan.daily_energy_target != null ? String(plan.daily_energy_target) : "");
@@ -354,7 +354,7 @@ function PlanMetaDialog({
     setStale(false);
     const t = title.trim();
     if (!t) {
-      setErr("Plan adı zorunludur.");
+      setErr(tdt("titleRequired"));
       return;
     }
     let dailyTarget: number | null = null;
@@ -362,7 +362,7 @@ function PlanMetaDialog({
     if (rawTarget) {
       const n = Number(rawTarget);
       if (!Number.isFinite(n) || n <= 0) {
-        setErr("Günlük kalori hedefi geçerli bir sayı olmalı.");
+        setErr(tdt("targetInvalid"));
         return;
       }
       dailyTarget = Math.round(n);
@@ -380,7 +380,7 @@ function PlanMetaDialog({
       setSaving(false);
       // BES-01: başka sekme/cihaz planı değiştirdiyse hiçbir şey yazılmadı; düzenlemeler formda kalır.
       if (meta.code === "PLAN_STALE") setStale(true);
-      setErr(friendlyPlanError(meta.code, meta.status));
+      setErr(pf.error(meta.code, meta.status));
       return;
     }
 
@@ -389,19 +389,19 @@ function PlanMetaDialog({
     const e = cleanDate(end);
     if (!s || !e) {
       setSaving(false);
-      setErr("Geçerli başlangıç ve bitiş tarihi girin.");
+      setErr(tdt("datesInvalid"));
       return;
     }
     if (s !== plan.start_date || e !== plan.end_date) {
       if (daysBetween(s, e) < 0) {
         setSaving(false);
-        setErr("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
+        setErr(tdt("endBeforeStart"));
         return;
       }
       const range = await syncRange(plan.id, { start_date: s, end_date: e });
       if (!range.ok) {
         setSaving(false);
-        setErr(friendlyPlanError(range.code, range.status));
+        setErr(pf.error(range.code, range.status));
         return;
       }
     }
@@ -411,7 +411,7 @@ function PlanMetaDialog({
   }
 
   return (
-    <Modal open onClose={onClose} title="Planı Düzenle" subtitle={plan.title} maxWidthClass="max-w-lg">
+    <Modal open onClose={onClose} title={tdt("editTitle")} subtitle={plan.title} maxWidthClass="max-w-lg">
       <div className="flex flex-col gap-3">
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
         {stale ? (
@@ -426,33 +426,33 @@ function PlanMetaDialog({
             }}
             className="self-start rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[12px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
           >
-            {reloading ? "Yükleniyor…" : "Güncel veriyi yükle"}
+            {reloading ? tdt("reloading") : tdt("reloadLatest")}
           </button>
         ) : null}
-        <Field label="Plan Adı" required>
+        <Field label={tdt("nameLabel")} required>
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
-        <Field label="Günlük Kalori Hedefi" hint="opsiyonel">
-          <TextInput inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Örn: 2000" />
+        <Field label={tdt("targetLabel")} hint={tdt("optional")}>
+          <TextInput inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={tdt("targetPlaceholder")} />
         </Field>
-        <Field label="Not" hint="opsiyonel">
-          <TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Plana dair not…" />
+        <Field label={tdt("noteLabel")} hint={tdt("optional")}>
+          <TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={tdt("notePlaceholder")} />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Başlangıç Tarihi">
+          <Field label={tdt("startLabel")}>
             <TextInput type="date" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>
-          <Field label="Bitiş Tarihi">
+          <Field label={tdt("endLabel")}>
             <TextInput type="date" value={end} onChange={(e) => setEnd(e.target.value)} min={start} />
           </Field>
         </div>
         <p className="text-[11px] font-medium text-slate-400">
-          Tarih aralığını daraltırken, aralık dışında öğün bulunan günler varsa değişiklik reddedilir.
+          {tdt("rangeHint")}
         </p>
         <div className="flex items-center justify-end gap-2">
-          <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+          <GhostButton onClick={onClose}>{tdt("cancel")}</GhostButton>
           <PrimaryButton loading={saving} onClick={() => void save()}>
-            Kaydet
+            {tdt("save")}
           </PrimaryButton>
         </div>
       </div>

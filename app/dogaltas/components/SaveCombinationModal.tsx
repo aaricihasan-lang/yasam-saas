@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
@@ -14,9 +15,10 @@ export type PickerClient = {
   telefon?: string | null;
 };
 
-export function clientFullName(c: PickerClient): string {
+/** Gösterim adı; ad/soyad boşsa `fallback` (arayüz çevrilmiş metni geçirir). */
+export function clientFullName(c: PickerClient, fallback = "İsimsiz danışan"): string { // i18n-ignore: varsayılan TR yedek; arayüz çağrıları stones.saveCombo.unnamedClient geçirir
   const name = `${c.ad ?? ""} ${c.soyad ?? ""}`.trim();
-  return name || "İsimsiz danışan";
+  return name || fallback;
 }
 
 type SaveCombinationModalProps = {
@@ -55,6 +57,7 @@ export function SaveCombinationModal({
   onSaveToClient,
 }: SaveCombinationModalProps) {
   const t = useTranslations("stones.saveCombo");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   const [step, setStep] = useState<Step>("choose");
   const [clients, setClients] = useState<PickerClient[]>([]);
@@ -110,7 +113,7 @@ export function SaveCombinationModal({
       .then((res) => res.json().catch(() => ({})))
       .then((json: { ok?: boolean; error?: string; clients?: PickerClient[] }) => {
         if (!json.ok) {
-          setClientError(json.error ?? t("errLoadFailed"));
+          setClientError(se.text(json.error, t("errLoadFailed")));
           return;
         }
         setClients(json.clients ?? []);
@@ -119,7 +122,7 @@ export function SaveCombinationModal({
         setClientError(err instanceof Error ? err.message : t("errNetwork"));
       })
       .finally(() => setLoadingClients(false));
-  }, [step, t]);
+  }, [step, t, se]);
 
   const results = useMemo(() => {
     const q = normalizeTr(query.trim());
@@ -258,7 +261,7 @@ export function SaveCombinationModal({
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-bold text-slate-800">
-                                {clientFullName(c)}
+                                {clientFullName(c, t("unnamedClient"))}
                               </span>
                               {c.telefon && (
                                 <span className="block truncate text-[11px] font-medium text-slate-400">
@@ -282,7 +285,7 @@ export function SaveCombinationModal({
               {selected && (
                 <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
                   {t("selectedSummary", {
-                    name: clientFullName(selected),
+                    name: clientFullName(selected, t("unnamedClient")),
                     combo: combinationName.trim() || t("combinationFallback"),
                     count: cartCount,
                   })}

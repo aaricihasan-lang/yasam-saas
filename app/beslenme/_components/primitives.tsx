@@ -13,6 +13,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import { AlertTriangle, CheckCircle2, Inbox, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /* ── Butonlar ── */
 
@@ -140,11 +141,12 @@ export function StatusMessage({
   );
 }
 
-export function InlineSpinner({ label = "Yükleniyor…" }: { label?: string }) {
+export function InlineSpinner({ label }: { label?: string }) {
+  const ts = useTranslations("beslenme.shell");
   return (
     <div className="flex items-center justify-center gap-2 py-10 text-[13px] font-bold text-slate-400">
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-      {label}
+      {label ?? ts("loading")}
     </div>
   );
 }

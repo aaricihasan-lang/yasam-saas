@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { backgroundSyncYasamUserFromDb, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
@@ -99,6 +100,7 @@ function previewText(value: string | null | undefined, emptyLabel: string, limit
 
 function MineralListesiPageContent() {
   const t = useTranslations("stones.minerals.list");
+  const se = useDogaltasServerError();
   const tWord = useTranslations("stones.minerals.word");
   const tRoot = useTranslations("stones.minerals");
   const tc = useTranslations("stones.common");
@@ -192,13 +194,13 @@ function MineralListesiPageContent() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setErrorMessage(t("loadError", { error: pageRes.error }));
+        setErrorMessage(t("loadError", { error: se.detail(pageRes.error) }));
         if (opts.reset) setMinerals([]);
         return;
       }
 
       if (countRes.error) {
-        setErrorMessage(t("countError", { error: countRes.error }));
+        setErrorMessage(t("countError", { error: se.detail(countRes.error) }));
       } else if (opts.reset) {
         setTotalCount(countRes.count);
       }
@@ -207,7 +209,7 @@ function MineralListesiPageContent() {
         opts.append ? [...current, ...pageRes.rows] : pageRes.rows,
       );
     },
-    [categoryFilter, debouncedSearch, queryTenantId, totalCount, t, tc],
+    [categoryFilter, debouncedSearch, queryTenantId, totalCount, t, tc, se],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -376,7 +378,7 @@ function MineralListesiPageContent() {
       const { ok, error, deleted, demo } = await bulkDeleteMinerals(ids);
 
       if (!ok) {
-        showToast({ type: "error", message: t("deleteFailed", { error: error ?? tRoot("unknownError") }) });
+        showToast({ type: "error", message: t("deleteFailed", { error: se.detail(error, tRoot("unknownError")) }) });
         return;
       }
 

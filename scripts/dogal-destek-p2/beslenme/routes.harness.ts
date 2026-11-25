@@ -449,9 +449,16 @@ async function main(): Promise<void> {
     ok(/<DestructiveChallengeDialog/.test(dlgPlan) && /requestPlanDeleteChallenge\(plan\.id\)/.test(dlgPlan) && /deletePlan\(plan\.id, challengeId, code\)/.test(dlgPlan),
       "PlanDeleteDialog: 3 aşamalı dialog + sunucu kodu + kodlu silme");
     ok((dlgPlan.match(/deletePlan\(/g) || []).length === 1 && /const confirm = useCallback<ChallengeConfirm>/.test(dlgPlan), "silme isteği YALNIZ son adım (confirm) içinde");
-    ok(/onClose=\{busy \? \(\) => undefined : onClose\}/.test(dlg) && /<GhostButton onClick=\{onClose\}>Vazgeç<\/GhostButton>/.test(dlg) && /disabled=\{!codeMatches\}/.test(dlg) && /if \(!info \|\| !codeMatches \|\| busy\) return;/.test(dlg),
+    // I18N (gece 25.11): "Vazgeç" metni katalogdan (beslenme.challenge.cancel; TR birebir). Niyet aynı: Vazgeç düğmesi
+    // doğrudan onClose çağırır (istek yok).
+    ok(/onClose=\{busy \? \(\) => undefined : onClose\}/.test(dlg) && /<GhostButton onClick=\{onClose\}>\{t\("cancel"\)\}<\/GhostButton>/.test(dlg) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.challenge.cancel === "Vazgeç" &&/disabled=\{!codeMatches\}/.test(dlg) && /if \(!info \|\| !codeMatches \|\| busy\) return;/.test(dlg),
       "Vazgeç/Escape/arka plan → onClose (istek yok); kod eşleşmeden buton pasif; meşgulken ikinci tık yok");
-    ok(/Bu işlem geri alınamaz/.test(dlg) && /stage === 3/.test(dlg), "aşama 2 'geri alınamaz' + aşama 3 kod");
+    // I18N (gece 25.11): "Bu işlem geri alınamaz" artık katalogdan (beslenme.challenge.irreversible). Eski regex yalnız bir
+    // kod yorumuyla eşleşiyordu → niyet korunarak: aşama 2 bloğunda render noktası + TR katalog değeri birebir.
+    {
+      const stage2 = dlg.slice(dlg.indexOf("stage === 2 ?"), dlg.indexOf("stage === 3 ?"));
+      ok(stage2.length > 0 && /\{t\("irreversible"\)\}/.test(stage2) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.challenge.irreversible === "Emin misiniz? Bu işlem geri alınamaz." && /stage === 3/.test(dlg), "aşama 2 'geri alınamaz' + aşama 3 kod");
+    }
     ok(/export function deletePlan\(id: string, challengeId: string, code: string\)/.test(client) && /challenge_id: challengeId, code/.test(client) && /\/delete\/challenge`/.test(client),
       "planClient: deletePlan kod ZORUNLU; challenge ucu tanımlı");
     ok(route.indexOf("consumeDestructiveChallenge(") > 0 && route.indexOf("consumeDestructiveChallenge(") < route.indexOf('"nutrition_plan_delete_revision"') && /action: "plan_delete"/.test(route),

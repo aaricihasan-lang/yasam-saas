@@ -5,6 +5,8 @@
  * besinler + Kaynaklar).
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "../_components/useBeslenmeLabels";
 import { ArrowLeft, BookOpen, Plus, Save, Search, X } from "lucide-react";
 import type { Topic } from "@/lib/beslenme/beslenmeClient";
 import { createTopic, listTopics } from "@/lib/beslenme/beslenmeClient";
@@ -13,7 +15,6 @@ import {
   BeslenmeShell,
   useBeslenmeModuleGuard,
 } from "../_components/BeslenmeShell";
-import { friendlyError } from "../_components/constants";
 import { TopicDetailEditor } from "../_components/TopicDetailEditor";
 import {
   Card,
@@ -29,6 +30,8 @@ import {
 
 export default function RehberPage() {
   const guard = useBeslenmeModuleGuard();
+  const tg = useTranslations("beslenme.guides");
+  const bl = useBeslenmeLabels();
 
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +46,8 @@ export default function RehberPage() {
     const r = await listTopics({ type: "dietary_pattern", q: q.trim() || undefined });
     setLoading(false);
     if (r.ok && r.data) setTopics(r.data.topics ?? []);
-    else setErr(friendlyError(r.code, r.status));
-  }, [q]);
+    else setErr(bl.error(r.code, r.status));
+  }, [q, bl]);
 
   useEffect(() => {
     if (guard !== "ok") return;
@@ -58,12 +61,12 @@ export default function RehberPage() {
 
   return (
     <BeslenmeShell
-      title="Beslenme Rehberi"
-      subtitle="Beslenme yaklaşımları ve düzenleri. Her rehber; bölümler, ilişkili besinler ve kaynaklarla yapılandırılır."
+      title={tg("title")}
+      subtitle={tg("subtitle")}
       backHref="/beslenme"
       actions={
         <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => { setSelectedId(null); setCreating(true); }}>
-          Yeni Rehber
+          {tg("newGuide")}
         </PrimaryButton>
       }
     >
@@ -74,25 +77,25 @@ export default function RehberPage() {
             <div className="border-b border-slate-100 p-3">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-                <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rehber ara…" className="pl-9" />
+                <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder={tg("searchPlaceholder")} className="pl-9" />
               </div>
             </div>
             <div className="max-h-[64vh] overflow-y-auto p-2">
               {loading ? (
-                <InlineSpinner label="Rehberler yükleniyor…" />
+                <InlineSpinner label={tg("loading")} />
               ) : err ? (
                 <div className="p-3">
                   <StatusMessage type="error">{err}</StatusMessage>
                   <div className="mt-3">
-                    <GhostButton onClick={() => void load()}>Tekrar Dene</GhostButton>
+                    <GhostButton onClick={() => void load()}>{tg("retry")}</GhostButton>
                   </div>
                 </div>
               ) : topics.length === 0 ? (
                 <div className="p-3">
                   <EmptyState
                     icon={<BookOpen className="h-8 w-8" />}
-                    title="Rehber bulunamadı"
-                    description={q ? "Aramaya uygun rehber yok." : "Henüz beslenme rehberi eklenmemiş."}
+                    title={tg("notFoundTitle")}
+                    description={q ? tg("notFoundSearch") : tg("notFoundEmpty")}
                   />
                 </div>
               ) : (
@@ -132,8 +135,8 @@ export default function RehberPage() {
             <Card className="hidden p-8 lg:block">
               <EmptyState
                 icon={<BookOpen className="h-8 w-8" />}
-                title="Bir rehber seçin"
-                description="Düzenlemek için soldan bir rehber seçin veya yeni bir rehber oluşturun."
+                title={tg("pickTitle")}
+                description={tg("pickDesc")}
               />
             </Card>
           ) : (
@@ -162,6 +165,8 @@ function CreateTopicCard({
   onCancel: () => void;
   onCreated: (topic: Topic) => void;
 }) {
+  const tg = useTranslations("beslenme.guides");
+  const bl = useBeslenmeLabels();
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState(false);
@@ -169,7 +174,7 @@ function CreateTopicCard({
 
   async function create() {
     if (!title.trim()) {
-      setErr("Başlık zorunludur.");
+      setErr(tg("titleRequired"));
       return;
     }
     setBusy(true);
@@ -181,31 +186,31 @@ function CreateTopicCard({
     });
     setBusy(false);
     if (r.ok && r.data?.topic) onCreated(r.data.topic);
-    else setErr(friendlyError(r.code, r.status));
+    else setErr(bl.error(r.code, r.status));
   }
 
   return (
     <Card className="p-4">
       <MobileBack onBack={onCancel} />
-      <h2 className="mb-3 text-lg font-black text-slate-900">Yeni Beslenme Rehberi</h2>
+      <h2 className="mb-3 text-lg font-black text-slate-900">{tg("createTitle")}</h2>
       {err ? (
         <div className="mb-3">
           <StatusMessage type="error">{err}</StatusMessage>
         </div>
       ) : null}
       <div className="flex flex-col gap-3">
-        <Field label="Başlık" required>
-          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Örn: Akdeniz Beslenmesi" />
+        <Field label={tg("titleLabel")} required>
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tg("titlePlaceholder")} />
         </Field>
-        <Field label="Özet">
-          <TextInput value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Kısa özet (opsiyonel)" />
+        <Field label={tg("summaryLabel")}>
+          <TextInput value={summary} onChange={(e) => setSummary(e.target.value)} placeholder={tg("summaryPlaceholder")} />
         </Field>
         <div className="flex items-center gap-2">
           <PrimaryButton icon={<Save className="h-4 w-4" />} loading={busy} onClick={() => void create()}>
-            Oluştur
+            {tg("create")}
           </PrimaryButton>
           <GhostButton icon={<X className="h-4 w-4" />} onClick={onCancel}>
-            Vazgeç
+            {tg("cancel")}
           </GhostButton>
         </div>
       </div>
@@ -214,6 +219,7 @@ function CreateTopicCard({
 }
 
 function MobileBack({ onBack }: { onBack: () => void }) {
+  const tg = useTranslations("beslenme.guides");
   return (
     <button
       type="button"
@@ -221,7 +227,7 @@ function MobileBack({ onBack }: { onBack: () => void }) {
       className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-      Listeye Dön
+      {tg("back")}
     </button>
   );
 }

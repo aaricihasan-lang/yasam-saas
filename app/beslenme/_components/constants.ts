@@ -75,38 +75,39 @@ export const SOURCE_TYPE_OPTIONS = SOURCE_TYPES.map((v) => ({
   label: SOURCE_TYPE_LABELS[v] ?? v,
 }));
 
+/** Kullanıcı mesajının katalog anahtarı (beslenme.labels.errors.<anahtar>). */
+export type BeslenmeErrorKey = "forkNameConflict" | "duplicateName" | "duplicateLabel" | "duplicateLink" | "sourceNotFound" | "inUse" | "notPersonalized" | "nothingToReset" | "demoReadonly" | "network" | "forbidden" | "notFound" | "duplicate" | "invalid" | "generic";
+
 /**
- * API hata kodu / HTTP durumunu kullanıcıya gösterilebilir Türkçe mesaja çevirir.
- * Ham kod ASLA kullanıcıya gösterilmez.
+ * API hata kodu / HTTP durumunu gösterilebilir mesaj ANAHTARINA çevirir (dil-bağımsız).
+ * Ham kod ASLA kullanıcıya gösterilmez. Arayüz metni: useBeslenmeLabels().error(...).
  */
-export function friendlyError(code?: string, status?: number): string {
+export function friendlyErrorKey(code?: string, status?: number): BeslenmeErrorKey {
   // Beslenme'ye özgü anlamlı kodlar (genel HTTP eşlemesinden ÖNCE).
   switch (code) {
     case "FORK_NAME_CONFLICT":
-      return "Çalışma alanınızda aynı adlı başka bir besin var. Önce o besini yeniden adlandırın veya silin.";
+      return "forkNameConflict";
     case "DUPLICATE_NAME":
-      return "Bu adla bir besin zaten var. Farklı bir ad deneyin.";
+      return "duplicateName";
     case "DUPLICATE_LABEL":
-      return "Aynı adlı iki porsiyon olamaz.";
+      return "duplicateLabel";
     case "DUPLICATE_LINK":
-      return "Bu kaynak zaten bağlı.";
+      return "duplicateLink";
     case "SOURCE_NOT_FOUND":
     case "REF_NOT_FOUND":
-      return "Seçilen kaynak/çerçeve bulunamadı. Sayfayı yenileyip tekrar deneyin.";
+      return "sourceNotFound";
     case "IN_USE":
-      return "Bu kayıt başka kayıtlarda kullanıldığı için silinemedi.";
+      return "inUse";
     case "NOT_PERSONALIZED":
-      return "Bu besinde sistem değerlerinden farklı kişisel değer bulunmuyor.";
+      return "notPersonalized";
     case "NOTHING_TO_RESET":
-      return "Sistem değerine döndürülecek kişisel değişiklik bulunmuyor.";
+      return "nothingToReset";
     case "DEMO_READONLY":
-      return "Demo hesabında değişiklik yapılamaz.";
+      return "demoReadonly";
     default:
       break;
   }
-  if (code === "NETWORK" || status === 0) {
-    return "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
-  }
+  if (code === "NETWORK" || status === 0) return "network";
   if (
     status === 401 ||
     status === 403 ||
@@ -114,16 +115,37 @@ export function friendlyError(code?: string, status?: number): string {
     code === "UNAUTHORIZED" ||
     code === "NOT_OWNER"
   ) {
-    return "Bu işlem için yetkiniz bulunmuyor.";
+    return "forbidden";
   }
-  if (status === 404 || code === "NOT_FOUND") {
-    return "Kayıt bulunamadı. Sayfayı yenilemeyi deneyin.";
-  }
-  if (status === 409 || code === "CONFLICT" || code === "DUPLICATE") {
-    return "Bu kayıt zaten mevcut görünüyor.";
-  }
-  if (status === 400 || status === 422 || code === "VALIDATION" || code === "INVALID") {
-    return "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.";
-  }
-  return "İşlem tamamlanamadı. Lütfen tekrar deneyin.";
+  if (status === 404 || code === "NOT_FOUND") return "notFound";
+  if (status === 409 || code === "CONFLICT" || code === "DUPLICATE") return "duplicate";
+  if (status === 400 || status === 422 || code === "VALIDATION" || code === "INVALID") return "invalid";
+  return "generic";
+}
+
+/** Kaynak dil (TR) metinleri — messages/tr/beslenme.json beslenme.labels.errors ile birebir. */
+const ERROR_TR: Record<BeslenmeErrorKey, string> = {
+  forkNameConflict: "Çalışma alanınızda aynı adlı başka bir besin var. Önce o besini yeniden adlandırın veya silin.",
+  duplicateName: "Bu adla bir besin zaten var. Farklı bir ad deneyin.",
+  duplicateLabel: "Aynı adlı iki porsiyon olamaz.",
+  duplicateLink: "Bu kaynak zaten bağlı.",
+  sourceNotFound: "Seçilen kaynak/çerçeve bulunamadı. Sayfayı yenileyip tekrar deneyin.",
+  inUse: "Bu kayıt başka kayıtlarda kullanıldığı için silinemedi.",
+  notPersonalized: "Bu besinde sistem değerlerinden farklı kişisel değer bulunmuyor.",
+  nothingToReset: "Sistem değerine döndürülecek kişisel değişiklik bulunmuyor.",
+  demoReadonly: "Demo hesabında değişiklik yapılamaz.",
+  network: "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+  forbidden: "Bu işlem için yetkiniz bulunmuyor.",
+  notFound: "Kayıt bulunamadı. Sayfayı yenilemeyi deneyin.",
+  duplicate: "Bu kayıt zaten mevcut görünüyor.",
+  invalid: "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
+  generic: "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+};
+
+/**
+ * API hata kodu / HTTP durumunu kullanıcıya gösterilebilir Türkçe mesaja çevirir (kaynak dil).
+ * Arayüzde useBeslenmeLabels().error tercih edilir.
+ */
+export function friendlyError(code?: string, status?: number): string {
+  return ERROR_TR[friendlyErrorKey(code, status)];
 }

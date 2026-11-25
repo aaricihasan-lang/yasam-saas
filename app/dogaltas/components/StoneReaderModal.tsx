@@ -52,6 +52,7 @@ export function StoneReaderModal({
   onClose,
 }: StoneReaderModalProps) {
   const t = useTranslations("stones.reader");
+  const te = useTranslations("stones.entries");
   // WT8: okuyucu açılınca ilk arama eşleşmesine kaydır (vurgu <mark> ile zaten var; tüm geçişler).
   const bodyRef = useRef<HTMLDivElement | null>(null);
   useSearchHighlight(bodyRef, [highlightQuery ?? ""], {
@@ -95,8 +96,8 @@ export function StoneReaderModal({
                     style={{ fontSize: `${Math.max(12, Math.round(fontSizePx * 0.8))}px` }}
                   >
                     <span aria-hidden>📖</span>
-                    <span className="font-black">Kaynak:</span>
-                    <span className={e.sourceName ? "" : "italic text-slate-500"}>{sourceDisplayName(e.sourceName)}</span>
+                    <span className="font-black">{te("sourceLabel")}</span>
+                    <span className={e.sourceName ? "" : "italic text-slate-500"}>{sourceDisplayName(e.sourceName, te("sourceUnspecified"))}</span>
                   </p>
                 </li>
               ))}

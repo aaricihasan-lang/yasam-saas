@@ -10,7 +10,8 @@ import { weekCopy, type Plan, type PlanDaySummary } from "@/lib/beslenme/planCli
 import { effectiveDailyTarget } from "@/lib/beslenme/planContracts";
 import { Field, GhostButton, PrimaryButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { Modal } from "./planUi";
-import { formatDateShort, formatEnergy, friendlyPlanError } from "./planFormat";
+import { usePlanFormat } from "./usePlanFormat";
+import { useTranslations } from "next-intl";
 import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -34,6 +35,8 @@ export function WeekView({
   readOnly: boolean;
   onChanged: () => void;
 }) {
+  const tv = useTranslations("beslenme.views");
+  const pf = usePlanFormat();
   const [copyOpen, setCopyOpen] = useState(false);
   const weeks = useMemo(() => chunk(days, 7), [days]);
 
@@ -42,7 +45,7 @@ export function WeekView({
       {!readOnly ? (
         <div className="flex justify-end">
           <GhostButton icon={<CopyPlus className="h-4 w-4" />} onClick={() => setCopyOpen(true)}>
-            Haftayı Kopyala
+            {tv("copyWeek")}
           </GhostButton>
         </div>
       ) : null}
@@ -51,7 +54,7 @@ export function WeekView({
         <div key={wi} className={`rounded-2xl border border-emerald-100/70 bg-white p-3 shadow-sm ${BES_CARD_BLEED}`}>
           <div className="mb-2 flex items-center gap-1.5 px-1">
             <CalendarRange className="h-4 w-4 text-emerald-500" aria-hidden />
-            <span className="text-[12px] font-black text-slate-600">{wi + 1}. Hafta</span>
+            <span className="text-[12px] font-black text-slate-600">{tv("weekN", { n: wi + 1 })}</span>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             {week.map((d) => {
@@ -68,13 +71,13 @@ export function WeekView({
                       : "border-slate-200 bg-white hover:bg-emerald-50/50"
                   }`}
                 >
-                  <span className="text-[12px] font-black text-slate-800">{formatDateShort(d.plan_date)}</span>
+                  <span className="text-[12px] font-black text-slate-800">{pf.dateShort(d.plan_date)}</span>
                   <span className="text-[13px] font-black text-emerald-700">
-                    {formatEnergy(d.energy_total)}
-                    {target ? <span className="font-bold text-slate-400"> / {formatEnergy(target)}</span> : null}
+                    {pf.energy(d.energy_total)}
+                    {target ? <span className="font-bold text-slate-400"> / {pf.energy(target)}</span> : null}
                     <span className="ml-0.5 text-[10px] font-bold text-slate-400"> kcal</span>
                   </span>
-                  <span className="text-[11px] font-bold text-slate-400">{d.meal_count} öğün</span>
+                  <span className="text-[11px] font-bold text-slate-400">{tv("mealsCount", { count: d.meal_count })}</span>
                 </button>
               );
             })}
@@ -108,6 +111,8 @@ function WeekCopyDialog({
   days: PlanDaySummary[];
   onDone: () => void;
 }) {
+  const tv = useTranslations("beslenme.views");
+  const pf = usePlanFormat();
   const [sourceStart, setSourceStart] = useState(days[0]?.plan_date ?? "");
   const [targetStart, setTargetStart] = useState(days[7]?.plan_date ?? days[0]?.plan_date ?? "");
   const [span, setSpan] = useState("7");
@@ -117,26 +122,26 @@ function WeekCopyDialog({
   async function doCopy() {
     setErr("");
     if (!sourceStart || !targetStart) {
-      setErr("Kaynak ve hedef hafta başlangıcını seçin.");
+      setErr(tv("weekSrcTgtRequired"));
       return;
     }
     const n = Number(span.trim());
     if (!Number.isFinite(n) || n <= 0) {
-      setErr("Gün aralığı geçerli bir sayı olmalı.");
+      setErr(tv("spanInvalid"));
       return;
     }
     setSaving(true);
     const r = await weekCopy(planId, { source_start: sourceStart, target_start: targetStart, span_days: Math.round(n) });
     setSaving(false);
     if (r.ok) onDone();
-    else setErr(friendlyPlanError(r.code, r.status));
+    else setErr(pf.error(r.code, r.status));
   }
 
   return (
-    <Modal open onClose={onClose} title="Haftayı Kopyala" subtitle="Bir bloğun öğünlerini boş hedef güne kopyalar" maxWidthClass="max-w-md">
+    <Modal open onClose={onClose} title={tv("copyWeek")} subtitle={tv("copyWeekSubtitle")} maxWidthClass="max-w-md">
       <div className="flex flex-col gap-3">
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
-        <Field label="Kaynak Başlangıç">
+        <Field label={tv("sourceStart")}>
           <select
             value={sourceStart}
             onChange={(e) => setSourceStart(e.target.value)}
@@ -144,12 +149,12 @@ function WeekCopyDialog({
           >
             {days.map((d) => (
               <option key={d.id} value={d.plan_date}>
-                {formatDateShort(d.plan_date)}
+                {pf.dateShort(d.plan_date)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Hedef Başlangıç">
+        <Field label={tv("targetStart")}>
           <select
             value={targetStart}
             onChange={(e) => setTargetStart(e.target.value)}
@@ -157,18 +162,18 @@ function WeekCopyDialog({
           >
             {days.map((d) => (
               <option key={d.id} value={d.plan_date}>
-                {formatDateShort(d.plan_date)}
+                {pf.dateShort(d.plan_date)}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Gün Aralığı" hint="varsayılan 7; mevcut günlere göre kırpılır">
+        <Field label={tv("span")} hint={tv("spanHint")}>
           <TextInput inputMode="numeric" value={span} onChange={(e) => setSpan(e.target.value)} />
         </Field>
         <div className="flex items-center justify-end gap-2">
-          <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+          <GhostButton onClick={onClose}>{tv("cancel")}</GhostButton>
           <PrimaryButton loading={saving} onClick={() => void doCopy()}>
-            Kopyala
+            {tv("copy")}
           </PrimaryButton>
         </div>
       </div>

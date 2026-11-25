@@ -133,7 +133,8 @@ ok("DELETE plan-access", /export async function DELETE[\s\S]{0,200}requireBeslen
 ok("PlanTools isExpert role-fork YOK", !/isExpert/.test(read("app/beslenme/planlar/_components/PlanTools.tsx")));
 {
   const mc = read("app/beslenme/planlar/_components/MealCard.tsx");
-  ok("MealCard useEditorCaps YOK + Öğünü Şablonla açık", !/useEditorCaps/.test(mc) && /Öğünü Şablonla/.test(mc));
+  // I18N (gece 25.11): "Öğünü Şablonla" menü metni katalogdan (beslenme.meal.menuTemplate; TR birebir). Niyet aynı: menü öğesi herkese açık.
+  ok("MealCard useEditorCaps YOK + Öğünü Şablonla açık", !/useEditorCaps/.test(mc) && (/label: tm\("menuTemplate"\)/.test(mc) && JSON.parse(read("messages/tr/beslenme.json")).beslenme.meal.menuTemplate === "Öğünü Şablonla"));
 }
 {
   const pg = read("app/beslenme/planlar/[id]/page.tsx");

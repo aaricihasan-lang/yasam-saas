@@ -14,6 +14,8 @@
  * kaldırıp sistem değerlerini geri getirir; 3 aşama + sunucu doğrulamalı 4 haneli kod.
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import {
   Activity,
   ArrowLeft,
@@ -49,7 +51,6 @@ import { DestructiveChallengeDialog, challengeErrorMessage, type ChallengeReques
 import { useFoodPagination } from "@/lib/beslenme/foodPagination";
 import { runInEffect } from "@/lib/runInEffect";
 import { BeslenmeShell } from "./BeslenmeShell";
-import { PREP_STATE_LABELS, PREP_STATE_OPTIONS, friendlyError } from "./constants";
 import { QuickAddFoodDialog } from "./QuickAddFoodDialog";
 import { SourcesPanel, type LinkedSource } from "./SourcesPanel";
 import { NutrientsPanel, PortionsPanel, TraditionalPanel } from "./FoodNutrition";
@@ -73,6 +74,9 @@ const NEW = "__new__";
 type DetailTab = "info" | "nutrients" | "portions" | "traditional" | "sources";
 
 export function BesinYonetimiScreen() {
+  const tb = useTranslations("beslenme.foods");
+  const tch = useTranslations("beslenme.challenge");
+  const bl = useBeslenmeLabels();
   const [groups, setGroups] = useState<FoodGroupRef[]>([]);
   const [frameworks, setFrameworks] = useState<FrameworkRef[]>([]);
   const [q, setQ] = useState("");
@@ -135,21 +139,21 @@ export function BesinYonetimiScreen() {
   const requestAllReset = useCallback<ChallengeRequest>(async () => {
     const r = await requestFoodResetChallenge("all");
     if (r.ok && r.data) return { ok: true, value: r.data };
-    return { ok: false, message: resetRequestError(r.code, r.status) };
-  }, []);
+    return { ok: false, message: resetRequestError(r.code, r.status, undefined, tb, bl.error) };
+  }, [tb, bl]);
   const confirmAllReset = useCallback<ChallengeConfirm>(async (challengeId, code) => {
     const r = await confirmFoodReset("all", undefined, challengeId, code);
     if (r.ok) return { ok: true };
-    const e = challengeErrorMessage(r.code);
-    return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyError(r.code, r.status), refresh: e.refresh };
-  }, []);
+    const e = challengeErrorMessage(r.code, tch);
+    return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : bl.error(r.code, r.status), refresh: e.refresh };
+  }, [tch, bl]);
 
   return (
     <BeslenmeShell
-      title="Besinler"
-      subtitle="Besin kütüphanesi. Her besin bir gruba, hazırlık durumuna ve isteğe bağlı kaynaklara sahip olabilir."
+      title={tb("title")}
+      subtitle={tb("subtitle")}
       backHref="/beslenme"
-      backLabel="Beslenme Merkezi"
+      backLabel={tb("backLabel")}
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {personalizedCount > 0 ? (
@@ -157,17 +161,17 @@ export function BesinYonetimiScreen() {
               type="button"
               onClick={() => setResetAllOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-[13px] font-black text-amber-800 shadow-sm transition hover:bg-amber-100"
-              title={`Sistem besinlerinde yaptığınız kişisel değişiklikler (${personalizedCount} besin)`}
+              title={tb("resetAllTitleAttr", { count: personalizedCount })}
             >
               <RotateCcw className="h-4 w-4" aria-hidden />
-              Tüm Kişisel Değerleri Sıfırla
+              {tb("resetAll")}
             </button>
           ) : null}
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
-            Besin Ekle
+            {tb("addFood")}
           </GhostButton>
           <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => selectFood(NEW)}>
-            Detaylı Ekle
+            {tb("addDetailed")}
           </PrimaryButton>
         </div>
       }
@@ -184,12 +188,12 @@ export function BesinYonetimiScreen() {
             foods={foods}
             groups={groups}
             loading={listLoading}
-            error={listHasError ? friendlyError(errorCode, errorStatus) : ""}
+            error={listHasError ? bl.error(errorCode, errorStatus) : ""}
             total={total}
             loadedCount={loadedCount}
             hasMore={hasMore}
             loadingMore={loadingMore}
-            moreError={moreError ? friendlyError(moreErrorCode, moreErrorStatus) : ""}
+            moreError={moreError ? bl.error(moreErrorCode, moreErrorStatus) : ""}
             q={q}
             group={group}
             selectedId={selectedId}
@@ -205,8 +209,8 @@ export function BesinYonetimiScreen() {
             <Card className="hidden p-8 lg:block">
               <EmptyState
                 icon={<Package className="h-8 w-8" />}
-                title="Bir besin seçin"
-                description="Düzenlemek için soldaki listeden bir besin seçin veya yeni bir besin ekleyin."
+                title={tb("pickTitle")}
+                description={tb("pickDesc")}
               />
             </Card>
           ) : (
@@ -261,17 +265,15 @@ export function BesinYonetimiScreen() {
         <DestructiveChallengeDialog
           open
           tone="reset"
-          title="Tüm Kişisel Değerleri Sıfırla"
-          itemNoun="besin"
+          title={tb("resetAll")}
+          itemNoun={tb("foodNoun")}
           scopeIntro={
             <>
-              Sistem kütüphanesindeki besinlerde yaptığınız <b>tüm kişisel değişiklikler</b> kaldırılacak ve bu
-              besinler sistem başlangıç değerlerine döndürülecek. Kendi oluşturduğunuz besinler bu işlemden
-              <b> etkilenmez</b>. Mevcut planlarınızdaki kayıtlar değişmez.
+              {tb.rich("resetAllIntro", { b: (chunks) => <b>{chunks}</b> })}
             </>
           }
-          warning="Uzman olarak girdiğiniz mevcut değerler kalıcı olarak kaldırılacaktır."
-          confirmLabel="Sistem Değerlerine Döndür"
+          warning={tb("resetAllWarning")}
+          confirmLabel={tb("resetAllConfirm")}
           requestChallenge={requestAllReset}
           confirm={confirmAllReset}
           onClose={() => setResetAllOpen(false)}
@@ -279,7 +281,7 @@ export function BesinYonetimiScreen() {
             setResetAllOpen(false);
             reload();
             setSelectedId(null);
-            setScreenMsg("Kişisel değerler kaldırıldı; besinler sistem değerlerine döndürüldü.");
+            setScreenMsg(tb("resetAllDone"));
             void refreshPersonalizedCount();
           }}
         />
@@ -326,6 +328,8 @@ function FoodList({
   onRetry: () => void;
   onLoadMore: () => void;
 }) {
+  const tb = useTranslations("beslenme.foods");
+  const bl = useBeslenmeLabels();
   const groupName = useMemo(() => {
     const m = new Map(groups.map((g) => [g.id, g.name_tr]));
     return (id: string | null) => (id ? m.get(id) ?? null : null);
@@ -339,13 +343,13 @@ function FoodList({
           <TextInput
             value={q}
             onChange={(e) => onQ(e.target.value)}
-            placeholder="Besin ara…"
+            placeholder={tb("searchPlaceholder")}
             className="pl-9"
           />
         </div>
         <div className="mt-2">
           <SelectInput value={group} onChange={(e) => onGroup(e.target.value)}>
-            <option value="">Tüm gruplar</option>
+            <option value="">{tb("allGroups")}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name_tr}
@@ -355,27 +359,27 @@ function FoodList({
         </div>
         {!loading && !error && total > 0 ? (
           <p className="mt-2 px-1 text-[11px] font-bold text-slate-400">
-            {loadedCount < total ? `${loadedCount} / ${total} besin` : `${total} besin`}
+            {loadedCount < total ? tb("countPartial", { loaded: loadedCount, total }) : tb("countTotal", { total })}
           </p>
         ) : null}
       </div>
 
       <div className="max-h-[64vh] overflow-y-auto p-2">
         {loading ? (
-          <InlineSpinner label="Besinler yükleniyor…" />
+          <InlineSpinner label={tb("loading")} />
         ) : error ? (
           <div className="p-3">
             <StatusMessage type="error">{error}</StatusMessage>
             <div className="mt-3">
-              <GhostButton onClick={onRetry}>Tekrar Dene</GhostButton>
+              <GhostButton onClick={onRetry}>{tb("retry")}</GhostButton>
             </div>
           </div>
         ) : foods.length === 0 ? (
           <div className="p-3">
             <EmptyState
               icon={<Package className="h-8 w-8" />}
-              title="Besin bulunamadı"
-              description={q || group ? "Arama/filtre kriterlerine uygun besin yok." : "Henüz besin eklenmemiş. Yeni bir besin ekleyin."}
+              title={tb("notFoundTitle")}
+              description={q || group ? tb("notFoundFiltered") : tb("notFoundEmpty")}
             />
           </div>
         ) : (
@@ -395,8 +399,8 @@ function FoodList({
                     <span className="min-w-0">
                       <span className="block min-w-0 truncate text-[13px] font-black text-slate-800">{f.name_tr}</span>
                       <span className="block truncate text-[11px] font-medium text-slate-400">
-                        {groupName(f.food_group_id) ?? "Grupsuz"}
-                        {f.prep_state ? ` · ${PREP_STATE_LABELS[f.prep_state] ?? f.prep_state}` : ""}
+                        {groupName(f.food_group_id) ?? tb("noGroup")}
+                        {f.prep_state ? ` · ${bl.prepState(f.prep_state)}` : ""}
                       </span>
                     </span>
                   </button>
@@ -423,15 +427,16 @@ function ListFooter({
   moreError: string;
   onLoadMore: () => void;
 }) {
+  const tb = useTranslations("beslenme.foods");
   if (loadingMore) {
-    return <InlineSpinner label="Daha fazla besin yükleniyor…" />;
+    return <InlineSpinner label={tb("loadingMore")} />;
   }
   if (moreError) {
     return (
       <div className="px-1 py-2">
         <StatusMessage type="error">{moreError}</StatusMessage>
         <div className="mt-2">
-          <GhostButton onClick={onLoadMore}>Tekrar Dene</GhostButton>
+          <GhostButton onClick={onLoadMore}>{tb("retry")}</GhostButton>
         </div>
       </div>
     );
@@ -440,7 +445,7 @@ function ListFooter({
   return (
     <div className="px-1 pb-1">
       <GhostButton onClick={onLoadMore} className="w-full justify-center">
-        Daha fazla yükle
+        {tb("loadMore")}
       </GhostButton>
     </div>
   );
@@ -487,6 +492,9 @@ function FoodDetail({
   const [effectiveId, setEffectiveId] = useState<string | null>(foodId);
   const [resetOpen, setResetOpen] = useState(false);
   const deleteConfirm = useDeleteConfirm();
+  const tb = useTranslations("beslenme.foods");
+  const tch = useTranslations("beslenme.challenge");
+  const bl = useBeslenmeLabels();
   const [nutrients, setNutrients] = useState<FoodNutrientView[]>([]);
   const [portions, setPortions] = useState<FoodPortionView[]>([]);
   const [traditional, setTraditional] = useState<FoodTraditional | null>(null);
@@ -543,7 +551,7 @@ function FoodDetail({
       if (!alive) return;
       setLoading(false);
       if (!r.ok || !r.data?.food) {
-        setLoadErr(friendlyError(r.code, r.status));
+        setLoadErr(bl.error(r.code, r.status));
         return;
       }
       const f = r.data.food;
@@ -565,7 +573,7 @@ function FoodDetail({
     return () => {
       alive = false;
     };
-  }, [foodId, isNew]);
+  }, [foodId, isNew, bl]);
 
   function commitAlias() {
     const parts = aliasDraft
@@ -586,7 +594,7 @@ function FoodDetail({
 
   async function save() {
     if (!nameTr.trim()) {
-      setMsg({ type: "error", text: "Besin adı (Türkçe) zorunludur." });
+      setMsg({ type: "error", text: tb("nameRequired") });
       return;
     }
     setSaving(true);
@@ -603,62 +611,62 @@ function FoodDetail({
     const r = isNew ? await createFood(body) : await updateFood(effectiveId as string, body);
     setSaving(false);
     if (r.ok && r.data?.food) {
-      setMsg({ type: "success", text: "Kaydedildi." });
+      setMsg({ type: "success", text: tb("saved") });
       onSaved(r.data.food);
     } else {
-      setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+      setMsg({ type: "error", text: bl.error(r.code, r.status) });
     }
   }
 
   async function del() {
     if (isNew || !effectiveId || deleting) return;
-    const name = nameTr.trim() || "Bu besin";
+    const name = nameTr.trim() || tb("thisFood");
     const message = isSystem
-      ? "Bu besin çalışma alanınızdan kaldırılacak ve listelerinizde görünmeyecek. Planlarınızdaki mevcut kayıtlar değişmez."
+      ? tb("delSystem")
       : isPersonalized
-        ? "Bu besin çalışma alanınızdan kaldırılacak; bu besin için girdiğiniz kişisel değerler de silinecek. Planlarınızdaki mevcut kayıtlar değişmez."
-        : "Bu besin kalıcı olarak silinecek (besin değerleri, porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları dahil). Planlarınızdaki mevcut kayıtlar değişmez.";
-    const ok = await deleteConfirm({ title: "Besini sil", message, names: [name], confirmText: "Sil" });
+        ? tb("delPersonalized")
+        : tb("delCustom");
+    const ok = await deleteConfirm({ title: tb("delTitle"), message, names: [name], confirmText: tb("delConfirm") });
     if (!ok) return;
     setDeleting(true);
     setMsg(null);
     const r = await deleteFood(effectiveId);
     setDeleting(false);
     if (r.ok) {
-      onDeleted(`"${name}" silindi.`);
+      onDeleted(tb("deleted", { name }));
       return;
     }
     if (r.code === "IN_USE" && r.data?.topics?.length) {
       setMsg({
         type: "error",
-        text: `Bu besin şu rehberlerde kullanılıyor: ${r.data.topics.join(", ")}. Silmek için önce besini bu rehberlerden kaldırın.`,
+        text: tb("inUseTopics", { topics: r.data.topics.join(", ") }),
       });
       return;
     }
-    setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   const requestOneReset = useCallback<ChallengeRequest>(async () => {
-    if (!effectiveId) return { ok: false, message: "Besin bulunamadı." };
+    if (!effectiveId) return { ok: false, message: tb("notFound") };
     const r = await requestFoodResetChallenge("one" as FoodResetScope, effectiveId);
     if (r.ok && r.data) return { ok: true, value: r.data };
-    return { ok: false, message: resetRequestError(r.code, r.status, r.data?.blocked) };
-  }, [effectiveId]);
+    return { ok: false, message: resetRequestError(r.code, r.status, r.data?.blocked, tb, bl.error) };
+  }, [effectiveId, tb, bl]);
   const confirmOneReset = useCallback<ChallengeConfirm>(
     async (challengeId, code) => {
-      if (!effectiveId) return { ok: false, message: "Besin bulunamadı." };
+      if (!effectiveId) return { ok: false, message: tb("notFound") };
       const r = await confirmFoodReset("one", effectiveId, challengeId, code);
       if (r.ok) return { ok: true };
-      const e = challengeErrorMessage(r.code);
-      return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyError(r.code, r.status), refresh: e.refresh };
+      const e = challengeErrorMessage(r.code, tch);
+      return { ok: false, message: r.code?.startsWith("CHALLENGE_") ? e.message : bl.error(r.code, r.status), refresh: e.refresh };
     },
-    [effectiveId],
+    [effectiveId, tb, tch, bl],
   );
 
   if (loading) {
     return (
       <Card className="p-4">
-        <InlineSpinner label="Besin yükleniyor…" />
+        <InlineSpinner label={tb("loadingOne")} />
       </Card>
     );
   }
@@ -677,17 +685,17 @@ function FoodDetail({
         <MobileBack onBack={onBack} />
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="min-w-0 truncate text-lg font-black text-slate-900">
-            {isNew ? "Yeni Besin" : nameTr || "Besin"}
+            {isNew ? tb("newFood") : nameTr || tb("foodFallback")}
           </h2>
           {!isNew && isPersonalized ? (
             <button
               type="button"
               onClick={() => setResetOpen(true)}
               className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-100"
-              title="Bu besinde girdiğiniz kişisel değerleri kaldırıp sistem değerlerine döner"
+              title={tb("resetOneTitleAttr")}
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-              Sistem Değerine Dön
+              {tb("resetOne")}
             </button>
           ) : null}
         </div>
@@ -695,19 +703,19 @@ function FoodDetail({
         {/* Sekmeler */}
         <div className="mb-4 inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
           <TabBtn active={tab === "info"} onClick={() => setTab("info")} icon={<Package className="h-4 w-4" />}>
-            Bilgiler
+            {tb("tabInfo")}
           </TabBtn>
           {!isNew ? (
             <>
               <TabBtn active={tab === "nutrients"} onClick={() => setTab("nutrients")} icon={<Activity className="h-4 w-4" />}>
-                Besin Değerleri
+                {tb("tabNutrients")}
               </TabBtn>
               <TabBtn active={tab === "portions"} onClick={() => setTab("portions")} icon={<Scale className="h-4 w-4" />}>
-                Porsiyonlar
+                {tb("tabPortions")}
               </TabBtn>
               {allowFullTabs ? (
                 <TabBtn active={tab === "traditional"} onClick={() => setTab("traditional")} icon={<Leaf className="h-4 w-4" />}>
-                  Geleneksel
+                  {tb("tabTraditional")}
                 </TabBtn>
               ) : null}
             </>
@@ -718,7 +726,7 @@ function FoodDetail({
               onClick={() => setTab("sources")}
               icon={<BookOpen className="h-4 w-4" />}
             >
-              Kaynaklar
+              {tb("tabSources")}
               {sources.length > 0 ? (
                 <span className="ml-1 rounded-full bg-emerald-100 px-1.5 text-[10px] text-emerald-700">{sources.length}</span>
               ) : null}
@@ -735,15 +743,15 @@ function FoodDetail({
         {tab === "info" ? (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Besin Adı (Türkçe)" required>
-                <TextInput value={nameTr} onChange={(e) => setNameTr(e.target.value)} placeholder="Örn: Zeytinyağı" />
+              <Field label={tb("nameLabel")} required>
+                <TextInput value={nameTr} onChange={(e) => setNameTr(e.target.value)} placeholder={tb("namePlaceholder")} />
               </Field>
-              <Field label="İngilizce Adı">
-                <TextInput value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Örn: Olive oil" />
+              <Field label={tb("nameEnLabel")}>
+                <TextInput value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder={tb("nameEnPlaceholder")} />
               </Field>
-              <Field label="Besin Grubu">
+              <Field label={tb("groupLabel")}>
                 <SelectInput value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                  <option value="">Grupsuz</option>
+                  <option value="">{tb("noGroup")}</option>
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name_tr}
@@ -751,10 +759,10 @@ function FoodDetail({
                   ))}
                 </SelectInput>
               </Field>
-              <Field label="Hazırlık Durumu">
+              <Field label={tb("prepLabel")}>
                 <SelectInput value={prep} onChange={(e) => setPrep(e.target.value)}>
-                  <option value="">Belirtilmemiş</option>
-                  {PREP_STATE_OPTIONS.map((o) => (
+                  <option value="">{tb("prepNone")}</option>
+                  {bl.prepStateOptions.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -763,7 +771,7 @@ function FoodDetail({
               </Field>
             </div>
 
-            <Field label="Eş Anlamlılar / Diğer İsimler" hint="Yazıp Enter'a veya virgüle basarak ekleyin.">
+            <Field label={tb("aliasesLabel")} hint={tb("aliasesHint")}>
               <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
                 {aliases.length > 0 ? (
                   <div className="mb-2 flex flex-wrap gap-1.5">
@@ -777,7 +785,7 @@ function FoodDetail({
                           type="button"
                           onClick={() => setAliases((prev) => prev.filter((_, idx) => idx !== i))}
                           className="rounded-full p-0.5 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-700"
-                          aria-label={`${a} etiketini kaldır`}
+                          aria-label={tb("removeAlias", { alias: a })}
                         >
                           <X className="h-3 w-3" aria-hidden />
                         </button>
@@ -797,31 +805,31 @@ function FoodDetail({
                     }
                   }}
                   onBlur={commitAlias}
-                  placeholder="Ekle…"
+                  placeholder={tb("aliasPlaceholder")}
                   className="w-full bg-transparent px-1 py-1 text-[13px] font-medium text-slate-800 outline-none placeholder:text-slate-400"
                 />
               </div>
             </Field>
 
-            <Field label="Açıklama">
+            <Field label={tb("descLabel")}>
               <TextArea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                placeholder="Besin hakkında kısa açıklama…"
+                placeholder={tb("descPlaceholder")}
               />
             </Field>
-            <Field label="Notlar">
-              <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Özel notlar…" />
+            <Field label={tb("notesLabel")}>
+              <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={tb("notesPlaceholder")} />
             </Field>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
-                {isNew ? "Oluştur" : "Kaydet"}
+                {isNew ? tb("create") : tb("save")}
               </PrimaryButton>
               {!isNew ? (
                 <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void del()}>
-                  Sil
+                  {tb("delete")}
                 </DangerButton>
               ) : null}
             </div>
@@ -835,7 +843,7 @@ function FoodDetail({
         ) : allowFullTabs ? (
           <SourcesPanel
             links={sources}
-            disabledReason={isNew ? "Kaynak eklemek için önce besini kaydedin." : undefined}
+            disabledReason={isNew ? tb("sourceDisabled") : undefined}
             onLink={async (body) => {
               if (isNew || !effectiveId) return false;
               const r = await linkFoodSource(effectiveId, body);
@@ -858,23 +866,21 @@ function FoodDetail({
         <DestructiveChallengeDialog
           open
           tone="reset"
-          title="Sistem Değerine Dön"
-          itemNoun="besin"
+          title={tb("resetOne")}
+          itemNoun={tb("foodNoun")}
           scopeIntro={
             <>
-              Yalnızca <b>{nameTr.trim() || "bu besin"}</b> için yaptığınız değişiklikler (ad, besin değerleri,
-              porsiyonlar, geleneksel bilgiler ve kaynak bağlantıları) kaldırılacak ve besin sistem başlangıç
-              değerlerine döndürülecek. Mevcut planlarınızdaki kayıtlar değişmez.
+              {tb.rich("resetOneIntro", { name: nameTr.trim() || tb("thisFoodLower"), b: (chunks) => <b>{chunks}</b> })}
             </>
           }
-          warning="Uzman olarak girdiğiniz mevcut değerler kaldırılacaktır."
-          confirmLabel="Sistem Değerine Döndür"
+          warning={tb("resetOneWarning")}
+          confirmLabel={tb("resetOneConfirm")}
           requestChallenge={requestOneReset}
           confirm={confirmOneReset}
           onClose={() => setResetOpen(false)}
           onDone={() => {
             setResetOpen(false);
-            onReset(`"${nameTr.trim() || "Besin"}" sistem değerlerine döndürüldü.`);
+            onReset(tb("resetOneDone", { name: nameTr.trim() || tb("foodFallback") }));
           }}
         />
       ) : null}
@@ -883,15 +889,22 @@ function FoodDetail({
 }
 
 /** Reset challenge isteği hataları → kullanıcı mesajı (rehberde kullanılanlar dahil). */
-function resetRequestError(code?: string, status?: number, blocked?: Array<{ name: string; topics: string[] }>): string {
+function resetRequestError(
+  code: string | undefined,
+  status: number | undefined,
+  blocked: Array<{ name: string; topics: string[] }> | undefined,
+  tb: (key: "resetBlocked", values: { list: string }) => string,
+  errorText: (code?: string, status?: number) => string,
+): string {
   if (code === "NOTHING_TO_RESET" && blocked && blocked.length > 0) {
     const list = blocked.map((b) => `${b.name} (${b.topics.join(", ")})`).join("; ");
-    return `Sistem değerine döndürülebilecek besin yok. Şu besinler rehberlerde kullanıldığı için önce rehberden kaldırılmalı: ${list}.`;
+    return tb("resetBlocked", { list });
   }
-  return friendlyError(code, status);
+  return errorText(code, status);
 }
 
 function MobileBack({ onBack }: { onBack: () => void }) {
+  const tb = useTranslations("beslenme.foods");
   return (
     <button
       type="button"
@@ -899,7 +912,7 @@ function MobileBack({ onBack }: { onBack: () => void }) {
       className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-      Listeye Dön
+      {tb("backToList")}
     </button>
   );
 }

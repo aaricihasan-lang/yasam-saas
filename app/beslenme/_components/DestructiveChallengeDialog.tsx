@@ -11,6 +11,9 @@
  * Tek tıkla çalışmaz: en az 3 ayrı kullanıcı eylemi + kodun elle girilmesi gerekir.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { DEFAULT_LOCALE, isActiveLocale } from "@/lib/i18n/locales";
 import { AlertTriangle, KeyRound, ListChecks, RefreshCw } from "lucide-react";
 import { Modal } from "../planlar/_components/planUi";
 import { DangerButton, GhostButton, InlineSpinner, PrimaryButton, StatusMessage } from "./primitives";
@@ -98,6 +101,9 @@ export function DestructiveChallengeDialog({
     };
   }, [open]);
 
+  const t = useTranslations("beslenme.challenge");
+  const locale = useLocale();
+  const numTag = locale === DEFAULT_LOCALE ? "tr-TR" : localeTag(isActiveLocale(locale) ? locale : DEFAULT_LOCALE);
   const codeMatches = !!info && typed === info.code;
 
   async function finish() {
@@ -137,21 +143,21 @@ export function DestructiveChallengeDialog({
     <Modal open={open} onClose={busy ? () => undefined : onClose} title={title} maxWidthClass="max-w-lg">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
-          {stepBadge(1, "Kapsam", <ListChecks className="h-3.5 w-3.5" aria-hidden />)}
-          {stepBadge(2, "Uyarı", <AlertTriangle className="h-3.5 w-3.5" aria-hidden />)}
-          {stepBadge(3, "Doğrulama kodu", <KeyRound className="h-3.5 w-3.5" aria-hidden />)}
+          {stepBadge(1, t("stepScope"), <ListChecks className="h-3.5 w-3.5" aria-hidden />)}
+          {stepBadge(2, t("stepWarning"), <AlertTriangle className="h-3.5 w-3.5" aria-hidden />)}
+          {stepBadge(3, t("stepCode"), <KeyRound className="h-3.5 w-3.5" aria-hidden />)}
         </div>
 
-        {loading ? <InlineSpinner label="Kapsam hesaplanıyor…" /> : null}
+        {loading ? <InlineSpinner label={t("computing")} /> : null}
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
 
         {!loading && info && stage === 1 ? (
           <div className="flex flex-col gap-3">
             <div className="text-[13px] font-medium leading-relaxed text-slate-700">{scopeIntro}</div>
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-[12px] font-black text-slate-500">Etkilenecek kayıt</p>
+              <p className="text-[12px] font-black text-slate-500">{t("affected")}</p>
               <p className={`text-2xl font-black ${accent}`}>
-                {info.count.toLocaleString("tr-TR")} {itemNoun}
+                {info.count.toLocaleString(numTag)} {itemNoun}
               </p>
               {info.names && info.names.length > 0 ? (
                 <ul className="mt-2 max-h-40 overflow-y-auto text-[12px] font-bold text-slate-600">
@@ -160,14 +166,14 @@ export function DestructiveChallengeDialog({
                       • {n}
                     </li>
                   ))}
-                  {info.more ? <li className="text-slate-400">… ve {info.more} kayıt daha</li> : null}
+                  {info.more ? <li className="text-slate-400">{t("more", { count: info.more })}</li> : null}
                 </ul>
               ) : null}
             </div>
             {extra}
             <div className="flex flex-wrap justify-end gap-2">
-              <GhostButton onClick={onClose}>Vazgeç</GhostButton>
-              <PrimaryButton onClick={() => setStage(2)}>Devam Et</PrimaryButton>
+              <GhostButton onClick={onClose}>{t("cancel")}</GhostButton>
+              <PrimaryButton onClick={() => setStage(2)}>{t("continue")}</PrimaryButton>
             </div>
           </div>
         ) : null}
@@ -181,13 +187,13 @@ export function DestructiveChallengeDialog({
             >
               <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${accent}`} aria-hidden />
               <div className={`text-[13px] font-bold leading-relaxed ${accent}`}>
-                <p className="font-black">Emin misiniz? Bu işlem geri alınamaz.</p>
+                <p className="font-black">{t("irreversible")}</p>
                 <div className="mt-1 font-medium">{warning}</div>
               </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
-              <GhostButton onClick={onClose}>Vazgeç</GhostButton>
-              <PrimaryButton onClick={() => setStage(3)}>Evet, anladım</PrimaryButton>
+              <GhostButton onClick={onClose}>{t("cancel")}</GhostButton>
+              <PrimaryButton onClick={() => setStage(3)}>{t("understood")}</PrimaryButton>
             </div>
           </div>
         ) : null}
@@ -195,11 +201,11 @@ export function DestructiveChallengeDialog({
         {!loading && info && stage === 3 ? (
           <div className="flex flex-col gap-3">
             <p className="text-[13px] font-medium text-slate-700">
-              İşlemi tamamlamak için aşağıdaki 4 haneli kodu kutuya yazın.
+              {t("codeIntro")}
             </p>
             <div
               className="select-none rounded-2xl border border-slate-200 bg-slate-50 py-3 text-center font-mono text-3xl font-black tracking-[0.5em] text-slate-800"
-              aria-label={`Doğrulama kodu ${info.code.split("").join(" ")}`}
+              aria-label={t("codeAria", { digits: info.code.split("").join(" ") })}
             >
               {info.code}
             </div>
@@ -209,18 +215,18 @@ export function DestructiveChallengeDialog({
               maxLength={4}
               value={typed}
               onChange={(e) => setTyped(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              placeholder="Kodu yazın"
-              aria-label="Doğrulama kodu"
+              placeholder={t("codePlaceholder")}
+              aria-label={t("codeInputAria")}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-center font-mono text-xl font-black tracking-[0.4em] focus:border-emerald-400 focus:outline-none"
             />
-            <p className="text-[11px] font-medium text-slate-400">Kod 5 dakika geçerlidir ve yalnızca bir kez kullanılabilir.</p>
+            <p className="text-[11px] font-medium text-slate-400">{t("codeHint")}</p>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <GhostButton icon={<RefreshCw className="h-4 w-4" />} onClick={() => void load()} disabled={busy}>
-                Yeni kod
+                {t("newCode")}
               </GhostButton>
               <div className="flex gap-2">
                 <GhostButton onClick={onClose} disabled={busy}>
-                  Vazgeç
+                  {t("cancel")}
                 </GhostButton>
                 <DangerButton loading={busy} disabled={!codeMatches} onClick={() => void finish()}>
                   {confirmLabel}
@@ -234,24 +240,46 @@ export function DestructiveChallengeDialog({
   );
 }
 
-/** Sunucu challenge hata kodları → kullanıcı mesajı (+ baştan başlatılmalı mı). */
-export function challengeErrorMessage(code?: string): { message: string; refresh: boolean } {
+type ChallengeErrorKey = "invalidCode" | "expired" | "used" | "locked" | "scopeChanged" | "rateLimited" | "generic";
+
+/** Sunucu challenge hata kodu → katalog anahtarı (beslenme.challenge.errors.*) + baştan başlatılmalı mı. */
+function challengeErrorKey(code?: string): { key: ChallengeErrorKey; refresh: boolean } {
   switch (code) {
     case "CHALLENGE_INVALID_CODE":
-      return { message: "Kod hatalı. Ekrandaki kodu aynen yazın.", refresh: false };
+      return { key: "invalidCode", refresh: false };
     case "CHALLENGE_EXPIRED":
-      return { message: "Kodun süresi doldu. Yeni kod oluşturuldu; kapsamı tekrar kontrol edin.", refresh: true };
+      return { key: "expired", refresh: true };
     case "CHALLENGE_USED":
     case "CHALLENGE_NOT_FOUND":
     case "CHALLENGE_REQUIRED":
-      return { message: "Bu kod artık geçerli değil. Yeni kod oluşturuldu.", refresh: true };
+      return { key: "used", refresh: true };
     case "CHALLENGE_LOCKED":
-      return { message: "Çok fazla hatalı deneme. Yeni kod oluşturuldu.", refresh: true };
+      return { key: "locked", refresh: true };
     case "CHALLENGE_SCOPE_CHANGED":
-      return { message: "Etkilenecek kayıtlar değişti. Güncel kapsam yeniden gösteriliyor.", refresh: true };
+      return { key: "scopeChanged", refresh: true };
     case "CHALLENGE_RATE_LIMITED":
-      return { message: "Çok sık deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.", refresh: false };
+      return { key: "rateLimited", refresh: false };
     default:
-      return { message: "İşlem tamamlanamadı. Lütfen tekrar deneyin.", refresh: false };
+      return { key: "generic", refresh: false };
   }
+}
+
+/** Kaynak dil (TR) metinleri — messages/tr/beslenme.json beslenme.challenge.errors ile birebir. */
+const CHALLENGE_ERROR_TR: Record<ChallengeErrorKey, string> = {
+  invalidCode: "Kod hatalı. Ekrandaki kodu aynen yazın.",
+  expired: "Kodun süresi doldu. Yeni kod oluşturuldu; kapsamı tekrar kontrol edin.",
+  used: "Bu kod artık geçerli değil. Yeni kod oluşturuldu.",
+  locked: "Çok fazla hatalı deneme. Yeni kod oluşturuldu.",
+  scopeChanged: "Etkilenecek kayıtlar değişti. Güncel kapsam yeniden gösteriliyor.",
+  rateLimited: "Çok sık deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.",
+  generic: "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+};
+
+/**
+ * Sunucu challenge hata kodları → kullanıcı mesajı (+ baştan başlatılmalı mı).
+ * `t` = useTranslations("beslenme.challenge") verilirse mesaj ekran dilinde; verilmezse kaynak dil (TR).
+ */
+export function challengeErrorMessage(code?: string, t?: (key: string) => string): { message: string; refresh: boolean } {
+  const { key, refresh } = challengeErrorKey(code);
+  return { message: t ? t(`errors.${key}`) : CHALLENGE_ERROR_TR[key], refresh };
 }

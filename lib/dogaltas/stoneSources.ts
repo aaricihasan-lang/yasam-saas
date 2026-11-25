@@ -67,10 +67,10 @@ export type StoneSourceView = {
   updatedAt: string | null;
 };
 
-/** Görünen ad: boş/NULL → "Kaynak belirtilmemiş". */
-export function sourceDisplayName(name: string | null | undefined): string {
+/** Görünen ad: boş/NULL → "Kaynak belirtilmemiş" (arayüz çevrilmiş yedek metni `fallback` ile verir; Word raporları varsayılanı kullanır). */
+export function sourceDisplayName(name: string | null | undefined, fallback = "Kaynak belirtilmemiş"): string {
   const n = (name ?? "").trim();
-  return n || "Kaynak belirtilmemiş";
+  return n || fallback;
 }
 
 /** Kaynak adını kaydetmeden önce normalize eder (kenar boşluk + çoklu boşluk). Geçersizse "". */

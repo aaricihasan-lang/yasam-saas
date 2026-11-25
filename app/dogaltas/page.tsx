@@ -459,6 +459,7 @@ const MENU_ART: Record<string, string> = {
  */
 const STONE_LIBRARY_CARD: DogaltasModule = {
   slug: "kutuphane",
+  // i18n-ignore: TR yedek; gösterim stones.modules.kutuphane.title
   title: "Doğaltaş Kütüphanesi",
   subtitle: "Doğrulanmış taş bilgileri ve görseller.",
   icon: "💠",

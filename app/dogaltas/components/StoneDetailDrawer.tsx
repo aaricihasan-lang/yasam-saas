@@ -296,11 +296,11 @@ export function StoneDetailDrawer({
               </span>
               {inStock ? (
                 <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-                  Stokta
+                  {t("stockBadgeYes")}
                 </span>
               ) : (
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  Stok yok
+                  {t("stockBadgeNo")}
                 </span>
               )}
             </div>

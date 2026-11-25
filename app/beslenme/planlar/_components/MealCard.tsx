@@ -29,13 +29,13 @@ import { useAvoidedFoodIds } from "./avoidedFoods";
 import { Field, GhostButton, PrimaryButton, DangerButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { ActionMenu, EnergyTargetLine, MacroChips, Modal, type MenuItem } from "./planUi";
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
-import { mealTotals, mealEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
+import { mealTotals, mealEnergyCoverage } from "./planFormat";
+import { usePlanFormat } from "./usePlanFormat";
 import { SaveMealTemplateModal, ItemAlternativesModal } from "./Faz6ItemActions";
 import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
-function mealTypeLabel(t: string | null): string | null {
-  if (!t) return null;
-  return MEAL_TYPE_LABELS[t as MealType] ?? null;
+function isMealType(t: string | null): t is MealType {
+  return !!t && Object.prototype.hasOwnProperty.call(MEAL_TYPE_LABELS, t);
 }
 
 export function MealCard({
@@ -57,6 +57,8 @@ export function MealCard({
   onMove: (mealId: string, dir: -1 | 1) => void;
   onMutated: () => void;
 }) {
+  const tm = useTranslations("beslenme.meal");
+  const pf = usePlanFormat();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tplSaveOpen, setTplSaveOpen] = useState(false);
@@ -65,7 +67,9 @@ export function MealCard({
 
   const totals = mealTotals(meal.items);
   const energyCov = mealEnergyCoverage(meal.items);
-  const typeLabel = mealTypeLabel(meal.meal_type);
+  // Öğün adı kullanıcı verisidir; yalnız hazır tip adıyla (DB'de TR kanonik) BİREBİR aynıysa ekran dilinde gösterilir.
+  const typeLabel = isMealType(meal.meal_type) ? pf.mealType(meal.meal_type) : null;
+  const mealLabel = isMealType(meal.meal_type) && meal.label === MEAL_TYPE_LABELS[meal.meal_type] ? pf.mealType(meal.meal_type) : meal.label;
 
   async function onAddFood(payload: FoodPickPayload) {
     setErr("");
@@ -74,7 +78,7 @@ export function MealCard({
       setPickerOpen(false);
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
@@ -82,8 +86,8 @@ export function MealCard({
   const menuItems: MenuItem[] = readOnly
     ? []
     : [
-        { label: "Ayarlar / Adını Değiştir", icon: <PenLine className="h-4 w-4" />, onClick: () => setSettingsOpen(true) },
-        { label: "Öğünü Şablonla", icon: <LayoutTemplate className="h-4 w-4" />, onClick: () => setTplSaveOpen(true) },
+        { label: tm("menuSettings"), icon: <PenLine className="h-4 w-4" />, onClick: () => setSettingsOpen(true) },
+        { label: tm("menuTemplate"), icon: <LayoutTemplate className="h-4 w-4" />, onClick: () => setTplSaveOpen(true) },
       ];
 
   return (
@@ -94,9 +98,9 @@ export function MealCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[15px] font-black text-slate-900">
               <Utensils className="h-4 w-4 text-emerald-500" aria-hidden />
-              <span className="truncate">{meal.label}</span>
+              <span className="truncate">{mealLabel}</span>
             </span>
-            {typeLabel && typeLabel !== meal.label ? (
+            {typeLabel && typeLabel !== mealLabel ? (
               <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-600">
                 {typeLabel}
               </span>
@@ -120,7 +124,7 @@ export function MealCard({
                 disabled={isFirst}
                 onClick={() => onMove(meal.id, -1)}
                 className="rounded-md p-0.5 text-slate-400 transition hover:bg-white hover:text-slate-700 disabled:opacity-30"
-                aria-label="Yukarı taşı"
+                aria-label={tm("moveUp")}
               >
                 <ArrowUp className="h-4 w-4" aria-hidden />
               </button>
@@ -129,12 +133,12 @@ export function MealCard({
                 disabled={isLast}
                 onClick={() => onMove(meal.id, 1)}
                 className="rounded-md p-0.5 text-slate-400 transition hover:bg-white hover:text-slate-700 disabled:opacity-30"
-                aria-label="Aşağı taşı"
+                aria-label={tm("moveDown")}
               >
                 <ArrowDown className="h-4 w-4" aria-hidden />
               </button>
             </div>
-            <ActionMenu items={menuItems} label="Öğün işlemleri" />
+            <ActionMenu items={menuItems} label={tm("mealActions")} />
           </div>
         ) : null}
       </div>
@@ -143,7 +147,7 @@ export function MealCard({
       <div className="flex flex-col divide-y divide-slate-50">
         {meal.items.length === 0 ? (
           <p className="px-4 py-4 text-center text-[12px] font-bold text-slate-400">
-            Bu öğünde henüz besin yok.
+            {tm("noItems")}
           </p>
         ) : (
           meal.items.map((item) => (
@@ -166,13 +170,13 @@ export function MealCard({
             onClick={() => setPickerOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[12px] font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50"
           >
-            <Plus className="h-4 w-4" aria-hidden /> Besin Ekle
+            <Plus className="h-4 w-4" aria-hidden /> {tm("addFood")}
           </button>
         </div>
       ) : null}
 
       {pickerOpen ? (
-        <FoodPickerDialog open onClose={() => setPickerOpen(false)} onPick={onAddFood} title="Besin Ekle" />
+        <FoodPickerDialog open onClose={() => setPickerOpen(false)} onPick={onAddFood} title={tm("addFood")} />
       ) : null}
 
       {settingsOpen ? (
@@ -191,7 +195,7 @@ export function MealCard({
       {tplSaveOpen ? (
         <SaveMealTemplateModal
           mealId={meal.id}
-          mealLabel={meal.label}
+          mealLabel={mealLabel}
           onClose={() => setTplSaveOpen(false)}
           onSaved={() => setTplSaveOpen(false)}
         />
@@ -219,6 +223,8 @@ function ItemRow({
   const [deleting, setDeleting] = useState(false);
   const deleteConfirm = useDeleteConfirm();
   const tp = useTranslations("beslenme.plan");
+  const tm = useTranslations("beslenme.meal");
+  const pf = usePlanFormat();
   const avoidedFoodIds = useAvoidedFoodIds();
   const isAvoided = isAvoidedFood(item.food_id, avoidedFoodIds);
 
@@ -242,13 +248,13 @@ function ItemRow({
     setErr("");
     const r = await copyItem(planId, item.id, item.meal_id);
     if (r.ok) onMutated();
-    else setErr(friendlyPlanError(r.code, r.status));
+    else setErr(pf.error(r.code, r.status));
   }
   async function onDelete() {
     if (deleting) return;
     const ok = await deleteConfirm({
-      title: "Besini öğünden sil",
-      message: "Bu besin satırı öğünden kaldırılacak.",
+      title: tm("deleteItemTitle"),
+      message: tm("deleteItemMessage"),
       names: [item.food_name_snapshot],
     });
     if (!ok) return;
@@ -257,7 +263,7 @@ function ItemRow({
     try {
       const r = await deleteItem(planId, item.id);
       if (r.ok) onMutated();
-      else setErr(friendlyPlanError(r.code, r.status));
+      else setErr(pf.error(r.code, r.status));
     } finally {
       setDeleting(false);
     }
@@ -269,18 +275,18 @@ function ItemRow({
       setReplaceOpen(false);
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
   const menuItems: MenuItem[] = readOnly
     ? []
     : [
-        { label: "Miktar / Porsiyon", icon: <PenLine className="h-4 w-4" />, onClick: () => setAmountOpen(true) },
-        { label: "Besini Değiştir", icon: <Repeat className="h-4 w-4" />, onClick: () => setReplaceOpen(true) },
-        { label: "Yaklaşık Kaloriyle Değiştir", icon: <Sparkles className="h-4 w-4" />, onClick: () => setAltOpen(true) },
-        { label: "Çoğalt", icon: <Copy className="h-4 w-4" />, onClick: () => void onDuplicate() },
-        { label: "Sil", icon: <Trash2 className="h-4 w-4" />, onClick: () => void onDelete(), danger: true },
+        { label: tm("menuAmount"), icon: <PenLine className="h-4 w-4" />, onClick: () => setAmountOpen(true) },
+        { label: tm("menuReplace"), icon: <Repeat className="h-4 w-4" />, onClick: () => setReplaceOpen(true) },
+        { label: tm("menuAlt"), icon: <Sparkles className="h-4 w-4" />, onClick: () => setAltOpen(true) },
+        { label: tm("menuDuplicate"), icon: <Copy className="h-4 w-4" />, onClick: () => void onDuplicate() },
+        { label: tm("menuDelete"), icon: <Trash2 className="h-4 w-4" />, onClick: () => void onDelete(), danger: true },
       ];
 
   return (
@@ -290,15 +296,15 @@ function ItemRow({
           <p className="truncate text-[13px] font-black text-slate-800">{item.food_name_snapshot}</p>
           <p className="mt-0.5 text-[11px] font-bold text-slate-400">{amountText}</p>
           {item.food_id === null ? (
-            <p className="mt-0.5 text-[10px] font-bold text-amber-600">Kaynak besin katalogda yok</p>
+            <p className="mt-0.5 text-[10px] font-bold text-amber-600">{tm("sourceMissing")}</p>
           ) : null}
           {isAvoided ? (
             <p className="mt-0.5 text-[10px] font-bold text-rose-600">⚠ {tp("avoidedItem")}</p>
           ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold text-slate-400">
-            {protein ? <span>P {formatAmount(protein.amount, protein.unit_code)}</span> : null}
-            {carb ? <span>K {formatAmount(carb.amount, carb.unit_code)}</span> : null}
-            {fat ? <span>Y {formatAmount(fat.amount, fat.unit_code)}</span> : null}
+            {protein ? <span>{tm("macroP", { value: formatAmount(protein.amount, protein.unit_code) })}</span> : null}
+            {carb ? <span>{tm("macroC", { value: formatAmount(carb.amount, carb.unit_code) })}</span> : null}
+            {fat ? <span>{tm("macroF", { value: formatAmount(fat.amount, fat.unit_code) })}</span> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -310,12 +316,12 @@ function ItemRow({
           ) : (
             <span
               className="whitespace-nowrap text-[10px] font-black text-amber-600"
-              title="Bu besinin kalori bilgisi girilmemiş; öğün/gün toplamına dahil edilmez. Besni düzenleyip kalori girebilirsiniz."
+              title={tm("noEnergyTitle")}
             >
-              Kalori girilmemiş
+              {tm("noEnergy")}
             </span>
           )}
-          {!readOnly ? <ActionMenu items={menuItems} label="Besin işlemleri" /> : null}
+          {!readOnly ? <ActionMenu items={menuItems} label={tm("itemActions")} /> : null}
         </div>
       </div>
 
@@ -336,7 +342,7 @@ function ItemRow({
       ) : null}
 
       {replaceOpen ? (
-        <FoodPickerDialog open onClose={() => setReplaceOpen(false)} onPick={onReplace} title="Besini Değiştir" />
+        <FoodPickerDialog open onClose={() => setReplaceOpen(false)} onPick={onReplace} title={tm("menuReplace")} />
       ) : null}
 
       {altOpen ? (
@@ -370,6 +376,8 @@ function ItemAmountDialog({
   item: PlanItem;
   onMutated: () => void;
 }) {
+  const tm = useTranslations("beslenme.meal");
+  const pf = usePlanFormat();
   const [grams, setGrams] = useState(String(item.grams));
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -378,7 +386,7 @@ function ItemAmountDialog({
     setErr("");
     const n = Number(grams.trim().replace(",", "."));
     if (!Number.isFinite(n) || n <= 0) {
-      setErr("Geçerli bir gram değeri girin.");
+      setErr(tm("gramsInvalid"));
       return;
     }
     setSaving(true);
@@ -388,15 +396,15 @@ function ItemAmountDialog({
       onClose();
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Miktar" subtitle={item.food_name_snapshot} maxWidthClass="max-w-sm">
+    <Modal open={open} onClose={onClose} title={tm("amountTitle")} subtitle={item.food_name_snapshot} maxWidthClass="max-w-sm">
       <div className="flex flex-col gap-3">
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
-        <Field label="Miktar (gram)">
+        <Field label={tm("amountLabel")}>
           <TextInput inputMode="decimal" value={grams} onChange={(e) => setGrams(e.target.value)} autoFocus />
           <div className="mt-2 flex flex-wrap gap-1.5">
             {["50", "100", "150", "200"].map((g) => (
@@ -412,9 +420,9 @@ function ItemAmountDialog({
           </div>
         </Field>
         <div className="flex items-center justify-end gap-2">
-          <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+          <GhostButton onClick={onClose}>{tm("cancel")}</GhostButton>
           <PrimaryButton loading={saving} onClick={() => void save()}>
-            Kaydet
+            {tm("save")}
           </PrimaryButton>
         </div>
       </div>
@@ -442,6 +450,8 @@ function MealSettingsDialog({
   setBusy: (v: boolean) => void;
   onMutated: () => void;
 }) {
+  const tm = useTranslations("beslenme.meal");
+  const pf = usePlanFormat();
   const [label, setLabel] = useState(meal.label);
   const [target, setTarget] = useState(meal.energy_target != null ? String(meal.energy_target) : "");
   const [copyDayId, setCopyDayId] = useState("");
@@ -456,7 +466,7 @@ function MealSettingsDialog({
     setOk("");
     const l = label.trim();
     if (!l) {
-      setErr("Öğün adı boş olamaz.");
+      setErr(tm("nameRequired"));
       return;
     }
     let energyTarget: number | null = null;
@@ -464,7 +474,7 @@ function MealSettingsDialog({
     if (raw) {
       const n = Number(raw);
       if (!Number.isFinite(n) || n <= 0) {
-        setErr("Hedef geçerli bir sayı olmalı.");
+        setErr(tm("targetInvalid"));
         return;
       }
       energyTarget = Math.round(n);
@@ -473,10 +483,10 @@ function MealSettingsDialog({
     const r = await patchMeal(planId, meal.id, { label: l, energy_target: energyTarget });
     setBusy(false);
     if (r.ok) {
-      setOk("Kaydedildi.");
+      setOk(tm("saved"));
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
@@ -484,17 +494,17 @@ function MealSettingsDialog({
     setErr("");
     setOk("");
     if (!copyDayId) {
-      setErr("Kopyalanacak günü seçin.");
+      setErr(tm("selectCopyDay"));
       return;
     }
     setBusy(true);
     const r = await copyMeal(planId, meal.id, copyDayId);
     setBusy(false);
     if (r.ok) {
-      setOk("Öğün kopyalandı.");
+      setOk(tm("copied"));
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
@@ -507,33 +517,33 @@ function MealSettingsDialog({
       onClose();
       onMutated();
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Öğün Ayarları" subtitle={meal.label} maxWidthClass="max-w-md">
+    <Modal open={open} onClose={onClose} title={tm("settingsTitle")} subtitle={meal.label} maxWidthClass="max-w-md">
       <div className="flex flex-col gap-4">
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
         {ok ? <StatusMessage type="success">{ok}</StatusMessage> : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Öğün Adı" required>
+          <Field label={tm("nameLabel")} required>
             <TextInput value={label} onChange={(e) => setLabel(e.target.value)} />
           </Field>
-          <Field label="Kalori Hedefi" hint="opsiyonel">
-            <TextInput inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Örn: 500" />
+          <Field label={tm("targetLabel")} hint={tm("optional")}>
+            <TextInput inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder={tm("targetPlaceholder")} />
           </Field>
         </div>
         <div className="flex justify-end">
           <PrimaryButton loading={busy} onClick={() => void saveMeta()}>
-            Kaydet
+            {tm("save")}
           </PrimaryButton>
         </div>
 
         {otherDays.length > 0 ? (
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-            <p className="mb-2 text-[12px] font-black text-slate-600">Başka Güne Kopyala</p>
+            <p className="mb-2 text-[12px] font-black text-slate-600">{tm("copyToDay")}</p>
             <div className="flex items-end gap-2">
               <label className="min-w-0 flex-1">
                 <select
@@ -541,16 +551,16 @@ function MealSettingsDialog({
                   onChange={(e) => setCopyDayId(e.target.value)}
                   className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 shadow-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-200/60"
                 >
-                  <option value="">Gün seçin…</option>
+                  <option value="">{tm("chooseDay")}</option>
                   {otherDays.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {formatDateShort(d.plan_date)}
+                      {pf.dateShort(d.plan_date)}
                     </option>
                   ))}
                 </select>
               </label>
               <GhostButton icon={<Copy className="h-4 w-4" />} loading={busy} onClick={() => void doCopy()}>
-                Kopyala
+                {tm("copy")}
               </GhostButton>
             </div>
           </div>
@@ -559,15 +569,15 @@ function MealSettingsDialog({
         <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
           {confirmDel ? (
             <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-rose-600">Silinsin mi?</span>
+              <span className="text-[12px] font-bold text-rose-600">{tm("confirmDelete")}</span>
               <DangerButton loading={busy} onClick={() => void doDelete()}>
-                Evet, Sil
+                {tm("yesDelete")}
               </DangerButton>
-              <GhostButton onClick={() => setConfirmDel(false)}>Vazgeç</GhostButton>
+              <GhostButton onClick={() => setConfirmDel(false)}>{tm("cancel")}</GhostButton>
             </div>
           ) : (
             <DangerButton icon={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDel(true)}>
-              Öğünü Sil
+              {tm("deleteMeal")}
             </DangerButton>
           )}
         </div>
