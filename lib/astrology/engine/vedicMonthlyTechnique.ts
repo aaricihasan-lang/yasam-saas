@@ -9,7 +9,7 @@
 // Mevcut Gochara (vedic.transit, tek an + natal), KP rasi geçişleri (kp.transit aralık, KP ayanamsa) ve Graha Drishti
 // (vedic.drishti, bütün-burç bakış) DEĞİŞMEZ; bu teknik onların yerine geçmez.
 
-import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
+import { ASTRO_CHART_IDENTITY_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
 import { calcInputHash, type CalcIdentity } from "./inputHash";
 import type { CalcUnit, TechniqueDefinition, TechniqueProjection, UnitContext } from "./techniques";
 import { isValidIanaTimeZone } from "../birth/timeResolution";
@@ -32,7 +32,7 @@ const o = (raw: unknown) => (raw && typeof raw === "object" && !Array.isArray(ra
 
 /** techniques.ts `unit()` ile AYNI kimlik kuralı. */
 function unitOf(meta: { endpoint: string; adapter: string }, body: Record<string, unknown>, extra: Partial<CalcUnit> = {}): CalcUnit {
-  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_PROVIDER_LANG, body };
+  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_CHART_IDENTITY_LANG, body };
   return { technique: "vedic.monthly", ...identity, inputHash: calcInputHash(identity), covers: [], timeDependent: false, part: 0, ...extra };
 }
 function fromAdapter<T>(r: AdapterResult<T, null>, projectionVersion: string): TechniqueProjection {
