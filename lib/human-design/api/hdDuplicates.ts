@@ -279,7 +279,8 @@ export async function findCrossProfileRoxyDuplicates(
   const rows = rc.rows.filter((r) => {
     if (r.client_id === i.clientId) return false;
     const inp = r.input ?? {};
-    return same(inp.latitude, i.latitude) && same(inp.longitude, i.longitude) && inp.nodeType === i.nodeType && inp.lang === i.lang;
+    // I18N-0005: kayıtlı sağlayıcı metin dili (input.lang) aynı-kişi/aynı-girdi ölçütü değildir (sayısal harita dilden bağımsız).
+    return same(inp.latitude, i.latitude) && same(inp.longitude, i.longitude) && inp.nodeType === i.nodeType;
   });
   if (rows.length === 0) return { candidates: [], error: null };
   const prof = await profilesByIds(db, tenantId, [...new Set(rows.map((r) => r.client_id).filter((x): x is string => !!x))]);

@@ -1,0 +1,74 @@
+{
+  "hd": {
+    "variables": {
+      "title": "Dört Ok ve PHS",
+      "subtitle": "Human Design İleri Analiz",
+      "intro": "Dört Ok, Human Design'ın ileri katmanıdır: sol oklar (Tasarım tarafı) Birincil Sağlık Sistemi'ni (PHS), sağ oklar (Kişilik tarafı) Rave Psikolojisi'ni anlatır. Her ok, kaynak gezegen aktivasyonunun Color, Tone ve Base alt yapısından hesaplanır.",
+      "precisionNote": "Bu katman doğum saatine çok duyarlıdır: birkaç dakikalık fark Tone'u ve okun yönünü değiştirebilir. Sonuç, kayıtlı doğum saatinin kesin olduğu varsayımıyla hesaplanır; saat tahminiyse sonucu kesin kabul etmeyin.",
+      "baseNote": "Base, normal doğum saatinin çözebileceğinden daha ince bir alt bölümdür; yalnız bilgilendirme amaçlı gösterilir ve anlamı yorumlanmaz.",
+      "healthNote": "PHS ve Çevre açıklamaları Human Design öğretisine ait yorumlardır; tıbbi teşhis, tedavi, diyet veya beslenme tavsiyesi değildir.",
+      "uncertainNote": "Olası sonuç: bu okun kaynağı bir Color veya Tone sınırına çok yakın. Gösterilen değerler kayıtlı saatle hesaplandı; gerçek doğum anı birkaç saniye ya da dakika farklıysa komşu Color / Tone ve ok yönü geçerli olabilir. Bu yüzden Color, Tone ve yön anlamları bu okta gösterilmez; kesin yorum olarak kullanmayın.",
+      "uncertainAdvice": "Olası okları kesinleştirmek için doğum saatini resmî kayıt veya belgeyle doğrulayın; saat belgeliyse ve sonuç yine olası çıkıyorsa, bu ok için kesin yorum yapılamaz.",
+      "historicalOffsetNote": "Bu doğum, standart saat uygulamasından önceki yerel ortalama saat dönemine düşüyor. Hesaplama servisi o dönemin saat farkını saniyeleri atarak kullandığından sonuç bir dakikaya kadar kayabilir: Base değerleri kesinleştirilemedi ve sınıra yakın oklar kesin sayılmadı.",
+      "baseUncertain": "kesinleştirilemedi",
+      "allUncertainNote": "Dört okun tamamı kesin değil: aşağıda kesinleştirilemeyen oklar “Olası” olarak ayrıca işaretlendi.",
+      "sourceNote": "Açıklamalar hesaplama servisinin metinleridir (Türkçe çevirisi yoksa özgün İngilizce gösterilir). Sonuç, Yaşam Sistemi'nin bağımsız hesabıyla tutarlılık açısından kontrol edildi.",
+      "cognitionTitle": "Bilişsel Algı (Cognition)",
+      "arrowTitle": {
+        "determination": "Sindirim / PHS (Determination)",
+        "environment": "Çevre (Environment)",
+        "motivation": "Motivasyon (Motivation)",
+        "perspective": "Bakış Açısı (Perspective / View)"
+      },
+      "arrowPlace": {
+        "determination": "Sol üst · Tasarım (Design) Güneş",
+        "environment": "Sol alt · Tasarım (Design) Kuzey Ay Düğümü",
+        "motivation": "Sağ üst · Kişilik (Personality) Güneş",
+        "perspective": "Sağ alt · Kişilik (Personality) Kuzey Ay Düğümü"
+      },
+      "direction": {
+        "left": "Sol",
+        "right": "Sağ"
+      },
+      "directionLower": {
+        "left": "sol",
+        "right": "sağ"
+      },
+      "certainty": {
+        "certain": {
+          "term": "Kesin",
+          "text": "Değer Color / Tone sınırından yeterince uzak; kayıtlı doğum saati birkaç dakika kaysa da Color, Tone ve ok yönü değişmez. Anlamları gösterilir."
+        },
+        "possible": {
+          "term": "Olası",
+          "text": "Kayıtlı saatle hesaplanan değer, ancak sınıra çok yakın; gerçek doğum anına göre komşu değer de geçerli olabilir. Değerler “?” ve kesikli çizgiyle işaretlenir, anlamları yorum olarak verilmez."
+        }
+      },
+      "arrowAria": "{dir} yönlü ok",
+      "arrowAriaUncertain": "Olası {dirLower} yönlü ok (kesin değil)",
+      "cardAria": "{title}: {dir} yön, Color {color}, Tone {tone}",
+      "cardAriaUncertain": "{title}: kesinleştirilemedi — olası {dirLower} yön, olası Color {color}, olası Tone {tone}",
+      "badgeCertain": "Kesin",
+      "badgeUncertain": "Kesinleştirilemedi",
+      "possibleDirection": "Olası yön: {dir}? · {label}",
+      "possibleValue": "olası · {label}",
+      "toneLeft": "1–3 → sol",
+      "toneRight": "4–6 → sağ",
+      "baseInformative": "bilgilendirici",
+      "cognitionHidden": "Tone kesinleştirilemediği için gösterilmez (olası Tone başka bir Bilişsel Algıya karşılık gelebilir).",
+      "foldWhat": "Bu ok neyi anlatır?",
+      "paraArrow": "Ok",
+      "paraLayer": "Katman",
+      "foldMeanings": "Color, Tone ve yön anlamları ({color} · {direction})",
+      "paraDirection": "Yön — {dir} ({label})",
+      "mismatch": "Sunucu yanıtı bu analizle eşleşmedi; sonuç gösterilmedi. Lütfen tekrar deneyin.",
+      "checking": "Kayıtlı analiz kontrol ediliyor…",
+      "calculating": "Hesaplanıyor…",
+      "run": "Dört Ok Analizini Hesapla",
+      "allCertain": "Dört okun tamamı kesin (her ok Color / Tone sınırından yeterince uzak).",
+      "uncertainCount": "({count}/4 ok)",
+      "leftColumn": "Sol oklar · Tasarım (Design) · Birincil Sağlık Sistemi",
+      "rightColumn": "Sağ oklar · Kişilik (Personality) · Rave Psikolojisi"
+    }
+  }
+}

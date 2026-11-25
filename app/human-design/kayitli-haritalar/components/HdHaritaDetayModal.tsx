@@ -1,15 +1,12 @@
 "use client";
 
+import { HD_CENTER_STATE_LABEL as HD_CENTER_STATE_LABEL_TR, type HdCenterState } from "@/lib/human-design/chart/centerStates";
+import { useTranslations } from "next-intl";
+import { useHdLabels } from "../../_i18n/useHdLabels";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
-import {
-  hdTypeLabelFromCode,
-  hdAuthorityLabelFromCode,
-  hdProfileLabelFromCode,
-  hdDefinitionLabelFromCode,
-  hdCenterLabelFromCode,
-} from "@/lib/human-design/codeHelpers";
+import { hdAuthorityLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { GateKnowledgeNotes } from "../../components/GateKnowledgeNotes";
 import { nonDefinedCenterLabels } from "@/lib/human-design/chart/centerStateLabels";
@@ -23,7 +20,6 @@ import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { hdChannelDisplayLabel, hdGateDisplayLabel } from "@/lib/human-design/knowledge/hdNames";
 import { useHdNameOverrides } from "@/app/human-design/bilgi-bankasi/helpers/useHdNameOverrides";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-import { HD_ADMIN_SOURCE_LABELS } from "./HdChartKnowledgeTabs";
 
 type Props = {
   row: HdChartWithClient;
@@ -64,10 +60,10 @@ function BadgeList({ items, emptyText }: { items: string[]; emptyText: string })
   );
 }
 
-function formatDate(val: string | null | undefined): string {
+function formatDate(val: string | null | undefined, dateLocale = "tr-TR"): string {
   if (!val) return "—";
   try {
-    return new Date(val).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return new Date(val).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch { return val; }
 }
 
@@ -89,26 +85,31 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
     });
   }, [row]);
 
-  const activeCenterLabels = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
-  const openCenterLabels = nonDefinedCenterLabels(row);
   // Hesabın kişisel görünen adları (yoksa hazır ad); sıralama/eşleşme teknik numaradan.
   const nameOv = useHdNameOverrides();
+  const t = useTranslations("hd.records.detail");
+  const L = useHdLabels();
+  const centerLbl = { center: (c: string) => L.center(c), state: (s: HdCenterState) => (L.isTr ? HD_CENTER_STATE_LABEL_TR[s] : L.terms.label("centerState", s)) };
+  const gateLbl = (g: number) => (L.isTr ? hdGateDisplayLabel(g, nameOv) : nameOv.gates[g] ? `${g} — ${nameOv.gates[g]}` : t("gateN", { gate: g }));
+  const chLbl = (c: string) => (L.isTr ? hdChannelDisplayLabel(c, nameOv) : nameOv.channels[c] ?? L.terms.label("channel", c));
+  const activeCenterLabels = (row.active_centers ?? []).map((c) => L.center(c));
+  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
+  const openCenterLabels = nonDefinedCenterLabels(row, centerLbl);
   // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
   const [centralTabLabel] = useState(() =>
-    isAdminUser(readYasamUser()) ? HD_ADMIN_SOURCE_LABELS.central : "Kişinin HD Bilgileri",
+    isAdminUser(readYasamUser()) ? "central" : "personShort",
   );
-  const channelLabels = (row.channels ?? []).map((c) => hdChannelDisplayLabel(c, nameOv));
+  const channelLabels = (row.channels ?? []).map((c) => chLbl(c));
 
   const gateLabels = (row.gates ?? [])
     .sort((a, b) => a - b)
-    .map((g) => hdGateDisplayLabel(g, nameOv));
+    .map((g) => gateLbl(g));
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
       <button
         type="button"
-        aria-label="Kapat"
+        aria-label={t("close")}
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
       />
@@ -124,11 +125,11 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
         {/* Header */}
         <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-indigo-500">Harita Detayı</p>
+            <p className="text-xs font-black uppercase tracking-widest text-indigo-500">{t("title")}</p>
             <h2 id="hd-harita-detay-title" className="mt-0.5 text-lg font-black text-slate-900">{clientName}</h2>
             {row.client && (
               <p className="text-xs text-slate-500">
-                {formatDate(row.client.birth_date)}
+                {formatDate(row.client.birth_date, L.dateLocale)}
                 {row.client.birth_time ? ` · ${row.client.birth_time}` : ""}
                 {row.client.birth_place ? ` · ${row.client.birth_place}` : ""}
               </p>
@@ -140,7 +141,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex max-w-full items-center gap-1 rounded-lg border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
               >
-                <span className="truncate">Haritayı Dış Sitede Aç</span>
+                <span className="truncate">{t("openExternal")}</span>
                 <span aria-hidden className="shrink-0">↗</span>
               </a>
             )}
@@ -148,7 +149,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t("close")}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
             <span aria-hidden>✕</span>
@@ -157,7 +158,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
 
         {/* Sekmeler */}
         <div className="flex gap-1.5 border-b border-indigo-100/80 px-6 pt-3">
-          {([["summary", "Özet"], ["knowledge", centralTabLabel]] as const).map(([id, label]) => (
+          {([["summary", t("summary")], ["knowledge", centralTabLabel === "central" ? t("central") : t(centralTabLabel)]] as const).map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -176,37 +177,37 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
           {tab === "summary" ? (
           <div className="space-y-6">
             {/* Temel Değerler */}
-            <Section title="Temel Değerler">
+            <Section title={t("basics")}>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Tip" value={hdTypeLabelFromCode(row.type_code)} />
-                <Field label="Otorite" value={hdAuthorityLabelFromCode(row.authority_code)} />
-                <Field label="Profil" value={hdProfileLabelFromCode(row.profile_code)} />
-                <Field label="Tanım" value={hdDefinitionLabelFromCode(row.definition_code)} />
+                <Field label={t("type")} value={L.type(row.type_code)} />
+                <Field label={t("authority")} value={L.isTr ? hdAuthorityLabelFromCode(row.authority_code) : L.terms.label("authority", row.authority_code)} />
+                <Field label={t("profile")} value={L.profile(row.profile_code)} />
+                <Field label={t("definition")} value={L.definition(row.definition_code)} />
               </div>
             </Section>
 
             {/* Tanımlı Merkezler */}
-            <Section title="Tanımlı Merkezler">
-              <BadgeList items={activeCenterLabels} emptyText="Tanımlı merkez yok." />
+            <Section title={t("definedCenters")}>
+              <BadgeList items={activeCenterLabels} emptyText={t("noDefinedCenters")} />
             </Section>
 
             {/* Tanımlı olmayan merkezler — Tanımsız / Açık ayrımı kanıtla */}
-            <Section title="Tanımlı Olmayan Merkezler">
+            <Section title={t("nonDefinedCenters")}>
               <BadgeList
                 items={openCenterLabels}
-                emptyText="Tanımlı olmayan merkez yok."
+                emptyText={t("noNonDefinedCenters")}
               />
             </Section>
 
             {/* Kanallar */}
-            <Section title={`Kanallar (${channelLabels.length})`}>
-              <BadgeList items={channelLabels} emptyText="Kanal kaydı yok." />
+            <Section title={t("channelsN", { count: channelLabels.length })}>
+              <BadgeList items={channelLabels} emptyText={t("noChannels")} />
             </Section>
 
             {/* Kapılar */}
-            <Section title={`Kapılar (${gateLabels.length})`}>
+            <Section title={t("gatesN", { count: gateLabels.length })}>
               {gateLabels.length === 0 ? (
-                <p className="text-xs text-slate-400">Kapı kaydı yok.</p>
+                <p className="text-xs text-slate-400">{t("noGates")}</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {gateLabels.map((label) => (
@@ -222,18 +223,18 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
             </Section>
 
             {/* Kapı Teknik Bilgileri + Bilgi Bankası Yorumları */}
-            <Section title="Kapı Teknik Bilgileri">
+            <Section title={t("gateTech")}>
               {((row.gates ?? []).length > 0 || (row.channels ?? []).length > 0) ? (
                 <GateTechnicalInfo gates={row.gates ?? []} channels={row.channels ?? []} />
               ) : (
-                <p className="text-xs text-slate-400">Kapı kaydı yok.</p>
+                <p className="text-xs text-slate-400">{t("noGates")}</p>
               )}
               <GateKnowledgeNotes groups={knowledgeGroups} loading={loadingNotes} />
             </Section>
 
             {/* Notlar */}
             {row.notes && (
-              <Section title="Notlar">
+              <Section title={t("notes")}>
                 <p className="rounded-xl border border-indigo-100/80 bg-indigo-50/30 px-4 py-3 text-sm leading-relaxed text-slate-700">
                   {row.notes}
                 </p>
@@ -252,7 +253,7 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
             onClick={onClose}
             className="h-9 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            Kapat
+            {t("close")}
           </button>
           {clientId && (
             <>
@@ -261,14 +262,14 @@ export function HdHaritaDetayModal({ row, onClose }: Props) {
                 className="flex h-9 items-center rounded-xl border border-indigo-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-700 no-underline shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
                 onClick={onClose}
               >
-                Düzenle
+                {t("edit")}
               </Link>
               <Link
                 href={`/human-design/rapor-olustur?clientId=${clientId}`}
                 className="flex h-9 items-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-black uppercase tracking-wide text-white no-underline shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105"
                 onClick={onClose}
               >
-                Rapor Oluştur
+                {t("createReport")}
               </Link>
             </>
           )}

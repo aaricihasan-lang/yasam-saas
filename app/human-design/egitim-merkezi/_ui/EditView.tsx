@@ -9,12 +9,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_CATEGORIES, PRIV_CATEGORY_LABEL, type PrivCategory, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "./Shell";
-import { privCall, type Side } from "./privApi";
+import { privCall, useEduApiError, type Side } from "./privApi";
+import { useEduLabel } from "./labels";
 
 type Form = { title: string; aliasLabel: string; displayMode: "alias" | "named"; category: PrivCategory; description: string; teachingNotes: string };
 const fromDetail = (d: PrivItemDetail): Form => ({
@@ -23,6 +25,9 @@ const fromDetail = (d: PrivItemDetail): Form => ({
 });
 
 export function EditView({ side, id, backHref }: { side: Side; id: string; backHref: string }) {
+  const t = useTranslations("hd.education");
+  const label = useEduLabel();
+  const apiErr = useEduApiError();
   const router = useRouter();
   const api = side === "owner" ? "/api/admin/hd/education/private" : "/api/hd/education/private";
   const [d, setD] = useState<PrivItemDetail | null>(null);
@@ -44,7 +49,7 @@ export function EditView({ side, id, backHref }: { side: Side; id: string; backH
 
   if (state === "loading") return <LoadingView />;
   if (state === "notfound") return <NotFoundView home={side === "owner" ? "/admin" : "/human-design"} />;
-  if (state === "error" || !d || !f) return <ErrorView message="Kayıt yüklenemedi." onRetry={() => { setState("loading"); void load(); }} />;
+  if (state === "error" || !d || !f) return <ErrorView message={t("edit.loadError")} onRetry={() => { setState("loading"); void load(); }} />;
 
   const orig = fromDetail(d);
   const changed = (Object.keys(f) as (keyof Form)[]).filter((k) => f[k] !== orig[k]);
@@ -59,62 +64,61 @@ export function EditView({ side, id, backHref }: { side: Side; id: string; backH
     const r = await privCall<{ updatedAt: string }>(side, `${api}/items/${encodeURIComponent(id)}`, { method: "PATCH", body: { patch, expectedUpdatedAt: d.item.updatedAt } });
     setBusy(false);
     if (r.ok && r.body.updatedAt) { router.push(`${backHref}?kaydedildi=1`); return; }
-    if (!r.ok && r.code === "CONFLICT") { setErr({ text: "Bu kayıt başka bir oturumda değişti. Güncel hâli yükleyip değişikliklerinizi yeniden yapın.", conflict: true }); return; }
-    setErr({ text: r.ok ? "Sunucu kaydı doğrulamadı; değişiklik kaydedilmedi." : r.error });
+    if (!r.ok && r.code === "CONFLICT") { setErr({ text: t("edit.conflict"), conflict: true }); return; }
+    setErr({ text: r.ok ? t("edit.notVerified") : apiErr(r) });
   }
 
   return (
     <Shell>
-      <Link className={kat.back} href={backHref}>← Kayda dön</Link>
+      <Link className={kat.back} href={backHref}>{t("edit.back")}</Link>
       <header className={kat.dHead}>
         <div>
-          <p className={base.eyebrow}>DÜZENLE</p>
+          <p className={base.eyebrow}>{t("edit.eyebrow")}</p>
           <h1 className={kat.dTitle}>{d.item.title}</h1>
-          <p className={kat.sub2}>Yalnız eğitim amaçlı alanlar düzenlenir{side === "owner" ? ` · eğitmen: ${d.trainer.name}` : ""}</p>
+          <p className={kat.sub2}>{t("edit.sub")}{side === "owner" ? ` · eğitmen: ${d.trainer.name}` : ""}</p>
         </div>
       </header>
       <section className={base.panel} data-edu-edit-form>
         <div className={oz.form2}>
-          <label className={oz.field}>Eğitim başlığı
+          <label className={oz.field}>{t("form.title")}
             <input value={f.title} maxLength={160} onChange={(e) => setF({ ...f, title: e.target.value })} aria-invalid={!titleOk} data-edu-title />
-            {!titleOk ? <span className={oz.fieldErr}>Başlık 1–160 karakter olmalı.</span> : null}
+            {!titleOk ? <span className={oz.fieldErr}>{t("edit.titleErr")}</span> : null}
           </label>
-          <label className={oz.field}>Takma ad
+          <label className={oz.field}>{t("form.alias")}
             <input value={f.aliasLabel} maxLength={80} onChange={(e) => setF({ ...f, aliasLabel: e.target.value })} aria-invalid={!aliasOk} data-edu-alias />
-            {!aliasOk ? <span className={oz.fieldErr}>Takma ad 1–80 karakter olmalı.</span> : null}
+            {!aliasOk ? <span className={oz.fieldErr}>{t("edit.aliasErr")}</span> : null}
           </label>
-          <label className={oz.field}>Kategori
+          <label className={oz.field}>{t("form.category")}
             <select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value as PrivCategory })} data-edu-category>
-              {PRIV_CATEGORIES.map((c) => <option key={c} value={c}>{PRIV_CATEGORY_LABEL[c]}</option>)}
+              {PRIV_CATEGORIES.map((c) => <option key={c} value={c}>{label("privCategory", c, PRIV_CATEGORY_LABEL[c])}</option>)}
             </select>
           </label>
-          <label className={oz.field}>Gösterim
+          <label className={oz.field}>{t("form.display")}
             <select value={f.displayMode} onChange={(e) => setF({ ...f, displayMode: e.target.value as "alias" | "named" })} data-edu-mode>
-              <option value="alias">Takma ad</option>
-              <option value="named" disabled={d.consent?.displayScope !== "acik_isim"}>Açık isim{d.consent?.displayScope !== "acik_isim" ? (d.kind === "kurgusal" ? " — kurgusal kayıtta yok" : " — izin kapsamında yok") : ""}</option>
+              <option value="alias">{t("form.alias")}</option>
+              <option value="named" disabled={d.consent?.displayScope !== "acik_isim"}>{t("detail.scopeNamed")}{d.consent?.displayScope !== "acik_isim" ? (d.kind === "kurgusal" ? t("edit.namedNoFictional") : t("form.namedNotInScope")) : ""}</option>
             </select>
           </label>
-          <label className={`${oz.field} ${oz.wide}`}>Açıklama
+          <label className={`${oz.field} ${oz.wide}`}>{t("form.description")}
             <textarea value={f.description} maxLength={2000} rows={2} onChange={(e) => setF({ ...f, description: e.target.value })} data-edu-desc />
           </label>
-          <label className={`${oz.field} ${oz.wide}`}>Anlatım notları
+          <label className={`${oz.field} ${oz.wide}`}>{t("detail.notesTitle")}
             <textarea value={f.teachingNotes} maxLength={20000} rows={8} onChange={(e) => setF({ ...f, teachingNotes: e.target.value })} data-edu-notes />
             <span className={oz.hint}>{f.teachingNotes.length} / 20000</span>
           </label>
         </div>
         <div className={oz.lockBox}>
-          <b>Kilitli kaynak verisi.</b> Doğum tarihi, doğum saati ve BodyGraph danışanın kayıtlı haritasından okunur; bu ekrandan değiştirilemez.
-          Kaynak harita değişirse kayıt erişime kapanır.
+          {t.rich("edit.lockBox", { b: (c) => <b>{c}</b> })}
         </div>
         {err ? (
           <div className={`${oz.result} ${err.conflict ? oz.resultWarn : oz.resultBad}`} role="alert" data-edu-error>
-            <span>{err.text}{err.conflict ? <> <button type="button" className={base.linkBtn} onClick={() => { setState("loading"); void load(); }}>Güncel hâli yükle</button></> : null}</span>
+            <span>{err.text}{err.conflict ? <> <button type="button" className={base.linkBtn} onClick={() => { setState("loading"); void load(); }}>{t("edit.loadCurrent")}</button></> : null}</span>
           </div>
         ) : null}
         <div className={base.actions}>
-          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href={backHref}>Vazgeç</Link>
+          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href={backHref}>{t("common.cancel")}</Link>
           <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={save} disabled={busy || !changed.length || !titleOk || !aliasOk} data-edu-save>
-            {busy ? "Kaydediliyor…" : "Kaydet"}
+            {busy ? t("edit.saving") : t("edit.save")}
           </button>
         </div>
       </section>

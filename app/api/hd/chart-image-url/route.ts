@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isOwnedChartImagePath } from "@/lib/human-design/api/chartImagePath";
@@ -47,10 +48,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (clientErr) {
     console.error("[hd/chart-image-url] client lookup:", clientErr.message);
-    return fail(500, "Danışan doğrulanamadı.");
+    return fail(500, hdApiText(req, "clientNotVerified"));
   }
   if (!client) {
-    return fail(403, "Danışan doğrulanamadı.");
+    return fail(403, hdApiText(req, "clientNotVerified"));
   }
 
   const path =
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (signErr || !signed?.signedUrl) {
     console.error("[hd/chart-image-url] sign:", signErr?.message ?? "no url");
-    return fail(500, "Görsel bağlantısı üretilemedi.");
+    return fail(500, hdApiText(req, "imageUrlFailed"));
   }
 
   return NextResponse.json(

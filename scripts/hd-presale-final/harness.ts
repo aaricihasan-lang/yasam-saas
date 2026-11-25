@@ -648,7 +648,8 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
   await t("P2-8: rapor metin alanı her zaman görünür (eşleşme yok / metin silindi)", () => {
     const r = src("app/human-design/rapor-olustur/components/HdRaporContent.tsx");
-    assert(!/\{editedText \? \(\s*<textarea/.test(r) && /aria-label="Rapor metni"/.test(r), "koşullu metin alanı");
+    // I18N-F1-R5 (HD-B): erişilebilir ad katalogda (hd.reportBuilder.editor.textAria; TR bayt-eşit) — niyet aynı.
+    assert(!/\{editedText \? \(\s*<textarea/.test(r) && /aria-label=\{t\("editor\.textAria"\)\}/.test(r) && JSON.parse(src("messages/tr/hd.reportBuilder.json")).hd.reportBuilder.editor.textAria === "Rapor metni", "koşullu metin alanı");
     assert(/editedText\.trim\(\) !== generatedText\.trim\(\)/.test(r), "elle yazılan taslak dirty sayılmıyor");
   });
   await t("P1-4: uzman Bilgi Bankası = kişisel çalışma alanı; boş durum yalnız 0 kayıtta", () => {
@@ -656,7 +657,9 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     assert(/!isAdmin \? \(\s*<HdKnowledgeWorkspace/.test(p) && !/KnowledgeEmpty/.test(p), "uzmana boş ekran");
     assert(!/Eski Bilgi Bankası \(yedek\)/.test(p) && !/Eski Bilgi Bankası/.test(src("app/human-design/bilgi-bankasi/legacy/page.tsx")), "yedek dili duruyor");
     const l = src("app/human-design/bilgi-bankasi/components/HdBilgiKayitListesi.tsx");
-    assert(/rows\.length === 0 \? "Henüz Bilgi Bankası kaydınız yok\."/.test(l), "boş durum koşulu");
+    // I18N-F1-R5: metin katalogda (TR değeri bayt-bayt aynı); niyet korunur — boş durum metni yalnız 0 kayıtta.
+    assert(/rows\.length === 0 \? t\("list\.emptyNone"\)/.test(l), "boş durum koşulu");
+    assert(JSON.parse(src("messages/tr/hd.knowledge.json")).hd.knowledge.list.emptyNone === "Henüz Bilgi Bankası kaydınız yok.", "boş durum TR metni");
   });
   await t("P2-12: toplu silme yalnız görünen seçimler; filtre değişince seçim temizlenir", () => {
     const l = src("app/human-design/bilgi-bankasi/components/HdBilgiKayitListesi.tsx");
@@ -693,8 +696,10 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
   await t("TEK 'Sil': gerçek etki + İKİ normal onay, ad yazdırma YOK (owner kararı 2026-10-17)", () => {
     const l = src("app/human-design/danisanlar/components/HdFullDeleteDialog.tsx");
-    assert(l.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && l.includes("Danışan Yolculuğu&apos;ndaki ana kayıt korunacaktır."), "1. onay metni / korunanlar");
-    assert(l.includes("için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?") && /Evet, Sil/.test(l) && /Devam Et/.test(l), "2. onay metni / düğmeler");
+    // I18N (R5): owner onaylı metinler katalogda (hd.clients.fullDelete; TR BİREBİR) — dialog anahtarları kullanır.
+    const fd = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.fullDelete;
+    assert(fd.confirm1.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && fd.confirm1.includes("Danışan Yolculuğu'ndaki ana kayıt korunacaktır.") && l.includes('t("confirm1")'), "1. onay metni / korunanlar");
+    assert(fd.confirm2.includes("için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?") && fd.yesDelete === "Evet, Sil" && fd.continue === "Devam Et" && l.includes('t("confirm2", { name })'), "2. onay metni / düğmeler");
     assert(/useState<1 \| 2>/.test(l) && !/nameOk|data-hd-full-delete-name|Adım \{step\} \/ 3/.test(l), "iki aşama değil / ad yazdırma kaldı");
     assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l) && /analyses: scope\.analyses, reports: scope\.reports/.test(l), "kesin kapsam / liste yenileme / onaydaki sayılar yok");
   });

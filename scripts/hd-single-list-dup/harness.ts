@@ -309,7 +309,9 @@ async function main() {
     const page = src("app/human-design/danisanlar/page.tsx");
     const groups = src("app/human-design/danisanlar/components/HdAnalysisGroupList.tsx");
     // 2026-10-20 owner GÖRSEL PASS: sayfa "Human Design Çalışma Alanı" — Yeni Hesaplama + Danışan Listesi iki ayrı alan.
-    ok(/Human Design Çalışma Alanı/.test(page) && (page.match(/<HdAnalysisGroupList\b/g) ?? []).length === 1 && !/<HdAnalysisHistory|<HdClientListesi/.test(page), "UX-01 ana sayfada tek liste (eski analiz listesi + profil tablosu yok)");
+    // I18N (R5): sayfa metinleri katalogda (hd.clients.page; TR değeri kaynak metinle bayt-eşit) — niyet aynı.
+    const trClients = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients;
+    ok(trClients.page.title === "Human Design Çalışma Alanı" && /t\("title"\)/.test(page) && (page.match(/<HdAnalysisGroupList\b/g) ?? []).length === 1 && !/<HdAnalysisHistory|<HdClientListesi/.test(page), "UX-01 ana sayfada tek liste (eski analiz listesi + profil tablosu yok)");
     ok(!/HdJourneyClientPicker/.test(page), "UX-01 sayfada ayrı danışan seçici yok (kayıtlı danışan listeden 'Yeni Analiz' ile seçilir)");
     const code = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     ok(!/wordDownload|HdProfessionalReportButton|kayitli-raporlar|Danışan Raporunu|Word Oluştur|Word'ü İndir/.test(code(groups)) && !/HdProfessionalReportButton|wordDownload|kayitli-raporlar/.test(code(page)), "UX-08 ana listede Word butonu / Word listesi yönlendirmesi yok (yorumlar hariç kod)");
@@ -317,7 +319,7 @@ async function main() {
     const hist = src("app/human-design/danisanlar/components/HdAnalysisHistory.tsx");
     const btn = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
     // Owner kararı 2026-10-17: kısa, küçük etiketler; tam ad title'da.
-    ok(/Raporu İndir/.test(hist) && /Raporu Hazırla/.test(hist) && /Raporu İndir/.test(btn) && /Raporu Hazırla/.test(btn) && /Yeni rapor hazırla/.test(btn) && /Human Design Danışan Raporunu/.test(btn), "UX-09 detayda 'Human Design Danışan Raporu' eylemleri (kısa etiket)");
+    ok(trClients.history.download === "Raporu İndir" && trClients.history.prepare === "Raporu Hazırla" && /t\("download"\)/.test(hist) && /t\("prepare"\)/.test(hist) && /t\("download"\)/.test(btn) && /t\("prepare"\)/.test(btn) && /t\("newVersion"\)/.test(btn) && /t\("titleDownload"\)/.test(btn) && ((r) => r.download === "Raporu İndir" && r.prepare === "Raporu Hazırla" && /Yeni rapor hazırla/.test(r.newVersion) && /Human Design Danışan Raporunu/.test(r.titleDownload))(JSON.parse(src("messages/tr/hd.records.json")).hd.records.report) /* I18N R5: düğme metinleri katalogda */, "UX-09 detayda 'Human Design Danışan Raporu' eylemleri (kısa etiket)");
     ok(/latestWordReportId\(reports, it\.id\)/.test(hist) && /setOpenId\(it\.id\)/.test(hist), "UX-10 hazır rapor / yeni rapor ilgili ANALİZ kimliğine bağlı");
 
     ok(roxy.state.external.length === 0, "harici ağ isteği yok", roxy.state.external.slice(0, 3));

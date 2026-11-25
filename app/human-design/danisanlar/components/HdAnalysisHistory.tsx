@@ -21,6 +21,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import {
   HD_CHART_SAVED_EVENT,
   HD_PROFILE_DELETED_EVENT,
@@ -49,8 +51,12 @@ type Item = {
   /** Aynı tarihli farklı saatli analizler ayırt edilsin (HH:MM). */
   birthTime: string | null;
   createdAt: string;
-  summary: string;
+  /** Kanonik kodlar — özet etiketi çizimde ekran diline göre üretilir (kod değişmez). */
+  codes: { type_code?: unknown; authority_code?: unknown; profile_code?: unknown; definition_code?: unknown };
 };
+
+/** Yükleme hatası işareti (metin çizimde ekran dilinde üretilir). */
+const LOAD_FAILED = "__hd_load_failed__";
 
 const PAGE = 10;
 
@@ -58,14 +64,16 @@ function hhmm(t: string | null | undefined): string | null {
   return typeof t === "string" && /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : null;
 }
 
-function summaryOf(row: { type_code?: unknown; authority_code?: unknown; profile_code?: unknown; definition_code?: unknown }): string {
+function summaryOf(
+  row: { type_code?: unknown; authority_code?: unknown; profile_code?: unknown; definition_code?: unknown },
+  typeLabel: (code: string) => string = hdTypeLabelFromCode,
+): string {
   const c = toAppChartCodes(row);
-  const type = c.type_code ? hdTypeLabelFromCode(c.type_code) : typeof row.type_code === "string" ? row.type_code : "";
+  const type = c.type_code ? typeLabel(c.type_code) : typeof row.type_code === "string" ? row.type_code : "";
   const profile = c.profile_code ? hdProfileLabelFromCode(c.profile_code).split(" — ")[0] : typeof row.profile_code === "string" ? row.profile_code : "";
   return [type, profile].filter(Boolean).join(" · ");
 }
 
-const KIND_LABEL: Record<Item["kind"], string> = { roxy: "Otomatik", engine: "Eski motor", manual: "Manuel (eski)" };
 const KIND_CLS: Record<Item["kind"], string> = {
   roxy: "bg-indigo-100 text-indigo-800",
   engine: "bg-slate-100 text-slate-700",
@@ -85,6 +93,11 @@ export function HdAnalysisHistory({
   refreshKey?: number;
 }) {
   const isAndroid = useIsAndroid();
+  // I18N: metinler hd.clients.history; TR'de tip etiketi mevcut yardımcıdan AYNEN, diğer dillerde hd.terms.
+  const t = useTranslations("hd.clients.history");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  const typeLabel = (code: string) => (isTr ? hdTypeLabelFromCode(code) : terms.label("type", code));
   const [items, setItems] = useState<Item[] | null>(null);
   const [reports, setReports] = useState<WordReportBrief[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -110,9 +123,9 @@ export function HdAnalysisHistory({
     // Bir kaynak okunamadıysa liste eksik olabilir → kullanıcıya açıkça söylenir.
     setPartialError(
       computed.error
-        ? "Otomatik hesaplanan analizler şu anda yüklenemedi; liste eksik olabilir. Sayfayı yenileyin."
+        ? "partialComputed"
         : manual.error
-          ? "Eski manuel kayıtlar şu anda yüklenemedi; liste eksik olabilir."
+          ? "partialManual"
           : null,
     );
     const out: Item[] = [];
@@ -125,7 +138,7 @@ export function HdAnalysisHistory({
         birthDate: r.birth_date,
         birthTime: hhmm(r.birth_time),
         createdAt: r.created_at,
-        summary: summaryOf(r),
+        codes: r,
       });
     }
     for (const m of manual.rows as HdChartWithClient[]) {
@@ -138,7 +151,7 @@ export function HdAnalysisHistory({
         birthDate: m.client?.birth_date ?? null,
         birthTime: hhmm(m.client?.birth_time),
         createdAt: m.created_at,
-        summary: summaryOf(m),
+        codes: m,
       });
     }
     out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
@@ -149,7 +162,7 @@ export function HdAnalysisHistory({
 
   useEffect(() => {
     runInEffect(() => {
-      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
+      void load().catch(() => setError(LOAD_FAILED));
     });
   }, [load, refreshKey]);
 
@@ -159,7 +172,7 @@ export function HdAnalysisHistory({
       const d = (e as CustomEvent<HdChartSavedDetail>).detail;
       if (!d || (clientId && d.clientId !== clientId)) return;
       setSavedId(d.id);
-      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
+      void load().catch(() => setError(LOAD_FAILED));
     }
     window.addEventListener(HD_CHART_SAVED_EVENT, onSaved);
     return () => window.removeEventListener(HD_CHART_SAVED_EVENT, onSaved);
@@ -171,7 +184,7 @@ export function HdAnalysisHistory({
     function onProfileDeleted() {
       setOpenId(null);
       setAutoWord(false);
-      void load().catch(() => setError("Kayıtlı analizler yüklenemedi."));
+      void load().catch(() => setError(LOAD_FAILED));
     }
     window.addEventListener(HD_PROFILE_DELETED_EVENT, onProfileDeleted);
     return () => window.removeEventListener(HD_PROFILE_DELETED_EVENT, onProfileDeleted);
@@ -193,7 +206,7 @@ export function HdAnalysisHistory({
     setWordMsg(
       dl.ok
         ? { id: it.id, tone: "ok", text: dl.systemReadingRedacted ? `${HD_SAVED_WORD_MESSAGE} ${HD_REPORT_REDACTED_MESSAGE}` : HD_SAVED_WORD_MESSAGE }
-        : { id: it.id, tone: "err", text: `Danışan raporu indirilemedi: ${dl.error}` },
+        : { id: it.id, tone: "err", text: t("downloadFailed", { error: dl.error ?? "" }) },
     );
   }
 
@@ -203,24 +216,24 @@ export function HdAnalysisHistory({
     <section className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60" data-hd-analysis-history>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="m-0 text-xs font-black uppercase tracking-widest text-indigo-700">Kayıtlı Human Design Analizleri</h2>
+          <h2 className="m-0 text-xs font-black uppercase tracking-widest text-indigo-700">{t("title")}</h2>
           <p className="m-0 mt-1 text-[11px] leading-relaxed text-slate-500">
-            Hesaplanan her analiz otomatik kaydedilir. Her analizin Human Design Danışan Raporu (Word) o analiz için hazırlanır ve indirilir.
+            {t("intro")}
           </p>
         </div>
         <Link href="/human-design/kayitli-raporlar" className="text-xs font-bold text-indigo-600 hover:underline">
-          Tüm Word raporları →
+          {t("allReports")}
         </Link>
       </div>
       {partialError ? (
-        <p role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{partialError}</p>
+        <p role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">{t(partialError as "partialComputed" | "partialManual")}</p>
       ) : null}
       {items === null ? (
-        <p className="py-6 text-center text-sm text-slate-500">Yükleniyor...</p>
+        <p className="py-6 text-center text-sm text-slate-500">{t("loading")}</p>
       ) : error ? (
-        <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>
+        <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error === LOAD_FAILED ? t("loadFailed") : error}</p>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-500">Henüz kayıtlı Human Design analizi yok.</p>
+        <p className="py-6 text-center text-sm text-slate-500">{t("empty")}</p>
       ) : (
         <>
           <ul className="m-0 list-none space-y-2 p-0">
@@ -236,16 +249,16 @@ export function HdAnalysisHistory({
                   <div className="min-w-0">
                     <p className="m-0 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-900">
                       {!clientId ? <span className="break-words">{it.clientName}</span> : null}
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${KIND_CLS[it.kind]}`}>{KIND_LABEL[it.kind]}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${KIND_CLS[it.kind]}`}>{t(`kind.${it.kind}`)}</span>
                       {justSaved ? (
                         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800" data-hd-history-saved>
-                          ✓ Kaydedildi
+                          {t("saved")}
                         </span>
                       ) : null}
-                      {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Rapor hazır</span> : null}
+                      {hasWord ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{t("reportReady")}</span> : null}
                     </p>
                     <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
-                      {[`${formatIsoDateTr(it.birthDate)}${it.birthTime ? ` ${it.birthTime}` : ""} verileriyle`, it.summary, `Analiz: ${formatIsoDateTr(it.createdAt)}`].filter(Boolean).join(" · ")}
+                      {[t("withData", { data: `${formatIsoDateTr(it.birthDate)}${it.birthTime ? ` ${it.birthTime}` : ""}` }), summaryOf(it.codes, typeLabel), t("analysisDate", { date: formatIsoDateTr(it.createdAt) })].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -256,19 +269,19 @@ export function HdAnalysisHistory({
                         disabled={wordBusy !== null}
                         aria-busy={wordBusy === it.id}
                         data-hd-history-word={it.id}
-                        title={hasWord ? "Human Design Danışan Raporunu İndir (Word)" : "Human Design Danışan Raporunu Hazırla (Word)"}
+                        title={hasWord ? t("downloadTitle") : t("prepareTitle")}
                         className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/60 disabled:opacity-60"
                       >
-                        {wordBusy === it.id ? "İndiriliyor…" : hasWord ? "Raporu İndir" : "Raporu Hazırla"}
+                        {wordBusy === it.id ? t("downloading") : hasWord ? t("download") : t("prepare")}
                       </button>
                     ) : null}
                     {it.kind === "manual" ? (
                       <Link href={`/human-design/kayitli-haritalar/${it.id}`} className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 no-underline hover:bg-slate-50">
-                        Kaydı Aç
+                        {t("openRecord")}
                       </Link>
                     ) : (
                       <button type="button" onClick={() => { setAutoWord(false); setOpenId(it.id); }} className="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
-                        Analizi Aç
+                        {t("openAnalysis")}
                       </button>
                     )}
                   </div>
@@ -284,7 +297,7 @@ export function HdAnalysisHistory({
           {items.length > PAGE ? (
             <div className="mt-3 flex justify-center">
               <button type="button" onClick={() => setShowAll((v) => !v)} className="text-xs font-bold text-indigo-600 hover:underline">
-                {showAll ? "Daha az göster" : `Tümünü göster (${items.length})`}
+                {showAll ? t("showLess") : t("showAll", { count: items.length })}
               </button>
             </div>
           ) : null}

@@ -1,0 +1,37 @@
+{
+  "hd": {
+    "reports": {
+      "demoBanner": "Human Design reports can be viewed in the demo account. Editing and deleting are not available.",
+      "title": "Saved Human Design Reports",
+      "subtitle": "Previously prepared Word reports (including legacy reports). To download a new analysis as Word, use “Download Word” in Human Design Calculation > Saved Human Design Analyses.",
+      "loading": "Loading...",
+      "downloadFailed": "Could not download: {error}",
+      "loadFailed": "Could not load: {error}",
+      "deleteTitle": "Delete report",
+      "deleteMessage": "Do you want to permanently delete the report \"{title}\"?",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "deleteFailed": "Could not delete: {error}",
+      "deleted": "Report deleted.",
+      "search": "Search client name or report title...",
+      "noResults": "No search results.",
+      "empty": "No Word reports prepared yet.",
+      "emptyHint": "Calculated analyses are saved automatically and listed on the Human Design Calculation page. When you use “Download Word” on an analysis, the prepared Word report also appears here.",
+      "calcLink": "Human Design Calculation",
+      "professional": "Professional",
+      "latest": "Latest",
+      "clientDeleted": "Client record deleted",
+      "summary": "Summary",
+      "downloading": "Downloading…",
+      "downloadWord": "Download Word",
+      "detail": "Details",
+      "edit": "Edit",
+      "detailModal": {
+        "title": "Report Details",
+        "empty": "No report content.",
+        "close": "Close",
+        "edit": "Edit"
+      }
+    }
+  }
+}

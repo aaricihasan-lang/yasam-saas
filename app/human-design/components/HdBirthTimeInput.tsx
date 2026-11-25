@@ -7,6 +7,7 @@
 //   • Saat dilimi / yaz-kış saati kuralları DEĞİŞMEZ (sunucuda doğrulanır).
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 function toDisplay(v: string): string {
   const m = /^([01]\d|2[0-3]):([0-5]\d)/.exec(v ?? "");
@@ -42,6 +43,7 @@ export function HdBirthTimeInput({
   const [display, setDisplay] = useState(() => toDisplay(value));
   const [invalid, setInvalid] = useState(false);
   const emitted = useRef(value);
+  const t = useTranslations("hd.forms.time");
 
   // Yalnız DIŞARIDAN gelen değişiklik (yükleme / form sıfırlama) metni senkronlar.
   useEffect(() => {
@@ -59,7 +61,7 @@ export function HdBirthTimeInput({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        placeholder="SS:DD"
+        placeholder={t("placeholder")}
         maxLength={5}
         value={display}
         aria-invalid={invalid || undefined}
@@ -77,7 +79,7 @@ export function HdBirthTimeInput({
       />
       {invalid ? (
         <p className="mt-1 text-[11px] font-semibold text-rose-600" role="alert">
-          Saati SS:DD biçiminde girin (00:00–23:59), ör. 14:30.
+          {t("invalid")}
         </p>
       ) : null}
     </>

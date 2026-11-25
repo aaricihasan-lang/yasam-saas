@@ -15,6 +15,8 @@
 
 import { HD_CENTER_STATE_LABEL } from "@/lib/human-design/chart/centerStates";
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import { getChartSystemReading, type SystemReadingFetchResult } from "@/lib/human-design/api/chartsClient";
 import { HD_SIGNATURE_HELP, HD_TERM } from "@/lib/human-design/normalize/hdDisplayLabels";
 import {
@@ -27,7 +29,6 @@ import {
 } from "@/lib/human-design/providers/roxy/systemReading";
 import {
   groupSystemReadingGates,
-  SYSTEM_READING_GATE_EMPTY,
   type SystemReadingGate,
 } from "@/lib/human-design/providers/roxy/systemReadingGates";
 
@@ -65,14 +66,20 @@ function Fold({ summary, children, open = false, level = 1 }: { summary: ReactNo
 }
 
 function GeneralItem({ item }: { item: SystemReadingGeneralItem }) {
+  const t = useTranslations("hd.reading");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  // I18N: TR'de DTO başlığı AYNEN; diğer dillerde bilinen anahtar → hd.terms.title (bilinmeyen → DTO başlığı).
+  const known = terms.label("title", item.key);
+  const title = isTr || known === item.key ? item.title : known;
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3" data-hd-sr-general={item.key}>
       {/* Başlık DTO'dan (sunucu: Türkçe + (İngilizce), owner 2026-10-17). */}
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{item.title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">{title}</p>
       {item.value ? <p className="mt-0.5 break-words text-[15px] font-semibold text-slate-900">{item.value}</p> : null}
       {item.key === "signature" ? (
         <p className="mt-1 text-[11px] leading-relaxed text-slate-500" data-hd-sr-signature-help>
-          {HD_SIGNATURE_HELP}
+          {isTr ? HD_SIGNATURE_HELP : t("signatureHelp")}
         </p>
       ) : null}
       {item.details.length > 0 ? (
@@ -104,6 +111,9 @@ function Line({ label, children, field }: { label: string; children: ReactNode; 
 }
 
 function CenterItem({ c }: { c: SystemReadingCenter }) {
+  const t = useTranslations("hd.reading");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
   return (
     <Fold
       level={2}
@@ -112,25 +122,25 @@ function CenterItem({ c }: { c: SystemReadingCenter }) {
           <span className="text-sm font-semibold text-slate-800">{c.name}</span>
           {c.defined !== null ? (
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c.defined ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`} data-hd-sr-center-state={c.state ?? ""}>
-              {c.state ? HD_CENTER_STATE_LABEL[c.state] : c.defined ? "Tanımlı" : "Tanımlı değil"}
+              {c.state ? (isTr ? HD_CENTER_STATE_LABEL[c.state] : terms.label("centerState", c.state)) : c.defined ? t("defined") : t("notDefined")}
             </span>
           ) : null}
-          {c.motor ? <Tag field="motor">Motor merkez</Tag> : null}
-          {c.awareness ? <Tag field="awareness">Farkındalık merkezi</Tag> : null}
+          {c.motor ? <Tag field="motor">{t("motorCenter")}</Tag> : null}
+          {c.awareness ? <Tag field="awareness">{t("awarenessCenter")}</Tag> : null}
         </span>
       }
     >
-      <Para label="Tema" text={c.theme} />
-      <Para label={HD_TERM.notSelfQuestion} text={c.notSelfQuestion} />
-      <Para label="Biyoloji" text={c.biology} />
+      <Para label={t("theme")} text={c.theme} />
+      <Para label={isTr ? HD_TERM.notSelfQuestion : t("notSelfQuestion")} text={c.notSelfQuestion} />
+      <Para label={t("biology")} text={c.biology} />
       {c.motor !== undefined && c.motor !== null ? (
-        <Line label="Nitelik" field="center-kind">
-          {[c.motor ? "Motor (enerji kaynağı) merkez" : "Motor merkez değil", c.awareness ? "farkındalık merkezi" : "farkındalık merkezi değil"].join(" · ")}
+        <Line label={t("quality")} field="center-kind">
+          {[c.motor ? t("kindMotor") : t("kindNotMotor"), c.awareness ? t("kindAwareness") : t("kindNotAwareness")].join(" · ")}
         </Line>
       ) : null}
       {c.gates ? (
-        <Line label="Aktif kapılar" field="center-gates">
-          {c.gates.length ? c.gates.join(", ") : "Bu merkezde aktif kapı yok"}
+        <Line label={t("activeGates")} field="center-gates">
+          {c.gates.length ? c.gates.join(", ") : t("noActiveGates")}
         </Line>
       ) : null}
     </Fold>
@@ -138,6 +148,7 @@ function CenterItem({ c }: { c: SystemReadingCenter }) {
 }
 
 function ChannelItem({ c }: { c: SystemReadingChannel }) {
+  const t = useTranslations("hd.reading");
   return (
     <Fold
       level={2}
@@ -150,17 +161,19 @@ function ChannelItem({ c }: { c: SystemReadingChannel }) {
       }
     >
       {c.centers && c.centers.length === 2 ? (
-        <Line label="Bağladığı merkezler" field="channel-centers">
+        <Line label={t("connectedCenters")} field="channel-centers">
           {c.centers[0]} ↔ {c.centers[1]}
         </Line>
       ) : null}
-      <Para label="Açıklama" text={c.description} />
-      <Para label={c.circuit ? `Devre — ${c.circuit}` : "Devre"} text={c.circuitDescription} />
+      <Para label={t("description")} text={c.description} />
+      <Para label={c.circuit ? t("circuitNamed", { circuit: c.circuit }) : t("circuit")} text={c.circuitDescription} />
     </Fold>
   );
 }
 
 function ActivationItem({ a }: { a: SystemReadingActivation }) {
+  const t = useTranslations("hd.reading");
+  const isTr = useLocale() === "tr";
   return (
     <Fold
       level={2}
@@ -174,12 +187,13 @@ function ActivationItem({ a }: { a: SystemReadingActivation }) {
         </span>
       }
     >
-      <Para label={`Kapı ${a.gate}`} text={a.gateDescription} />
-      <Para label={`Çizgi ${a.line}`} text={a.lineMeaning} />
-      <Para label={a.planet ? `Gezegen — ${a.planet}` : "Gezegen"} text={a.planetDescription} />
+      <Para label={t("gateN", { gate: a.gate })} text={a.gateDescription} />
+      <Para label={t("lineN", { line: a.line })} text={a.lineMeaning} />
+      <Para label={a.planet ? t("planetNamed", { planet: a.planet }) : t("planet")} text={a.planetDescription} />
       {a.iching ? (
         <Line label="I Ching" field="iching">
-          {a.iching.number}. heksagram — <span lang="en">{a.iching.name}</span> <span className="text-slate-400">({SYSTEM_READING_ICHING_NOTE})</span>
+          {t("hexagram", { n: a.iching.number })} — <span lang="en">{a.iching.name}</span>
+          {isTr ? <> <span className="text-slate-400">({SYSTEM_READING_ICHING_NOTE})</span></> : null}
         </Line>
       ) : null}
     </Fold>
@@ -187,24 +201,25 @@ function ActivationItem({ a }: { a: SystemReadingActivation }) {
 }
 
 function GateItem({ g }: { g: SystemReadingGate }) {
+  const t = useTranslations("hd.reading");
   return (
     <Fold
       level={2}
       summary={
         <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5" data-hd-sr-gate={g.gate}>
-          <span className="text-sm font-bold tabular-nums text-indigo-700">{g.gate}. Kapı</span>
+          <span className="text-sm font-bold tabular-nums text-indigo-700">{t("gateTitle", { gate: g.gate })}</span>
           {g.name ? <span className="text-sm font-semibold text-slate-800">— {g.name}</span> : null}
-          <span className="text-[11px] font-semibold text-slate-400 group-open:hidden">Açıklamayı göster</span>
+          <span className="text-[11px] font-semibold text-slate-400 group-open:hidden">{t("showDescription")}</span>
         </span>
       }
     >
       {g.descriptions.length > 0 ? (
-        g.descriptions.map((d, i) => <Para key={i} label="Kapı açıklaması" text={d} />)
+        g.descriptions.map((d, i) => <Para key={i} label={t("gateDescription")} text={d} />)
       ) : (
-        <p className="text-sm text-slate-500" data-hd-sr-gate-empty>{SYSTEM_READING_GATE_EMPTY}</p>
+        <p className="text-sm text-slate-500" data-hd-sr-gate-empty>{t("gateEmpty")}</p>
       )}
       <p className="text-[11px] leading-relaxed text-slate-500" data-hd-sr-gate-acts>
-        <span className="font-semibold">Aktivasyonlar: </span>
+        <span className="font-semibold">{t("activationsLabel")}</span>
         {g.activations
           .map((a) => `${a.side === "design" ? "Design" : "Personality"}${a.planet ? ` · ${a.planet}` : ""} ${g.gate}.${a.line}`)
           .join(" — ")}
@@ -215,6 +230,7 @@ function GateItem({ g }: { g: SystemReadingGate }) {
 
 /** Saf sunum (fetch yok) — test edilebilir. */
 export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
+  const t = useTranslations("hd.reading");
   const design = data.activations.filter((a) => a.side === "design");
   const personality = data.activations.filter((a) => a.side === "personality");
   const gates = groupSystemReadingGates(data.activations);
@@ -226,7 +242,7 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
         </p>
       ) : null}
       {data.general.length > 0 ? (
-        <Fold open summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Genel</span>}>
+        <Fold open summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("general")}</span>}>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {data.general.map((g) => (
               <GeneralItem key={g.key} item={g} />
@@ -235,20 +251,20 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
         </Fold>
       ) : null}
       {data.sides && (data.sides.personality || data.sides.design || data.sides.designUtc) ? (
-        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Personality ve Design Tarafları</span>}>
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("sides")}</span>}>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2" data-hd-sr-sides>
-            <Para label="Personality · Bilinçli (siyah)" text={data.sides.personality} />
-            <Para label="Design · Bilinçdışı (kırmızı)" text={data.sides.design} />
+            <Para label={t("sidePersonality")} text={data.sides.personality} />
+            <Para label={t("sideDesign")} text={data.sides.design} />
           </div>
           {data.sides.designUtc ? (
-            <Line label="Design anı" field="design-utc">
-              {data.sides.designUtc} <span className="text-slate-400">(Güneş&apos;in doğumdan 88° önceki konumu; Design aktivasyonları bu ana göre)</span>
+            <Line label={t("designMoment")} field="design-utc">
+              {data.sides.designUtc} <span className="text-slate-400">{t("designMomentNote")}</span>
             </Line>
           ) : null}
         </Fold>
       ) : null}
       {data.centers.length > 0 ? (
-        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Merkezler ({data.centers.length})</span>}>
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("centersN", { count: data.centers.length })}</span>}>
           <div className="space-y-2">
             {data.centers.map((c) => (
               <CenterItem key={c.id} c={c} />
@@ -257,7 +273,7 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
         </Fold>
       ) : null}
       {data.channels.length > 0 ? (
-        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Kanallar ({data.channels.length})</span>}>
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("channelsN", { count: data.channels.length })}</span>}>
           <div className="space-y-2">
             {data.channels.map((c, i) => (
               <ChannelItem key={c.id ?? `ch-${i}`} c={c} />
@@ -266,7 +282,7 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
         </Fold>
       ) : null}
       {gates.length > 0 ? (
-        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Kapılar ({gates.length})</span>}>
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("gatesN", { count: gates.length })}</span>}>
           <div className="space-y-2" data-hd-sr-gates>
             {gates.map((g) => (
               <GateItem key={g.gate} g={g} />
@@ -275,11 +291,11 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
         </Fold>
       ) : null}
       {data.activations.length > 0 ? (
-        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">Aktivasyonlar ({data.activations.length})</span>}>
+        <Fold summary={<span className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("activationsN", { count: data.activations.length })}</span>}>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {[
-              { key: "design", title: "Design · Bilinçdışı", rows: design, cls: "text-rose-700" },
-              { key: "personality", title: "Personality · Bilinçli", rows: personality, cls: "text-slate-900" },
+              { key: "design", title: t("designGroup"), rows: design, cls: "text-rose-700" },
+              { key: "personality", title: t("personalityGroup"), rows: personality, cls: "text-slate-900" },
             ].map((grp) =>
               grp.rows.length > 0 ? (
                 <div key={grp.key} className="min-w-0 space-y-2" data-hd-sr-side={grp.key}>
@@ -298,6 +314,7 @@ export function HdSystemReadingView({ data }: { data: SystemReadingDto }) {
 }
 
 export function HdSystemReadingPanel({ chartId }: { chartId: string }) {
+  const t = useTranslations("hd.reading");
   const [state, setState] = useState<SystemReadingFetchResult | null>(null);
 
   useEffect(() => {
@@ -311,18 +328,18 @@ export function HdSystemReadingPanel({ chartId }: { chartId: string }) {
   }, [chartId]);
 
   return (
-    <section aria-label="Sistem Yorumu" className="space-y-3" data-hd-system-reading-panel>
-      <p className="text-xs text-slate-500">{SYSTEM_READING_SOURCE_NOTE}</p>
-      <p className="text-[11px] text-slate-400" data-hd-sr-health-note>{SYSTEM_READING_HEALTH_NOTE}</p>
+    <section aria-label={t("ariaLabel")} className="space-y-3" data-hd-system-reading-panel>
+      <p className="text-xs text-slate-500">{t("sourceNote")}</p>
+      <p className="text-[11px] text-slate-400" data-hd-sr-health-note>{t("healthNote")}</p>
       {state === null ? (
-        <p className="py-6 text-center text-sm text-slate-500">Yükleniyor...</p>
+        <p className="py-6 text-center text-sm text-slate-500">{t("loading")}</p>
       ) : state.status === "error" ? (
         <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
           {state.error}
         </p>
       ) : state.status === "unavailable" ? (
         <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500" data-hd-system-reading-empty>
-          {SYSTEM_READING_UNAVAILABLE}
+          {t("unavailable")}
         </p>
       ) : (
         <HdSystemReadingView data={state.data} />

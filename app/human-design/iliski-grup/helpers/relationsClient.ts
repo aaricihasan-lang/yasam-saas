@@ -31,7 +31,7 @@ export async function fetchRelationCandidates(): Promise<{ ok: true; rows: Relat
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, rows: j.rows as RelationCandidate[] } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -41,7 +41,7 @@ export async function fetchRelationList(): Promise<{ ok: true; rows: RelationLis
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, rows: j.rows as RelationListRow[] } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -51,7 +51,7 @@ export async function fetchRelationAnalysis(id: string): Promise<{ ok: true; ana
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, analysis: j.analysis as RelationAnalysisView } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -69,7 +69,7 @@ export async function createRelation(
     return res.ok && j.ok === true ? { ok: true, id: String(j.id), reused: j.reused === true } : errOf(j, res);
   } catch {
     // Ağ zaman aşımı: sunucu tarafı idempotent — aynı seçimle yeniden denemek ikinci ücretli çağrı üretmez.
-    return { ok: false, error: "Ağ hatası. Aynı seçimle tekrar denemek güvenlidir; kayıtlı sonuç yeniden hesaplanmaz." };
+    return { ok: false, error: "Ağ hatası. Aynı seçimle tekrar denemek güvenlidir; kayıtlı sonuç yeniden hesaplanmaz.", code: "HD_REL_NETWORK_CREATE" };
   }
 }
 
@@ -79,7 +79,7 @@ export async function deleteRelation(id: string): Promise<{ ok: true } | Fail> {
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -100,7 +100,7 @@ export async function fetchRelationSources(id: string): Promise<{ ok: true; sour
       ? { ok: true, sources: { analysis: j.analysis as ExplanationSection[], expert: j.expert as KnowledgeGroup[], central: (j.central as CentralEntry[] | null) ?? null } }
       : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -110,7 +110,7 @@ export async function fetchRelationComment(id: string): Promise<{ ok: true; comm
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, comment: j.comment as RelationComment } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -124,7 +124,7 @@ export async function saveRelationComment(id: string, text: string, expectedUpda
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, comment: j.comment as RelationComment } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Yorum kaydedilemedi; metniniz ekranda duruyor, tekrar deneyin." };
+    return { ok: false, error: "Ağ hatası. Yorum kaydedilemedi; metniniz ekranda duruyor, tekrar deneyin.", code: "HD_REL_NETWORK_COMMENT" };
   }
 }
 
@@ -134,7 +134,7 @@ export async function fetchRelationReports(id: string): Promise<{ ok: true; rows
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, rows: j.rows as RelationReportListRow[], available: j.available !== false } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
 }
 
@@ -152,7 +152,7 @@ export async function createRelationReport(
     const j = await readJson(res);
     return res.ok && j.ok === true ? { ok: true, id: String(j.id), image: j.image as { status: "ok" | "unavailable"; reason: string | null } } : errOf(j, res);
   } catch {
-    return { ok: false, error: "Ağ hatası. Rapor hazırlanamadı." };
+    return { ok: false, error: "Ağ hatası. Rapor hazırlanamadı.", code: "HD_REL_NETWORK_REPORT" };
   }
 }
 
@@ -161,7 +161,7 @@ export async function downloadRelationReport(reportId: string): Promise<{ ok: tr
   try {
     res = await fetch(`/api/hd/relations/reports/${encodeURIComponent(reportId)}/download`, { method: "POST", headers: authHeaders() });
   } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "HD_REL_NETWORK" };
   }
   if (!res.ok) return errOf(await readJson(res), res);
   const blob = await res.blob();

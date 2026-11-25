@@ -1,0 +1,39 @@
+{
+  "hd": {
+    "forms": {
+      "location": {
+        "placeholder": "İl, ilçe veya şehir… (ör. Selçuklu, Berlin)",
+        "unselectedHint": "Listeden bir yer seçin; seçilmeyen metin doğum yeri olarak kullanılmaz.",
+        "noResults": "Bu isimle yerleşim bulunamadı. Yazımı kontrol edin veya il seçin.",
+        "searchFailed": "Konum araması şu anda yapılamadı. Lütfen tekrar deneyin.",
+        "networkError": "Ağ hatası. Bağlantınızı kontrol edip tekrar deneyin.",
+        "searching": "Aranıyor…",
+        "searchFor": "İlçe / şehir ara: “{query}”",
+        "enterKey": "Enter"
+      },
+      "date": {
+        "placeholder": "GG.AA.YYYY",
+        "invalid": "Tarihi GG.AA.YYYY biçiminde girin (gerçek bir gün, 1800 – bugün), ör. 10.04.1992."
+      },
+      "time": {
+        "placeholder": "SS:DD",
+        "invalid": "Saati SS:DD biçiminde girin (00:00–23:59), ör. 14:30."
+      },
+      "gateNotes": {
+        "title": "Bilgi Bankası Yorumları",
+        "loading": "Yükleniyor...",
+        "empty": "Bu başlık için henüz Bilgi Bankası yorumu eklenmemiş."
+      },
+      "gateTech": {
+        "title": "Kapı Teknik Bilgileri",
+        "gate": "Kapı",
+        "center": "Merkez",
+        "centerType": "Merkez Tipi",
+        "summary": "Kısa Bilgi",
+        "sign": "Burç",
+        "degree": "Derece",
+        "antiscia": "Antisya"
+      }
+    }
+  }
+}

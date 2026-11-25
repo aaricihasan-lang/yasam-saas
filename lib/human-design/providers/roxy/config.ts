@@ -32,6 +32,16 @@ export type RoxyPolicy = {
   timeoutMs: number;
 };
 
+/**
+ * I18N-0005 — HARİTA KİMLİĞİ DİLİ (sabit, dil-bağımsız kimlik). Sağlayıcı açıklama dili (`RoxyPolicy.lang`) yalnız ham
+ * metin dilini belirler; sayısal sonuç dilden bağımsızdır (ücretli dil sondası 25.11.2026: HD 132/132 sayısal alan TR=EN).
+ * Bu yüzden harita kimliği (`roxyInputHash`), eşdeğer harita araması, profil-arası mükerrer kontrolü ve kişi+girdi kilidi
+ * ekran/sağlayıcı dilinden BAĞIMSIZ olarak bu sabitle kurulur: aynı doğum girdisi her dilde AYNI harita satırına gider
+ * (ikinci satır / ikinci ücretli çağrı / ikinci kota tüketimi YOK). Değer "tr"dir çünkü tüm mevcut kayıtların kimliği bu
+ * değerle üretildi — DEĞİŞTİRİLMEZ (değişirse mevcut kimlikler eşleşmez, yeniden ücretli hesap gerekir).
+ */
+export const ROXY_CHART_IDENTITY_LANG = "tr" as const;
+
 export const ROXY_POLICY: Readonly<RoxyPolicy> = Object.freeze({
   nodeType: "true",
   lang: "tr",

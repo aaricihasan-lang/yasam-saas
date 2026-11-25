@@ -50,14 +50,30 @@ export function pentaGatePositions(): Record<number, Pt> {
 
 const channelName = (id: string, fallback: string) => (hdChannelLabelFromCode(id).replace(/^\s*\d+-\d+\s*/, "").replace(/\s*\(.*\)\s*$/, "").trim() || fallback);
 
-export function buildPentaScene(r: HdPentaResult): ScenePrim[] {
+/** Şemadaki görünen metinler (I18N). Varsayılan = Türkçe; Word/PNG çıktısı ve TR ekran bugünküyle birebir. */
+export type PentaSceneLabels = {
+  band: (k: keyof typeof BANDS) => string;
+  channelName: (id: string, fallback: string) => string;
+  coreSuffix: string;
+  gapSuffix: string;
+  gapWord: string;
+};
+export const PENTA_SCENE_LABELS_TR: PentaSceneLabels = {
+  band: (k) => BANDS[k].label,
+  channelName,
+  coreSuffix: " · ÇEKİRDEK",
+  gapSuffix: " · boşluk var",
+  gapWord: "boşluk",
+};
+
+export function buildPentaScene(r: HdPentaResult, labels: PentaSceneLabels = PENTA_SCENE_LABELS_TR): ScenePrim[] {
   const prims: ScenePrim[] = [];
   const pos = pentaGatePositions();
   const gateBy = new Map(r.gates.map((g) => [g.gate, g]));
   // Merkez bantları
-  for (const b of Object.values(BANDS)) {
+  for (const [bk, b] of Object.entries(BANDS) as Array<[keyof typeof BANDS, (typeof BANDS)[keyof typeof BANDS]]>) {
     prims.push({ k: "path", d: roundedRect(18, b.y, PENTA_VIEW.width - 36, BAND_H, 14), fill: BAND_FILL, stroke: BAND_STROKE, sw: 1.4 });
-    prims.push({ k: "text", x: PENTA_VIEW.width / 2, y: b.y + BAND_H / 2 + 5, text: b.label, size: 13, weight: 800, fill: "#3730a3", anchor: "middle" });
+    prims.push({ k: "text", x: PENTA_VIEW.width / 2, y: b.y + BAND_H / 2 + 5, text: labels.band(bk), size: 13, weight: 800, fill: "#3730a3", anchor: "middle" });
   }
   // Kanallar: kapılar arası dikey çizgi, adı ortada (çizgi ad için açılır)
   for (const [id, top, bottom] of [...UPPER, ...LOWER]) {
@@ -74,8 +90,8 @@ export function buildPentaScene(r: HdPentaResult): ScenePrim[] {
     const dash = c.defined ? undefined : "2 7";
     prims.push({ k: "polyline", points: [{ x: a.x, y: y1 }, { x: a.x, y: mid - gap / 2 }], stroke, sw, dash, layer: c.defined ? "defined" : "half", ch: id });
     prims.push({ k: "polyline", points: [{ x: a.x, y: mid + gap / 2 }, { x: a.x, y: y2 }], stroke, sw, dash, layer: c.defined ? "defined" : "half", ch: id });
-    prims.push({ k: "text", x: a.x, y: mid - 1, text: channelName(id, c.name), size: 11, weight: c.defined ? 800 : 600, fill: c.defined ? INK : "#64748b", anchor: "middle" });
-    prims.push({ k: "text", x: a.x, y: mid + 11, text: `${id}${c.isCore ? " · ÇEKİRDEK" : ""}${c.defined ? "" : " · boşluk var"}`, size: 8.5, weight: 700, fill: c.isCore ? CORE : c.defined ? BRAND : "#b45309", anchor: "middle" });
+    prims.push({ k: "text", x: a.x, y: mid - 1, text: labels.channelName(id, c.name), size: 11, weight: c.defined ? 800 : 600, fill: c.defined ? INK : "#64748b", anchor: "middle" });
+    prims.push({ k: "text", x: a.x, y: mid + 11, text: `${id}${c.isCore ? labels.coreSuffix : ""}${c.defined ? "" : labels.gapSuffix}`, size: 8.5, weight: 700, fill: c.isCore ? CORE : c.defined ? BRAND : "#b45309", anchor: "middle" });
   }
   // Kapılar + taşıyan üyeler (numaralı rozetler; numara = üye sırası)
   for (const [gate, p] of Object.entries(pos)) {
@@ -90,7 +106,7 @@ export function buildPentaScene(r: HdPentaResult): ScenePrim[] {
         prims.push({ k: "text", x: bx, y: p.y + 3.2, text: String(m + 1), size: 9, weight: 800, fill: "#ffffff", anchor: "middle" });
       });
     } else {
-      prims.push({ k: "text", x: p.x + GATE_R + 6, y: p.y + 3.5, text: "boşluk", size: 9.5, weight: 700, fill: "#b45309", anchor: "start" });
+      prims.push({ k: "text", x: p.x + GATE_R + 6, y: p.y + 3.5, text: labels.gapWord, size: 9.5, weight: 700, fill: "#b45309", anchor: "start" });
     }
   }
   return prims;

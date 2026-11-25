@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -22,18 +23,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
-    return NextResponse.json({ ok: false, code: "DEMO_READONLY", error: "Demo hesabında bu işlem yapılamaz." }, { status: 403, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoOperation") }, { status: 403, headers: NO_STORE });
   }
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-orphan-cleanup", guard.userId), 10, 3600);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla temizleme denendi. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedCleanup") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
   const r = await cleanupOrphanHdImages(guard.db, guard.tenantId);
   if (!r.ok && r.candidates === 0) {
-    return NextResponse.json({ ok: false, error: "Görseller şu anda kontrol edilemedi. Lütfen daha sonra tekrar deneyin." }, { status: 503, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "imagesCheckFailed") }, { status: 503, headers: NO_STORE });
   }
   return NextResponse.json({ ok: r.ok, removed: r.removed, failed: r.failed }, { status: 200, headers: NO_STORE });
 }

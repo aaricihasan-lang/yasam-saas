@@ -7,6 +7,7 @@
 //   • Hesap SAF metin üzerinden (Date/UTC dönüşümü YOK) → saat dilimi kaynaklı gün kayması olamaz.
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 const MIN_YEAR = 1800;
 
@@ -55,6 +56,7 @@ export function HdBirthDateInput({
   const [display, setDisplay] = useState(() => toDisplay(value));
   const [invalid, setInvalid] = useState(false);
   const emitted = useRef(value);
+  const t = useTranslations("hd.forms.date");
 
   // Yalnız DIŞARIDAN gelen değişiklik (yükleme / form sıfırlama) metni senkronlar.
   useEffect(() => {
@@ -72,7 +74,7 @@ export function HdBirthDateInput({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        placeholder="GG.AA.YYYY"
+        placeholder={t("placeholder")}
         maxLength={10}
         value={display}
         aria-invalid={invalid || undefined}
@@ -90,7 +92,7 @@ export function HdBirthDateInput({
       />
       {invalid ? (
         <p className="mt-1 text-[11px] font-semibold text-rose-600" role="alert">
-          Tarihi GG.AA.YYYY biçiminde girin (gerçek bir gün, 1800 – bugün), ör. 10.04.1992.
+          {t("invalid")}
         </p>
       ) : null}
     </>

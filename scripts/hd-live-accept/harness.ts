@@ -50,17 +50,19 @@ async function main() {
     && /data-hd-workspace-client[\s\S]*?<HdClientForm[\s\S]*?<\/section>[\s\S]*?<HdAnalysisGroupList\b/.test(page),
     "S1 tek liste: ana liste bir kez render edilir; Yeni Hesaplama formu ayrı panelde (ikinci liste yok)");
   ok(!/HdAnalysisGroupList|HdJourneyClientPicker|HdClientListesi|fetchHdAnalysisGroups/.test(code(form)), "S2 formun içinde/altında danışan listesi, arama tablosu veya profil seçicisi yok");
-  ok(/"Danışanı Oluştur ve Analiz Et"/.test(form) && !/Danışanı Oluştur ve Devam Et/.test(form), "S3 düğme metni: 'Danışanı Oluştur ve Analiz Et'");
+  // I18N (R5): düğme metni katalogda (hd.clients.form.createAndAnalyze; TR bayt-eşit).
+  const formTr = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.form;
+  ok(formTr.createAndAnalyze === "Danışanı Oluştur ve Analiz Et" && /t\("createAndAnalyze"\)/.test(form) && !/Danışanı Oluştur ve Devam Et/.test(form + JSON.stringify(formTr)), "S3 düğme metni: 'Danışanı Oluştur ve Analiz Et'");
   ok(/await analyze\(\{ hdClientId: r\.hdClientId/.test(form) && /computeRoxyChartSettled/.test(form) && /onAnalyzed\(\{ chartId: r\.id/.test(form),
     "S4 tek eylem: danışan oluşturulunca AYNI akışta mevcut Roxy hattı çağrılır ve harita doğrudan açılır");
   ok(!/router\.push\(`\/human-design\/danisanlar\/\$\{r\.hdClientId\}`\)/.test(code(form).split("async function openExisting")[0] ?? ""), "S5 başarılı yeni danışan akışında ara sayfaya (ikinci 'Hesapla') yönlendirme yok");
   ok(!/Haritasını Hesapla|Haritayı Hesapla/.test(code(form) + code(page)), "S6 yeni danışan ekranında 'Haritayı Hesapla' düğmesi yok");
   ok(/busyRef\.current\) return/.test(form) && /busyRef\.current = true/.test(form), "S7 çift tıklama kilidi (tek istek)");
-  ok(/"Analizi Tekrar Dene"/.test(form) && /if \(created\) return retryAnalyze\(\)/.test(form) && /disabled=\{!!created \|\| saving\}/.test(form),
+  ok(formTr.retry === "Analizi Tekrar Dene" && /t\("retry"\)/.test(form) && /if \(created\) return retryAnalyze\(\)/.test(form) && /disabled=\{!!created \|\| saving\}/.test(form),
     "S8 hesap başarısızsa danışan TEKRAR oluşturulmaz; 'Analizi Tekrar Dene' yalnız hesabı ister; bilgiler korunur (alanlar kilitli)");
   ok(/code === "IN_PROGRESS"/.test(charts) && /computeRoxyChart\(clientId, "client", acknowledgedDuplicateKeys\)/.test(charts) && !/code === "(?!IN_PROGRESS)[A-Z_]+"[^\n]*computeRoxyChart\(/.test(charts),
     "S9 yeniden sorma YALNIZ 'hesap sürüyor' (IN_PROGRESS) durumunda; başka hatada kör ikinci istek yok");
-  ok(/"Oluştur ve Analiz Et"/.test(start) && /computeRoxyChartSettled\(hdClientId\)/.test(start), "S10 Danışan Yolculuğu kaydı için 'Human Design Başlat' da tek eylemle analiz eder");
+  ok(JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.start.createAndAnalyze === "Oluştur ve Analiz Et" && /t\("createAndAnalyze"\)/.test(start) && /computeRoxyChartSettled\(hdClientId\)/.test(start), "S10 Danışan Yolculuğu kaydı için 'Human Design Başlat' da tek eylemle analiz eder");
 
   ok(!/data-hd-first-analysis-toggle|İlk analiz tarihini göster|safeLocalStorageSetItem|showFirst/.test(code(groups)) && /clearLegacyFirstAnalysisPref/.test(groups),
     "S11 'İlk analiz tarihini göster' kutusu ve tercih kodu kaldırıldı (eski anahtar temizlenir)");
@@ -68,9 +70,12 @@ async function main() {
     "S12 ilk analiz + son analiz + analiz sayısı kayıt varsa HER ZAMAN gösterilir");
 
   ok(/useState<1 \| 2>/.test(dialog) && !/nameOk|data-hd-full-delete-name|"SİL"|Adım \{step\} \/ 3/.test(code(dialog)), "S13 silme: iki onay; ad / 'SİL' yazdırma yok, üçüncü onay yok");
-  ok(dialog.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek. Danışan Yolculuğu&apos;ndaki ana kayıt korunacaktır. Devam etmek istiyor musunuz?")
-    && dialog.includes("{name} için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?")
-    && /Devam Et/.test(dialog) && /Evet, Sil/.test(dialog), "S14 owner'ın iki onay metni ve düğmeleri birebir");
+  // I18N (R5): owner onaylı metinler katalogda (hd.clients.fullDelete; TR BİREBİR) — dialog anahtarları kullanır.
+  const fd = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.fullDelete;
+  ok(fd.confirm1 === "Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek. Danışan Yolculuğu'ndaki ana kayıt korunacaktır. Devam etmek istiyor musunuz?"
+    && fd.confirm2 === "{name} için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?"
+    && fd.continue === "Devam Et" && fd.yesDelete === "Evet, Sil"
+    && ['t("confirm1")', 't("confirm2", { name })', 't("continue")', 't("yesDelete")'].every((k) => dialog.includes(k)), "S14 owner'ın iki onay metni ve düğmeleri birebir");
   ok(/data-hd-full-delete-counts/.test(dialog) && /\{step === 1 \?[\s\S]*\{counts\}/.test(dialog), "S15 iki aşamada da doğru danışan adı + kesin kapsam (analiz/rapor sayısı)");
   ok((code(modal).match(/data-hd-delete-open/g) ?? []).length === 1 && !/Analizi Sil|Tamamen Sil|previewHdAnalysisDelete|deleteComputedChart/.test(code(modal)),
     "S16 analiz penceresinde TEK 'Sil' (Analizi Sil / Tamamen Sil seçimi yok)");
@@ -78,9 +83,9 @@ async function main() {
   ok(!/handleDelete|deleteHdChart|"Sil"/.test(code(legacy)), "S18 eski 'Kayıtlı Haritalar' satırlarında ayrı 'Sil' yok (eski tekil silme yolu kapalı)");
   ok(!/HdFullDeleteDialog|data-hd-delete/.test(code(form) + code(start)), "S19 yeni danışan / başlatma akışında silme kontrolü yok");
 
-  ok(/data-hd-word-download[\s\S]{0,400}inline-flex h-8[^"]*text-xs/.test(btn) && !/data-hd-word-download[\s\S]{0,400}bg-gradient/.test(btn) && /"Raporu Hazırla"/.test(btn) && /"Raporu İndir"/.test(btn),
+  ok(/data-hd-word-download[\s\S]{0,400}inline-flex h-8[^"]*text-xs/.test(btn) && !/data-hd-word-download[\s\S]{0,400}bg-gradient/.test(btn) && /t\("prepare"\)/.test(btn) && /t\("download"\)/.test(btn) && ((r) => r.prepare === "Raporu Hazırla" && r.download === "Raporu İndir")(JSON.parse(src("messages/tr/hd.records.json")).hd.records.report) /* I18N R5: kısa etiketler katalogda */,
     "S20 rapor düğmesi küçük (h-8, text-xs), nötr; parlak gradyan yok; kısa etiket");
-  ok(/data-hd-actions/.test(modal) && !/h-9[^"]*uppercase/.test(modal.split("data-hd-actions")[1]?.split("{/* İçerik */}")[0] ?? "x") && /Kapat <span aria-hidden="true">✕<\/span>/.test(modal),
+  ok(/data-hd-actions/.test(modal) && !/h-9[^"]*uppercase/.test(modal.split("data-hd-actions")[1]?.split("{/* İçerik */}")[0] ?? "x") && /\{t\("close"\)\} <span aria-hidden="true">✕<\/span>/.test(modal) /* I18N R5: "Kapat" katalogda (hd.records.modal.close) */,
     "S21 işlem çubuğu: rapor, Sil, Kapat aynı küçük ölçek (büyük/büyük harf düğme yok)");
 
   // ══ Sunucu ═════════════════════════════════════════════════════════════════

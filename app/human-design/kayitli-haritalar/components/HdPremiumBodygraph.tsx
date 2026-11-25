@@ -17,6 +17,8 @@ import type { CbgState } from "@/lib/human-design/relations/connectionBodygraphS
 import { buildConnectionBodygraphScene, CBG_PALETTE_COLOR, CBG_VIEW } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { HD_PREMIUM_INDIVIDUAL_TONE } from "@/lib/human-design/bodygraph/rendererConfig";
 import { ConnectionBodygraph } from "@/app/human-design/iliski-grup/components/ConnectionBodygraph";
+import { useTranslations } from "next-intl";
+import { useLocalizedCenterText } from "../../_i18n/bodygraphCenterText";
 
 export const HD_PREMIUM_BODYGRAPH_ASPECT = `${CBG_VIEW.width} / ${CBG_VIEW.height}`;
 
@@ -70,14 +72,17 @@ function useRootBrandPlacement() {
 }
 
 export function HdPremiumBodygraph({ state }: { state: CbgState }) {
-  const prims = useMemo(() => buildConnectionBodygraphScene(state), [state]);
+  const t = useTranslations("hd.chart.bodygraph");
+  const localize = useLocalizedCenterText();
+  const scene = useMemo(() => buildConnectionBodygraphScene(state), [state]);
+  const prims = localize(scene);
   const { wrapRef, brandRef } = useRootBrandPlacement();
   const pColor = CBG_PALETTE_COLOR.individual[HD_PREMIUM_INDIVIDUAL_TONE.personality];
   const dColor = CBG_PALETTE_COLOR.individual[HD_PREMIUM_INDIVIDUAL_TONE.design];
   return (
     <div className="flex h-full w-full flex-col" data-hd-premium-bodygraph="ready">
       <div ref={wrapRef} className="relative min-h-0 flex-1">
-        <ConnectionBodygraph prims={prims} label="Human Design BodyGraph" logoSrc={null} sizeClass="h-full w-full" />
+        <ConnectionBodygraph prims={prims} label={t("title")} logoSrc={null} sizeClass="h-full w-full" />
         {/* Marka imzası: Kök'ün altında, ortalı, iki yatay satır. Tıklamayı engellemez; ekran okuyucuda tek metin. */}
         <div
           ref={brandRef}
@@ -100,9 +105,9 @@ export function HdPremiumBodygraph({ state }: { state: CbgState }) {
         </div>
       </div>
       <p className="m-0 mt-1 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[11px] font-semibold text-slate-600" data-hd-premium-legend>
-        <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: pColor }} />Kişilik (bilinçli)</span>
-        <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: dColor }} />Tasarım (bilinçsiz)</span>
-        <span>Çizgili / iki renkli: ikisi birden</span>
+        <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: pColor }} />{t("legendPersonality")}</span>
+        <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: dColor }} />{t("legendDesign")}</span>
+        <span>{t("legendBoth")}</span>
       </p>
     </div>
   );

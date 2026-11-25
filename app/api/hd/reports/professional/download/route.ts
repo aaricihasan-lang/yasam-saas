@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
@@ -14,6 +15,7 @@ import { applyDownloadPermissions, HD_REPORT_REDACTED_HEADER, isHdReportSnapshot
 import { renderHdReportV2Buffer } from "@/lib/human-design/reporting/wordReportV2";
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 
 export const runtime = "nodejs";
 
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word-dl", guard.tenantId), 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla indirme isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, error: hdApiText(req, "rateLimitedDownload") },
       { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "malformedJson") }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
   const reportId = String((raw as Record<string, unknown> | null)?.reportId ?? "").trim();
   if (!reportId) {
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   // HD-27: geçersiz biçimli kimlik DB'ye gitmez (önceden 500 + sahte action_failed).
   if (!isUuid(reportId)) {
-    return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz reportId." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, code: "INVALID_ID", error: hdApiText(req, "invalidReportId") }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   const read = await getCanonicalReportForDownload(guard.db, guard.tenantId, reportId);
@@ -79,6 +81,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: read.error }, { status: read.status, headers: { "Cache-Control": "no-store" } });
   }
   const { snapshot, clientId } = read.data;
+  // Çıktı dili = ekran dili (çerez + yayın kapısı; kapı kapalı → tr = bugünkü çıktı). Snapshot dile göre DEĞİŞMEZ.
+  // #855 birleşince: `const output = await resolveReportLocale(req, { db: guard.db, tenantId: guard.tenantId, userId: guard.userId });`
+  const output = resolveOutputLocale(req);
 
   // ── Ownership-safe BodyGraph görseli (opsiyonel; §36). Keyfi URL fetch YOK. ──
   let chartImage: Buffer | null = null;
@@ -113,13 +118,14 @@ export async function POST(req: NextRequest): Promise<Response> {
         expertName: null,
         systemReadingRedacted: redacted,
         branding: hdBranding,
+        output,
       });
     } else {
-      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null });
+      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null, output });
     }
   } catch {
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "reportDocFailed") }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 
   // Dosya adı: raporun oluşturulduğu YEREL gün (Europe/Istanbul); yoksa bugünün yerel günü.
@@ -128,7 +134,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   await trackUsage(guard, req, { module: "human_design", action: "report_generated", subEntity: "report", resourceId: reportId });
 
   const dateSlug = zonedDayKey(snapshot.generatedAt) || reportFileDate();
-  const filename = hdReportFilename(snapshot.client.name, dateSlug);
+  const filename = hdReportFilename(snapshot.client.name, dateSlug, output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

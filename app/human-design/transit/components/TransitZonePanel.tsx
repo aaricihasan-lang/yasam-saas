@@ -11,6 +11,8 @@
 //   • UTC karşılığı tarayıcıda SAF fonksiyonla önizlenir; kesin dönüşüm ve doğrulama SUNUCUDA yapılır.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useTransitI18n } from "../helpers/useTransitI18n";
 import { HdBirthLocationPicker, type HdPickedLocation } from "../../components/HdBirthLocationPicker";
 import { isTransitTimeZone, resolveTransitMoment, TRANSIT_TIME_ZONE, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
 
@@ -21,11 +23,7 @@ export type TransitZone = {
   source: "default" | "detected" | "undetected" | "city" | "manual";
 };
 
-export const ZONE_INTRO = [
-  "Türkiye saatine göre transit hesaplaması yapıyorsanız herhangi bir konum veya saat dilimi seçmenize gerek yoktur.",
-  "Farklı bir ülkenin yerel tarih ve saatine göre hesaplama yapmak istiyorsanız ilgili şehir veya saat dilimini seçiniz.",
-  "Sistem, seçtiğiniz bölgenin geçmiş ve güncel yaz/kış saati uygulamalarını dikkate alarak doğru zamanı otomatik hesaplar.",
-];
+/** Konum / saat dilimi açıklaması: hd.transit.zone.intro (TR = önceki üç cümle, tek boşlukla birleşik). */
 
 /** Türkiye'nin IANA eş adları tek ada indirgenir (Asia/Istanbul ve Turkey = Europe/Istanbul). */
 export function canonicalTz(tz: string): string {
@@ -48,10 +46,6 @@ export function initialZone(detected: string): TransitZone {
   return { tz: detected, label: null, source: detected === TRANSIT_TIME_ZONE ? "default" : "detected" };
 }
 
-export function zoneName(tz: string): string {
-  return tz === TRANSIT_TIME_ZONE ? "Türkiye saati" : tz;
-}
-
 const FALLBACK_ZONES = [TRANSIT_TIME_ZONE, "UTC", "Europe/London", "Europe/Berlin", "Europe/Paris", "America/New_York", "America/Los_Angeles", "Asia/Dubai", "Asia/Tokyo", "Australia/Sydney"];
 function allZones(current: string): string[] {
   let list: string[] = [];
@@ -67,29 +61,23 @@ function allZones(current: string): string[] {
   return [...set].sort((a, b) => a.localeCompare(b, "en"));
 }
 
-const SOURCE_NOTE: Record<TransitZone["source"], string> = {
-  default: "Varsayılan",
-  detected: "Tarayıcınızın saat diliminden algılandı",
-  undetected: "Tarayıcı saat dilimi algılanamadı; Türkiye saati kullanılıyor",
-  city: "Şehir aramasından seçildi",
-  manual: "Elle seçildi",
-};
-
 export function TransitZonePanel({ zone, onZone, testId }: { zone: TransitZone; onZone: (z: TransitZone) => void; testId: string }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<HdPickedLocation | null>(null);
   const [cityErr, setCityErr] = useState<string | null>(null);
+  const t = useTranslations("hd.transit.zone");
+  const { zoneName } = useTransitI18n();
   const zones = open ? allZones(zone.tz) : [];
-  const title = zone.label ? `${zone.label} · ${zone.tz}` : zone.tz === TRANSIT_TIME_ZONE ? `Türkiye saati (${zone.tz})` : zone.tz;
+  const title = zone.label ? `${zone.label} · ${zone.tz}` : zone.tz === TRANSIT_TIME_ZONE ? `${zoneName(zone.tz)} (${zone.tz})` : zone.tz;
   return (
     <div className="mb-3 rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5" data-hd-transit-zone={testId}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[11px] font-black uppercase tracking-widest text-indigo-700">
-            <span aria-hidden>🌍 </span>Konum ve Saat Dilimi
+            <span aria-hidden>🌍 </span>{t("title")}
           </p>
           <p className="mt-0.5 break-words text-sm font-bold text-slate-900" data-hd-transit-zone-current={zone.tz}>{title}</p>
-          <p className="text-[11px] text-slate-500" data-hd-transit-zone-source={zone.source}>{SOURCE_NOTE[zone.source]}</p>
+          <p className="text-[11px] text-slate-500" data-hd-transit-zone-source={zone.source}>{t(`source.${zone.source}`)}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {zone.tz !== TRANSIT_TIME_ZONE ? (
@@ -102,7 +90,7 @@ export function TransitZonePanel({ zone, onZone, testId }: { zone: TransitZone; 
               className="min-h-[36px] rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700"
               data-hd-transit-zone-reset
             >
-              Türkiye saatine dön
+              {t("resetTurkey")}
             </button>
           ) : null}
           <button
@@ -112,26 +100,26 @@ export function TransitZonePanel({ zone, onZone, testId }: { zone: TransitZone; 
             className="min-h-[36px] rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700"
             data-hd-transit-zone-toggle
           >
-            {open ? "Kapat" : "Konum / saat dilimi değiştir"}
+            {open ? t("close") : t("change")}
           </button>
         </div>
       </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600" data-hd-transit-zone-intro>{ZONE_INTRO.join(" ")}</p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600" data-hd-transit-zone-intro>{t("intro")}</p>
       {open ? (
         <div className="mt-2 grid gap-2 sm:grid-cols-2" data-hd-transit-zone-editor>
           <div className="block text-xs font-bold text-slate-700">
-            <span className="mb-1 block">Şehir ara</span>
+            <span className="mb-1 block">{t("citySearch")}</span>
             <HdBirthLocationPicker
               id={`hd-transit-city-${testId}`}
               value={picked}
-              placeholder="Şehir yazın… (ör. Londra, New York, Tokyo)"
-              unselectedHint="Listeden bir şehir seçin; seçilmeyen metin saat dilimini değiştirmez."
+              placeholder={t("cityPlaceholder")}
+              unselectedHint={t("cityHint")}
               onChange={(l) => {
                 setPicked(l);
                 if (!l) return;
                 const tz = canonicalTz(l.tz);
                 if (!isTransitTimeZone(tz)) {
-                  setCityErr("Bu konumun saat dilimi doğrulanamadı; lütfen saat dilimini listeden seçin.");
+                  setCityErr(t("cityTzError"));
                   return;
                 }
                 setCityErr(null);
@@ -141,7 +129,7 @@ export function TransitZonePanel({ zone, onZone, testId }: { zone: TransitZone; 
             {cityErr ? <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-700">{cityErr}</p> : null}
           </div>
           <label className="block text-xs font-bold text-slate-700">
-            <span className="mb-1 block">Saat dilimi (IANA)</span>
+            <span className="mb-1 block">{t("tzLabel")}</span>
             <select
               value={zone.tz}
               onChange={(e) => {
@@ -183,11 +171,13 @@ export function UtcPreview({
   onOffset: (o: number | null) => void;
   testId: string;
 }) {
+  const t = useTranslations("hd.transit.zone");
+  const i18n = useTransitI18n();
   const r = resolveTransitMoment(date, time, tz);
   if (r.ok) {
     return (
       <p className="mt-2 text-[11px] text-slate-600" data-hd-transit-utc-preview={testId} data-hd-transit-utc={r.moment.utcIso}>
-        UTC karşılığı: <b className="font-semibold text-slate-800">{r.moment.utcIso.slice(0, 16).replace("T", " ")}</b> · {zoneName(tz)} ({utcOffsetLabel(r.moment.offsetSeconds)})
+        {t("utcEquivalent")} <b className="font-semibold text-slate-800">{r.moment.utcIso.slice(0, 16).replace("T", " ")}</b> · {i18n.zoneName(tz)} ({utcOffsetLabel(r.moment.offsetSeconds)})
       </p>
     );
   }
@@ -196,8 +186,8 @@ export function UtcPreview({
     const opts = [...r.offsetsSeconds].sort((a, b) => b - a);
     return (
       <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900 ring-1 ring-amber-200" data-hd-transit-utc-preview={testId} data-hd-transit-ambiguous>
-        <p className="font-semibold">{r.error}</p>
-        <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="İki kez yaşanan saat">
+        <p className="font-semibold">{i18n.error(r)}</p>
+        <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("ambiguousAria")}>
           {opts.map((o, i) => {
             const c = resolveTransitMoment(date, time, tz, o);
             const utc = c.ok ? c.moment.utcIso.slice(0, 16).replace("T", " ") : "";
@@ -211,7 +201,7 @@ export function UtcPreview({
                 className={`min-h-[36px] rounded-lg px-3 text-xs font-bold ring-1 ${offset === o ? "bg-amber-600 text-white ring-amber-600" : "bg-white text-amber-900 ring-amber-300"}`}
                 data-hd-transit-offset={o}
               >
-                {i === 0 ? "İlk kez" : "İkinci kez"} ({utcOffsetLabel(o)}) · UTC {utc}
+                {i === 0 ? t("firstTime") : t("secondTime")} ({utcOffsetLabel(o)}{") · UTC "}{utc}
               </button>
             );
           })}
@@ -222,7 +212,7 @@ export function UtcPreview({
   if (!date || !time) return null;
   return (
     <p className="mt-2 text-[11px] font-semibold text-rose-700" data-hd-transit-utc-preview={testId} data-hd-transit-utc-error={r.code}>
-      {r.error}
+      {i18n.error(r)}
     </p>
   );
 }

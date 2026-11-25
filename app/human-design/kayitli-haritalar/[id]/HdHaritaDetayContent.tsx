@@ -6,14 +6,14 @@
  * Bilgileri" (canonical panel). Read-only; canonical edit/publish/delete YOK.
  */
 
+import { HD_CENTER_STATE_LABEL as HD_CENTER_STATE_LABEL_TR, type HdCenterState } from "@/lib/human-design/chart/centerStates";
+import { useTranslations } from "next-intl";
+import { useHdLabels } from "../../_i18n/useHdLabels";
 import { nonDefinedCenterLabels } from "@/lib/human-design/chart/centerStateLabels";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
-import {
-  hdTypeLabelFromCode, hdAuthorityLabelFromCode, hdProfileLabelFromCode,
-  hdDefinitionLabelFromCode, hdCenterLabelFromCode,
-} from "@/lib/human-design/codeHelpers";
+import { hdAuthorityLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { GateTechnicalInfo } from "../../components/GateTechnicalInfo";
 import { listChartsWithClients } from "../helpers/hdKayitliHaritalar";
 import type { HdChartWithClient } from "../helpers/hdKayitliHaritalar";
@@ -22,7 +22,6 @@ import { HdProfessionalReportButton } from "../components/HdProfessionalReportBu
 import { hdChannelDisplayLabel, hdGateDisplayLabel } from "@/lib/human-design/knowledge/hdNames";
 import { useHdNameOverrides } from "@/app/human-design/bilgi-bankasi/helpers/useHdNameOverrides";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
-import { HD_ADMIN_SOURCE_LABELS } from "../components/HdChartKnowledgeTabs";
 
 type State =
   | { phase: "loading" }
@@ -30,9 +29,9 @@ type State =
   | { phase: "error"; message: string }
   | { phase: "ready"; row: HdChartWithClient };
 
-function fmtDate(v: string | null | undefined): string {
+function fmtDate(v: string | null | undefined, dateLocale = "tr-TR"): string {
   if (!v) return "—";
-  try { return new Date(v).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return v; }
+  try { return new Date(v).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return v; }
 }
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -57,6 +56,7 @@ function SumSection({ title, children }: { title: string; children: React.ReactN
 export function HdHaritaDetayContent({ chartId }: { chartId: string }) {
   const [state, setState] = useState<State>({ phase: "loading" });
   const [tab, setTab] = useState<"summary" | "knowledge">("summary");
+  const t = useTranslations("hd.records.detail");
 
   useEffect(() => {
     let alive = true;
@@ -72,13 +72,13 @@ export function HdHaritaDetayContent({ chartId }: { chartId: string }) {
   return (
     <HumanDesignShell maxWidthClass="max-w-[1200px]">
       <Link href="/human-design/kayitli-haritalar" className="mb-4 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
-        ← Kayıtlı Haritalara Dön
+        {t("back")}
       </Link>
 
       {state.phase === "loading" ? (
         <div className="animate-pulse space-y-4"><div className="h-8 w-64 rounded bg-slate-100" /><div className="h-40 rounded-2xl bg-slate-100" /></div>
       ) : state.phase === "notfound" ? (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 ring-1 ring-amber-100">Harita bulunamadı.</p>
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 ring-1 ring-amber-100">{t("notFound")}</p>
       ) : state.phase === "error" ? (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 ring-1 ring-rose-100">{state.message}</p>
       ) : (
@@ -90,27 +90,32 @@ export function HdHaritaDetayContent({ chartId }: { chartId: string }) {
 
 function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "summary" | "knowledge"; setTab: (t: "summary" | "knowledge") => void; chartId: string }) {
   const clientName = row.client?.name ?? row.client_name ?? "—";
-  const activeCenters = (row.active_centers ?? []).map((c) => hdCenterLabelFromCode(c));
-  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
-  const openCenters = nonDefinedCenterLabels(row);
   // Hesabın kişisel görünen adları (yoksa hazır ad); eşleşme teknik numaradan.
   const nameOv = useHdNameOverrides();
+  const t = useTranslations("hd.records.detail");
+  const L = useHdLabels();
+  const centerLbl = { center: (c: string) => L.center(c), state: (s: HdCenterState) => (L.isTr ? HD_CENTER_STATE_LABEL_TR[s] : L.terms.label("centerState", s)) };
+  const gateLbl = (g: number) => (L.isTr ? hdGateDisplayLabel(g, nameOv) : nameOv.gates[g] ? `${g} — ${nameOv.gates[g]}` : t("gateN", { gate: g }));
+  const chLbl = (c: string) => (L.isTr ? hdChannelDisplayLabel(c, nameOv) : nameOv.channels[c] ?? L.terms.label("channel", c));
+  const activeCenters = (row.active_centers ?? []).map((c) => L.center(c));
+  // HD-UZMAN-01: tanımlı olmayan merkezlerde kanıtlı durum (Tanımsız / Açık / Doğrulanamadı).
+  const openCenters = nonDefinedCenterLabels(row, centerLbl);
   // Admin: merkezî içerik sekmesi kaynağıyla adlandırılır (uzmanın etiketi değişmez).
   const [centralTabLabel] = useState(() =>
-    isAdminUser(readYasamUser()) ? HD_ADMIN_SOURCE_LABELS.central : "Kişinin Human Design Bilgileri",
+    isAdminUser(readYasamUser()) ? "central" : "person",
   );
-  const channels = (row.channels ?? []).map((c) => hdChannelDisplayLabel(c, nameOv));
-  const gates = (row.gates ?? []).map((g) => hdGateDisplayLabel(g, nameOv));
+  const channels = (row.channels ?? []).map((c) => chLbl(c));
+  const gates = (row.gates ?? []).map((g) => gateLbl(g));
 
   return (
     <div>
       {/* Header */}
       <div className="rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50 to-violet-50/60 px-6 py-5">
-        <p className="text-xs font-black uppercase tracking-widest text-indigo-500">Harita Detayı</p>
+        <p className="text-xs font-black uppercase tracking-widest text-indigo-500">{t("title")}</p>
         <h1 className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">{clientName}</h1>
         {row.client ? (
           <p className="mt-1 text-sm text-slate-500">
-            {fmtDate(row.client.birth_date)}
+            {fmtDate(row.client.birth_date, L.dateLocale)}
             {row.client.birth_time ? ` · ${row.client.birth_time}` : ""}
             {row.client.birth_place ? ` · ${row.client.birth_place}` : ""}
           </p>
@@ -124,7 +129,7 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
 
       {/* Tabs */}
       <div className="mt-5 flex gap-1.5 border-b border-indigo-100/80">
-        {([["summary", "Özet"], ["knowledge", centralTabLabel]] as const).map(([id, label]) => (
+        {([["summary", t("summary")], ["knowledge", t(centralTabLabel)]] as const).map(([id, label]) => (
           <button key={id} type="button" onClick={() => setTab(id)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-black uppercase tracking-wide transition ${tab === id ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
             {/* "Human Design" İngilizce özel ad: uppercase + lang=tr "DESİGN" üretmesin (lang="en"). */}
@@ -142,27 +147,27 @@ function Detail({ row, tab, setTab, chartId }: { row: HdChartWithClient; tab: "s
       <div className="mt-6">
         {tab === "summary" ? (
           <div className="space-y-6">
-            <SumSection title="Temel Değerler">
+            <SumSection title={t("basics")}>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Tip" value={hdTypeLabelFromCode(row.type_code)} />
-                <Field label="Otorite" value={hdAuthorityLabelFromCode(row.authority_code)} />
-                <Field label="Profil" value={hdProfileLabelFromCode(row.profile_code)} />
-                <Field label="Tanım" value={hdDefinitionLabelFromCode(row.definition_code)} />
+                <Field label={t("type")} value={L.type(row.type_code)} />
+                <Field label={t("authority")} value={L.isTr ? hdAuthorityLabelFromCode(row.authority_code) : L.terms.label("authority", row.authority_code)} />
+                <Field label={t("profile")} value={L.profile(row.profile_code)} />
+                <Field label={t("definition")} value={L.definition(row.definition_code)} />
               </div>
             </SumSection>
             <div className="grid gap-6 md:grid-cols-2">
-              <SumSection title="Tanımlı Merkezler"><Badges items={activeCenters} empty="Tanımlı merkez yok." /></SumSection>
-              <SumSection title="Tanımlı Olmayan Merkezler"><Badges items={openCenters} empty="Tanımlı olmayan merkez yok." /></SumSection>
+              <SumSection title={t("definedCenters")}><Badges items={activeCenters} empty={t("noDefinedCenters")} /></SumSection>
+              <SumSection title={t("nonDefinedCenters")}><Badges items={openCenters} empty={t("noNonDefinedCenters")} /></SumSection>
             </div>
-            <SumSection title={`Kanallar (${channels.length})`}><Badges items={channels} empty="Kanal kaydı yok." /></SumSection>
-            <SumSection title={`Kapılar (${gates.length})`}><Badges items={gates} empty="Kapı kaydı yok." /></SumSection>
-            <SumSection title="Kapı Teknik Bilgileri">
+            <SumSection title={t("channelsN", { count: channels.length })}><Badges items={channels} empty={t("noChannels")} /></SumSection>
+            <SumSection title={t("gatesN", { count: gates.length })}><Badges items={gates} empty={t("noGates")} /></SumSection>
+            <SumSection title={t("gateTech")}>
               {((row.gates ?? []).length > 0 || (row.channels ?? []).length > 0) ? (
                 <GateTechnicalInfo gates={row.gates ?? []} channels={row.channels ?? []} />
-              ) : <p className="text-xs text-slate-400">Kapı kaydı yok.</p>}
+              ) : <p className="text-xs text-slate-400">{t("noGates")}</p>}
             </SumSection>
             {row.notes ? (
-              <SumSection title="Notlar">
+              <SumSection title={t("notes")}>
                 <p className="whitespace-pre-wrap rounded-xl border border-indigo-100/80 bg-indigo-50/30 px-4 py-3 text-sm leading-relaxed text-slate-700">{row.notes}</p>
               </SumSection>
             ) : null}

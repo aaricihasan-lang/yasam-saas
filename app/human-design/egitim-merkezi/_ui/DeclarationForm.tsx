@@ -8,9 +8,10 @@
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
-import { privCall } from "./privApi";
+import { privCall, useEduApiError } from "./privApi";
 
 type DeclText = { version: string; title: string; body: string; sha256: string };
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
@@ -18,6 +19,8 @@ const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/I
 export function DeclarationForm({ hdClientId, clientLabel, onSaved, onCancel }: {
   hdClientId: string; clientLabel: string; onSaved: (consentId: string) => void; onCancel: () => void;
 }) {
+  const t = useTranslations("hd.education");
+  const apiErr = useEduApiError();
   const [text, setText] = useState<DeclText | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "closed" | "error">("loading");
   const [relation, setRelation] = useState<"danisan" | "yasal_temsilci">("danisan");
@@ -38,18 +41,17 @@ export function DeclarationForm({ hdClientId, clientLabel, onSaved, onCancel }: 
     return () => { live = false; };
   }, []);
 
-  if (state === "loading") return <p className={base.empty} aria-live="polite">Beyan metni yükleniyor…</p>;
+  if (state === "loading") return <p className={base.empty} aria-live="polite">{t("decl.loading")}</p>;
   if (state === "closed") {
     return (
       <div className={`${oz.result} ${oz.resultWarn}`} role="status" data-edu-decl-closed>
         <span>
-          Gerçek danışan haritası ekleme, beyan metninin hukuk değerlendirmesi ve sistem sahibi onayı tamamlanınca açılacak.
-          Şimdilik <Link className={base.ext} href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal">kurgusal eğitim haritası</Link> ekleyebilirsiniz.
+          {t.rich("decl.closed", { link: (c) => <Link className={base.ext} href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal">{c}</Link> })}
         </span>
       </div>
     );
   }
-  if (state === "error" || !text) return <p className={base.err} role="alert">Beyan metni yüklenemedi. Sayfayı yenileyin.</p>;
+  if (state === "error" || !text) return <p className={base.err} role="alert">{t("decl.error")}</p>;
   const nameOk = name.trim().length >= 2 && name.trim().length <= 200;
 
   async function save() {
@@ -61,45 +63,45 @@ export function DeclarationForm({ hdClientId, clientLabel, onSaved, onCancel }: 
     } });
     setBusy(false);
     if (r.ok && r.body.id) { onSaved(r.body.id); return; }
-    setErr(r.ok ? "Beyan kaydedilemedi." : r.error);
+    setErr(r.ok ? t("decl.saveFailed") : apiErr(r));
   }
 
   return (
     <div className={oz.declBox} data-edu-decl-form>
-      <h3 className={oz.declTitle}>Eğitim amaçlı kullanım beyanı</h3>
-      <p className={oz.hint}>Danışan: <b>{clientLabel}</b> · Varsayılan gösterim <b>takma ad</b>; doğum bilgisi <b>gösterilmez</b>.</p>
+      <h3 className={oz.declTitle}>{t("decl.title")}</h3>
+      <p className={oz.hint}>{t.rich("decl.hint", { client: clientLabel, b: (c) => <b>{c}</b> })}</p>
       <div className={oz.declText} data-edu-decl-text>{text.body}</div>
       <div className={oz.form2}>
-        <label className={oz.field}>İzni veren
+        <label className={oz.field}>{t("decl.consenter")}
           <select value={relation} onChange={(e) => setRelation(e.target.value as "danisan" | "yasal_temsilci")} data-edu-decl-relation>
-            <option value="danisan">Danışanın kendisi</option>
-            <option value="yasal_temsilci">Yasal temsilcisi</option>
+            <option value="danisan">{t("form.relationSelf")}</option>
+            <option value="yasal_temsilci">{t("form.relationLegal")}</option>
           </select>
         </label>
-        <label className={oz.field}>İzni verenin adı
+        <label className={oz.field}>{t("decl.consenterName")}
           <input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} data-edu-decl-name />
         </label>
       </div>
       <label className={oz.declareSmall}>
         <input type="checkbox" checked={named} onChange={(e) => setNamed(e.target.checked)} data-edu-decl-named />
-        <span>Danışanın <b>adının</b> eğitimde gösterilmesi için ayrıca yetkim var (işaretlenmezse takma ad).</span>
+        <span>{t.rich("decl.named", { b: (c) => <b>{c}</b> })}</span>
       </label>
       <label className={oz.declareSmall}>
         <input type="checkbox" checked={birth} onChange={(e) => setBirth(e.target.checked)} data-edu-decl-birth />
-        <span>Danışanın <b>doğum tarihi, saati ve yerinin</b> gösterilmesi için ayrıca yetkim var.</span>
+        <span>{t.rich("decl.birth", { b: (c) => <b>{c}</b> })}</span>
       </label>
       <label className={oz.declare}>
         <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} data-edu-decl-accept />
-        <span><b>Bu haritayı eğitim amacıyla kullanmak için gerekli izne veya hukuki dayanağa sahip olduğumu beyan ederim.</b></span>
+        <span><b>{t("decl.accept")}</b></span>
       </label>
       {err ? <p className={base.err} role="alert" data-edu-decl-error>{err}</p> : null}
       <div className={base.actions}>
-        <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={onCancel} disabled={busy}>Vazgeç</button>
+        <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={onCancel} disabled={busy}>{t("common.cancel")}</button>
         <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={save} disabled={busy || !accept || !nameOk} data-edu-decl-save>
-          {busy ? "Kaydediliyor…" : "Beyanı onayla"}
+          {busy ? t("edit.saving") : t("decl.save")}
         </button>
       </div>
-      <p className={oz.hint}>Beyanınız; tarih, beyan metni sürümü ve seçtiğiniz kapsamla kaydedilir. Danışan izni geri çektiğinde kayıt anında kapanır.</p>
+      <p className={oz.hint}>{t("decl.footer")}</p>
     </div>
   );
 }

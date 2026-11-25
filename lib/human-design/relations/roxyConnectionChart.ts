@@ -119,18 +119,35 @@ export const ROXY_CONNECTION_SHADOW_STYLE =
   ".wrap{--src-left:#2563eb!important;--src-right:#ea580c!important}" +
   ".wrap>*:not(svg.chart){display:none!important}.wrap{border:0!important;padding:0!important;margin:0!important;background:transparent!important;box-shadow:none!important}svg.chart{width:100%!important;max-width:none!important;height:auto!important;margin:0!important}";
 
-/** Grafikteki erişilebilirlik başlıklarını Türkçeleştirir (kapı: "Kapı 1 · 1-8 · A + B"; merkez: "Tanımlı/Açık"). */
-export function localizeConnectionTitles(svg: Element, nameA: string, nameB: string): void {
+/** Grafik erişilebilirlik başlıklarının ekran dilindeki kalıpları (I18N). Varsayılan = Türkçe (bugünkü metinler birebir). */
+export type ConnectionTitleLabels = {
+  gate: (n: string) => string;
+  channel: (id: string) => string;
+  defined: string;
+  open: string;
+  combined: string;
+};
+export const CONNECTION_TITLE_LABELS_TR: ConnectionTitleLabels = {
+  gate: (n) => `Kapı ${n}`,
+  channel: (id) => `${id} kanalı`,
+  defined: "Birleşik haritada tanımlı",
+  open: "Açık",
+  combined: "Birleşik ilişki BodyGraph'ı",
+};
+
+/** Grafikteki erişilebilirlik başlıklarını ekran diline çevirir (kapı: "Kapı 1 · 1-8 · A + B"; merkez: "Tanımlı/Açık").
+ *  `labels` verilmezse Türkçe (bugünkü davranış birebir). Yalnız gösterim; doğrulama/hesap etkilenmez. */
+export function localizeConnectionTitles(svg: Element, nameA: string, nameB: string, labels: ConnectionTitleLabels = CONNECTION_TITLE_LABELS_TR): void {
   for (const t of Array.from(svg.querySelectorAll("title"))) {
     const s = t.textContent ?? "";
     const gate = /^Gate (\d+)(?: · ([^·]+))?(?: · (.+))?$/.exec(s);
     if (gate) {
       const who = (gate[3] ?? "").split("+").map((x) => x.trim()).filter(Boolean).map((x) => (x === "A" ? `A (${nameA})` : x === "B" ? `B (${nameB})` : x));
-      t.textContent = [`Kapı ${gate[1]}`, gate[2] ? `${gate[2].trim()} kanalı` : null, who.length ? who.join(" + ") : null].filter(Boolean).join(" · ");
+      t.textContent = [labels.gate(gate[1]), gate[2] ? labels.channel(gate[2].trim()) : null, who.length ? who.join(" + ") : null].filter(Boolean).join(" · ");
       continue;
     }
-    if (/: Defined$/.test(s)) t.textContent = s.replace(/: Defined$/, ": Birleşik haritada tanımlı");
-    else if (/: Open$/.test(s)) t.textContent = s.replace(/: Open$/, ": Açık");
-    else if (s === "Combined bodygraph") t.textContent = "Birleşik ilişki BodyGraph'ı";
+    if (/: Defined$/.test(s)) t.textContent = s.replace(/: Defined$/, `: ${labels.defined}`);
+    else if (/: Open$/.test(s)) t.textContent = s.replace(/: Open$/, `: ${labels.open}`);
+    else if (s === "Combined bodygraph") t.textContent = labels.combined;
   }
 }

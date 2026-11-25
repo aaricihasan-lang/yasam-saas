@@ -494,7 +494,8 @@ async function main() {
       "app/human-design/kayitli-raporlar/components/HdRaporListesi.tsx",
     ].map(src).join("\n").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/^\s*\/\/.*$/gm, "");
     ok(!/href=\{?[`"]\/human-design\/harita-kaydi/.test(live) && !/href=\{?[`"]\/human-design\/rapor-olustur\?clientId/.test(live), "L3 canlı ekranlarda yeni manuel kayıt / Rapor Oluştur bağlantısı yok");
-    ok(src("app/human-design/harita-kaydi/page.tsx").includes("Yeni manuel Human Design kaydı artık kullanılmıyor."), "L4 /harita-kaydi deep-link 404 değil, açıklayıcı mesaj");
+    // I18N (R5): mesaj katalogda (hd.chartEntry.closedTitle; TR bayt-eşit) — niyet aynı.
+    ok(JSON.parse(src("messages/tr/hd.chartEntry.json")).hd.chartEntry.closedTitle === "Yeni manuel Human Design kaydı artık kullanılmıyor." && src("app/human-design/harita-kaydi/page.tsx").includes('t("closedTitle")'), "L4 /harita-kaydi deep-link 404 değil, açıklayıcı mesaj");
     let roxyDiff = "x";
     try {
       // AŞAMA 4B: profesyonel Word (lib/human-design/reporting) bilinçli olarak genişletildi →

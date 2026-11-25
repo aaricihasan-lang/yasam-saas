@@ -7,10 +7,12 @@
 //   • Roxy'nin İngilizce metin bölümleri ve atıfı gizlenir; erişilebilirlik başlıkları Türkçeleştirilir.
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { useRelationLabels } from "../helpers/useRelationLabels";
 import type { HdConnectionResult } from "@/lib/human-design/relations/connection";
 import {
   connectionDrawingMatches,
   localizeConnectionTitles,
+  type ConnectionTitleLabels,
   ROXY_CONNECTION_SCRIPT,
   ROXY_CONNECTION_SHADOW_STYLE,
   ROXY_CONNECTION_TAG,
@@ -43,7 +45,7 @@ export function loadRoxyConnection(): Promise<void> {
 type RoxyEl = HTMLElement & { data?: unknown; updateComplete?: Promise<unknown> };
 
 /** Shadow köke kurumsal görünüm + doğrulama + Türkçe başlıklar. Doğrulama sonucu döner. */
-export function prepareRoxyConnection(el: RoxyEl, r: HdConnectionResult, nameA: string, nameB: string): boolean {
+export function prepareRoxyConnection(el: RoxyEl, r: HdConnectionResult, nameA: string, nameB: string, labels?: ConnectionTitleLabels): boolean {
   const root = el.shadowRoot;
   if (!root) return false;
   if (!root.getElementById(STYLE_ID)) {
@@ -54,7 +56,7 @@ export function prepareRoxyConnection(el: RoxyEl, r: HdConnectionResult, nameA: 
   }
   const svg = root.querySelector("svg.chart");
   if (!svg) return false;
-  localizeConnectionTitles(svg, nameA, nameB);
+  localizeConnectionTitles(svg, nameA, nameB, labels);
   return connectionDrawingMatches(svg, r);
 }
 
@@ -70,6 +72,9 @@ export function RoxyConnectionChart({
   onState: (s: "ready" | "mismatch" | "error") => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
+  const L = useRelationLabels();
+  const titleLabels = L.titleLabels;
+  const lang = L.isTr ? "tr" : "en";
   const [state, setState] = useState<"loading" | "ready" | "mismatch" | "error">("loading");
   const data = useMemo(() => toRoxyConnectionData(r), [r]);
 
@@ -82,7 +87,7 @@ export function RoxyConnectionChart({
         el.data = data;
         if (el.updateComplete) await el.updateComplete.catch(() => undefined);
         if (!alive) return;
-        const ok = prepareRoxyConnection(el, r, nameA, nameB);
+        const ok = prepareRoxyConnection(el, r, nameA, nameB, titleLabels);
         const s = ok ? "ready" : "mismatch";
         setState(s);
         onState(s);
@@ -95,13 +100,14 @@ export function RoxyConnectionChart({
     return () => {
       alive = false;
     };
-  }, [data, r, nameA, nameB, onState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- başlık etiketleri yalnız dil değişince değişir (lang)
+  }, [data, r, nameA, nameB, onState, lang]);
 
   return (
     <div className="relative w-full" data-hd-roxy-connection={state}>
-      {createElement(ROXY_CONNECTION_TAG, { ref, className: "block w-full", "hide-readings": "", lang: "tr" })}
+      {createElement(ROXY_CONNECTION_TAG, { ref, className: "block w-full", "hide-readings": "", lang })}
       {state === "loading" ? (
-        <p className="absolute inset-0 m-0 flex items-center justify-center text-xs text-slate-500">Birleşik BodyGraph yükleniyor…</p>
+        <p className="absolute inset-0 m-0 flex items-center justify-center text-xs text-slate-500">{L.t("legacy.loadingChart")}</p>
       ) : null}
     </div>
   );

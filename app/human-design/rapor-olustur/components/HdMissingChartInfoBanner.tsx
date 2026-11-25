@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { HumanDesignChart } from "@/lib/human-design/types";
 
 /**
@@ -29,6 +30,17 @@ export const HD_MISSING_FIELD_ORDER = [
 ] as const;
 
 export type HdMissingChartField = (typeof HD_MISSING_FIELD_ORDER)[number];
+
+// I18N (HD-B): alan kimliği (yukarıdaki TR değerler) DEĞİŞMEZ — yalnız görünen ad `hd.reportBuilder.missing.field.*`.
+const FIELD_KEY: Record<HdMissingChartField, "type" | "authority" | "profile" | "definition" | "centers" | "channels" | "gates"> = {
+  Tip: "type",
+  Otorite: "authority",
+  Profil: "profile",
+  Tanım: "definition", // i18n-ignore: alan kimliği (HD_MISSING_FIELD_ORDER anahtarı; gösterim katalogdan)
+  Merkezler: "centers",
+  Kanallar: "channels",
+  Kapılar: "gates", // i18n-ignore: alan kimliği (HD_MISSING_FIELD_ORDER anahtarı; gösterim katalogdan)
+};
 
 // Gerçek array VE en az bir eleman. (Kör falsy DEĞİL; boş/eksik ayrı değerlendirilir.)
 function isNonEmptyArray(v: unknown): boolean {
@@ -73,6 +85,7 @@ type Props = {
 };
 
 export function HdMissingChartInfoBanner({ missing, onComplete, onContinue }: Props) {
+  const t = useTranslations("hd.reportBuilder.missing");
   if (missing.length === 0) return null;
   // Strateji ayrı alan değil; yalnız Tip eksikse küçük açıklama.
   const showStrategyNote = missing.includes("Tip");
@@ -90,10 +103,9 @@ export function HdMissingChartInfoBanner({ missing, onComplete, onContinue }: Pr
           !
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-amber-800">Harita bilgilerinde eksikler var</p>
+          <p className="text-sm font-bold text-amber-800">{t("title")}</p>
           <p className="mt-1 text-xs leading-relaxed text-amber-700/90">
-            Rapor mevcut bilgiler kullanılarak oluşturuldu. Daha kapsamlı bir rapor için
-            eksik alanları tamamlayabilirsiniz.
+            {t("description")}
           </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -102,14 +114,14 @@ export function HdMissingChartInfoBanner({ missing, onComplete, onContinue }: Pr
                 key={field}
                 className="rounded-full border border-amber-300/70 bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800"
               >
-                {field}
+                {t(`field.${FIELD_KEY[field]}`)}
               </span>
             ))}
           </div>
 
           {showStrategyNote && (
             <p className="mt-2 text-[11px] leading-relaxed text-amber-700/80">
-              Strateji, Tip bilgisine göre belirlenir.
+              {t("strategyNote")}
             </p>
           )}
 
@@ -119,14 +131,14 @@ export function HdMissingChartInfoBanner({ missing, onComplete, onContinue }: Pr
               onClick={onComplete}
               className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-300/80 bg-gradient-to-r from-amber-500 to-orange-600 px-4 text-sm font-bold text-white shadow-sm transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
             >
-              Eksikleri Tamamla
+              {t("complete")}
             </button>
             <button
               type="button"
               onClick={onContinue}
               className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-300/70 bg-white/80 px-4 text-sm font-bold text-amber-800 shadow-sm transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
             >
-              Mevcut Bilgilerle Devam Et
+              {t("continue")}
             </button>
           </div>
         </div>

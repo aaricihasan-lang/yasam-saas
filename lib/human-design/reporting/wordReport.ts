@@ -15,7 +15,7 @@
  * kararıyla kaldırıldı; Word HeadingLevel yapısı korunur.)
  */
 
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { Document, Footer, Packer, Paragraph, TextRun } from "docx";
 import {
   buildFooter,
   buildHeader,
@@ -56,12 +56,46 @@ import type {
   HdReportSnapshot,
 } from "./reportSnapshot";
 import { formatDateLoose, formatDateOnly, formatInstantDate } from "@/lib/time/reportTime";
+import type { OutputLocale } from "@/lib/i18n/output";
+import { hdDocLanguage, hdEn, hdFooterChildren, hdReportText, hdWellnessNoteSection, type HdReportText } from "./reportText";
 
-/** Uzman modunda yayımlanmamış olduğu için atlanan bölüm için sade not (anahtar YOK). */
-const UNPUBLISHED_SECTION_TEXT = "Bu bölümün içeriği henüz yayımlanmadı.";
+// ── Çıktı dili (I18N-F1-R5 HD-B; bkz. reportText.ts) ─────────────────────────────
+// Kurucu SENKRON → dil modül düzeyinde tutulur, kurulum bitince geri alınır (istekler arası karışma yok).
+let X: HdReportText = hdReportText(null);
+const t = (key: string, values?: Record<string, string | number>) => X.t(key, values);
+const isEn = () => !X.isSource;
+function withText<T>(output: OutputLocale | null | undefined, fn: () => T): T {
+  const prev = X;
+  X = hdReportText(output ?? null);
+  try {
+    return fn();
+  } finally {
+    X = prev;
+  }
+}
+const dateOpts = () => (X.dateLocale ? { locale: X.dateLocale } : {});
 
-const REPORT_NAME = "Human Design Raporu · Yaşam Sistemi";
-const HEADER_TEXT = "Human Design · Yaşam Sistemi";
+// Donmuş görünen adlar: TR → snapshot AYNEN; diğer dillerde kanonik anahtardan (tip_/otorite_/kanal kodu/kapı no).
+function typeName(sec: FrozenIdentitySection): string {
+  if (!isEn()) return sec.displayName;
+  return hdEn.term("type", sec.key.replace(/^tip_/, "")) ?? hdEn.type(sec.displayName) ?? sec.displayName;
+}
+function authorityName(sec: FrozenIdentitySection): string {
+  if (!isEn()) return sec.displayName;
+  return hdEn.term("authority", sec.key.replace(/^otorite_/, "")) ?? sec.displayName;
+}
+const channelName = (code: string, displayName: string) => (isEn() ? hdEn.term("channel", code) ?? displayName : displayName);
+/** Yayımlanmamış bölüm adı (anahtar taşımaz) — görünen addan çözülür; çözülemezse aynen. */
+function omittedName(o: FrozenOmittedSection): string {
+  if (!isEn()) return o.displayName;
+  if (o.kind === "tip") return hdEn.type(o.displayName) ?? o.displayName;
+  if (o.kind === "otorite") return hdEn.authority(o.displayName, null) ?? o.displayName;
+  const ch = /(\d{1,2}-\d{1,2})/.exec(o.displayName);
+  if (o.kind === "kanal" && ch) return t("v1.channelHeading", { name: hdEn.term("channel", ch[1]!) ?? ch[1]! });
+  const g = /(\d{1,2})/.exec(o.displayName);
+  if (o.kind === "kapi" && g) return t("v1.gate", { n: g[1]! });
+  return o.displayName;
+}
 
 // ── Prose (inline canonical metin) → docx paragrafları ──────────────────────────
 // Field ETİKETİ zaten H3'tür; prose İÇİNDEKİ ##/### başlıklar H3'ün ALTINDA kalmalı →
@@ -109,7 +143,7 @@ function renderContentFields(
 ): ReportChild[] {
   const out: ReportChild[] = [];
   for (const f of composeFields(content, order)) {
-    out.push(h3(f.label, { keepNext: true }));
+    out.push(h3(isEn() ? t(`field.${f.key}`) : f.label, { keepNext: true }));
     out.push(...renderProse(f.value));
   }
   return out;
@@ -118,21 +152,21 @@ function renderContentFields(
 // ── Kimlik (Tip / Otorite) ──────────────────────────────────────────────────────
 function renderIdentity(
   section: FrozenIdentitySection | null,
-  kindLabel: "Tip" | "Otorite",
+  kindLabel: string,
   order: readonly (keyof FrozenCanonicalContent)[],
   emptyText: string,
   omitted?: FrozenOmittedSection | null,
 ): ReportChild[] {
   if (!section && omitted) {
     // Chart'ta değer VAR ama içerik henüz yayımlanmadı (uzman omit modu).
-    return [h2(`${kindLabel} — ${omitted.displayName}`, { keepNext: true }), bodyText(UNPUBLISHED_SECTION_TEXT)];
+    return [h2(`${kindLabel} — ${omittedName(omitted)}`, { keepNext: true }), bodyText(t("v1.unpublished"))];
   }
   if (!section) {
     // Chart'ta değer yok → sade empty-state (canonical-unpublished mesajı DEĞİL; §24/§57).
     return [h2(kindLabel, { keepNext: true }), bodyText(emptyText)];
   }
   return [
-    h2(`${kindLabel} — ${section.displayName}`, { keepNext: true }),
+    h2(`${kindLabel} — ${authorityName(section)}`, { keepNext: true }),
     ...renderContentFields(section.content, order),
   ];
 }
@@ -149,21 +183,21 @@ const TYPE_INDICATOR_ORDER: readonly ContentFieldKey[] = ["strategy_text", "sign
 
 function renderTypeIdentity(section: FrozenIdentitySection | null, omitted?: FrozenOmittedSection | null): ReportChild[] {
   if (!section && omitted) {
-    return [h2(`Tip — ${omitted.displayName}`, { keepNext: true }), bodyText(UNPUBLISHED_SECTION_TEXT)];
+    return [h2(`${t("v1.type")} — ${omittedName(omitted)}`, { keepNext: true }), bodyText(t("v1.unpublished"))];
   }
   if (!section) {
     // Chart'ta tip yok → sade empty-state (canonical-unpublished mesajı DEĞİL; §24/§57).
-    return [h2("Tip", { keepNext: true }), bodyText("Bu haritada tip bilgisi bulunmuyor.")];
+    return [h2(t("v1.type"), { keepNext: true }), bodyText(t("v1.noType"))];
   }
   const out: ReportChild[] = [
-    h2(`Tip — ${section.displayName}`, { keepNext: true }),
+    h2(`${t("v1.type")} — ${typeName(section)}`, { keepNext: true }),
     ...renderContentFields(section.content, TYPE_MAIN_ORDER),
   ];
   const indicators = composeFields(section.content, TYPE_INDICATOR_ORDER);
   if (indicators.length > 0) {
-    out.push(h3("Temel Göstergeler", { keepNext: true }));
+    out.push(h3(t("v1.indicators"), { keepNext: true }));
     for (const f of indicators) {
-      out.push(inProseHeading(f.label, 3)); // koyu etiket (Word heading STİLİ değil → nav/TOC kirlenmez)
+      out.push(inProseHeading(isEn() ? t(`field.${f.key}`) : f.label, 3)); // koyu etiket (Word heading STİLİ değil → nav/TOC kirlenmez)
       out.push(...renderProse(f.value));
     }
   }
@@ -176,50 +210,57 @@ export type WordReportOptions = {
   chartImage?: Buffer | null;
   /** Raporu hazırlayan uzmanın görünen adı ("Hazırlayan: …"; yoksa satır eklenmez). */
   expertName?: string | null;
+  /** Çıktı dili (route: resolveOutputLocale). Yoksa / TR → bugünkü Türkçe çıktı birebir. */
+  output?: OutputLocale | null;
 };
 
 export function buildHdReportChildren(
   snapshot: HdReportSnapshot,
   opts: WordReportOptions = {},
 ): ReportChild[] {
+  return withText(opts.output, () => buildChildrenInner(snapshot, opts));
+}
+
+function buildChildrenInner(snapshot: HdReportSnapshot, opts: WordReportOptions): ReportChild[] {
   const children: ReportChild[] = [];
-  const clientName = (snapshot.client.name || "Danışan").trim();
+  const clientName = (snapshot.client.name || t("brand.clientFallback")).trim();
   // generatedAt bir AN (timestamptz) → Europe/Istanbul yerel günü (UTC sunucuda kayma yok).
-  const genDate = formatInstantDate(snapshot.generatedAt, { style: "long", fallback: "—" });
+  const genDate = formatInstantDate(snapshot.generatedAt, { style: "long", fallback: "—", ...dateOpts() });
   const omitted = snapshot.provenance.omitted ?? [];
   const omittedOf = (kind: FrozenOmittedSection["kind"]) => omitted.find((o) => o.kind === kind) ?? null;
 
   // 1) KAPAK
   children.push(
     ...buildPremiumCover({
-      title1: "YAŞAM SİSTEMİ",
+      title1: t("v1.coverBrand"),
       title2: "Human Design",
-      subtitle: "Profesyonel Rapor",
+      subtitle: t("v1.coverSubtitle"),
       date: genDate,
-      stats: [{ label: "Danışan", value: clientName }],
+      stats: [{ label: t("v1.coverClient"), value: clientName }],
     }),
   );
 
   // 2) DANIŞAN / HARİTA BİLGİLERİ (teknik UUID YOK). İÇİNDEKİLER kullanıcı kararıyla
   //    tamamen kaldırıldı; kapaktan sonra doğrudan bu bölüm gelir (Word heading yapısı korunur).
-  children.push(h1("Danışan ve Harita Bilgileri", true));
-  const infoRows: [string, string][] = [["Danışan", clientName]];
+  children.push(h1(t("v1.infoTitle"), true));
+  const infoRows: [string, string][] = [[t("v1.client"), clientName]];
   // Doğum tarihi takvim günüdür (DATE) → saat dilimiyle ASLA kaydırılmaz.
   if (snapshot.client.birthDate) {
     infoRows.push([
-      "Doğum Tarihi",
-      formatDateOnly(snapshot.client.birthDate, { style: "long" }) || formatDateLoose(snapshot.client.birthDate, { style: "long" }),
+      t("v1.birthDate"),
+      formatDateOnly(snapshot.client.birthDate, { style: "long", ...dateOpts() }) || formatDateLoose(snapshot.client.birthDate, { style: "long", ...dateOpts() }),
     ]);
   }
-  if (snapshot.client.birthTime) infoRows.push(["Doğum Saati", String(snapshot.client.birthTime)]);
-  if (snapshot.client.birthPlace) infoRows.push(["Doğum Yeri", String(snapshot.client.birthPlace)]);
-  infoRows.push(["Harita Kaynağı", snapshot.chart.source === "computed" ? "Hesaplanmış" : "Manuel"]);
-  if (snapshot.chart.profileLabel) infoRows.push(["Profil", snapshot.chart.profileLabel]);
-  if (snapshot.chart.definitionLabel) infoRows.push(["Tanım", snapshot.chart.definitionLabel]);
+  if (snapshot.client.birthTime) infoRows.push([t("v1.birthTime"), String(snapshot.client.birthTime)]);
+  if (snapshot.client.birthPlace) infoRows.push([t("v1.birthPlace"), String(snapshot.client.birthPlace)]);
+  infoRows.push([t("v1.source"), snapshot.chart.source === "computed" ? t("v1.sourceComputed") : t("v1.sourceManual")]);
+  if (snapshot.chart.profileLabel) infoRows.push([t("v1.profile"), isEn() ? hdEn.profile(snapshot.chart.profileLabel) ?? snapshot.chart.profileLabel : snapshot.chart.profileLabel]);
+  if (snapshot.chart.definitionLabel) infoRows.push([t("v1.definition"), isEn() ? hdEn.definition(snapshot.chart.definitionLabel) ?? snapshot.chart.definitionLabel : snapshot.chart.definitionLabel]);
   if (snapshot.chart.definedCenterLabels && snapshot.chart.definedCenterLabels.length > 0) {
-    infoRows.push(["Tanımlı Merkezler", snapshot.chart.definedCenterLabels.join(", ")]);
+    const names = isEn() ? snapshot.chart.definedCenterLabels.map((l) => hdEn.center(hdEn.centerCode(l)) ?? l) : snapshot.chart.definedCenterLabels;
+    infoRows.push([t("v1.definedCenters"), names.join(", ")]);
   }
-  infoRows.push(["Rapor Tarihi", genDate]);
+  infoRows.push([t("v1.reportDate"), genDate]);
   children.push(twoColTable(infoRows));
 
   // Opsiyonel, ownership-safe BodyGraph görseli (varsa; yoksa rapor görselsiz devam eder).
@@ -229,46 +270,48 @@ export function buildHdReportChildren(
   if (opts.chartImage && getImgDimensions(opts.chartImage)) {
     children.push(spacer());
     children.push(embedImageParagraph(opts.chartImage, 540, 660));
-    children.push(muted("Danışanın Human Design BodyGraph görseli."));
+    children.push(muted(t("v1.imageCaption")));
   }
 
   // 3) TEMEL HUMAN DESIGN KİMLİĞİ
-  children.push(h1("Temel Human Design Kimliği", true));
+  children.push(h1(t("v1.identityTitle"), true));
+  // Diğer dillerde: bilgi bankası metinleri Türkçe yayımlanmıştır (çevrilmez) — açık not.
+  if (isEn()) children.push(muted(t("v1.contentNote")));
   children.push(...renderTypeIdentity(snapshot.identity.type, omittedOf("tip")));
-  children.push(...renderIdentity(snapshot.identity.authority, "Otorite", AUTHORITY_FIELD_ORDER, "Bu haritada otorite bilgisi bulunmuyor.", omittedOf("otorite")));
+  children.push(...renderIdentity(snapshot.identity.authority, t("v1.authority"), AUTHORITY_FIELD_ORDER, t("v1.noAuthority"), omittedOf("otorite")));
 
   // 4) TANIMLI KANALLAR
-  children.push(h1("Tanımlı Kanallar", true));
+  children.push(h1(t("v1.channelsTitle"), true));
   if (snapshot.channels.length === 0) {
-    children.push(bodyText("Bu haritada tamamlanmış kanal bulunmuyor."));
+    children.push(bodyText(t("v1.noChannels")));
   } else {
     for (const c of snapshot.channels) {
-      children.push(h2(`Kanal ${c.displayName}`, { keepNext: true }));
-      children.push(muted(`Kapılar ${c.gates[0]} · ${c.gates[1]}`));
+      children.push(h2(t("v1.channelHeading", { name: channelName(c.code, c.displayName) }), { keepNext: true }));
+      children.push(muted(t("v1.channelGates", { a: c.gates[0], b: c.gates[1] })));
       children.push(...renderContentFields(c.content, CHANNEL_FIELD_ORDER));
     }
   }
 
   // 5) AKTİF / BAĞIMSIZ KAPILAR
-  children.push(h1("Aktif / Bağımsız Kapılar", true));
+  children.push(h1(t("v1.gatesTitle"), true));
   if (snapshot.gates.length === 0) {
-    children.push(bodyText("Bu haritada bağımsız kapı bulunmuyor."));
+    children.push(bodyText(t("v1.noGates")));
   } else {
     for (const g of snapshot.gates) {
-      children.push(h2(g.displayName, { keepNext: true }));
+      children.push(h2(isEn() ? t("v1.gate", { n: g.gate }) : g.displayName, { keepNext: true }));
       children.push(...renderContentFields(g.content, GATE_FIELD_ORDER));
     }
   }
 
   // 6) ASILI KAPI BAĞLAMLARI (kanal içeriğinden; potansiyel kanal başına ayrı)
-  children.push(h1("Asılı Kapı Bağlamları", true));
+  children.push(h1(t("v1.hangingTitle"), true));
   if (snapshot.hangingContexts.length === 0) {
-    children.push(bodyText("Bu haritada asılı kapı bağlamı bulunmuyor."));
+    children.push(bodyText(t("v1.noHanging")));
   } else {
     for (const hg of snapshot.hangingContexts) {
-      children.push(h2(hg.displayName, { keepNext: true }));
+      children.push(h2(isEn() ? t("v1.gate", { n: hg.gate }) : hg.displayName, { keepNext: true }));
       for (const p of hg.potentials) {
-        children.push(h3(`Asılı Kapı Bağlamı — Kanal ${p.displayName}`, { keepNext: true }));
+        children.push(h3(t("v1.hangingHeading", { name: channelName(p.code, p.displayName) }), { keepNext: true }));
         children.push(...renderProse(p.hangingContext));
       }
     }
@@ -279,39 +322,39 @@ export function buildHdReportChildren(
   if (omittedBody.length > 0) {
     children.push(spacer());
     children.push(
-      muted(
-        `İçeriği henüz yayımlanmadığı için bu rapora alınmayan bölümler: ${omittedBody.map((o) => o.displayName).join(", ")}.`,
-      ),
+      muted(t("v1.omitted", { list: omittedBody.map((o) => omittedName(o)).join(", ") })),
     );
   }
 
   // 7) SADE KURUMSAL KAPANIŞ (AI sentezi YOK; §22)
   children.push(divider());
   children.push(
-    muted(
-      "Bu rapor, Yaşam Sistemi Human Design bilgi bankasının yayınlanmış canonical içeriğinden, " +
-        `oluşturulduğu anda (${genDate}) dondurularak hazırlanmıştır. İçerik bu rapora özgüdür ve sabittir.`,
-    ),
+    muted(t("v1.closing", { date: genDate })),
   );
-  // FA-16: sade bilgilendirme notu + "Hazırlayan: …" (varsa).
-  children.push(...buildWellnessNoteSection("human_design", opts.expertName ?? null));
+  // FA-16: sade bilgilendirme notu + "Hazırlayan: …" (varsa). TR → ortak motor; diğer dillerde HD katalogu (#855 öncesi).
+  children.push(...(isEn() ? hdWellnessNoteSection(X, opts.expertName ?? null) : buildWellnessNoteSection("human_design", opts.expertName ?? null)));
 
   return children;
 }
 
 /** Snapshot → docx Document (SAF; DB/auth yok). */
 export function buildHdReportDocument(snapshot: HdReportSnapshot, opts: WordReportOptions = {}): Document {
-  return new Document({
-    creator: "Yaşam Sistemi",
-    title: hdReportTitle(snapshot.client.name),
-    sections: [
-      {
-        properties: {},
-        headers: { default: buildHeader(HEADER_TEXT) },
-        footers: { default: buildFooter(REPORT_NAME) },
-        children: buildHdReportChildren(snapshot, opts),
-      },
-    ],
+  return withText(opts.output, () => {
+    const reportName = t("brand.reportNameV1");
+    return new Document({
+      creator: t("brand.creator"),
+      title: hdReportTitle(snapshot.client.name, opts.output),
+      // Belge dili (w:lang) YALNIZ TR dışında (TR belgede `styles` hiç yok → bugünkü XML aynen).
+      ...(isEn() ? { styles: { default: { document: { run: hdDocLanguage(X) } } } } : {}),
+      sections: [
+        {
+          properties: {},
+          headers: { default: buildHeader(t("brand.header")) },
+          footers: { default: isEn() ? new Footer({ children: hdFooterChildren(X, reportName) }) : buildFooter(reportName) },
+          children: buildChildrenInner(snapshot, opts),
+        },
+      ],
+    });
   });
 }
 
@@ -327,16 +370,17 @@ const TR_MAP: Record<string, string> = {
   ı: "i", İ: "I", ö: "o", Ö: "O", ç: "c", Ç: "C",
 };
 
-export function hdReportTitle(clientName: string | null | undefined): string {
+export function hdReportTitle(clientName: string | null | undefined, output?: OutputLocale | null): string {
   const name = (clientName ?? "").trim();
-  return name ? `Human Design Raporu — ${name}` : "Human Design Raporu";
+  const x = hdReportText(output ?? null);
+  return name ? x.t("brand.docTitleV1", { name }) : x.t("brand.docTitleV1Empty");
 }
 
 /**
  * Güvenli dosya adı: TR transliterasyon → yalnız [A-Za-z0-9-], çoklu tire sadeleştirme,
  * uzunluk sınırı. Path traversal / CRLF / tırnak / kontrol karakteri KALMAZ (§41).
  */
-export function hdReportFilename(clientName: string | null | undefined, dateSlug: string): string {
+export function hdReportFilename(clientName: string | null | undefined, dateSlug: string, output?: OutputLocale | null): string {
   const raw = (clientName ?? "").trim();
   const ascii = raw
     .split("")
@@ -346,7 +390,7 @@ export function hdReportFilename(clientName: string | null | undefined, dateSlug
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  if (!slug) slug = "Danisan";
+  if (!slug) slug = hdReportText(output ?? null).t("brand.fileClientFallback");
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateSlug) ? dateSlug : "0000-00-00";
   return `Human-Design-${slug}-${safeDate}.docx`;
 }

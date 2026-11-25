@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Search, Trash2, X } from "lucide-react";
 import type { HdEntityKind } from "@/lib/human-design/knowledge/expertReadTypes";
-import { KIND_LABELS, KIND_ORDER } from "./knowledgeConstants";
+import { KIND_ORDER } from "./knowledgeConstants";
 import { KnowledgeError, KnowledgeLoading } from "./KnowledgeStates";
 
 export type GroupListItem = {
@@ -54,6 +55,7 @@ export function CanonicalGroupList({
   selectable = false, onBulkDelete, bulkBusy = false,
 }: Props) {
   const [query, setQuery] = useState("");
+  const t = useTranslations("hd.knowledge.canonical");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -95,36 +97,36 @@ export function CanonicalGroupList({
                 ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-[0_6px_18px_rgba(79,70,229,0.28)]"
                 : "border border-indigo-200 bg-white/90 text-indigo-700 hover:border-indigo-400 hover:bg-indigo-50"
             }`}>
-            {KIND_LABELS[k]}
+            {t(`kind.${k}`)}
           </button>
         ))}
         <span className="ml-auto text-xs font-semibold text-slate-400">
-          {filtered.length} kayıt{query ? " (filtreli)" : ""}
+          {query ? t("countFiltered", { count: filtered.length }) : t("count", { count: filtered.length })}
         </span>
       </div>
 
       <div className="mb-3 flex items-center gap-2 rounded-xl border border-indigo-200/90 bg-white px-3 shadow-sm">
         <Search className="h-4 w-4 text-slate-400" />
         <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ara (ad veya kanonik anahtar)…" className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-slate-400" />
-        {query && <button type="button" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600" aria-label="Aramayı temizle"><X className="h-4 w-4" /></button>}
+          placeholder={t("searchPlaceholder")} className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-slate-400" />
+        {query && <button type="button" onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600" aria-label={t("clearSearch")}><X className="h-4 w-4" /></button>}
       </div>
 
       {showSelection && !loading && !error && selectableIds.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2">
           <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600">
             <input ref={selectAllRef} type="checkbox" checked={allInViewSelected} onChange={selectAllFiltered}
-              className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-400" aria-label="Görünenleri seç" />
-            Görünenleri Seç
+              className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-400" aria-label={t("selectVisibleAria")} />
+            {t("selectVisible")}
           </label>
           <span className="text-xs text-slate-400">·</span>
-          <span className="text-xs font-semibold text-slate-500">{selected.size} seçili</span>
+          <span className="text-xs font-semibold text-slate-500">{t("selectedCount", { count: selected.size })}</span>
           {selected.size > 0 && (
             <>
-              <button type="button" onClick={clearSelection} className="text-xs font-bold text-slate-500 hover:text-slate-700">Temizle</button>
+              <button type="button" onClick={clearSelection} className="text-xs font-bold text-slate-500 hover:text-slate-700">{t("clear")}</button>
               <button type="button" disabled={bulkBusy} onClick={() => onBulkDelete!([...selected])}
                 className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
-                <Trash2 className="h-3.5 w-3.5" /> Seçili İçerikleri Sil
+                <Trash2 className="h-3.5 w-3.5" /> {t("deleteSelected")}
               </button>
             </>
           )}
@@ -144,7 +146,7 @@ export function CanonicalGroupList({
                 className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition ${isSel ? "border-violet-300 bg-violet-50/50" : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/40"}`}>
                 {showSelection && r.id && (
                   <input type="checkbox" checked={isSel} onChange={() => toggle(r.id!)}
-                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-violet-600 focus:ring-violet-400" aria-label={`${r.name_tr} seç`} />
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-violet-600 focus:ring-violet-400" aria-label={t("selectRow", { name: r.name_tr })} />
                 )}
                 <Link href={hrefFor(r.canonical_key)} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-sm">
                   <span className="min-w-0">
@@ -161,7 +163,7 @@ export function CanonicalGroupList({
           })}
           {filtered.length === 0 && (
             <li className="py-10 text-center text-xs text-slate-500">
-              {items.length === 0 ? (emptyLabel ?? "Henüz yayınlanmış içerik yok.") : "Aramaya uyan kayıt yok."}
+              {items.length === 0 ? (emptyLabel ?? t("emptyPublished")) : t("emptySearch")}
             </li>
           )}
         </ul>

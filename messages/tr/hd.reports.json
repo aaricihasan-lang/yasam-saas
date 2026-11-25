@@ -1,0 +1,37 @@
+{
+  "hd": {
+    "reports": {
+      "demoBanner": "Demo hesabında Human Design raporları görüntülenebilir. Düzenleme ve silme işlemleri yapılamaz.",
+      "title": "Kayıtlı Human Design Raporları",
+      "subtitle": "Daha önce hazırlanmış Word raporları (eski raporlar dahil). Yeni bir analizi Word olarak indirmek için Human Design Hesaplama > Kayıtlı Human Design Analizleri listesinde “Word İndir” kullanın.",
+      "loading": "Yükleniyor...",
+      "downloadFailed": "İndirilemedi: {error}",
+      "loadFailed": "Yüklenemedi: {error}",
+      "deleteTitle": "Raporu sil",
+      "deleteMessage": "\"{title}\" raporunu kalıcı olarak silmek istiyor musunuz?",
+      "delete": "Sil",
+      "cancel": "Vazgeç",
+      "deleteFailed": "Silinemedi: {error}",
+      "deleted": "Rapor silindi.",
+      "search": "Danışan adı veya rapor başlığı ara...",
+      "noResults": "Arama sonucu bulunamadı.",
+      "empty": "Henüz hazırlanmış Word raporu yok.",
+      "emptyHint": "Hesaplanan analizler otomatik kaydedilir ve Human Design Hesaplama sayfasında listelenir. Bir analizde “Word İndir” kullandığınızda hazırlanan Word raporu burada da görünür.",
+      "calcLink": "Human Design Hesaplama",
+      "professional": "Profesyonel",
+      "latest": "Son",
+      "clientDeleted": "Danışan kaydı silinmiş",
+      "summary": "Özet",
+      "downloading": "İndiriliyor…",
+      "downloadWord": "Word İndir",
+      "detail": "Detay",
+      "edit": "Düzenle",
+      "detailModal": {
+        "title": "Rapor Detayı",
+        "empty": "Rapor içeriği yok.",
+        "close": "Kapat",
+        "edit": "Düzenle"
+      }
+    }
+  }
+}

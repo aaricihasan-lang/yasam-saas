@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (!hasModulePermissionForProfile(guard.profile, "hd_system_reading")) {
     return NextResponse.json(
-      { ok: false, code: "SYSTEM_READING_DENIED", error: "Sistem Yorumu bu hesap için açık değil." },
+      { ok: false, code: "SYSTEM_READING_DENIED", error: hdApiText(req, "systemReadingDisabled") },
       { status: 403, headers: NO_STORE },
     );
   }

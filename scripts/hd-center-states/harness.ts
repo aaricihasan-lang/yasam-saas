@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 
 // ── E) Roxy kredisi: global fetch sayacı (her şeyden ÖNCE) ──
 let fetchCalls = 0;

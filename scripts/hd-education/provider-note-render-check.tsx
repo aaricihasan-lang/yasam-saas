@@ -5,7 +5,7 @@
  * Çalıştır: npx tsx scripts/hd-education/provider-note-render-check.tsx
  */
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import type { HdComputedChart } from "../../lib/human-design/chart/computedChart";
 import { syntheticEducationSnapshot } from "./syntheticSnapshot";
