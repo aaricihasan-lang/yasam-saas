@@ -19,9 +19,10 @@
  * 3D: WebGL KULLANILMAZ; derinlik CSS perspektifli kaide/halka katmanları, iç gölge, cam ve metal degradelerle verilir.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
-import { NATAL_HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { dateInputReason, describeOptions, missingReason, NEW_TECHNIQUES, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
+import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
+import { dateInputReason, describeOptions, missingReason, NEW_TECHNIQUES, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechText, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type NatalMethodContext, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
@@ -53,19 +54,12 @@ type ViewLike = { technique?: string; options: Record<string, unknown>; technica
 export type PrepRunItem = { technique: string; ok: true; partial: boolean; reused: boolean; view: ViewLike } | { technique: string; ok: false; code: string; error: string };
 
 export type SystemId = "western" | "vedic" | "kp";
-const SYSTEMS: { id: SystemId; label: string; short: string; sub: string }[] = [
-  { id: "western", label: "Batı Astrolojisi", short: "Batı", sub: "Tropikal zodyak" },
-  { id: "vedic", label: "Vedik Astroloji", short: "Vedik", sub: "Sidereal · Jyotish" },
-  { id: "kp", label: "KP Astrolojisi", short: "KP", sub: "Krishnamurti · Placidus" },
-];
+/** I18N-F1-R5 (ATLAS-B): sistem adları katalogdan (atlas.prep.system.<id>.label / short / sub). */
+const SYSTEMS: { id: SystemId }[] = [{ id: "western" }, { id: "vedic" }, { id: "kp" }];
 const systemOf = (id: UiTechniqueId): SystemId => id.split(".")[0] as SystemId;
 /** 2026-10-30 (Owner): William Lilly Horary Batı listesinde BAĞLANTI olarak görünür — seçilebilir teknik DEĞİLDİR (natal motoruna,
  * plana ve doğum profiline girmez); tıklanınca bağımsız Horary ekranı (#horary-lilly) açılır. KP Horary ayrı (KP listesi). */
-const HORARY_ENTRY = {
-  label: "William Lilly Horary — Soru Astrolojisi",
-  hint: "Sorunun sorulduğu anın haritası; doğum profili gerekmez. Ayrı Horary ekranında açılır.",
-  search: "horary soru astrolojisi william lilly",
-} as const;
+// Etiket / ipucu / arama sözcükleri katalogdan: atlas.prep.horary.{label,hint,search}.
 const TECH_BY_SYSTEM: Record<SystemId, UiTechniqueId[]> = {
   western: UI_TECHNIQUES.filter((t) => systemOf(t) === "western"),
   vedic: UI_TECHNIQUES.filter((t) => systemOf(t) === "vedic"),
@@ -73,100 +67,8 @@ const TECH_BY_SYSTEM: Record<SystemId, UiTechniqueId[]> = {
 };
 
 /** Tekniğin ne gösterdiği (genel tanım; kişiye özgü içerik yok). */
-const ABOUT: Record<UiTechniqueId, string> = {
-  "western.natal": "Doğum anındaki gökyüzü: gezegenlerin burç ve ev konumları, açısal noktalar ve gezegenler arası açılar.",
-  "western.transit": "Seçilen andaki gezegenlerin natal haritayla yaptığı açılar: güç, orb, yaklaşan/ayrılan, transit gezegenin geçtiği natal ev ve çift halka harita. Tek bir anın görüntüsüdür; kesinleşme anları Transit Takvimi gününden açıldığında takvimden gösterilir.",
-  "western.forecast": "Bir dönem boyunca natal haritaya transit açılarının kesinleşme anları ile burç girişleri, istasyonlar, tutulmalar ve Ay evreleri; sağlayıcı önem puanı. Gün seçilince o günün ayrıntısı açılır, günün transit haritası istenirse ayrıca hesaplanır. Sağlayıcı isteği en çok 90 günlük parçalara bölünür.",
-  "western.progression": "İkincil ilerletme: doğumdan sonraki her gün yaşamın bir yılına karşılık gelir; hedef tarih için ilerletilmiş harita.",
-  "western.solar_arc": "Tüm natal noktalar, ilerletilmiş Güneş'in kat ettiği yay kadar ileri taşınır.",
-  "western.solar_return": "Güneş'in natal boylamına döndüğü anın haritası; seçilen yılın teması için kullanılır.",
-  "western.lunar_return": "Ay'ın natal boylamına döndüğü anın haritası. Bir takvim ayında iki dönüş olabilir; her dönüş ayrı istektir.",
-  "western.synastry": "İki kişinin haritaları arasındaki açılar ve bir kişinin gezegenlerinin diğerinin evlerine düşüşü.",
-  "western.composite": "İki haritanın orta noktalarından kurulan tek ilişki haritası.",
-  "western.astrocartography": "Gezegenlerin doğum anında MC, IC, yükselen ve alçalan olduğu yerler dünya haritası üzerinde hat olarak çizilir.",
-  "western.relocation": "Aynı doğum anı başka bir konum için hesaplanır: gezegen konumları değişmez; yükselen, MC ve evler değişir.",
-  "western.local_space": "Seçilen merkezden bakıldığında gezegenlerin ufuk yönleri (azimut); pusula ve harita üzerinde.",
-  "western.fixed_stars": "43 sabit yıldızın doğum anındaki tropikal konumu ve natal gezegen, Yükselen ve MC ile ekliptik boylam kavuşumları. Paran yöntemi değildir. Orb ayarı yalnız filtredir; değiştirmek yeni hesaplama gerektirmez.",
-  "western.profections": "Yükselen burçtan her tamamlanmış yaş için bir burç ilerlenir (bütün-burç evleri): seçilen profeksiyon yılının etkin evi, burcu, klasik yönetici gezegeni ve yöneticinin doğum haritasındaki burcu ile evi.",
-  "western.extra_points": "Natal haritaya ek noktalar, üç isteğe bağlı bölüm: dört asteroit (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot (gündüz/gece formülüyle) ve Kara Ay Lilith için ortalama ile gerçek (osculating) konum. Her bölüm ayrı hesaplanır; aynı ev sistemiyle kayıtlı natal varsa natal çark üzerinde katman olarak gösterilir.",
-  "western.planetary_return": "Seçilen gezegenin (Satürn, Jüpiter, Mars, Venüs, Merkür) natal boylamına döndüğü anın haritası. Retro döngüsünde gezegen natal derecesinden 2–3 kez geçebilir; hedef tarihe en yakın kümedeki kavuşumlar listelenir ve seçilen kavuşum hesaplanır.",
-  "vedic.d1": "Sidereal Rashi kundli: Lagna, grahaların burç ve bhava yerleşimi, nakshatra / pada ve yogalar.",
-  "vedic.varga": "Bölümsel haritalar: her burç n parçaya bölünür (D9 Navamsa varsayılan); vargottama işaretlenir.",
-  "vedic.dasha": "Vimshottari: doğumdaki Ay nakshatrasına göre 120 yıllık gezegen dönemleri; alt dönemler (Prana düzeyine kadar) sonuç ekranında tıklayınca yüklenir; isteğe bağlı güncel dönem zinciri.",
-  "vedic.drishti": "Parashari bütün-burç graha drishti: hangi grahanın hangi burç ve bhavaya baktığı. Yalnız Lahiri ile hesaplanır.",
-  "vedic.ashtakavarga": "Her grahanın ve Lagna'nın 12 burca verdiği bindu puanları, Sarva toplamı ve Shodhana.",
-  "vedic.shadbala": "Grahaların altı bileşenli güç hesabı (BPHS); gerekli güce oran ve sıralama.",
-  "vedic.panchanga": "Doğum anının tithi, nakshatra, nitya yoga ve karana öğeleri; isteğe bağlı ayrıntılı gün (vara, gün doğumu/batımı, Rahu Kaal, Abhijit…) ve gezegen saatleri (hora) + Choghadiya. Yalnız Lahiri ile hesaplanır.",
-  "vedic.transit": "Gochara: seçilen andaki sidereal grahaların Janma Rashi'den ve Lagna'dan evleri, drishti ve kaksha. Yalnız Lahiri.",
-  "vedic.bhav_chalit": "Bhava (Sripati) evleri: her bhavanın başlangıcı, madhyası (cusp) ve bitişi (sandhi); grahaların chalit bhavası ile Vedik D1'in bütün-burç (rashi) evinin karşılaştırması. D1'den ayrı bir ev yöntemidir.",
-  "vedic.chara_karaka": "Jaimini chara karakaları: grahalar burç içi derecelerine göre sıralanır (Atmakaraka … Darakaraka). 8'li şema Rahu'yu (ters derece) içerir; 7'li şema içermez.",
-  "vedic.arudha": "Jaimini arudha padaları: Arudha Lagna (AL), A2…A11 ve Upapada (UL) — bhava lordu, lordun rashisi, sayım ve 1./7. ev istisnası ile burç ve Lagna'dan ev yerleşimi.",
-  "vedic.bhava_bala": "On iki evin (bhava) gücü: Bhavadhipati Bala (ev lordunun Shadbala toplamı), Dig Bala ve Drishti Bala; toplam virupa / rupa ve sıralama. Gezegen gücü (Shadbala) ayrı tekniktir.",
-  "vedic.gun_milan": "Ashtakoot Gun Milan: iki kişinin Ay nakshatrası ve burcuna göre sekiz koota (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) puanı, 36 üzerinden toplam, Nadi / Bhakoot dosha ve klasik iptal kuralları; iki kişi için Manglik durumu. Teknik değerlendirmedir; ilişki hükmü vermez.",
-  "vedic.monthly": "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegenlerin burç girişleri (geçiş anındaki hareket yönüyle), gezegenler arası ve Ay ile 22 türde astronomik açı kesinleşmesi, deklinasyon paralel / kontraparalel olayları; isteğe bağlı doğum anı deklinasyonları. Kronolojik zaman çizelgesi, gezegen filtresi, UTC ve yerel saat, aylık özet. Astronomik açılar geleneksel graha drishti değildir.",
-  "vedic.sade_sati": "Satürn'ün Janma Rashi'den (natal Ay burcu) 12., 1. ve 2. evlerden geçişi: değerlendirme günündeki Sade Sati durumu ve evresi (yükselen / doruk / batan).",
-  "western.transit_scan": "Transit taraması: seçilen tarih aralığında (en çok 1 yıl) transit gezegenlerin natal noktalara (yedi klasik gezegen, Yükselen, MC) açıları; her açı için orba giriş, tam an(lar) (retro döngüsünde 1/2, 2/2 …), orbdan çıkış ve tür; ayrıca istasyonlar ve burç girişleri. Tek orb tüm açılara uygulanır (varsayılan 1°). Natal noktalar natal sonucundan, tarama Yaşam Sistemi yerel motorunda.",
-  "western.classical_dignities": "Klasik asalet ve almuten: yedi klasik gezegenin esas (burç yöneticisi, yücelme, üçlü, terim, yüz) ve arızi asalet puanları, gezegen kabulleri, ev başı almutenleri, harita almuteni (Yunanlar CA s. 532 standart; diğer setler alternatif) ve Lord of the Geniture (yorum). Varsayılan ekol William Lilly (1647); Dorothean seçilebilir. Konumlar natal sonucundan, hesap Yaşam Sistemi yerel motorunda.",
-  "western.declination_parallels": "Seçilen ayda iki gök cismi arasındaki deklinasyon temasları: paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon), kesinleşme anı, iki deklinasyon ve orb; kronolojik çizelge. Ekliptik açılardan ayrı bir ölçüdür; gökyüzü takvimidir, doğum verisi kullanılmaz.",
-  "vedic.dashakoot": "Güney Hint On Porutham (Dashakoot): Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju ve Vedha kriterlerinin her biri karşılandı / karşılanmadı; 10 üzerinden toplam ve Rajju / Vedha kesin kısıtları. Gun Milan'dan ayrı sistemdir; teknik değerlendirmedir.",
-  "vedic.papasamyam": "Papasamyam: iki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna, Ay ve Venüs'ten sayılan 1., 2., 4., 7., 8., 12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve iki toplamın karşılaştırması. Teknik değerlendirmedir.",
-  "vedic.upagraha": "Upagrahalar: hesaplanan duyarlı noktalar (gök cismi değil). Zaman tabanlı olanlar (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) gün / gece 8'li bölümünden, Güneş türevli olanlar (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu) Güneş boylamından türer; burç, derece, nakshatra ve pada.",
-  "vedic.heliacal": "Graha Asta / Udaya: seçilen gün ve gözlem yerinde altı görünür grahanın Güneş parıltısından kurtulup kurtulmadığı (Surya Siddhanta kalamsa), son ve sonraki heliakal doğuş / batış tarihi. Doğum haritasındaki “yanık” işaretinden farklı, yere bağlı hesaptır.",
-  "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
-  "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
-  "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
-  "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
-  "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
-  "kp.ruling_interval": "Seçilen zaman aralığında adım adım ruling planet'ler, Lagna ve Ay'ın burç / yıldız / sub / sub-sub lordları ve değişim anları. Significator'lar her anın gökyüzü haritasından gelir (KP ruling planets tekniğindeki natal significator'lardan farklı yöntem); doğum verisi kullanılmaz.",
-};
 
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
-const PARAMS_NOTE: Record<UiTechniqueId, string> = {
-  "western.natal": "ev sistemi · ay düğümü",
-  "western.transit": "an (şimdi / gün / gün + saat) · saat dilimi · ay düğümü",
-  "western.forecast": "başlangıç · bitiş (en çok 366 gün) · saat dilimi",
-  "western.progression": "hedef tarih · ay düğümü",
-  "western.solar_arc": "hedef tarih · ay düğümü",
-  "western.solar_return": "yıl · konum · ev sistemi",
-  "western.lunar_return": "ay · dönüş sırası · konum",
-  "western.synastry": "karşı taraf · ev sistemi",
-  "western.composite": "karşı taraf · ev sistemi",
-  "western.astrocartography": "ek ayar yok",
-  "western.relocation": "hedef konum · ev sistemi",
-  "western.local_space": "merkez konum",
-  "western.fixed_stars": "orb · ay düğümü · rapor kataloğu",
-  "western.profections": "profeksiyon yılı (yaş) · ev sistemi sabit: Tam Burç",
-  "western.extra_points": "bölümler (asteroit / lot / Lilith) · ev sistemi",
-  "western.planetary_return": "gezegen · hedef tarih · kavuşum · konum · ev sistemi",
-  "vedic.d1": "ayanamsa",
-  "vedic.varga": "bölüm · ayanamsa",
-  "vedic.dasha": "düzey · ayanamsa",
-  "vedic.drishti": "Lahiri sabit",
-  "vedic.ashtakavarga": "ayanamsa",
-  "vedic.shadbala": "ayanamsa",
-  "vedic.panchanga": "Lahiri sabit",
-  "vedic.transit": "an · Lahiri sabit",
-  "vedic.bhav_chalit": "ayanamsa",
-  "vedic.chara_karaka": "karaka şeması (8 / 7) · ayanamsa",
-  "vedic.arudha": "ayanamsa",
-  "vedic.bhava_bala": "ayanamsa",
-  "vedic.gun_milan": "karşı taraf · ayanamsa",
-  "vedic.sade_sati": "ayanamsa · değerlendirme günü: bugün",
-  "western.declination_parallels": "ay · orb · düğüm türü · gösterim saat dilimi",
-  "western.classical_dignities": "ekol (Lilly 1647 / Dorothean) · ev sistemi · ay düğümü",
-  "western.transit_scan": "başlangıç · bitiş (en çok 1 yıl) · orb · gezegenler · natal noktalar · açılar · ek olaylar · saat dilimi",
-  "vedic.dashakoot": "karşı taraf · rol sırası · ayanamsa",
-  "vedic.papasamyam": "karşı taraf · rol sırası · ayanamsa",
-  "vedic.upagraha": "ayanamsa",
-  "vedic.heliacal": "gün · gözlem yeri (ayanamsa yok)",
-  "vedic.monthly": "ay (UTC) · bölümler · gösterim saat dilimi · Lahiri (sabit)",
-  "kp.chart": "KP ayanamsa · düğüm",
-  "kp.dasha": "düzey · KP ayanamsa",
-  "kp.ruling": "an · yer · düğüm",
-  "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
-  "kp.horary": "sayı · an · yer",
-  "kp.ruling_interval": "başlangıç · süre ≤ 24 sa · adım · gözlem yeri · KP ayanamsa · düğüm",
-};
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
 const NO_PRIMARY_PARAMS: UiTechniqueId[] = ["western.natal", "western.astrocartography", "western.synastry", "western.composite"];
 
@@ -237,6 +139,7 @@ export function DialEmblem({ id }: { id: SystemId }) {
 
 /* ── Sistem kadranları (HUD uydu diskleri) ─────────────────────────────────────────────────────── */
 function SystemDials({ active, onChange, counts }: { active: SystemId; onChange: (s: SystemId) => void; counts: Record<SystemId, number> }) {
+  const tp = useTranslations("atlas.prep");
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const onKey = (e: React.KeyboardEvent, i: number) => {
     let n = -1;
@@ -251,7 +154,7 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
   };
   return (
     <div data-testid="atlas-system-dials">
-      <div role="tablist" aria-label="Astroloji sistemi" className={ap.sysSeg}>
+      <div role="tablist" aria-label={tp("sysAria")} className={ap.sysSeg}>
         {SYSTEMS.map((s, i) => {
           const on = s.id === active;
           return (
@@ -266,14 +169,14 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(s.id)}
               onKeyDown={(e) => onKey(e, i)}
-              title={s.label}
+              title={tp(`system.${s.id}.label`)}
               className={`${ap.sysSegBtn} ${on ? ap.sysSegOn : ""} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
               data-system={s.id}
             >
               <span className={ap.sysSegIcon} aria-hidden="true">
                 <DialEmblem id={s.id} />
               </span>
-              {s.short}
+              {tp(`system.${s.id}.short`)}
               {counts[s.id] > 0 && <span className={ap.sysSegBadge}>{counts[s.id]}</span>}
             </button>
           );
@@ -322,6 +225,7 @@ function subscribeSplit(cb: () => void) {
 
 /** Sol teknik listesi ↔ sağ çalışma alanı sınırı: fare/dokunmatik sürükleme, ←/→ (Shift: büyük adım), Home/End, çift tık = 350 px. */
 function SplitHandle({ width, onWidth, containerRef }: { width: number; onWidth: (w: number) => void; containerRef: React.RefObject<HTMLDivElement | null> }) {
+  const tp = useTranslations("atlas.prep");
   const [drag, setDrag] = useState(false);
   const maxFor = () => {
     const w = containerRef.current?.getBoundingClientRect().width ?? 0;
@@ -365,12 +269,12 @@ function SplitHandle({ width, onWidth, containerRef }: { width: number; onWidth:
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Teknik listesi genişliği (sürükleyin; ← → ile ayarlayın; çift tık: varsayılan)"
+      aria-label={tp("splitAria")}
       aria-valuemin={SPLIT_MIN}
       aria-valuemax={SPLIT_MAX}
       aria-valuenow={shown}
       tabIndex={0}
-      title="Sürükleyerek genişliği ayarlayın · çift tık: varsayılan"
+      title={tp("splitTitle")}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
       onDoubleClick={() => onWidth(SPLIT_DEFAULT)}
@@ -462,6 +366,14 @@ export default function PrepCenter({
   allowedTechniques?: ReadonlySet<string> | null;
 }) {
   const mode = useMode();
+  const tp = useTranslations("atlas.prep");
+  const tq = useTranslations("atlas.techniques") as unknown as TechText;
+  const tt = useTranslations("terms");
+  const tm = useTranslations("atlas.timingMore");
+  const locale = useLocale();
+  const lc = locale === "en" ? "en-GB" : "tr-TR";
+  const label = (id: UiTechniqueId) => tq(`meta.${id}.label`);
+  const hint = (id: UiTechniqueId) => tq(`meta.${id}.hint`);
   const techBySystem = useMemo<Record<SystemId, UiTechniqueId[]>>(
     () =>
       allowedTechniques
@@ -496,16 +408,16 @@ export default function PrepCenter({
     (id: UiTechniqueId): Status => {
       if (!checked[id]) return { kind: "none", text: "" };
       const idx = selections.findIndex((s) => s.technique === id);
-      if (idx < 0) return { kind: "missing", text: missingReason(id, params) ?? "eksik ayar" };
-      if (!profile) return { kind: "pending", text: "danışan seçin" };
-      if (!plan) return planError ? { kind: "error", text: "plan alınamadı" } : { kind: "pending", text: "plan hazırlanıyor" };
+      if (idx < 0) return { kind: "missing", text: missingReason(id, params, tq) ?? tp("st.missing") };
+      if (!profile) return { kind: "pending", text: tp("st.noClient") };
+      if (!plan) return planError ? { kind: "error", text: tp("st.planError") } : { kind: "pending", text: tp("st.pending") };
       const ps = plan.selections[idx];
-      if (!ps) return { kind: "pending", text: "plan hazırlanıyor" };
+      if (!ps) return { kind: "pending", text: tp("st.pending") };
       if (ps.blocked) return { kind: "blocked", text: compactBlocked(ps.blocked, ps.info?.skippedSections)!.text };
-      if (ps.newRequests === 0) return { kind: "ready", text: "hazır" };
-      return { kind: "new", text: ps.newRequests === 1 ? "yeni hesaplama" : `yeni hesaplama · ${ps.newRequests} istek` };
+      if (ps.newRequests === 0) return { kind: "ready", text: tp("st.ready") };
+      return { kind: "new", text: ps.newRequests === 1 ? tp("st.new1") : tp("st.newN", { n: ps.newRequests }) };
     },
-    [checked, selections, plan, planError, profile, params],
+    [checked, selections, plan, planError, profile, params, tp, tq],
   );
 
   /* ── Masaüstü yüksekliği ── */
@@ -544,7 +456,8 @@ export default function PrepCenter({
     };
   }, [measure, mode, profile?.id, birthDetailsOpen]);
 
-  const sysDef = SYSTEMS.find((s) => s.id === system)!;
+  const sysLabel = tp(`system.${system}.label`);
+  const sysShort = tp(`system.${system}.short`);
   const meta = TECHNIQUE_META[focus];
   const focusOnChecked = !!checked[focus];
   const timeUnknown = !!rev && !rev.timeKnown;
@@ -555,24 +468,24 @@ export default function PrepCenter({
   const usesMethod = USES_HOUSE_SYSTEM.includes(focus) || USES_NODE_TYPE.includes(focus);
   // Aşama 3 (#643): Natal 8'li ev sistemi AYRI; diğer Batı teknikleri 4'lü ortak seçim.
   const houseSystemOf = (id: UiTechniqueId): string => (id === "western.natal" ? method.natalHouseSystem : method.houseSystem);
-  const houseLabelFor = (id: UiTechniqueId): string => NATAL_HOUSE_SYSTEM_LABELS[houseSystemOf(id)] ?? houseSystemOf(id);
+  const houseLabelFor = (id: UiTechniqueId): string => (NATAL_HOUSE_SYSTEM_LABELS[houseSystemOf(id)] ? tt(`houseSystem.${houseSystemOf(id) as "placidus"}`) : houseSystemOf(id));
   const sharedChosen = UI_TECHNIQUES.filter((x) => checked[x] && x !== "western.natal" && USES_HOUSE_SYSTEM.includes(x));
   const natalContext: NatalMethodContext = {
     latitude: rev?.latitude ?? null,
     timeKnown: rev ? rev.timeKnown : undefined,
-    sharedTechniques: sharedChosen.map((x) => ({ id: x, label: TECHNIQUE_META[x].label })),
+    sharedTechniques: sharedChosen.map((x) => ({ id: x, label: label(x) })),
     onFocusTechnique: (x) => focusOn(x),
   };
   const houseSummary = [
-    checked["western.natal"] ? `Natal: ${houseLabelFor("western.natal")}` : null,
-    sharedChosen.length > 0 ? `${checked["western.natal"] ? "diğer Batı" : "Batı ortak"}: ${houseLabelFor(sharedChosen[0])}` : null,
+    checked["western.natal"] ? tp("natalPrefix", { hs: houseLabelFor("western.natal") }) : null,
+    sharedChosen.length > 0 ? `${checked["western.natal"] ? tp("otherWestern") : tp("sharedWestern")}: ${houseLabelFor(sharedChosen[0])}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
-  const houseSummaryText = houseSummary ? `Ev sistemi — ${houseSummary}` : "";
+  const houseSummaryText = houseSummary ? tp("houseSummary", { s: houseSummary }) : "";
   const methodSummary = [
-    USES_HOUSE_SYSTEM.includes(focus) ? `Ev sistemi: ${houseLabelFor(focus)}${houseSystemOf(focus) === "placidus" ? " (varsayılan)" : ""}` : null,
-    USES_NODE_TYPE.includes(focus) ? `Ay düğümü: ${NODE_TYPE_LABELS[method.nodeType]}${method.nodeType === "true" ? " (varsayılan)" : ""}` : null,
+    USES_HOUSE_SYSTEM.includes(focus) ? tp("methodHouse", { hs: houseLabelFor(focus), def: houseSystemOf(focus) === "placidus" ? tp("default") : "" }) : null,
+    USES_NODE_TYPE.includes(focus) ? tp("methodNode", { n: tt(`nodeType.${method.nodeType}`), def: method.nodeType === "true" ? tp("default") : "" }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -600,9 +513,9 @@ export default function PrepCenter({
                 <DialEmblem id={system} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className={EYEBROW}>{sysDef.label.toLocaleUpperCase("tr-TR")}</p>
-                <h3 className={`${ap.ink} ${ap.display} mt-0.5 break-words text-[1.75rem] leading-tight`}>{meta.label}</h3>
-                <p className={`${ap.muted} mt-0.5 text-[14px] leading-snug`}>{meta.hint}</p>
+                <p className={EYEBROW}>{sysLabel.toLocaleUpperCase(lc)}</p>
+                <h3 className={`${ap.ink} ${ap.display} mt-0.5 break-words text-[1.75rem] leading-tight`}>{label(focus)}</h3>
+                <p className={`${ap.muted} mt-0.5 text-[14px] leading-snug`}>{hint(focus)}</p>
               </div>
               <button
                 type="button"
@@ -612,20 +525,20 @@ export default function PrepCenter({
                 data-testid="atlas-focus-toggle"
               >
                 {focusOnChecked ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                <span className="whitespace-nowrap">{focusOnChecked ? "Analize eklendi" : "Analize ekle"}</span>
+                <span className="whitespace-nowrap">{focusOnChecked ? tp("added") : tp("add")}</span>
               </button>
             </div>
-            <p className={`${ap.text} text-[14px] leading-relaxed`}>{ABOUT[focus]}</p>
+            <p className={`${ap.text} text-[14px] leading-relaxed`}>{tp(`about.${focus}`)}</p>
             <p className={`inline-flex items-center gap-1.5 text-[12px] ${focusOnChecked ? ap.lavInk : ap.muted}`} data-testid="atlas-focus-selected">
               {focusOnChecked ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-              {focusOnChecked ? "Analize eklendi — birden çok teknik seçebilirsiniz" : "Analize eklemek için “Analize ekle” veya listedeki + düğmesini kullanın"}
+              {focusOnChecked ? tp("addedNote") : tp("addNote")}
             </p>
           </div>
         )}
         {(meta.needsTime && timeUnknown) || st.kind !== "none" || focus === "kp.transit" ? (
           <div className="flex flex-wrap gap-1.5 text-[11px]">
-            {meta.needsTime && timeUnknown && <span className={ap.chipWarn}>Doğum saati bilinmiyor — hesaplanmaz</span>}
-            {focus === "kp.transit" && <span className={ap.chipWarn}>Natal ev analizi yok</span>}
+            {meta.needsTime && timeUnknown && <span className={ap.chipWarn}>{tp("timeUnknownChip")}</span>}
+            {focus === "kp.transit" && <span className={ap.chipWarn}>{tp("noNatalHouses")}</span>}
             {st.kind !== "none" && (
               <span className={ap.chip} data-testid="atlas-focus-status">
                 <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} /> {st.text}
@@ -637,40 +550,40 @@ export default function PrepCenter({
           <ul className="flex min-w-0 flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="atlas-focus-skipped">
             {skipped.map((x) => (
               <li key={x.section} className="break-words" data-skipped-section={x.section}>
-                Hesaplanmayacak bölüm — {x.label}: {x.reason}
+                {tp("skipped", { label: x.label, reason: x.reason })}
               </li>
             ))}
           </ul>
         )}
         <div className={`${ap.paramsCard} ${inline ? "" : ap.paramsCardWide} text-sm`} data-testid="atlas-params-card">
           {inline ? (
-            <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">AYARLAR</p>
+            <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">{tp("settingsCaps")}</p>
           ) : (
             <div className="mb-3 flex items-center gap-2.5">
               <span className={ap.sectionIcon} aria-hidden="true">
                 <Settings2 className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className={`${ap.ink} text-[15px] font-semibold leading-tight`}>Ayarlar</p>
-                <p className={`${ap.muted} text-[12.5px] leading-snug`}>{hasPrimary || usesMethod ? "Bu tekniğin hesaplama ayarları." : "Bu teknik için ek ayar gerekmez; doğum bilgisiyle hesaplanır."}</p>
+                <p className={`${ap.ink} text-[15px] font-semibold leading-tight`}>{tp("settings")}</p>
+                <p className={`${ap.muted} text-[12.5px] leading-snug`}>{hasPrimary || usesMethod ? tp("settingsHas") : tp("settingsNone")}</p>
               </div>
             </div>
           )}
-          {hasPrimary ? <div className="flex min-w-0 flex-col gap-2.5">{primary}</div> : <p className="text-xs text-slate-600">Bu teknik için ek ayar gerekmez; doğum bilgisiyle hesaplanır.</p>}
+          {hasPrimary ? <div className="flex min-w-0 flex-col gap-2.5">{primary}</div> : <p className="text-xs text-slate-600">{tp("settingsNone")}</p>}
           {usesMethod && (
             <details open={!inline || undefined} className={`${hasPrimary ? "mt-3" : ""} rounded-lg border border-[#d9c9a3] bg-white/60 px-2.5 py-2`} data-testid="atlas-advanced">
               <summary className="cursor-pointer select-none text-xs text-slate-700">
-                <span className="font-semibold">Gelişmiş Ayarlar</span>
+                <span className="font-semibold">{tp("advanced")}</span>
                 <span className="block text-[11px] text-slate-500">{methodSummary}</span>
               </summary>
               <div className="mt-2">
                 <MethodFields id={focus} method={method} onMethod={onMethod} natalContext={natalContext} />
                 <p className="mt-1.5 text-[11px] text-slate-500" data-testid="atlas-method-note">
                   {focus === "western.natal"
-                    ? "Ev sistemi yalnız Natal'a uygulanır; Ay düğümü tüm Batı tekniklerinde ortaktır."
+                    ? tp("noteNatal")
                     : USES_HOUSE_SYSTEM.includes(focus)
-                      ? `Bu iki ayar Natal dışındaki Batı tekniklerinde ortaktır ve sonucu değiştirir.${checked["western.natal"] ? ` Natal'ın ev sistemi ayrı seçilir (şu an ${houseLabelFor("western.natal")}).` : ""}`
-                      : "Ay düğümü tüm Batı tekniklerinde ortaktır ve sonucu değiştirir."}
+                      ? `${tp("noteShared")}${checked["western.natal"] ? tp("noteSharedNatal", { hs: houseLabelFor("western.natal") }) : ""}`
+                      : tp("noteNode")}
                 </p>
               </div>
             </details>
@@ -679,16 +592,16 @@ export default function PrepCenter({
         </div>
         {inline ? (
           <details className={`${ap.inset} group px-3 py-2.5`} data-testid="atlas-about">
-            <summary className={`${ap.ink} cursor-pointer select-none text-[13px] font-semibold`}>Teknik hakkında</summary>
-            <p className={`${ap.text} mt-1.5 text-[13px] leading-relaxed`}>{ABOUT[focus]}</p>
-            <p className={`${ap.muted} mt-1 text-[11.5px]`}>Parametreler: {PARAMS_NOTE[focus]}</p>
+            <summary className={`${ap.ink} cursor-pointer select-none text-[13px] font-semibold`}>{tp("aboutTitle")}</summary>
+            <p className={`${ap.text} mt-1.5 text-[13px] leading-relaxed`}>{tp(`about.${focus}`)}</p>
+            <p className={`${ap.muted} mt-1 text-[11.5px]`}>{tp("paramsLead", { p: tp(`params.${focus}`) })}</p>
           </details>
         ) : (
           <div className={`${ap.infoBox} flex items-start gap-2.5 px-3.5 py-3`} data-testid="atlas-about">
             <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p className="min-w-0 text-[13px] leading-snug">
-              <span className="block font-semibold">Hesaplama bilgileri</span>
-              Parametreler: {PARAMS_NOTE[focus]}
+              <span className="block font-semibold">{tp("calcInfo")}</span>
+              {tp("paramsLead", { p: tp(`params.${focus}`) })}
             </p>
           </div>
         )}
@@ -696,9 +609,11 @@ export default function PrepCenter({
     );
   };
 
-  const q = techQuery.trim().toLocaleLowerCase("tr-TR");
-  const listed = techBySystem[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
-  const showHorary = system === "western" && !!onOpenHorary && (!q || `${HORARY_ENTRY.label} ${HORARY_ENTRY.hint} ${HORARY_ENTRY.search}`.toLocaleLowerCase("tr-TR").includes(q));
+  // Arama ekran dilindeki ad + ipucunda (TR'de tr-TR küçük harf; davranış aynen).
+  const q = techQuery.trim().toLocaleLowerCase(lc);
+  const listed = techBySystem[system].filter((id) => !q || `${label(id)} ${hint(id)}`.toLocaleLowerCase(lc).includes(q));
+  const horaryLabel = tp("horary.label");
+  const showHorary = system === "western" && !!onOpenHorary && (!q || `${horaryLabel} ${tp("horary.hint")} ${tp("horary.search")}`.toLocaleLowerCase(lc).includes(q));
   const techSearch = (
     <label className={ap.searchBox}>
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -706,21 +621,21 @@ export default function PrepCenter({
         type="search"
         value={techQuery}
         onChange={(e) => setTechQuery(e.target.value)}
-        placeholder="Teknik adıyla ara…"
-        aria-label={`${sysDef.label} tekniklerinde ara`}
+        placeholder={tp("searchPh")}
+        aria-label={tp("searchAria", { sys: sysLabel })}
         className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-slate-400"
         data-testid="atlas-technique-search"
       />
       {techQuery && (
-        <button type="button" onClick={() => setTechQuery("")} aria-label="Aramayı temizle" className="rounded p-0.5 hover:bg-black/5">
+        <button type="button" onClick={() => setTechQuery("")} aria-label={tp("searchClear")} className="rounded p-0.5 hover:bg-black/5">
           <X className="h-3.5 w-3.5" />
         </button>
       )}
     </label>
   );
   const techniqueIndex = (inlineSettings: boolean) => (
-    <ul className="flex flex-col gap-1.5" aria-label={`${sysDef.label} teknikleri`} data-testid="atlas-technique-index">
-      {listed.length === 0 && !showHorary && <li className={`${ap.muted} px-2 py-3 text-[13px]`}>“{techQuery}” ile eşleşen teknik yok.</li>}
+    <ul className="flex flex-col gap-1.5" aria-label={tp("listAria", { sys: sysLabel })} data-testid="atlas-technique-index">
+      {listed.length === 0 && !showHorary && <li className={`${ap.muted} px-2 py-3 text-[13px]`}>{tp("noMatch", { q: techQuery })}</li>}
       {listed.map((id) => {
         const m = TECHNIQUE_META[id];
         const on = !!checked[id];
@@ -734,17 +649,17 @@ export default function PrepCenter({
               {on && <span className={ap.techBar} aria-hidden="true" />}
               <button type="button" onClick={() => focusOn(id)} aria-current={f ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-left max-sm:px-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]" data-technique-focus={id}>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className={`min-w-0 break-words text-[14px] leading-snug ${on || f ? `${ap.ink} font-semibold` : `${ap.ink} font-medium`}`}>{m.label}</span>
-                  {NEW_TECHNIQUES.has(id) && <span className="shrink-0 rounded-full bg-[#f6ead0] px-[7px] py-[2px] text-[10px] font-bold tracking-[0.08em] text-[#8a6424]">YENİ</span>}
+                  <span className={`min-w-0 break-words text-[14px] leading-snug ${on || f ? `${ap.ink} font-semibold` : `${ap.ink} font-medium`}`}>{label(id)}</span>
+                  {NEW_TECHNIQUES.has(id) && <span className="shrink-0 rounded-full bg-[#f6ead0] px-[7px] py-[2px] text-[10px] font-bold tracking-[0.08em] text-[#8a6424]">{tp("new")}</span>}
                   {st.kind !== "none" && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[st.kind]}`} title={st.text} aria-label={st.text} />}
                   {!inlineSettings && <ChevronRight className={`ml-auto h-4 w-4 shrink-0 ${f ? ap.lavInk : ap.faint}`} aria-hidden="true" />}
                 </span>
-                <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{m.hint}</span>
-                {m.needsTime && timeUnknown && <span className={`${ap.warnInk} mt-0.5 block text-[11px] leading-snug`}>doğum saati gerekir</span>}
+                <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{hint(id)}</span>
+                {m.needsTime && timeUnknown && <span className={`${ap.warnInk} mt-0.5 block text-[11px] leading-snug`}>{tp("needsTime")}</span>}
                 {on && USES_HOUSE_SYSTEM.includes(id) && (
                   <span className={`${ap.lavInk} mt-0.5 block break-words text-[11px] leading-snug`} data-testid="atlas-tech-house" data-technique-house={id}>
-                    Ev sistemi: {houseLabelFor(id)}
-                    {id === "western.natal" ? "" : " · ortak"}
+                    {tp("techHouse", { hs: houseLabelFor(id) })}
+                    {id === "western.natal" ? "" : tp("techHouseShared")}
                   </span>
                 )}
               </button>
@@ -752,7 +667,7 @@ export default function PrepCenter({
                 type="button"
                 onClick={() => toggle(id)}
                 aria-pressed={on}
-                aria-label={on ? `${m.label}: analizden çıkar` : `${m.label}: analize ekle`}
+                aria-label={on ? tp("remove", { label: label(id) }) : tp("addAria", { label: label(id) })}
                 className={`${ap.techToggleCol} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
                 data-technique={id}
               >
@@ -771,12 +686,12 @@ export default function PrepCenter({
             type="button"
             onClick={onOpenHorary}
             className={`${ap.tech} w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]`}
-            aria-label={`${HORARY_ENTRY.label}: ayrı Horary ekranını aç`}
+            aria-label={tp("horaryAria", { label: horaryLabel })}
             data-testid="atlas-horary-entry"
           >
             <span className="min-w-0 flex-1 px-3 py-2.5 max-sm:px-2">
-              <span className={`${ap.ink} block min-w-0 break-words text-[14px] font-medium leading-snug`}>{HORARY_ENTRY.label}</span>
-              <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{HORARY_ENTRY.hint}</span>
+              <span className={`${ap.ink} block min-w-0 break-words text-[14px] font-medium leading-snug`}>{horaryLabel}</span>
+              <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{tp("horary.hint")}</span>
             </span>
             <span className={ap.techToggleCol} aria-hidden="true">
               <span className={ap.techToggle}>
@@ -796,39 +711,39 @@ export default function PrepCenter({
   const blockedN = statuses.filter((s) => s.kind === "blocked").length;
   const missingN = statuses.filter((s) => s.kind === "missing").length;
   // Tarih/saat alanı tamamlanmamış teknik varken başlatma kapalı (yarım tarihle diğerleri sessizce çalışmasın).
-  const dateIncomplete = chosen.some((id) => !!dateInputReason(id, params));
+  const dateIncomplete = chosen.some((id) => !!dateInputReason(id, params, tq));
   const runDisabled = !profile || running || !plan || plan.selectedCount === plan.blockedCount || dateIncomplete;
-  const runLabel = running ? "Hesaplanıyor…" : plan?.requiresConfirmation ? `${plan.newRequestCount} yeni isteği onayla ve başlat` : "Analizi Başlat";
+  const runLabel = running ? tp("running") : plan?.requiresConfirmation ? tp("confirmRun", { n: plan.newRequestCount }) : tp("run");
 
-  const missingList = chosen.map((id) => ({ id, why: missingReason(id, params) })).filter((x): x is { id: UiTechniqueId; why: string } => !!x.why);
+  const missingList = chosen.map((id) => ({ id, why: missingReason(id, params, tq) })).filter((x): x is { id: UiTechniqueId; why: string } => !!x.why);
   const [planOpen, setPlanOpen] = useState(false);
   const summaryLines = (
     <>
       <p className={`${ap.ink} text-[13px] leading-snug`} data-testid="atlas-console-summary">
         {!profile ? (
-          "Önce danışan seçin."
+          tp("sum.noClient")
         ) : chosen.length === 0 ? (
-          "Hesaplamak için en az bir teknik seçin."
+          tp("sum.noTech")
         ) : (
           <>
-            <strong>{chosen.length}</strong> teknik seçildi
+            {tp.rich("sum.chosen", { n: chosen.length, b: (c) => <strong>{c}</strong> })}
             {plan ? (
               <>
                 {" "}
-                · <strong className={ap.okInk}>{readyN}</strong> hazır · <strong className={ap.goldInk}>{newN}</strong> yeni hesaplama gerekiyor
+                {tp.rich("sum.ready", { ready: readyN, nw: newN, ok: (c) => <strong className={ap.okInk}>{c}</strong>, gd: (c) => <strong className={ap.goldInk}>{c}</strong> })}
                 {blockedN > 0 && (
                   <>
                     {" "}
-                    · <strong className={ap.dangerInk}>{blockedN}</strong> hesaplanamaz
+                    {tp.rich("sum.blocked", { n: blockedN, d: (c) => <strong className={ap.dangerInk}>{c}</strong> })}
                   </>
                 )}
               </>
             ) : planError ? (
               <span className={ap.dangerInk}> · {planError}</span>
             ) : (
-              <span className={ap.muted}> · plan hazırlanıyor…</span>
+              <span className={ap.muted}>{tp("sum.pending")}</span>
             )}
-            {missingN > 0 && <span className={ap.warnInk}> · {missingN} eksik ayar</span>}
+            {missingN > 0 && <span className={ap.warnInk}>{tp("sum.missing", { n: missingN })}</span>}
           </>
         )}
       </p>
@@ -839,12 +754,13 @@ export default function PrepCenter({
       )}
       {plan && plan.newRequestCount > 0 && (
         <p className={`${ap.goldInk} truncate text-[11px]`} data-testid="atlas-console-requests">
-          Başlatınca {plan.newRequestCount} yeni sağlayıcı isteği yapılır; hazır sonuçlar yeniden istenmez.
+          {tp("sum.requests", { n: plan.newRequestCount })}
         </p>
       )}
       {missingList.length > 0 && (
-        <p className={`${ap.warnInk} truncate text-[11px]`} data-testid="atlas-console-missing" title={missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")}>
-          {missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")} (seçilene kadar plana alınmaz)
+        <p className={`${ap.warnInk} truncate text-[11px]`} data-testid="atlas-console-missing" title={missingList.map((m) => `${label(m.id)}: ${m.why}`).join(" · ")}>
+          {missingList.map((m) => `${label(m.id)}: ${m.why}`).join(" · ")}
+          {tp("sum.missingTail")}
         </p>
       )}
     </>
@@ -859,8 +775,8 @@ export default function PrepCenter({
         className={`${ap.btnGhost} shrink-0 !min-h-[36px] !px-2.5 !text-[12px]`}
         data-testid="atlas-plan-toggle"
       >
-        <span className="hidden sm:inline">Plan Ayrıntıları</span>
-        <span className="sm:hidden">Plan</span>
+        <span className="hidden sm:inline">{tp("planDetails")}</span>
+        <span className="sm:hidden">{tp("planShort")}</span>
       </button>
     ) : null;
   // Masaüstü/tablet: başlat kartındaki küçük plan düğmesi (eski "Ayarları Gözden Geçir" kartının işlevi; eksik ayar uyarısı korunur).
@@ -873,12 +789,12 @@ export default function PrepCenter({
         onClick={() => setPlanOpen((v) => !v)}
         className={`${ap.btnGhost} ${ap.btnSm} shrink-0 ${missingN > 0 ? "!border-amber-300 !text-amber-800" : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
         data-testid="atlas-plan-toggle"
-        title="Plan ayrıntılarını aç / kapat"
+        title={tp("planToggleTitle")}
       >
         <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
-        <span className="max-xl:hidden">Plan Ayrıntıları</span>
-        <span className="xl:hidden">Plan</span>
-        {missingN > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={`${missingN} eksik ayar`} />}
+        <span className="max-xl:hidden">{tp("planDetails")}</span>
+        <span className="xl:hidden">{tp("planShort")}</span>
+        {missingN > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={tp("missingAria", { n: missingN })} />}
       </button>
     ) : null;
   const runButton = (wide: boolean) => (
@@ -903,32 +819,32 @@ export default function PrepCenter({
         data-testid="atlas-plan-details"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className={EYEBROW}>PLAN AYRINTILARI</p>
-          <button type="button" onClick={() => setPlanOpen(false)} aria-label="Plan ayrıntılarını kapat" className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
+          <p className={EYEBROW}>{tp("planCaps")}</p>
+          <button type="button" onClick={() => setPlanOpen(false)} aria-label={tp("planClose")} className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
           {plan && (
             <span className={ap.text} data-testid="astro-plan">
-              {plan.selectedCount} hesap · {plan.newRequestCount} yeni sağlayıcı isteği · {plan.cachedCount} önceden hesaplanmış
-              {plan.blockedCount > 0 && <> · {plan.blockedCount} hesaplanamaz</>}
-              {plan.dedupedCount > 0 && <> · {plan.dedupedCount} yinelenen birim tekilleştirildi</>}
-              {plan.requiresConfirmation && <> · onay gerekir</>}
+              {tp("plan.base", { sel: plan.selectedCount, nw: plan.newRequestCount, cached: plan.cachedCount })}
+              {plan.blockedCount > 0 && tp("plan.blocked", { n: plan.blockedCount })}
+              {plan.dedupedCount > 0 && tp("plan.deduped", { n: plan.dedupedCount })}
+              {plan.requiresConfirmation && tp("plan.confirm")}
             </span>
           )}
-          <div className="flex min-w-0 flex-wrap gap-1.5" role="list" aria-label="Seçilen teknikler" data-testid="atlas-chosen">
+          <div className="flex min-w-0 flex-wrap gap-1.5" role="list" aria-label={tp("chosenAria")} data-testid="atlas-chosen">
             {chosen.map((id) => {
               const st = statusOf(id);
               const f = id === focus;
               return (
                 <span key={id} role="listitem" className={`${f ? ap.chipGold : ap.chip} !gap-0 !p-0 text-xs`}>
-                  <button type="button" onClick={() => focusOn(id)} className="inline-flex items-center gap-1.5 py-1 pl-2.5 pr-1.5" title={`${techniqueLabel(id)} — ${st.text}`} data-chip={id}>
+                  <button type="button" onClick={() => focusOn(id)} className="inline-flex items-center gap-1.5 py-1 pl-2.5 pr-1.5" title={`${techniqueLabel(id, tq)} — ${st.text}`} data-chip={id}>
                     <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} />
-                    <span className="max-w-[180px] truncate">{TECHNIQUE_META[id].label}</span>
+                    <span className="max-w-[180px] truncate">{label(id)}</span>
                     <span className={`${ap.muted} text-[10.5px]`}>· {st.text}</span>
                   </button>
-                  <button type="button" onClick={() => toggle(id, false)} aria-label={`${TECHNIQUE_META[id].label} tekniğini kaldır`} className={`${ap.muted} mr-1 rounded-full p-1 hover:bg-black/5`}>
+                  <button type="button" onClick={() => toggle(id, false)} aria-label={tp("removeChip", { label: label(id) })} className={`${ap.muted} mr-1 rounded-full p-1 hover:bg-black/5`}>
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -939,9 +855,9 @@ export default function PrepCenter({
             <ul className="flex flex-col gap-0.5" data-testid="astro-plan-lines">
               {plan.selections.map((s, i) => (
                 <li key={`${s.technique}-${i}`} className={s.blocked ? ap.dangerInk : ap.text}>
-                  {techniqueLabel(s.technique)}
-                  {s.options && describeOptions(s.technique, s.options, labelOf) ? ` — ${describeOptions(s.technique, s.options, labelOf)}` : ""}:{" "}
-                  {s.blocked ? compactBlocked(s.blocked, s.info?.skippedSections)!.text : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
+                  {techniqueLabel(s.technique, tq)}
+                  {s.options && describeOptions(s.technique, s.options, labelOf, tq) ? ` — ${describeOptions(s.technique, s.options, labelOf, tq)}` : ""}:{" "}
+                  {s.blocked ? compactBlocked(s.blocked, s.info?.skippedSections)!.text : tp("plan.line", { u: s.unitCount, n: s.newRequests })}
                 </li>
               ))}
             </ul>
@@ -969,10 +885,12 @@ export default function PrepCenter({
   );
 
   /* ── Kimlik satırı (D4: ad + tek satır özet; ayrıntılar açılır) ── */
-  const fmtDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+  // EN gün/ay/yıl "/" (Owner A13); TR GG.AA.YYYY aynen.
+  const dsep = locale === "en" ? "/" : ".";
+  const fmtDate = (iso: string) => `${iso.slice(8, 10)}${dsep}${iso.slice(5, 7)}${dsep}${iso.slice(0, 4)}`;
   const off = rev ? rev.utcOffsetSeconds : 0;
   const offTxt = formatUtcOffset(off);
-  const accuracyWarn = rev && rev.timeKnown && rev.timeAccuracy && rev.timeAccuracy !== "exact_record" && rev.timeAccuracy !== "rectified" ? `Saat doğruluğu: ${rev.timeAccuracyLabel}` : null;
+  const accuracyWarn = rev && rev.timeKnown && rev.timeAccuracy && rev.timeAccuracy !== "exact_record" && rev.timeAccuracy !== "rectified" ? tp("accuracy", { v: rev.timeAccuracyLabel }) : null;
   // ΔT bilgi notu (24.10.2026): 1800 öncesi / 2100 sonrası doğum tarihi — raporun "Doğum verileri" notuyla aynı metin.
   const birthDeltaT = rev ? deltaTBirthNotes(rev.birthDate) : [];
   const detail = (label: string, value: ReactNode) => (
@@ -997,22 +915,22 @@ export default function PrepCenter({
   );
   const plate = (
     <header className={`${SURFACE} z-20 flex flex-col gap-2 px-2.5 py-2 sm:p-2.5`} data-testid="atlas-prep-plate">
-      <ol className={ap.flow} aria-label="Analiz adımları" data-testid="atlas-steps">
+      <ol className={ap.flow} aria-label={tp("stepsAria")} data-testid="atlas-steps">
         <li className={`${ap.flowStep} ${ap.flowStepClient} ${stepState.client === "now" ? ap.flowStepNow : ""}`} aria-current={stepState.client === "now" ? "step" : undefined} data-testid="atlas-client-identity">
           {stepNum(1, stepState.client)}
           <UserRound className={`${ap.flowIcon} ${ap.flowWideOnly}`} aria-hidden="true" />
-          <span className={`${ap.flowLabel} ${ap.flowWideOnly}`}>Danışan Seç</span>
-          <span className="sr-only" data-testid="atlas-client-name">{profile ? profile.label : "Danışan seçilmedi"}</span>
+          <span className={`${ap.flowLabel} ${ap.flowWideOnly}`}>{tp("selectClient")}</span>
+          <span className="sr-only" data-testid="atlas-client-name">{profile ? profile.label : tp("noClient")}</span>
           <div className="min-w-0 flex-1">{picker}</div>
           <button
             type="button"
             onClick={onCreateClient}
             className={`${ap.btnGold} shrink-0 !min-h-[40px] !px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
             data-testid="atlas-new-client"
-            title="Yeni Danışan"
-            aria-label="Yeni Danışan"
+            title={tp("newClient")}
+            aria-label={tp("newClient")}
           >
-            <Plus className="h-4 w-4" /> <span className={`whitespace-nowrap ${ap.newClientTxt}`}>Yeni Danışan</span>
+            <Plus className="h-4 w-4" /> <span className={`whitespace-nowrap ${ap.newClientTxt}`}>{tp("newClient")}</span>
           </button>
         </li>
         <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined} data-testid="atlas-run-step">
@@ -1030,10 +948,10 @@ export default function PrepCenter({
                 <strong className={`${ap.ink} font-semibold`}>{profile.label}</strong>
                 {rev ? (
                   <span className="tabular-nums" data-testid="atlas-birth-summary">
-                    {" "}· {fmtDate(rev.birthDate)} · {rev.timeKnown ? rev.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {rev.locationLabel}
+                    {" "}· {fmtDate(rev.birthDate)} · {rev.timeKnown ? rev.birthTime?.slice(0, 5) : tp("timeUnknownShort")} · {rev.locationLabel}
                   </span>
                 ) : (
-                  <span> · doğum bilgisi yükleniyor…</span>
+                  <span>{tp("loadingBirth")}</span>
                 )}
               </p>
             )}
@@ -1047,17 +965,17 @@ export default function PrepCenter({
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5">
               {rev && onEditBirth && (
                 <button type="button" onClick={onEditBirth} className={`${ghostBtn} ${ap.btnSm}`} data-testid="atlas-edit-birth">
-                  <Pencil className="h-3.5 w-3.5" /> Doğum Bilgilerini Düzenle
+                  <Pencil className="h-3.5 w-3.5" /> {tp("editBirth")}
                 </button>
               )}
               {rev && (
                 <button type="button" onClick={() => setBirthDetailsOpen((v) => !v)} aria-expanded={birthDetailsOpen} aria-controls="atlas-birth-details" className={`${ghostBtn} ${ap.btnSm}`} data-testid="atlas-birth-details-toggle">
-                  Doğum Ayrıntıları <ChevronDown className={`h-3.5 w-3.5 transition ${birthDetailsOpen ? "rotate-180" : ""}`} />
+                  {tp("birthDetails")} <ChevronDown className={`h-3.5 w-3.5 transition ${birthDetailsOpen ? "rotate-180" : ""}`} />
                 </button>
               )}
               {onDeleteProfile && (
-                <button type="button" onClick={onDeleteProfile} className={`${ghostBtn} ${ap.btnSm} hover:!border-rose-300 hover:!text-rose-700`} data-testid="atlas-delete-profile" title="Doğum profilini veya yalnız kayıtlı analizlerini kalıcı sil (onaylı)">
-                  <Trash2 className="h-3.5 w-3.5" /> Profili Sil
+                <button type="button" onClick={onDeleteProfile} className={`${ghostBtn} ${ap.btnSm} hover:!border-rose-300 hover:!text-rose-700`} data-testid="atlas-delete-profile" title={tp("deleteTitle")}>
+                  <Trash2 className="h-3.5 w-3.5" /> {tp("deleteProfile")}
                 </button>
               )}
             </div>
@@ -1070,7 +988,7 @@ export default function PrepCenter({
           {(timeUnknown || accuracyWarn) && (
             <p className={ap.chipWarn} data-testid="atlas-birth-warning">
               <AlertTriangle className="h-3 w-3" />
-              {timeUnknown ? "Doğum saati bilinmiyor: saat gerektiren teknikler hesaplanmaz, evler gösterilmez." : accuracyWarn}
+              {timeUnknown ? tp("timeUnknownWarn") : accuracyWarn}
             </p>
           )}
           {rev?.staleTimezone && (
@@ -1095,45 +1013,45 @@ export default function PrepCenter({
       ) : null}
       {profile && rev && birthDetailsOpen && (
         <dl id="atlas-birth-details" className={`atlas-prep-in ${ap.inset} grid grid-cols-2 gap-x-4 gap-y-2 px-3 py-2.5 sm:grid-cols-3 lg:grid-cols-6`} data-testid="atlas-birth-details">
-          {detail("DOĞUM TARİHİ", fmtDate(rev.birthDate))}
-          {detail("SAAT", rev.timeKnown ? rev.birthTime?.slice(0, 5) : "bilinmiyor")}
-          {detail("SAAT DİLİMİ", <span title={rev.timezone}>{`${rev.timezone} · ${offTxt}`}</span>)}
-          {detail("KOORDİNAT", `${Math.abs(rev.latitude).toFixed(4)}° ${rev.latitude >= 0 ? "K" : "G"} · ${Math.abs(rev.longitude).toFixed(4)}° ${rev.longitude >= 0 ? "D" : "B"}`)}
-          {detail("SAAT DOĞRULUĞU", rev.timeAccuracyLabel)}
-          {detail("DANIŞAN KAYDI", profile.clientName ?? "eşleştirilmemiş")}
+          {detail(tp("d.birthDate"), fmtDate(rev.birthDate))}
+          {detail(tp("d.time"), rev.timeKnown ? rev.birthTime?.slice(0, 5) : tp("d.unknown"))}
+          {detail(tp("d.tz"), <span title={rev.timezone}>{`${rev.timezone} · ${offTxt}`}</span>)}
+          {detail(tp("d.coord"), `${Math.abs(rev.latitude).toFixed(4)}° ${tm(`dir.${rev.latitude >= 0 ? "N" : "S"}`)} · ${Math.abs(rev.longitude).toFixed(4)}° ${tm(`dir.${rev.longitude >= 0 ? "E" : "W"}`)}`)}
+          {detail(tp("d.accuracy"), rev.timeAccuracyLabel)}
+          {detail(tp("d.client"), profile.clientName ?? tp("d.unlinked"))}
         </dl>
       )}
-      {profile?.archivedAt && <p className={`${ap.warnInk} text-xs`}>Bu danışan arşivde. Analiz yapılabilir; arşivden çıkarmak için Analiz Arşivi&apos;ni kullanın.</p>}
+      {profile?.archivedAt && <p className={`${ap.warnInk} text-xs`}>{tp("archived")}</p>}
     </header>
   );
 
-  const hhmmss = (ms: number) => new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const hhmmss = (ms: number) => new Date(ms).toLocaleTimeString(lc, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const failPanel = runFailures && runFailures.items.length > 0 && (
     <div className={`${ap.noteDanger} px-4 py-3`} role="alert" data-testid="atlas-run-failures">
       <div className="flex items-start justify-between gap-3">
         <p className={`${ap.dangerInk} flex items-start gap-2 font-semibold`}>
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          Analiz açılmadı: seçilen tekniklerin hiçbiri hesaplanamadı. Sonuç kaydedilmedi.
+          {tp("fail.title")}
         </p>
-        <button type="button" onClick={onDismissFailures} aria-label="Hata özetini kapat" className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
+        <button type="button" onClick={onDismissFailures} aria-label={tp("fail.close")} className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
       <ul className="mt-2 flex flex-col gap-1.5">
         {runFailures.items.map((f, i) => (
           <li key={`${f.technique}-${i}`} className="rounded-lg bg-white/80 px-3 py-1.5" data-fail-technique={f.technique} data-fail-code={f.code}>
-            <span className="font-semibold">{techniqueLabel(f.technique)}:</span> <span className={ap.text}>{f.error}</span>
+            <span className="font-semibold">{techniqueLabel(f.technique, tq)}:</span> <span className={ap.text}>{f.error}</span>
           </li>
         ))}
       </ul>
       <p className={`${ap.text} mt-2 text-[12px] leading-snug`} data-testid="atlas-run-failures-next">
         {runFailures.items.some((f) => f.code === "LOCAL_FIXTURE_MISSING")
-          ? "Yerel önizlemede yalnız test verisi bulunan girdiler hesaplanır (ör. “Ali Örnek — natal”). Bu danışan için gerçek hesaplama, gerçek hesaplama hizmetine bağlı ortamda yapılır. "
+          ? tp("fail.local")
           : ""}
         {runFailures.items.some((f) => f.code === "IN_PROGRESS")
-          ? `Çift ücretli istek önleme kilidi nedeniyle yeni istek gönderilmedi; en erken ${hhmmss(runFailures.at + Math.max(...runFailures.items.map((f) => f.retryAfterSec ?? 0)) * 1000)} itibarıyla yeniden deneyebilirsiniz. `
+          ? tp("fail.inProgress", { at: hhmmss(runFailures.at + Math.max(...runFailures.items.map((f) => f.retryAfterSec ?? 0)) * 1000) })
           : ""}
-        Yeniden denemek için “Analizi Başlat”a basın; yeni ücretli istek gerekiyorsa sayısı ve onayı önceden gösterilir.
+        {tp("fail.retry")}
       </p>
     </div>
   );
@@ -1143,12 +1061,12 @@ export default function PrepCenter({
       {failPanel}
       {runError && (
         <p className={`${ap.noteDanger} flex items-start gap-2`} role="alert" data-testid="astro-run-error">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Hesaplama tamamlanamadı: {runError}
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {tp("runError", { e: runError })}
         </p>
       )}
       {running && (
         <p className={`${ap.noteInfo} flex items-center gap-2`} role="status">
-          <Loader2 className="h-4 w-4 animate-spin" /> Hesaplama sürüyor… Tamamlandığında sonuç ekranı açılacak.
+          <Loader2 className="h-4 w-4 animate-spin" /> {tp("runningNote")}
         </p>
       )}
     </>
@@ -1156,12 +1074,12 @@ export default function PrepCenter({
 
   const leftCol = (
     <div className={`${SURFACE} flex min-h-0 flex-col gap-3 p-3.5`}>
-      <p className={`${EYEBROW} px-0.5`}>HARİTA SİSTEMİ</p>
+      <p className={`${EYEBROW} px-0.5`}>{tp("mapSystem")}</p>
       {dials}
       <div className="flex items-end justify-between gap-2 px-0.5 pt-1">
-        <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Analiz Teknikleri</p>
+        <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>{tp("techniques")}</p>
         <span className={`${ap.muted} text-[11.5px] tabular-nums`}>
-          {counts[system]} / {techBySystem[system].length} seçili
+          {tp("selectedCount", { n: counts[system], total: techBySystem[system].length })}
         </span>
       </div>
       {techSearch}
@@ -1171,7 +1089,7 @@ export default function PrepCenter({
   const settingsCol = <div className={`${SURFACE} min-h-0 overflow-y-auto p-5 [scrollbar-width:thin] xl:p-6`}>{settingsBody(false)}</div>;
 
   return (
-    <section className={`${atlasDisplay.variable} ${atlasText.variable} relative flex min-w-0 flex-col gap-3 [font-family:var(--font-atlas-text)]`} aria-label="Göksel Analiz Hazırlık Merkezi" data-testid="atlas-prep-center">
+    <section className={`${atlasDisplay.variable} ${atlasText.variable} relative flex min-w-0 flex-col gap-3 [font-family:var(--font-atlas-text)]`} aria-label={tp("prepAria")} data-testid="atlas-prep-center">
       <style>{CSS}</style>
       {plate}
       {notices}
@@ -1197,7 +1115,7 @@ export default function PrepCenter({
           <div className={`${SURFACE} flex flex-col gap-2 p-1.5 sm:p-2`}>
             <div className="flex items-center justify-between gap-2 px-1">
               <p className={EYEBROW}>
-                {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {techBySystem[system].length}
+                {tp("sysTechniques", { sys: sysShort.toLocaleUpperCase(lc), n: counts[system], total: techBySystem[system].length })}
               </p>
             </div>
             {techSearch}

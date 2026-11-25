@@ -418,7 +418,7 @@ async function main() {
   }
   assert.ok(existsSync(GOLD), "taban yok");
   const gold = JSON.parse(readFileSync(GOLD, "utf8")) as { lib: Record<string, string>; cases: Record<string, string> };
-  const scope = (process.env.ATLAS_B_SCOPE ?? "R,L").split(",");
+  const scope = (process.env.ATLAS_B_SCOPE ?? "P,R,L").split(",");
 
   const { createTranslator: ct } = await import("next-intl");
   const { getCatalogMessages: gcm } = await import("@/lib/i18n/catalog");

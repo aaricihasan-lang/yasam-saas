@@ -1,6 +1,6 @@
 {
  "aciklama": "I18N-F1 sabit metin tabanı (dosya → sayı). CI'da hiçbir dosya bu sayıyı AŞAMAZ; tabanda olmayan dosya 0 olmalı. Düşüş serbesttir — çeviri sonrası `npm run i18n:hardcoded:update` ile taban aşağı çekilir. Artış ancak Owner onayıyla güncellenir ve PR diff'inde görünür.",
- "total": 32083,
+ "total": 31903,
  "files": {
   "app/_campaign/VisitorCampaignView.tsx": 42,
   "app/_campaign/visitorView.ts": 3,
@@ -56,7 +56,6 @@
   "app/admin/astroloji/_components/atlas/ComingSoonPanel.tsx": 42,
   "app/admin/astroloji/_components/atlas/HScrollProxy.tsx": 6,
   "app/admin/astroloji/_components/atlas/OpenTabs.tsx": 28,
-  "app/admin/astroloji/_components/atlas/PrepCenter.tsx": 180,
   "app/admin/astroloji/_components/atlas/ResultDesk.tsx": 70,
   "app/admin/astroloji/_components/atlas/SaveBatchDialog.tsx": 36,
   "app/admin/astroloji/_components/atlas/SavedAnalysisTabs.tsx": 4,
