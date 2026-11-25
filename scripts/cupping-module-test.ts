@@ -37,6 +37,13 @@ import {
 import { gregorianToHijri, parseYmd, monthHijriCells, HIJRI_MONTHS_TR } from "../lib/cupping/hijri";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
 import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
+import {
+  CLIENT_ADVICE_DEFAULT_TITLE_TR,
+  defaultPlanNameForSave,
+  displayClientAdviceTitle,
+  displayPlanName,
+  isSystemPlanName,
+} from "../app/kupa/takvim/lib/systemNames";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/moduleRouteRegistry";
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
@@ -2132,6 +2139,48 @@ function run(): void {
       "faz6-ay[m10]: aylık rapor A4 dikey + bağımsız tek-ay ızgarası");
     ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
       "faz6-ay[m11]: aylık kodda da otomatik Sünnet/Altın/yasaklı YOK");
+  }
+
+  // ── I18N-F1-R3 — SİSTEM VARSAYILAN ADLARI (plan adı / boş danışan bilgilendirmesi başlığı) ─────────────
+  // Niyet: (1) DB'ye yazılan varsayılan ad ekran dilinden BAĞIMSIZ Türkçe sabittir (i18n öncesi "<yıl> Hacamat
+  // Takvimi" / "Danışan Bilgilendirmesi" ile birebir; Word çıktısı kayıtlı adı basar). (2) Gösterimde yalnız sistem
+  // adıyla TAM eşleşen ad (TR ya da gece sürümünün kaydetmiş olabileceği EN) ekran dilinde üretilir; kullanıcının adı aynen.
+  {
+    ok(defaultPlanNameForSave(2027) === "2027 Hacamat Takvimi", "i18n-r3[ad1]: yeni plan varsayılan adı TR sabit (i18n öncesiyle birebir)");
+    ok(CLIENT_ADVICE_DEFAULT_TITLE_TR === "Danışan Bilgilendirmesi", "i18n-r3[ad2]: boş bilgilendirme başlığı TR sabit (birebir)");
+    const cwSrc = readFileSync("app/kupa/takvim/components/CalendarWorkspace.tsx", "utf8");
+    ok(/createCalendarPlan\(\{ name: defaultPlanNameForSave\(year\), year, reuse_year: true \}\)/.test(cwSrc)
+      && !/createCalendarPlan\(\{ name: t\(/.test(cwSrc),
+      "i18n-r3[ad3]: plan oluşturma adı ekran dili çevirisinden DEĞİL sabit TR'den (kayıt dil-bağımsız)");
+    const caSrc = readFileSync("app/kupa/takvim/components/ClientAdviceSection.tsx", "utf8");
+    ok(/\{ title: CLIENT_ADVICE_DEFAULT_TITLE_TR \}/.test(caSrc) && !/\{ title: tca\(/.test(caSrc)
+      && /sysNames\.adviceTitle\(a\.title\)/.test(caSrc),
+      "i18n-r3[ad4]: boş bilgilendirme başlığı sabit TR'den kaydedilir; listede gösterim kuralıyla basılır");
+    const en = (y: string) => y + " Hijama Calendar";
+    const tr = (y: string) => y + " Hacamat Takvimi";
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, en) === "2027 Hijama Calendar", "i18n-r3[ad5]: TR sistem adı EN ekranda çevrilir");
+    ok(displayPlanName({ name: "2027 Hijama Calendar", year: 2027 }, tr) === "2027 Hacamat Takvimi", "i18n-r3[ad6]: gece EN kaydedilmiş sistem adı TR ekranda Türkçe");
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, tr) === "2027 Hacamat Takvimi", "i18n-r3[ad7]: TR ekranda TR sistem adı birebir");
+    ok(displayPlanName({ name: "Ayşe Hanım 2027", year: 2027 }, en) === "Ayşe Hanım 2027", "i18n-r3[ad8]: kullanıcının adı aynen");
+    ok(displayPlanName({ name: "2026 Hacamat Takvimi", year: 2027 }, en) === "2026 Hacamat Takvimi", "i18n-r3[ad9]: yıl uyuşmazsa ad aynen");
+    ok(!isSystemPlanName("2027 Hacamat Takvimi ", 2027) && !isSystemPlanName("2027 hacamat takvimi", 2027), "i18n-r3[ad10]: yalnız TAM eşleşme");
+    ok(displayClientAdviceTitle("Danışan Bilgilendirmesi", () => "Client Information") === "Client Information"
+      && displayClientAdviceTitle("Client Information", () => "Danışan Bilgilendirmesi") === "Danışan Bilgilendirmesi"
+      && displayClientAdviceTitle("Ali Bey için notlar", () => "Client Information") === "Ali Bey için notlar",
+      "i18n-r3[ad11]: bilgilendirme başlığı — sistem başlığı ekran dilinde, kullanıcınınki aynen");
+    // Katalog: gösterim varsayılanı TR'de kayıt sabitiyle birebir (TR ekranda değişiklik yok)
+    const trCal = JSON.parse(readFileSync("messages/tr/cupping.calendar.json", "utf8")).cupping.calendar;
+    const enCal = JSON.parse(readFileSync("messages/en/cupping.calendar.json", "utf8")).cupping.calendar;
+    ok(trCal.ws.defaultPlanName.replace("{year}", "2027") === defaultPlanNameForSave(2027)
+      && trCal.clientAdvice.defaultTitle === CLIENT_ADVICE_DEFAULT_TITLE_TR, "i18n-r3[ad12]: TR katalog varsayılanı = kayıt sabiti");
+    ok(isSystemPlanName(enCal.ws.defaultPlanName.replace("{year}", "2027"), 2027)
+      && displayClientAdviceTitle(enCal.clientAdvice.defaultTitle, () => "X") === "X",
+      "i18n-r3[ad13]: EN katalog varsayılanı (gece kaydedilmiş biçim) sistem adı olarak tanınır");
+    for (const comp of ["CalendarWorkspace", "PlanPicker", "NewCalendarDialog"]) {
+      const src = readFileSync("app/kupa/takvim/components/" + comp + ".tsx", "utf8");
+      ok(/sysNames\.planName\(/.test(src) && !/\{p\.name\}|name: existing\.name|name: p\.name|title=\{plan\.name\}/.test(src),
+        "i18n-r3[ad14]: " + comp + " plan adını gösterim kuralıyla basar");
+    }
   }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);

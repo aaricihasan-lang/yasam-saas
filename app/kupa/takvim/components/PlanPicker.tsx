@@ -12,6 +12,7 @@ import {
 } from "@/app/kupa/components/KupaShell";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
 import { updateCalendarPlan, type CuppingCalendarPlan } from "@/app/kupa/lib/api";
+import { useSystemNames } from "../lib/useSystemNames";
 
 /**
  * FAZ 5 / AŞAMA 3 — Plan kontrolü: aktif plan seçimi + Yeni Takvim + ad/açıklama + sil.
@@ -54,6 +55,7 @@ export function PlanPicker({
   const { showToast } = useToast();
   const t = useTranslations("cupping.calendar.plan");
   const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
   const errText = useKupaErrorText();
   const active = plans.find((p) => p.id === activePlanId) ?? null;
   const [mode, setMode] = useState<"none" | "edit">("none");
@@ -122,7 +124,7 @@ export function PlanPicker({
             )}
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({p.year})
+                {sysNames.planName(p)} ({p.year})
               </option>
             ))}
           </select>
