@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../numeroloji/intlRender"; // I18N: TR katalog sağlayıcısıyla çizim (beklentiler değişmedi)
 import {
   findDuplicateRecords,
   normalizeBirthDateKey,

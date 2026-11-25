@@ -61,3 +61,31 @@ export function buildNumerolojiDeleteConfirm(
     secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
   };
 }
+
+/** Çeviri fonksiyonu (`numerology.analysis.deleteConfirm` ad alanı). */
+export type DeleteConfirmT = (key: string, values?: Record<string, string>) => string;
+
+/**
+ * I18N: kaynak dil dışı ekranlar için AYNI içerik kararı (tek/çoklu, gösterilen ad sınırı, "+N" kalan) — yalnız metin
+ * katalogdan. TR ekran `buildNumerolojiDeleteConfirm`'ü birebir kullanmaya devam eder.
+ */
+export function buildNumerolojiDeleteConfirmEn(t: DeleteConfirmT, totalCount: number, names: string[]): DeleteConfirmContent {
+  const clean = names.map(normalizeDisplayName).filter((n) => n.length > 0);
+  if (totalCount <= 1) {
+    const label = clean[0];
+    return {
+      title: t("oneTitle"),
+      message: label ? t("oneNamed", { label }) : t("oneUnnamed"),
+      secondMessage: t("oneSecond"),
+    };
+  }
+  const shown = clean.slice(0, MAX_DELETE_CONFIRM_NAMES);
+  const remaining = totalCount - shown.length;
+  const bullets = shown.map((n) => `• ${n}`).join("\n");
+  const more = remaining > 0 ? `\n• ${t("more", { n: String(remaining) })}` : "";
+  return {
+    title: t("manyTitle"),
+    message: `${t("manyIntro", { n: String(totalCount) })}\n${bullets}${more}`,
+    secondMessage: t("manySecond"),
+  };
+}

@@ -6,15 +6,21 @@
 // (service.ts → clientBelongsToTenant). Danışan Yönetimi izni yoksa bileşen hiç görünmez (ent.canLinkClients).
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { apiRequest, authHeaders } from "../_lib/api";
 
 export type LinkedClient = { id: string; ad: string | null; soyad: string | null; dogum: string | null };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function clientDisplayName(c: Pick<LinkedClient, "ad" | "soyad">): string {
-  return `${c.ad ?? ""} ${c.soyad ?? ""}`.replace(/\s+/g, " ").trim() || "Adsız danışan";
+/**
+ * Danışan görünen adı. `fallback` verilmezse TR varsayılanı (formlara AKTARILAN değer — veri yolu, değişmez);
+ * ekranda gösterimde çağıran katalog metnini (`clientLink.unnamed`) geçirir.
+ */
+export function clientDisplayName(c: Pick<LinkedClient, "ad" | "soyad">, fallback = "Adsız danışan"): string { // i18n-ignore: forma aktarılan veri varsayılanı (gösterimde katalog geçirilir)
+  return `${c.ad ?? ""} ${c.soyad ?? ""}`.replace(/\s+/g, " ").trim() || fallback;
 }
 
 /** Danışan kaydındaki doğum (YYYY-MM-DD) → form biçimi GG.AA.YYYY; geçersizse "". */
@@ -65,6 +71,7 @@ export function ClientLinkField({
   inline?: boolean;
   onCancel?: () => void;
 }) {
+  const t = useTranslations("numerology.classic.clientLink");
   const uid = useId();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -89,7 +96,7 @@ export function ClientLinkField({
           setRows(j.clients.map(pickClient).filter((x): x is LinkedClient => x !== null));
         })
         .catch((e: unknown) => {
-          if ((e as { name?: string })?.name !== "AbortError") setLoadError("Danışan listesi yüklenemedi.");
+          if ((e as { name?: string })?.name !== "AbortError") setLoadError(t("listFailed"));
         })
         .finally(() => setLoading(false));
     }, 250);
@@ -97,6 +104,8 @@ export function ClientLinkField({
       ac.abort();
       if (timer.current) clearTimeout(timer.current);
     };
+    // t: next-intl çevirici (dil değişimi yeniden arama tetiklemesin diye bağımlılık değil — yalnız hata metni).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, open, q]);
 
   if (!enabled) return null;
@@ -112,48 +121,48 @@ export function ClientLinkField({
       data-testid="client-link"
     >
       {inline ? (
-        <p className="nk-label-cap" id={`${uid}-baslik`} style={{ margin: 0 }}>Danışan bağlantısı <span className="nk-muted" style={{ fontWeight: 500 }}>(isteğe bağlı)</span></p>
+        <p className="nk-label-cap" id={`${uid}-baslik`} style={{ margin: 0 }}>{t("title")} <span className="nk-muted" style={{ fontWeight: 500 }}>{t("optional")}</span></p>
       ) : (
-        <h2 className="nk-h2" id={`${uid}-baslik`}>Danışan bağlantısı <span className="nk-muted" style={{ fontWeight: 500, fontSize: "0.8em" }}>(isteğe bağlı)</span></h2>
+        <h2 className="nk-h2" id={`${uid}-baslik`}>{t("title")} <span className="nk-muted" style={{ fontWeight: 500, fontSize: "0.8em" }}>{t("optional")}</span></h2>
       )}
-      <p className={inline ? "nk-hint" : "nk-lead"} style={inline ? { margin: 0 } : undefined}>Analizi kendi danışanınıza bağlarsanız Danışan dosyasının Numeroloji sekmesinde görünür.</p>
+      <p className={inline ? "nk-hint" : "nk-lead"} style={inline ? { margin: 0 } : undefined}>{t("lead")}</p>
       {value ? (
         <div className="nk-client-chosen" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 12 }} data-testid="client-chosen">
-          <span className="nk-badge nk-ice">Bağlı danışan: <b>{clientDisplayName(value)}</b></span>
-          {onPrefill ? <button type="button" className="nk-btn" onClick={() => onPrefill(value)} data-testid="client-prefill">Bilgileri forma aktar</button> : null}
-          <button type="button" className="nk-btn" onClick={() => onChange(null)} data-testid="client-unlink">Bağı kaldır</button>
+          <span className="nk-badge nk-ice">{t.rich("linked", { name: clientDisplayName(value, t("unnamed")), b: (c) => <b>{c}</b> })}</span>
+          {onPrefill ? <button type="button" className="nk-btn" onClick={() => onPrefill(value)} data-testid="client-prefill">{t("prefill")}</button> : null}
+          <button type="button" className="nk-btn" onClick={() => onChange(null)} data-testid="client-unlink">{t("unlink")}</button>
         </div>
       ) : open ? (
         <div style={{ marginTop: 12 }}>
-          <label htmlFor={`${uid}-ara`} className="nk-sr-only">Danışan ara</label>
+          <label htmlFor={`${uid}-ara`} className="nk-sr-only">{t("searchLabel")}</label>
           <input
             id={`${uid}-ara`}
             className="nk-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ad veya soyad ile ara"
+            placeholder={t("searchPh")}
             autoComplete="off"
             data-testid="client-search"
           />
-          {loading ? <p className="nk-hint" role="status">Yükleniyor…</p> : null}
+          {loading ? <p className="nk-hint" role="status">{t("loading")}</p> : null}
           {loadError ? <p className="nk-field-error" role="alert">{loadError}</p> : null}
-          {!loading && !loadError && rows.length === 0 ? <p className="nk-hint">Eşleşen danışan yok.</p> : null}
+          {!loading && !loadError && rows.length === 0 ? <p className="nk-hint">{t("noMatch")}</p> : null}
           <ul className="nk-client-results" style={{ listStyle: "none", padding: 0, margin: "10px 0 0", display: "grid", gap: 6, maxHeight: 280, overflowY: "auto" }}>
             {rows.map((c) => (
               <li key={c.id}>
                 <button type="button" className="nk-btn" style={{ width: "100%", justifyContent: "space-between", textAlign: "left" }} onClick={() => { onChange(c); setOpen(false); }} data-testid="client-option">
-                  <span>{clientDisplayName(c)}</span>
+                  <span>{clientDisplayName(c, t("unnamed"))}</span>
                   {clientBirthTr(c.dogum) ? <span className="nk-muted">{clientBirthTr(c.dogum)}</span> : null}
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" className="nk-btn" style={{ marginTop: 10 }} onClick={cancel} data-testid="client-cancel">Vazgeç</button>
+          <button type="button" className="nk-btn" style={{ marginTop: 10 }} onClick={cancel} data-testid="client-cancel">{t("cancel")}</button>
         </div>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: inline ? 4 : 12 }}>
-          <button type="button" className="nk-btn" onClick={() => setOpen(true)} data-testid="client-open">Danışan seç</button>
-          {onCancel ? <button type="button" className="nk-btn" onClick={cancel} data-testid="client-cancel">Vazgeç</button> : null}
+          <button type="button" className="nk-btn" onClick={() => setOpen(true)} data-testid="client-open">{t("choose")}</button>
+          {onCancel ? <button type="button" className="nk-btn" onClick={cancel} data-testid="client-cancel">{t("cancel")}</button> : null}
         </div>
       )}
       {error ? <p className="nk-field-error" role="alert" style={{ marginTop: 8 }}>{error}</p> : null}
@@ -177,6 +186,7 @@ export function ClientPickerCompact({
   onPrefill?: (c: LinkedClient, auto: boolean) => void;
   error?: string | null;
 }) {
+  const t = useTranslations("numerology.classic.clientLink");
   const uid = useId();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -203,7 +213,7 @@ export function ClientPickerCompact({
           setRows(j.clients.map(pickClient).filter((x): x is LinkedClient => x !== null));
         })
         .catch((e: unknown) => {
-          if ((e as { name?: string })?.name !== "AbortError") setLoadError("Danışan listesi yüklenemedi.");
+          if ((e as { name?: string })?.name !== "AbortError") setLoadError(t("listFailed"));
         })
         .finally(() => setLoading(false));
     }, 250);
@@ -211,6 +221,8 @@ export function ClientPickerCompact({
       ac.abort();
       if (timer.current) clearTimeout(timer.current);
     };
+    // t: next-intl çevirici (dil değişimi yeniden arama tetiklemesin diye bağımlılık değil — yalnız hata metni).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, open, q]);
 
   useEffect(() => {
@@ -227,16 +239,16 @@ export function ClientPickerCompact({
       {value ? (
         <div className="nk-cpick-row" data-testid="client-chosen">
           <span className="nk-cpick-chip">
-            <span className="nk-cpick-k">Danışan</span>
-            <b>{clientDisplayName(value)}</b>
-            <button type="button" className="nk-cpick-x" onClick={() => onChange(null)} aria-label={`${clientDisplayName(value)} danışan seçimini kaldır`} data-testid="client-unlink">×</button>
+            <span className="nk-cpick-k">{t("chip")}</span>
+            <b>{clientDisplayName(value, t("unnamed"))}</b>
+            <button type="button" className="nk-cpick-x" onClick={() => onChange(null)} aria-label={t("removeAria", { name: clientDisplayName(value, t("unnamed")) })} data-testid="client-unlink">×</button>
           </span>
-          {onPrefill ? <button type="button" className="nk-btn nk-sm" onClick={() => onPrefill(value, false)} data-testid="client-prefill">Bilgileri aktar</button> : null}
+          {onPrefill ? <button type="button" className="nk-btn nk-sm" onClick={() => onPrefill(value, false)} data-testid="client-prefill">{t("prefillShort")}</button> : null}
         </div>
       ) : open ? (
         <div className="nk-cpick-panel" role="group" aria-labelledby={`${uid}-t`}>
-          <p className="nk-cpick-k" id={`${uid}-t`}>Danışan seç <span className="nk-muted">(isteğe bağlı)</span></p>
-          <label htmlFor={`${uid}-ara`} className="nk-sr-only">Danışan ara</label>
+          <p className="nk-cpick-k" id={`${uid}-t`}>{t("choose")} <span className="nk-muted">{t("optional")}</span></p>
+          <label htmlFor={`${uid}-ara`} className="nk-sr-only">{t("searchLabel")}</label>
           <input
             ref={searchRef}
             id={`${uid}-ara`}
@@ -244,28 +256,28 @@ export function ClientPickerCompact({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); close(); } }}
-            placeholder="Ad veya soyad ile ara"
+            placeholder={t("searchPh")}
             autoComplete="off"
             data-testid="client-search"
           />
-          {loading ? <p className="nk-hint" role="status">Yükleniyor…</p> : null}
+          {loading ? <p className="nk-hint" role="status">{t("loading")}</p> : null}
           {loadError ? <p className="nk-field-error" role="alert">{loadError}</p> : null}
-          {!loading && !loadError && rows.length === 0 ? <p className="nk-hint">Eşleşen danışan yok.</p> : null}
+          {!loading && !loadError && rows.length === 0 ? <p className="nk-hint">{t("noMatch")}</p> : null}
           <ul className="nk-cpick-list">
             {rows.map((c) => (
               <li key={c.id}>
                 <button type="button" className="nk-cpick-opt" onClick={() => { onChange(c); setOpen(false); onPrefill?.(c, true); }} data-testid="client-option">
-                  <span>{clientDisplayName(c)}</span>
+                  <span>{clientDisplayName(c, t("unnamed"))}</span>
                   {clientBirthTr(c.dogum) ? <span className="nk-muted">{clientBirthTr(c.dogum)}</span> : null}
                 </button>
               </li>
             ))}
           </ul>
-          <button type="button" className="nk-btn nk-sm" onClick={close}>Vazgeç</button>
+          <button type="button" className="nk-btn nk-sm" onClick={close}>{t("cancel")}</button>
         </div>
       ) : (
         <button ref={openRef} type="button" className="nk-btn nk-sm nk-cpick-open" onClick={() => setOpen(true)} data-testid="client-open" aria-expanded={false}>
-          <span aria-hidden="true">＋</span> Danışan Seç <span className="nk-muted">(isteğe bağlı)</span>
+          <span aria-hidden="true">＋</span> {t("chooseCap")} <span className="nk-muted">{t("optional")}</span>
         </button>
       )}
       {error ? <p className="nk-field-error" role="alert">{error}</p> : null}
@@ -275,6 +287,7 @@ export function ClientPickerCompact({
 
 /** Kayıtlı analizde danışan bağlantı satırı (bağlı danışanın adı + dosyasına bağlantı). */
 export function LinkedClientLine({ clientId }: { clientId: string | null }) {
+  const t = useTranslations("numerology.classic.clientLink");
   const [c, setC] = useState<LinkedClient | null>(null);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
@@ -288,11 +301,11 @@ export function LinkedClientLine({ clientId }: { clientId: string | null }) {
     return () => { alive = false; };
   }, [clientId]);
   if (!clientId) return null;
-  if (missing) return <span data-testid="linked-client">Danışan bağlı (görüntüleme izniniz yok ya da danışan silinmiş)</span>;
-  if (!c) return <span data-testid="linked-client">Danışan bağlı…</span>;
+  if (missing) return <span data-testid="linked-client">{t("lineMissing")}</span>;
+  if (!c) return <span data-testid="linked-client">{t("linePending")}</span>;
   return (
     <span data-testid="linked-client">
-      Danışan <Link href={`/dashboard/clients/${encodeURIComponent(c.id)}?tab=numeroloji`}><b>{clientDisplayName(c)}</b></Link>
+      {t("lineLabel")} <Link href={`/dashboard/clients/${encodeURIComponent(c.id)}?tab=numeroloji`}><b>{clientDisplayName(c, t("unnamed"))}</b></Link>
     </span>
   );
 }
@@ -302,6 +315,7 @@ export function LinkedClientLine({ clientId }: { clientId: string | null }) {
  * Ön seçim YALNIZ /api/clients/[id] aynı tenant'ta 200 dönerse uygulanır; aksi hâlde hata gösterilir, bağ kurulmaz.
  */
 export function useLinkedClient(canLink: boolean | undefined) {
+  const t = useTranslations("numerology.classic.clientLink");
   const [client, setClient] = useState<LinkedClient | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -312,9 +326,11 @@ export function useLinkedClient(canLink: boolean | undefined) {
     void fetchClient(id).then((r) => {
       if (!alive) return;
       if (r.ok) setClient(r.client);
-      else setError("Bağlantıdaki danışan bulunamadı; analiz danışansız kaydedilir ya da listeden seçebilirsiniz.");
+      else setError(t("queryNotFound"));
     });
     return () => { alive = false; };
+    // t: next-intl çevirici (dil değişimi danışanı yeniden istemesin diye bağımlılık değil — yalnız hata metni).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canLink]);
   const set = (c: LinkedClient | null) => {
     setClient(c);
@@ -330,6 +346,8 @@ export function useLinkedClient(canLink: boolean | undefined) {
 export function ClientLinkAction<T extends { id: string; clientId: string | null; rowVersion: number }>({
   analysis, canLink, onSaved,
 }: { analysis: T; canLink: boolean; onSaved: (a: T) => void }) {
+  const t = useTranslations("numerology.classic.clientLink");
+  const locale = useLocale();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -347,18 +365,19 @@ export function ClientLinkAction<T extends { id: string; clientId: string | null
       setEditing(false);
       const row = r.data.row;
       onSaved({ ...analysis, clientId: row?.clientId ?? null, rowVersion: typeof row?.rowVersion === "number" ? row.rowVersion : analysis.rowVersion + 1, ...(row?.updatedAt ? { updatedAt: row.updatedAt } : {}) });
-    } else if (r.status === 409) setErr("Kayıt başka bir sekmede değişti; sayfayı yenileyip tekrar deneyin.");
-    else if (r.status === 404) setErr("Danışan ya da analiz bulunamadı.");
-    else setErr(r.error ?? "Danışan bağlantısı kaydedilemedi.");
+    } else if (r.status === 409) setErr(t("conflict"));
+    else if (r.status === 404) setErr(t("notFound"));
+    // TR: sunucu metni birebir; EN: sunucunun Türkçe metni yerine genel katalog metni.
+    else setErr((locale === DEFAULT_LOCALE ? r.error : null) ?? t("saveFailed"));
   }
   return (
     <div style={{ marginTop: 10 }} data-testid="client-link-action">
       {analysis.clientId ? (
-        <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => void save(null)} data-testid="result-client-unlink">Danışan bağını kaldır</button>
+        <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => void save(null)} data-testid="result-client-unlink">{t("resultUnlink")}</button>
       ) : editing ? (
         <ClientLinkField enabled inline value={null} onChange={(c) => { if (c) void save(c.id); }} onCancel={() => { setEditing(false); setErr(null); }} />
       ) : (
-        <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => setEditing(true)} data-testid="result-client-link">Danışana bağla</button>
+        <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => setEditing(true)} data-testid="result-client-link">{t("resultLink")}</button>
       )}
       {err ? <p className="nk-field-error" role="alert">{err}</p> : null}
     </div>

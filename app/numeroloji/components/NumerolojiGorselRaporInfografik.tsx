@@ -7,6 +7,8 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { turkishUpper, turkishUpperDisplay, ELEMENT_ORDER, LETTER_TO_CHAKRA, mucadeleKonuText, type HarfYankilanisiSegment } from "@/lib/numeroloji";
 import { nrDisplay, type NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import {
@@ -663,6 +665,9 @@ function gorselTasAdSatirlari(raw: string): string[] {
 
 const GORSEL_TAS_ROSET = ["#fbbf24", "#c084fc", "#34d399", "#38bdf8", "#fb7185"] as const;
 
+/** I18N: kanonik element kodu (motor anahtarı, DEĞİŞMEZ) → katalog anahtarı (yalnız gösterim). */
+const GORSEL_ELEMENT_KEY: Record<string, string> = { Hava: "air", Su: "water", Ateş: "fire", Toprak: "earth" };
+
 function GorselTasKolonu({ baslik, metin }: { baslik: string; metin: string }) {
   const items = gorselTasAdSatirlari(metin);
   if (!items.length) return null;
@@ -888,6 +893,12 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 ) {
   const css = GORSEL_TEMA_VARS[temaId];
   const Y = 5;
+  // I18N: TR'de tüm satırlar önceki literal'lerle birebir; diğer dillerde AYNI kesilmiş yapısal veriden (gizleme
+  // kararı yukarıdaki yapısal çözücüde, çeviriden bağımsız) katalogla çizilir.
+  const t = useTranslations("numerology.tabs.visual");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const cakraTxt = (n: number | string) => (isSourceLocale ? `${n}. çakra` : t("chakraLower", { n: String(n) }));
+  const konuTxt = (topic: number) => (isSourceLocale ? mucadeleKonuText(topic) : topic === 0 ? t("topicZero") : t("chakraLower", { n: String(topic) }));
   // OWNER YEAR-CUTOFF: görsel raporda da gelecek yıllar/dönemler gizli; devam eden aktif harf
   // segmenti currentYear'a kırpılır. Canonical hesap DEĞİŞMEZ.
   // limitYear: Gelecek Yıllar yetkisi KAPALI → currentYear (önceki davranış birebir); AÇIK → tüm dönemler.
@@ -921,38 +932,66 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   const zKonu = (p: { topic: number; display?: string }) => (p.display && p.display.includes("/") ? p.display : String(p.topic));
   let zirveGoster: string[] = [];
   if (zirveG?.format === "kayitli") {
-    zirveGoster = zirveG.peaks.slice(0, Y).map((p) => `${p.index}. zirve · ${p.age} yaş · ${zKonu(p)}. çakra`);
+    zirveGoster = zirveG.peaks
+      .slice(0, Y)
+      .map((p) =>
+        isSourceLocale
+          ? `${p.index}. zirve · ${p.age} yaş · ${zKonu(p)}. çakra`
+          : t("peakLine", { i: String(p.index), age: String(p.age), topic: zKonu(p) }),
+      );
   } else if (zirveG && (zirveG.metot1.length || zirveG.metot2.length)) {
     const idx = new Map<number, string>();
     for (const p of [...zirveG.metot1, ...zirveG.metot2]) idx.set(p.index, zKonu(p));
     const sayilar = [...idx.entries()].sort((a, b) => a[0] - b[0]).map(([i, v]) => `${i}. ${v}`).join(" · ");
-    const yaslar = (rows: { age: number }[]) => (rows.length ? `${rows.map((r) => r.age).join(" · ")} yaş` : "—");
-    zirveGoster = [
-      `Zirve sayıları: ${sayilar}`,
-      `${ZIRVE_METOT1_LABEL}: ${yaslar(zirveG.metot1)}`,
-      `${ZIRVE_METOT2_LABEL}: ${yaslar(zirveG.metot2)}`,
-    ];
+    const yaslar = (rows: { age: number }[]) =>
+      rows.length ? (isSourceLocale ? `${rows.map((r) => r.age).join(" · ")} yaş` : t("ages", { ages: rows.map((r) => r.age).join(" · ") })) : "—";
+    zirveGoster = isSourceLocale
+      ? [
+          `Zirve sayıları: ${sayilar}`,
+          `${ZIRVE_METOT1_LABEL}: ${yaslar(zirveG.metot1)}`,
+          `${ZIRVE_METOT2_LABEL}: ${yaslar(zirveG.metot2)}`,
+        ]
+      : [
+          t("peakNumbers", { list: sayilar }),
+          `${t("method1")}: ${yaslar(zirveG.metot1)}`,
+          `${t("method2")}: ${yaslar(zirveG.metot2)}`,
+        ];
   }
 
   const mucCut = cutoffMucadele(out.mucadeleYillari, chronoBirthYear, limitYear);
-  const mucGoster: string[] = mucadeleSatirlari(mucCut)
-    .map((r) => `${r.baslik} · konu ${mucadeleKonuText(r.konu)}`)
-    .slice(0, Y);
+  const mucGoster: string[] = (
+    isSourceLocale || !mucCut
+      ? mucadeleSatirlari(mucCut).map((r) => `${r.baslik} · konu ${mucadeleKonuText(r.konu)}`)
+      : mucCut.format === "onceki"
+        ? mucCut.points.map((p) => t("challengePrev", { i: String(p.index), age: String(p.age), topic: konuTxt(p.topic) }))
+        : [
+            ...mucCut.periods.map((p) =>
+              p.index === 1
+                ? t("challengeFirst", { age: String(p.cutoffAge), topic: konuTxt(p.topic) })
+                : t("challengeNext", { i: String(p.index), age: String(p.cutoffAge), topic: konuTxt(p.topic) }),
+            ),
+            ...(mucCut.ana ? [t("challengeMain", { age: String(mucCut.ana.startAge), topic: konuTxt(mucCut.ana.topic) })] : []),
+          ]
+  ).slice(0, Y);
 
   // Değişim-Dönüşüm: takvim yılı bazlı yapısal cutoff (regex serbest-metin KESME YOK).
   const degGoster: string[] = chronoBirthDate
     ? cutoffDegisimYearOnly(chronoBirthDate, limitYear, Y)
-        .map((r) => `${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}–${r.effectEndYearDisplay})`)
+        .map((r) =>
+          isSourceLocale
+            ? `${r.index}. Değişim ${r.changeYear} → ${r.chakra}. çakra (${r.effectStartYear}–${r.effectEndYearDisplay})`
+            : t("changeLine", { i: String(r.index), year: String(r.changeYear), chakra: String(r.chakra), start: String(r.effectStartYear), end: String(r.effectEndYearDisplay) }),
+        )
         .slice(0, Y)
     : [];
 
   const harfBaslikStr = gorselHarfBaslikSpaced(firstName, lastName);
 
   const numerolojiKartlari = [
-    { label: "Ana Kulvar", r: out.anaKulvar, glowVar: "--gr-glow-ana", tip: "ana" as const },
-    { label: "Yan Kulvar", r: out.yanKulvar, glowVar: "--gr-glow-yan", tip: "yan" as const },
-    { label: "İfade Sayısı", r: out.ifadeSayisi, glowVar: "--gr-glow-ifade", tip: "ifade" as const },
-    { label: "Hayat Yolu / DM", r: out.hayatYolu, glowVar: "--gr-glow-hayat", tip: "hayat" as const },
+    { label: t("cards.anaKulvar"), r: out.anaKulvar, glowVar: "--gr-glow-ana", tip: "ana" as const },
+    { label: t("cards.yanKulvar"), r: out.yanKulvar, glowVar: "--gr-glow-yan", tip: "yan" as const },
+    { label: t("cards.ifadeSayisi"), r: out.ifadeSayisi, glowVar: "--gr-glow-ifade", tip: "ifade" as const },
+    { label: t("cards.hayatYolu"), r: out.hayatYolu, glowVar: "--gr-glow-hayat", tip: "hayat" as const },
   ];
 
   return (
@@ -980,7 +1019,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           </svg>
         </div>
         <h2 className="text-5xl font-black tracking-[0.10em]" style={{ color: "var(--gr-h3)" }}>
-          NUMEROLOJİK YAŞAM HARİTASI
+          {t("title")}
         </h2>
         <GorselAltinSatir className="mt-3 opacity-75" />
         <div className="mx-auto mt-4 w-full max-w-3xl space-y-1.5">
@@ -1038,7 +1077,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           className="flex min-h-[220px] min-w-0 flex-col rounded-2xl border p-6"
           style={{ backgroundColor: "var(--gr-card-bg)", borderColor: "var(--gr-card-border)" }}
         >
-          <GorselKutuBaslik className="text-center text-xl">PIN KODU</GorselKutuBaslik>
+          <GorselKutuBaslik className="text-center text-xl">{t("pin")}</GorselKutuBaslik>
           <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
             {(() => {
               const pin = out.pinKodu;
@@ -1080,7 +1119,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           className="flex min-h-[220px] min-w-0 flex-col rounded-2xl border p-6"
           style={{ backgroundColor: "var(--gr-card-bg)", borderColor: "var(--gr-card-border)" }}
         >
-          <GorselKutuBaslik className="text-center text-xl">Elementler</GorselKutuBaslik>
+          <GorselKutuBaslik className="text-center text-xl">{t("elements")}</GorselKutuBaslik>
           <div className="mt-4 grid min-h-[150px] flex-1 grid-cols-4 gap-3">
             {ELEMENT_ORDER.map((el) => {
               const elTint = GORSEL_EL_TINT[el] ?? "rgba(255,255,255,0.05)";
@@ -1096,7 +1135,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 >
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" aria-hidden />
                   <GorselElementMiniSembol el={el} />
-                  <span className="w-full text-center text-sm font-black tracking-wide" style={{ color: "var(--gr-el-label)" }}>{el}</span>
+                  <span className="w-full text-center text-sm font-black tracking-wide" style={{ color: "var(--gr-el-label)" }}>{isSourceLocale || !GORSEL_ELEMENT_KEY[el] ? el : t(`el.${GORSEL_ELEMENT_KEY[el]}`)}</span>
                   <p className="gorsel-el-count text-6xl font-black tabular-nums leading-none" style={{ color: "var(--gr-number)" }}>
                     {out.elementler.counts[el]}
                   </p>
@@ -1112,7 +1151,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
         className="gorsel-sec-cakra-tam relative z-[2] mt-6 overflow-visible rounded-2xl border p-6"
         style={{ backgroundColor: "var(--gr-cakra-wrap-from)", borderColor: "var(--gr-cakra-wrap-border)" }}
       >
-        <GorselKutuBaslik className="pb-2 text-center text-2xl tracking-[0.14em]">Çakra omurgası</GorselKutuBaslik>
+        <GorselKutuBaslik className="pb-2 text-center text-2xl tracking-[0.14em]">{t("spine")}</GorselKutuBaslik>
         <div className="relative mt-4 overflow-visible pl-6">
           <div
             className="pointer-events-none absolute left-[8px] top-0.5 bottom-0.5 w-[2px] -translate-x-1/2 sm:left-[10px]"
@@ -1131,7 +1170,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
             {GORSEL_CAKRA_SIRA.map((cNo) => {
               const left = out.cakraOmurgasi.sayilar[cNo] ?? 0;
               const right = out.cakraOmurgasi.harfler[cNo] ?? 0;
-              const midFull = GORSEL_CAKRA_TR_A4[cNo] ?? `${cNo}. Çakra`;
+              const midFull = isSourceLocale ? (GORSEL_CAKRA_TR_A4[cNo] ?? `${cNo}. Çakra`) : t(`chakraRow.${cNo}`);
               const emptyRow = left === 0 && right === 0;
               const dot = GORSEL_CAKRA_NOKTA[cNo] ?? "#fff";
               return (
@@ -1189,12 +1228,12 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
 
       <div className="gorsel-sec-yillar relative z-[2] mt-6 grid grid-cols-3 gap-4">
         {[
-          { title: "Değişim — Dönüşüm", lines: degGoster },
-          { title: "Zirve Yılları", lines: zirveGoster },
-          { title: "Mücadele Yılları", lines: mucGoster },
-        ].map(({ title, lines }) => (
+          { id: "degisim", title: t("change"), lines: degGoster },
+          { id: "zirve", title: t("peaks"), lines: zirveGoster },
+          { id: "mucadele", title: t("challenges"), lines: mucGoster },
+        ].map(({ id, title, lines }) => (
           <section
-            key={title}
+            key={id}
             className="flex min-h-[180px] min-w-0 flex-col rounded-2xl border p-5"
             style={{ backgroundColor: "var(--gr-card-bg)", borderColor: "var(--gr-card-border)" }}
           >
@@ -1223,7 +1262,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
       >
         <GorselAltinSatir className="mb-2 opacity-80" />
         <GorselKutuBaslik noBorder className="pb-0 text-center text-2xl tracking-[0.18em]">
-          Harflerin Yankılanışı
+          {t("letters")}
         </GorselKutuBaslik>
         <GorselAltinSatir className="mt-2 opacity-75" />
         <p className="mt-3 text-center text-xl font-black" style={{ color: "var(--gr-name)" }}>{harfBaslikStr}</p>
@@ -1258,7 +1297,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                   />
                   <span className="relative z-[1] text-4xl font-black leading-none text-white">{item.letter}</span>
                   <span className="relative z-[1] mt-2 text-sm font-semibold leading-5 text-slate-100">
-                    {ck != null ? `${ck}. çakra` : "—"}
+                    {ck != null ? cakraTxt(ck) : "—"}
                   </span>
                   <span className="relative z-[1] mt-1 text-sm font-semibold leading-5 text-slate-100">—</span>
                 </div>
@@ -1285,7 +1324,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
                 />
                 <span className="relative z-[1] text-4xl font-black leading-none text-white">{seg.letter}</span>
                 <span className="relative z-[1] mt-2 text-sm font-semibold leading-5 text-slate-100">
-                  {seg.chakra}. çakra
+                  {isSourceLocale ? <>{seg.chakra}. çakra</> : cakraTxt(seg.chakra)}
                 </span>
                 <span className="relative z-[1] mt-1 text-sm font-semibold leading-5 text-slate-100">
                   {seg.ageStart}–{seg.ageEnd}
@@ -1312,11 +1351,11 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
           style={{ borderColor: "var(--gr-card-border)", boxShadow: "0 0 24px -12px var(--gr-shadow)" }}
         >
           <GorselAltinSatir className="mb-1 opacity-80" />
-          <GorselKutuBaslik className="pb-1 text-[7px] sm:text-[7.5px]">Önerilen Doğaltaşlar</GorselKutuBaslik>
+          <GorselKutuBaslik className="pb-1 text-[7px] sm:text-[7.5px]">{t("stones")}</GorselKutuBaslik>
           <div className="gorsel-sec-tas-body mt-1 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-2">
-            <GorselTasKolonu baslik="Bileklik taşları" metin={bileklikT} />
-            <GorselTasKolonu baslik="Kolye taşları" metin={kolyeT} />
-            <GorselTasKolonu baslik="Kütle taşları" metin={kutleT} />
+            <GorselTasKolonu baslik={t("stonesBracelet")} metin={bileklikT} />
+            <GorselTasKolonu baslik={t("stonesNecklace")} metin={kolyeT} />
+            <GorselTasKolonu baslik={t("stonesMass")} metin={kutleT} />
           </div>
           <GorselAltinSatir className="mt-1.5 opacity-70" />
         </section>
@@ -1331,7 +1370,7 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
             className="text-[7.5px] font-semibold uppercase tracking-[0.2em] sm:text-[8px]"
             style={{ color: "var(--gr-h3)", fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif" }}
           >
-            Analizi Düzenleyen Numerolog
+            {t("preparedBy")}
           </p>
           <p
             className="mt-1 text-lg font-medium italic leading-snug tracking-wide sm:text-xl"

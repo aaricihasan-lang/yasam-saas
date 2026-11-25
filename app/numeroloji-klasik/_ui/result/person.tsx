@@ -2,6 +2,7 @@
 
 // Kişi analizi sekme panelleri (prototip sonuc.html). Veri yalnız kayıtlı normalize sonuçtan okunur.
 
+import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import type {
   BridgeItem,
@@ -15,9 +16,11 @@ import type {
   PersonalDayResult,
   DailyResult,
 } from "@/lib/numeroloji-klasik/model";
-import { BRIDGE_LABELS, COMPOUND_NATURE_LABELS, CORE_NUMBER_LABELS } from "@/lib/numeroloji-klasik/labels";
+// Etiket metinleri numerology.classic.labels katalogundan (TR değerleri labels.ts ile birebir; labels.ts değişmez).
+// BRIDGE_LABELS yalnız köprü anahtarlarının kanonik SIRASI için kullanılır.
+import { BRIDGE_LABELS } from "@/lib/numeroloji-klasik/labels";
 import { currentPeriodicChallenge, isMainChallenge, mainChallenge, periodicChallenges } from "@/lib/numeroloji-klasik/challenges";
-import { MONTHS_TR, fmtIsoDay } from "../../_lib/format";
+import { fmtIsoDay, monthName } from "../../_lib/format";
 import { MismatchNote, NumberBadges, NumberCard, Trace, VerificationBadge, compoundDisplay } from "../kit";
 
 export type PersonData = {
@@ -48,27 +51,30 @@ function currentPeriod(periods: Period[], age: number | null): Period | null {
   return periods.find((p) => age >= p.startAge && (p.endAge === null || age <= p.endAge)) ?? null;
 }
 
-const CORE_ORDER: { key: keyof ChartResult["core"]; label: string; sub: string }[] = [
-  { key: "lifePath", label: CORE_NUMBER_LABELS.lifePath, sub: "Doğum tarihinden" },
-  { key: "expression", label: CORE_NUMBER_LABELS.expression, sub: "Tam adın tüm harfleri" },
-  { key: "soulUrge", label: CORE_NUMBER_LABELS.soulUrge, sub: "Sesli harfler" },
-  { key: "personality", label: CORE_NUMBER_LABELS.personality, sub: "Sessiz harfler" },
-  { key: "birthDay", label: CORE_NUMBER_LABELS.birthDay, sub: "Doğduğu gün" },
-  { key: "maturity", label: CORE_NUMBER_LABELS.maturity, sub: "Yaşam Yolu + İfade" },
+/** Çekirdek sayı sırası (kanonik anahtarlar); ad: labels.core.<key>, alt satır: person.coreSub.<key>. */
+const CORE_ORDER: { key: keyof ChartResult["core"] }[] = [
+  { key: "lifePath" },
+  { key: "expression" },
+  { key: "soulUrge" },
+  { key: "personality" },
+  { key: "birthDay" },
+  { key: "maturity" },
 ];
 
 const digitRoot = (n: number) => (n <= 0 ? 0 : 1 + ((n - 1) % 9));
 
 // ── Özet ───────────────────────────────────────────────────────────────────────────────────────
 export function SummaryPanel({ d }: { d: PersonData }) {
+  const t = useTranslations("numerology.classic");
+  const locale = useLocale();
   const c = d.chart;
   const age = ageAt(d.birth, d.referenceDate);
   const cur = c ? currentPeriod(c.pinnacles, age) : null;
   const refYear = d.referenceDate?.slice(0, 4) ?? null;
   return (
     <div className="nk-card nk-panel">
-      <h2 className="nk-h2">Özet</h2>
-      <p className="nk-lead">Çekirdek sayılar bir bakışta. Ayrıntı ve hesap izi ilgili sekmede.</p>
+      <h2 className="nk-h2">{t("person.summary.title")}</h2>
+      <p className="nk-lead">{t("person.summary.lead")}</p>
       {c ? (
         <div className="nk-summary-grid" style={{ marginTop: 14 }}>
           {CORE_ORDER.map((o) => {
@@ -77,10 +83,10 @@ export function SummaryPanel({ d }: { d: PersonData }) {
             return (
               <div key={o.key} className="nk-mini" data-testid="summary-mini">
                 <b>{n.value}</b>
-                <span>{o.label}</span>
+                <span>{t(`labels.core.${o.key}`)}</span>
                 <div className="nk-badges">
-                  {n.karmicDebt ? <span className="nk-badge nk-karmic">Karmik {n.karmicDebt}</span> : null}
-                  {n.type === "master" ? <span className="nk-badge nk-master">Usta</span> : null}
+                  {n.karmicDebt ? <span className="nk-badge nk-karmic">{t("person.summary.karmic", { n: String(n.karmicDebt) })}</span> : null}
+                  {n.type === "master" ? <span className="nk-badge nk-master">{t("person.summary.master")}</span> : null}
                   {cd && !n.karmicDebt ? <span className="nk-badge">{cd}</span> : null}
                 </div>
               </div>
@@ -88,17 +94,18 @@ export function SummaryPanel({ d }: { d: PersonData }) {
           })}
         </div>
       ) : (
-        <p className="nk-empty">Pisagor çekirdek harita bu analizde yok.</p>
+        <p className="nk-empty">{t("person.summary.noChart")}</p>
       )}
       <dl className="nk-kv">
-        {c ? <div><dt>Kişisel yıl{refYear ? ` (${refYear})` : ""}</dt><dd>{c.personalYear.personalYear}</dd></div> : null}
-        {c && cur ? <div><dt>Şu anki zirve ({cur.startAge}–{cur.endAge ?? "…"})</dt><dd>{cur.number}</dd></div> : null}
-        {c ? <div><dt>Eksik sayı (karmik ders)</dt><dd>{c.karmicLessons.missingNumbers.length ? c.karmicLessons.missingNumbers.join(", ") : "Yok"}</dd></div> : null}
+        {c ? <div><dt>{refYear ? t("person.summary.personalYearRef", { year: refYear }) : t("person.summary.personalYear")}</dt><dd>{c.personalYear.personalYear}</dd></div> : null}
+        {c && cur ? <div><dt>{t("person.summary.currentPinnacle", { start: String(cur.startAge), end: cur.endAge === null ? "…" : String(cur.endAge) })}</dt><dd>{cur.number}</dd></div> : null}
+        {c ? <div><dt>{t("person.summary.missing")}</dt><dd>{c.karmicLessons.missingNumbers.length ? c.karmicLessons.missingNumbers.join(", ") : t("person.summary.none")}</dd></div> : null}
         {d.chaldean ? (
-          <div><dt>Kalde kader sayısı</dt><dd>{d.chaldean.destiny.compound !== null ? `${d.chaldean.destiny.compound} → ` : ""}{d.chaldean.destiny.root}{d.chaldean.numberMeaning.planet ? ` · ${d.chaldean.numberMeaning.planet}` : ""}</dd></div>
+          <div><dt>{t("person.summary.chaldeanDestiny")}</dt><dd>{d.chaldean.destiny.compound !== null ? `${d.chaldean.destiny.compound} → ` : ""}{d.chaldean.destiny.root}{d.chaldean.numberMeaning.planet ? ` · ${d.chaldean.numberMeaning.planet}` : ""}</dd></div>
         ) : null}
-        {d.personalDay ? <div><dt>Kişisel gün ({fmtIsoDay(d.personalDay.targetDate)})</dt><dd>{d.personalDay.personalDay}</dd></div> : null}
+        {d.personalDay ? <div><dt>{t("person.summary.personalDayAt", { date: fmtIsoDay(d.personalDay.targetDate, locale) })}</dt><dd>{d.personalDay.personalDay}</dd></div> : null}
       </dl>
+      {/* c.summary: motor/sağlayıcı anlatı metni (snapshot) → çevrilmez. */}
       {c?.summary ? <p className="nk-num-desc" style={{ marginTop: 14 }}>{c.summary}</p> : null}
     </div>
   );
@@ -106,26 +113,28 @@ export function SummaryPanel({ d }: { d: PersonData }) {
 
 // ── Pisagor çekirdek ───────────────────────────────────────────────────────────────────────────
 export function CorePanel({ c }: { c: ChartResult }) {
+  const t = useTranslations("numerology.classic");
   const bp = c.birthDayProfile;
   const ms = c.maturityStatus;
   return (
     <>
-      <h2 className="nk-sr-only">Pisagor Çekirdek Sayılar</h2>
+      <h2 className="nk-sr-only">{t("person.core.srTitle")}</h2>
       <div className="nk-num-grid">
         {CORE_ORDER.map((o) => (
-          <NumberCard key={o.key} name={o.label} sub={o.sub} n={c.core[o.key]}
-            extra={o.key === "maturity" && ms ? <p className="nk-num-key">{ms.isActive ? "Olgunluk sayısı etkin" : "Olgunluk sayısı henüz etkin değil"} · {ms.activationRange} · şu anki yaş {ms.currentAge}</p> : null} />
+          <NumberCard key={o.key} name={t(`labels.core.${o.key}`)} sub={t(`person.coreSub.${o.key}`)} n={c.core[o.key]}
+            extra={o.key === "maturity" && ms ? <p className="nk-num-key">{t("person.core.maturityLine", { status: ms.isActive ? t("person.core.maturityActive") : t("person.core.maturityInactive"), range: String(ms.activationRange), age: String(ms.currentAge) })}</p> : null} />
         ))}
       </div>
       {bp ? (
         <div className="nk-card nk-panel" style={{ marginTop: 14 }}>
-          <h2 className="nk-h2">{CORE_NUMBER_LABELS.birthDayProfile} · {bp.day}</h2>
-          <p className="nk-lead">{bp.title}{bp.reducesTo ? ` · kök ${bp.reducesTo}` : ""}</p>
+          <h2 className="nk-h2">{t("labels.core.birthDayProfile")} · {bp.day}</h2>
+          {/* bp.title / keywords / description / strengths / challenges: motor metni (snapshot) → çevrilmez. */}
+          <p className="nk-lead">{bp.title}{bp.reducesTo ? ` · ${t("person.core.root", { n: String(bp.reducesTo) })}` : ""}</p>
           {bp.keywords.length ? <p className="nk-num-key" style={{ marginTop: 6 }}>{bp.keywords.join(" · ")}</p> : null}
           {bp.description ? <p className="nk-num-desc" style={{ marginTop: 8 }}>{bp.description}</p> : null}
           <div className="nk-section-grid" style={{ marginTop: 10 }}>
-            {bp.strengths.length ? <div><p className="nk-mh">Güçlü yönler</p><ul className="nk-bullets">{bp.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
-            {bp.challenges.length ? <div><p className="nk-mh">Zorlayıcı yönler</p><ul className="nk-bullets">{bp.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
+            {bp.strengths.length ? <div><p className="nk-mh">{t("labels.meaning.strengths")}</p><ul className="nk-bullets">{bp.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
+            {bp.challenges.length ? <div><p className="nk-mh">{t("labels.meaning.challenges")}</p><ul className="nk-bullets">{bp.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
           </div>
         </div>
       ) : null}
@@ -135,6 +144,7 @@ export function CorePanel({ c }: { c: ChartResult }) {
 
 // ── Karmik ─────────────────────────────────────────────────────────────────────────────────────
 export function KarmicPanel({ c }: { c: ChartResult }) {
+  const t = useTranslations("numerology.classic");
   const kl = c.karmicLessons;
   const kd = c.karmicDebt;
   const hp = c.hiddenPassion;
@@ -146,26 +156,26 @@ export function KarmicPanel({ c }: { c: ChartResult }) {
         <div className="nk-card nk-panel">
           <div className="nk-num-top">
             <div>
-              <h2 className="nk-h2">Karmik dersler</h2>
-              <p className="nk-lead">Tam addaki harflerin 1–9 dağılımı. Hiç bulunmayan sayı, karmik ders olarak okunur.</p>
+              <h2 className="nk-h2">{t("person.karmic.lessonsTitle")}</h2>
+              <p className="nk-lead">{t("person.karmic.lessonsLead")}</p>
             </div>
             <VerificationBadge v={kl.verification} />
           </div>
-          <div className="nk-missing-grid" role="list" aria-label="Sayı dağılımı" data-testid="karmic-grid">
+          <div className="nk-missing-grid" role="list" aria-label={t("person.karmic.gridLabel")} data-testid="karmic-grid">
             {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => {
               const cnt = kl.presentNumbers[String(n)] ?? 0;
               const zero = missing.has(n) || cnt === 0;
               return (
-                <div key={n} className={`nk-mcell${zero ? " nk-zero" : ""}${hp && hp.allPassions.includes(n) ? " nk-high" : ""}`} role="listitem" aria-label={`${n}: ${zero ? "eksik" : `${cnt} harf`}`}>
+                <div key={n} className={`nk-mcell${zero ? " nk-zero" : ""}${hp && hp.allPassions.includes(n) ? " nk-high" : ""}`} role="listitem" aria-label={`${n}: ${zero ? t("person.karmic.cellMissing") : t("person.karmic.cellLetters", { n: String(cnt) })}`}>
                   <b>{n}</b>
-                  <span>{zero ? "0 · eksik" : `${cnt} harf`}</span>
+                  <span>{zero ? t("person.karmic.cellZero") : t("person.karmic.cellLetters", { n: String(cnt) })}</span>
                 </div>
               );
             })}
           </div>
           <div className="nk-legend">
-            <span><i style={{ background: "var(--bad-bg)" }} />Eksik sayı</span>
-            {hp ? <span><i style={{ background: "#e6f2fb" }} />En sık (gizli tutku: {hp.allPassions.join(", ") || hp.number})</span> : null}
+            <span><i style={{ background: "var(--bad-bg)" }} />{t("person.karmic.legendMissing")}</span>
+            {hp ? <span><i style={{ background: "#e6f2fb" }} />{t("person.karmic.legendHigh", { list: hp.allPassions.join(", ") || String(hp.number) })}</span> : null}
           </div>
           <MismatchNote v={kl.verification} />
           {kl.lessons.length ? (
@@ -176,18 +186,18 @@ export function KarmicPanel({ c }: { c: ChartResult }) {
                   <div>
                     <b>{l.lesson}</b>
                     {l.description ? <p>{l.description}</p> : null}
-                    {l.howToOvercome ? <p><b>Aşma yolu:</b> {l.howToOvercome}</p> : null}
+                    {l.howToOvercome ? <p><b>{t("person.karmic.howToOvercome")}</b> {l.howToOvercome}</p> : null}
                   </div>
                 </li>
               ))}
             </ul>
-          ) : <p className="nk-empty">Bu adda eksik sayı yok.</p>}
+          ) : <p className="nk-empty">{t("person.karmic.noMissing")}</p>}
         </div>
         <div className="nk-card nk-panel">
           <div className="nk-num-top">
             <div>
-              <h2 className="nk-h2">Karmik borçlar</h2>
-              <p className="nk-lead">13 · 14 · 16 · 19 ara toplamları.</p>
+              <h2 className="nk-h2">{t("person.karmic.debtsTitle")}</h2>
+              <p className="nk-lead">{t("person.karmic.debtsLead")}</p>
             </div>
             <VerificationBadge v={kd.verification} />
           </div>
@@ -199,24 +209,24 @@ export function KarmicPanel({ c }: { c: ChartResult }) {
                   <span className="nk-n">{m.number}</span>
                   <div>
                     {m.description ? <p>{m.description}</p> : null}
-                    {m.challenge ? <p><b>Zorluk:</b> {m.challenge}</p> : null}
-                    {m.resolution ? <p><b>Çözüm:</b> {m.resolution}</p> : null}
+                    {m.challenge ? <p><b>{t("person.karmic.challenge")}</b> {m.challenge}</p> : null}
+                    {m.resolution ? <p><b>{t("person.karmic.resolution")}</b> {m.resolution}</p> : null}
                     <div className="nk-badges" style={{ marginTop: 6 }}>
-                      {CORE_ORDER.filter((o) => c.core[o.key].karmicDebt === m.number).map((o) => <span key={o.key} className="nk-badge nk-karmic">{o.label} {m.number}/{c.core[o.key].value}</span>)}
+                      {CORE_ORDER.filter((o) => c.core[o.key].karmicDebt === m.number).map((o) => <span key={o.key} className="nk-badge nk-karmic">{t(`labels.core.${o.key}`)} {m.number}/{c.core[o.key].value}</span>)}
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <ul className="nk-list"><li><span className="nk-n" style={{ color: "var(--b-ink-soft)" }}>—</span><div><b>13 · 14 · 16 · 19</b><p>{kd.message ?? "Bu analizde karmik borç görünmüyor."}</p></div></li></ul>
+            <ul className="nk-list"><li><span className="nk-n" style={{ color: "var(--b-ink-soft)" }}>—</span><div><b>13 · 14 · 16 · 19</b><p>{kd.message ?? t("person.karmic.noDebt")}</p></div></li></ul>
           )}
         </div>
       </div>
       <div className="nk-section-grid" style={{ marginTop: 14 }}>
         {hp ? (
           <div className="nk-card nk-num-card">
-            <div className="nk-num-top"><div><h3 className="nk-num-name">{CORE_NUMBER_LABELS.hiddenPassion}</h3><p className="nk-num-key">Adda en sık tekrar eden değer · {hp.count} kez</p></div><VerificationBadge v={hp.verification} /></div>
+            <div className="nk-num-top"><div><h3 className="nk-num-name">{t("labels.core.hiddenPassion")}</h3><p className="nk-num-key">{t("person.karmic.hpKey", { n: String(hp.count) })}</p></div><VerificationBadge v={hp.verification} /></div>
             <div className="nk-num-val"><span className="nk-num-big">{hp.number}</span></div>
             {hp.title ? <p className="nk-num-desc"><b>{hp.title}</b></p> : null}
             {hp.description ? <p className="nk-num-desc">{hp.description}</p> : null}
@@ -225,7 +235,7 @@ export function KarmicPanel({ c }: { c: ChartResult }) {
         ) : null}
         {sc ? (
           <div className="nk-card nk-num-card">
-            <div className="nk-num-top"><div><h3 className="nk-num-name">{CORE_NUMBER_LABELS.subconsciousSelf}</h3><p className="nk-num-key">Adda bulunan farklı değer adedi</p></div><VerificationBadge v={sc.verification} /></div>
+            <div className="nk-num-top"><div><h3 className="nk-num-name">{t("labels.core.subconsciousSelf")}</h3><p className="nk-num-key">{t("person.karmic.scKey")}</p></div><VerificationBadge v={sc.verification} /></div>
             <div className="nk-num-val"><span className="nk-num-big">{sc.number}</span></div>
             {sc.title ? <p className="nk-num-desc"><b>{sc.title}</b></p> : null}
             {sc.description ? <p className="nk-num-desc">{sc.description}</p> : null}
@@ -239,6 +249,7 @@ export function KarmicPanel({ c }: { c: ChartResult }) {
 
 // ── Zamanlama ──────────────────────────────────────────────────────────────────────────────────
 function Timeline({ periods, kind, now, label }: { periods: Period[]; kind: "p" | "c"; now: Period | null; label: string }) {
+  const t = useTranslations("numerology.classic.person.timing");
   const cols = periods.map((p, i) => (p.endAge === null || i === periods.length - 1 ? 21 : Math.max(4, p.endAge - p.startAge + 1)));
   const tl = cols.map((x) => `${x}fr`).join(" ");
   return (
@@ -250,7 +261,7 @@ function Timeline({ periods, kind, now, label }: { periods: Period[]; kind: "p" 
           return (
             <div key={p.position} className={`nk-tl-seg nk-${kind}${isNow ? " nk-now" : ""}`} role="listitem" aria-current={isNow ? "step" : undefined}>
               <b>{p.number}</b>
-              <small>{p.position}. {kind === "p" ? "zirve" : "zorluk"} · {ages} yaş{isNow ? " · şu an" : ""}</small>
+              <small>{t(kind === "p" ? "segPinnacle" : "segChallenge", { position: String(p.position), ages })}{isNow ? t("nowSuffix") : ""}</small>
             </div>
           );
         })}
@@ -263,19 +274,21 @@ function Timeline({ periods, kind, now, label }: { periods: Period[]; kind: "p" 
 }
 
 function PeriodList({ periods, kind }: { periods: Period[]; kind: "p" | "c" }) {
+  const t = useTranslations("numerology.classic.person.timing");
   return (
     <ul className="nk-list">
       {periods.map((p) => (
         <li key={p.position}>
           <span className="nk-n">{p.number}</span>
           <div>
-            <b>{p.position}. {kind === "p" ? "zirve" : "zorluk"}{kind === "c" && isMainChallenge(p) ? " · Ana zorluk (tüm yaşam)" : ""}{p.title ? ` · ${p.title}` : ""}</b>
+            {/* p.title / description / lesson / howToOvercome / opportunities / challenges: motor metni (snapshot) → çevrilmez. */}
+            <b>{t(kind === "p" ? "periodPinnacle" : "periodChallenge", { position: String(p.position) })}{kind === "c" && isMainChallenge(p) ? ` · ${t("mainLabel")}` : ""}{p.title ? ` · ${p.title}` : ""}</b>
             <span style={{ marginLeft: 8 }}><VerificationBadge v={p.verification} /></span>
             {p.description ? <p>{p.description}</p> : null}
-            {p.lesson ? <p><b>Ders:</b> {p.lesson}</p> : null}
-            {p.howToOvercome ? <p><b>Aşma yolu:</b> {p.howToOvercome}</p> : null}
-            {p.opportunities.length ? <p><b>Fırsatlar:</b> {p.opportunities.join(" · ")}</p> : null}
-            {p.challenges.length ? <p><b>Zorluklar:</b> {p.challenges.join(" · ")}</p> : null}
+            {p.lesson ? <p><b>{t("lesson")}</b> {p.lesson}</p> : null}
+            {p.howToOvercome ? <p><b>{t("howToOvercome")}</b> {p.howToOvercome}</p> : null}
+            {p.opportunities.length ? <p><b>{t("opportunities")}</b> {p.opportunities.join(" · ")}</p> : null}
+            {p.challenges.length ? <p><b>{t("challenges")}</b> {p.challenges.join(" · ")}</p> : null}
             <MismatchNote v={p.verification} />
           </div>
         </li>
@@ -286,32 +299,37 @@ function PeriodList({ periods, kind }: { periods: Period[]; kind: "p" | "c" }) {
 
 /** Günün Sayısı — Kişisel Gün'den AYRI kart; sembolik olduğu açıkça yazılır, doğrulama rozeti "doğrulanamaz". */
 export function DailyCard({ x }: { x: DailyResult }) {
+  const t = useTranslations("numerology.classic");
+  const locale = useLocale();
   const n = x.number;
   return (
     <div className="nk-card nk-panel" data-testid="daily-card">
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "flex-end" }}>
         <div>
-          <h2 className="nk-h2">Günün sayısı (sembolik)</h2>
+          <h2 className="nk-h2">{t("person.daily.title")}</h2>
           <p className="nk-lead">
-            {fmtIsoDay(x.date)} · {x.seedMode === "common" ? "Bu güne ait ortak sayı" : "Kişiye özel tohumla üretilen sayı"}. Doğum verisinden hesaplanmaz; yukarıdaki Kişisel Gün ile aynı şey değildir.
+            {t("person.daily.lead", { date: fmtIsoDay(x.date, locale), seed: x.seedMode === "common" ? t("person.daily.seedCommon") : t("person.daily.seedPersonal") })}
           </p>
         </div>
-        <span className="nk-badge">Sembolik · doğrulanamaz</span>
+        <span className="nk-badge">{t("person.daily.badge")}</span>
       </div>
       <div className="nk-cycle-grid" style={{ marginTop: 10 }}>
         <div className="nk-cycle">
-          <p className="nk-label-cap">Günün sayısı</p><b>{n.value}</b>
+          <p className="nk-label-cap">{t("person.daily.numberCap")}</p><b>{n.value}</b>
           {n.meaning?.title ? <p className="nk-num-desc">{n.meaning.title}</p> : null}
-          {n.type === "master" ? <span className="nk-badge nk-ice">Usta sayı</span> : null}
+          {n.type === "master" ? <span className="nk-badge nk-ice">{t("labels.numberKind.master")}</span> : null}
         </div>
       </div>
+      {/* dailyMessage / meaning: sağlayıcı metni (snapshot) → çevrilmez. */}
       {x.dailyMessage ? <p className="nk-num-desc" style={{ marginTop: 10 }}>{x.dailyMessage}</p> : null}
-      {n.meaning?.keywords?.length ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>Anahtar sözcükler:</b> {n.meaning.keywords.slice(0, 8).join(", ")}</p> : null}
+      {n.meaning?.keywords?.length ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>{t("person.daily.keywords")}</b> {n.meaning.keywords.slice(0, 8).join(", ")}</p> : null}
     </div>
   );
 }
 
 export function TimingPanel({ d }: { d: PersonData }) {
+  const t = useTranslations("numerology.classic.person.timing");
+  const locale = useLocale();
   const c = d.chart;
   const age = ageAt(d.birth, d.referenceDate);
   const nowP = c ? currentPeriod(c.pinnacles, age) : null;
@@ -329,58 +347,59 @@ export function TimingPanel({ d }: { d: PersonData }) {
       {c && (c.pinnacles.length || c.challenges.length) ? (
         <div className="nk-card nk-panel">
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "flex-end" }}>
-            <div><h2 className="nk-h2">Zirveler ve zorluklar</h2><p className="nk-lead">Dört zirve dönemi; ilk dönem 36 − Yaşam Yolu yaşında biter, sonraki iki dönem 9’ar yıldır. 1., 2. ve 4. zorluk bu dönemlere eşlik eder; 3. zorluk ana zorluktur ve tüm yaşam boyunca geçerlidir.</p></div>
-            {age !== null ? <span className="nk-badge nk-ice nk-now-marker">Hedef tarihte {age} yaş{nowP ? ` · ${nowP.position}. dönem` : ""}</span> : null}
+            <div><h2 className="nk-h2">{t("pcTitle")}</h2><p className="nk-lead">{t("pcLead")}</p></div>
+            {age !== null ? <span className="nk-badge nk-ice nk-now-marker">{t("ageBadge", { age: String(age) })}{nowP ? t("periodSuffix", { n: String(nowP.position) }) : ""}</span> : null}
           </div>
-          {c.pinnacles.length ? (<><p className="nk-label-cap nk-tl-row-label">Zirveler</p><Timeline periods={c.pinnacles} kind="p" now={nowP} label="Zirveler" /></>) : null}
-          {perC.length ? (<><p className="nk-label-cap nk-tl-row-label">Zorluklar (yaş dönemleri)</p><Timeline periods={perC} kind="c" now={nowC} label="Zorluklar" /></>) : null}
+          {c.pinnacles.length ? (<><p className="nk-label-cap nk-tl-row-label">{t("pinnacles")}</p><Timeline periods={c.pinnacles} kind="p" now={nowP} label={t("pinnacles")} /></>) : null}
+          {perC.length ? (<><p className="nk-label-cap nk-tl-row-label">{t("challengesPeriods")}</p><Timeline periods={perC} kind="c" now={nowC} label={t("challengesList")} /></>) : null}
           {mainC ? (
-            <div className="nk-timeline" role="list" aria-label="Ana zorluk" style={{ ["--nk-tl" as string]: "1fr" }} data-testid="main-challenge">
+            <div className="nk-timeline" role="list" aria-label={t("mainAria")} style={{ ["--nk-tl" as string]: "1fr" }} data-testid="main-challenge">
               <div className="nk-tl-seg nk-c" role="listitem">
                 <b>{mainC.number}</b>
-                <small>3. zorluk · Ana zorluk · tüm yaşam boyunca</small>
+                <small>{t("mainSeg")}</small>
               </div>
             </div>
           ) : null}
-          {mainC && age !== null && !nowC ? <p className="nk-lead" style={{ marginTop: 6 }} data-testid="no-periodic-challenge">Hedef yaşta dönemsel zorluk yok; ana zorluk geçerlidir.</p> : null}
+          {mainC && age !== null && !nowC ? <p className="nk-lead" style={{ marginTop: 6 }} data-testid="no-periodic-challenge">{t("noPeriodic")}</p> : null}
           <details className="nk-trace" style={{ marginTop: 12 }}>
-            <summary>Dönem ayrıntıları</summary>
+            <summary>{t("details")}</summary>
             <div className="nk-section-grid" style={{ marginTop: 8 }}>
-              <div><p className="nk-mh">Zirveler</p><PeriodList periods={c.pinnacles} kind="p" /></div>
-              <div><p className="nk-mh">Zorluklar</p><PeriodList periods={c.challenges} kind="c" /></div>
+              <div><p className="nk-mh">{t("pinnacles")}</p><PeriodList periods={c.pinnacles} kind="p" /></div>
+              <div><p className="nk-mh">{t("challengesList")}</p><PeriodList periods={c.challenges} kind="c" /></div>
             </div>
           </details>
         </div>
       ) : null}
       <div className="nk-card nk-panel">
-        <h2 className="nk-h2">Kişisel döngüler</h2>
-        <p className="nk-lead">{d.referenceDate ? `Hedef tarih ${fmtIsoDay(d.referenceDate)} · ` : ""}Klasik yöntemde kişisel yıl 1 Ocak’ta değişir.</p>
+        <h2 className="nk-h2">{t("cyclesTitle")}</h2>
+        <p className="nk-lead">{d.referenceDate ? t("cyclesTarget", { date: fmtIsoDay(d.referenceDate, locale) }) : ""}{t("cyclesLead")}</p>
         <div className="nk-cycle-grid">
           {py ? (
             <div className="nk-cycle" data-testid="cycle-year">
-              <p className="nk-label-cap">Kişisel yıl</p><b>{py.personalYear}</b>
+              <p className="nk-label-cap">{t("personalYear")}</p><b>{py.personalYear}</b>
               {py.theme ? <p className="nk-num-desc">{py.theme}</p> : null}
               <VerificationBadge v={py.verification} />
             </div>
           ) : null}
           {pm ? (
             <div className="nk-cycle">
-              <p className="nk-label-cap">Kişisel ay{refMonth ? ` · ${MONTHS_TR[refMonth - 1]}` : ""}</p><b>{pm.personalMonth}</b>
+              <p className="nk-label-cap">{t("personalMonth")}{refMonth ? ` · ${monthName(refMonth, locale)}` : ""}</p><b>{pm.personalMonth}</b>
               {pm.theme ? <p className="nk-num-desc">{pm.theme}</p> : null}
               <VerificationBadge v={pm.verification} />
             </div>
           ) : null}
           {pd ? (
             <div className="nk-cycle">
-              <p className="nk-label-cap">Kişisel gün · {fmtIsoDay(pd.targetDate) || refDay}</p><b>{pd.personalDay}</b>
+              <p className="nk-label-cap">{t("personalDay", { date: fmtIsoDay(pd.targetDate, locale) || String(refDay) })}</p><b>{pd.personalDay}</b>
               {pd.theme ? <p className="nk-num-desc">{pd.theme}</p> : null}
               <VerificationBadge v={pd.verification} />
             </div>
           ) : null}
         </div>
+        {/* theme / forecast / advice / guidance: sağlayıcı metni (snapshot) → çevrilmez. */}
         {py?.forecast ? <p className="nk-num-desc" style={{ marginTop: 12 }}>{py.forecast}</p> : null}
-        {py?.advice ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>Öneri:</b> {py.advice}</p> : null}
-        {pd?.guidance ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>Günün yönlendirmesi:</b> {pd.guidance}</p> : null}
+        {py?.advice ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>{t("advice")}</b> {py.advice}</p> : null}
+        {pd?.guidance ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>{t("guidance")}</b> {pd.guidance}</p> : null}
         {py ? <MismatchNote v={py.verification} /> : null}
       </div>
       {d.daily ? <DailyCard x={d.daily} /> : null}
@@ -390,17 +409,18 @@ export function TimingPanel({ d }: { d: PersonData }) {
 
 // ── Köprüler ───────────────────────────────────────────────────────────────────────────────────
 export function BridgesPanel({ b }: { b: BridgeResult }) {
+  const t = useTranslations("numerology.classic");
   const items: [keyof BridgeResult, BridgeItem][] = (Object.keys(BRIDGE_LABELS) as (keyof BridgeResult)[]).filter((k) => b[k]).map((k) => [k, b[k]]);
   return (
     <div className="nk-card nk-panel">
-      <h2 className="nk-h2">Köprü sayıları</h2>
-      <p className="nk-lead">İki çekirdek sayı arasındaki fark; aralarındaki gerilimi yumuşatan tema.</p>
+      <h2 className="nk-h2">{t("person.bridges.title")}</h2>
+      <p className="nk-lead">{t("person.bridges.lead")}</p>
       <ul className="nk-list">
         {items.map(([k, it]) => (
           <li key={k}>
             <span className="nk-n">{it.bridge}</span>
             <div>
-              <b>{BRIDGE_LABELS[k]}</b> <VerificationBadge v={it.verification} />
+              <b>{t(`labels.bridge.${k}`)}</b> <VerificationBadge v={it.verification} />
               <p>|{it.from.number} − {it.to.number}| = {it.bridge}{it.meaning ? ` · ${it.meaning}` : ""}</p>
               <MismatchNote v={it.verification} />
             </div>
@@ -413,12 +433,13 @@ export function BridgesPanel({ b }: { b: BridgeResult }) {
 
 // ── İsim harfleri ──────────────────────────────────────────────────────────────────────────────
 export function LettersPanel({ c }: { c: ChartResult }) {
+  const t = useTranslations("numerology.classic");
   const nl = c.nameLetters;
   const cards: { label: string; sub: string; letter: string; number: number | null; meaning: string; v: ClassicNumber["verification"] }[] = [];
-  if (nl.cornerstone) cards.push({ label: CORE_NUMBER_LABELS.cornerstone, sub: "İlk adın ilk harfi", letter: nl.cornerstone.letter, number: nl.cornerstone.number, meaning: nl.cornerstone.meaning, v: nl.cornerstone.verification });
-  if (nl.capstone) cards.push({ label: CORE_NUMBER_LABELS.capstone, sub: "İlk adın son harfi", letter: nl.capstone.letter, number: nl.capstone.number, meaning: nl.capstone.meaning, v: nl.capstone.verification });
+  if (nl.cornerstone) cards.push({ label: t("labels.core.cornerstone"), sub: t("person.letters.cornerstone"), letter: nl.cornerstone.letter, number: nl.cornerstone.number, meaning: nl.cornerstone.meaning, v: nl.cornerstone.verification });
+  if (nl.capstone) cards.push({ label: t("labels.core.capstone"), sub: t("person.letters.capstone"), letter: nl.capstone.letter, number: nl.capstone.number, meaning: nl.capstone.meaning, v: nl.capstone.verification });
   // NK-002: ilk adda A/E/I/O/U yoksa klasik ekol Y'yi sesli sayar (belgelenen kümede yok) → açıkça etiketlenir.
-  if (nl.firstVowel) cards.push({ label: CORE_NUMBER_LABELS.firstVowel, sub: nl.firstVowel.letter === "Y" ? "Y burada sesli işlevinde (klasik yöntem uzlaşımı; ilk adda A/E/I/O/U yok)" : "İlk adın ilk sesli harfi", letter: nl.firstVowel.letter, number: null, meaning: nl.firstVowel.meaning, v: nl.firstVowel.verification });
+  if (nl.firstVowel) cards.push({ label: t("labels.core.firstVowel"), sub: nl.firstVowel.letter === "Y" ? t("person.letters.firstVowelY") : t("person.letters.firstVowel"), letter: nl.firstVowel.letter, number: null, meaning: nl.firstVowel.meaning, v: nl.firstVowel.verification });
   return (
     <div className="nk-kalde-grid">
       {cards.map((x) => (
@@ -437,17 +458,19 @@ export function LettersPanel({ c }: { c: ChartResult }) {
 const NATURE_CLASS = { fortunate: "nk-ok", unfortunate: "nk-bad", mixed: "nk-warn" } as const;
 
 function KaldeCard({ title, sub, p, planet }: { title: string; sub: string; p: ChaldeanPart; planet?: string | null }) {
+  const t = useTranslations("numerology.classic");
   const cm = p.compoundMeaning;
   return (
     <article className="nk-card nk-num-card">
       <div className="nk-num-top"><div><h3 className="nk-num-name">{title}</h3><p className="nk-num-key">{sub}</p></div><VerificationBadge v={p.verification} /></div>
       <div className="nk-compound">
-        {p.compound !== null ? (<><span className="nk-big">{p.compound}</span><span className="nk-arrow" aria-hidden="true">→</span><span className="nk-root-n">{p.root}</span><span className="nk-sr-only">bileşik {p.compound}, kök {p.root}</span></>) : <span className="nk-big">{p.root}</span>}
+        {p.compound !== null ? (<><span className="nk-big">{p.compound}</span><span className="nk-arrow" aria-hidden="true">→</span><span className="nk-root-n">{p.root}</span><span className="nk-sr-only">{t("person.kalde.sr", { compound: String(p.compound), root: String(p.root) })}</span></>) : <span className="nk-big">{p.root}</span>}
       </div>
       <div className="nk-badges">
-        {cm ? <span className={`nk-badge ${NATURE_CLASS[cm.nature]}`}>{COMPOUND_NATURE_LABELS[cm.nature]}</span> : null}
+        {cm ? <span className={`nk-badge ${NATURE_CLASS[cm.nature]}`}>{t(`labels.compoundNature.${cm.nature}`)}</span> : null}
+        {/* planet / cm.name / cm.meaning: sağlayıcı metni (snapshot) → çevrilmez. */}
         {planet ? <span className="nk-badge">{planet}</span> : null}
-        {p.karmicDebt ? <span className="nk-badge nk-karmic">Karmik borç {p.karmicDebt}</span> : null}
+        {p.karmicDebt ? <span className="nk-badge nk-karmic">{t("kit.karmicDebt", { value: String(p.karmicDebt) })}</span> : null}
       </div>
       {cm?.name ? <p className="nk-num-desc"><b>{cm.name}</b></p> : null}
       {cm?.meaning ? <p className="nk-num-desc">{cm.meaning}</p> : null}
@@ -458,25 +481,26 @@ function KaldeCard({ title, sub, p, planet }: { title: string; sub: string; p: C
 }
 
 export function KaldePanel({ k }: { k: ChaldeanResult }) {
+  const t = useTranslations("numerology.classic");
   return (
     <>
       <div className="nk-card nk-panel" style={{ marginBottom: 14 }}>
-        <h2 className="nk-h2">Kalde (Cheiro) sayıları</h2>
-        <p className="nk-lead">Kalde tablosunda 9 harfe atanmaz; bileşik sayı (10–52) ayrıca yorumlanır ve köke indirgenir.</p>
+        <h2 className="nk-h2">{t("person.kalde.title")}</h2>
+        <p className="nk-lead">{t("person.kalde.lead")}</p>
         <div className="nk-badges" style={{ marginTop: 10 }}>
-          <span className="nk-badge nk-ok">{COMPOUND_NATURE_LABELS.fortunate}</span><span className="nk-badge nk-bad">{COMPOUND_NATURE_LABELS.unfortunate}</span><span className="nk-badge nk-warn">{COMPOUND_NATURE_LABELS.mixed}</span>
-          <span className="nk-muted" style={{ fontSize: 12.5 }}>— bileşik sayının geleneksel niteliği</span>
+          <span className="nk-badge nk-ok">{t("labels.compoundNature.fortunate")}</span><span className="nk-badge nk-bad">{t("labels.compoundNature.unfortunate")}</span><span className="nk-badge nk-warn">{t("labels.compoundNature.mixed")}</span>
+          <span className="nk-muted" style={{ fontSize: 12.5 }}>{t("person.kalde.natureLegend")}</span>
         </div>
-        {k.caution ? <p className="nk-hint" style={{ marginTop: 8 }}>Kader sayısının kökü geleneksel okumada dikkat işaretlidir.</p> : null}
+        {k.caution ? <p className="nk-hint" style={{ marginTop: 8 }}>{t("person.kalde.caution")}</p> : null}
       </div>
       <div className="nk-kalde-grid">
-        <KaldeCard title="Kader sayısı" sub="Tam ad" p={k.destiny} planet={k.numberMeaning.planet} />
-        <KaldeCard title="Ruh sayısı" sub="Sesli harfler" p={k.soulUrge} />
-        <KaldeCard title="Kişilik sayısı" sub="Sessiz harfler" p={k.personality} />
+        <KaldeCard title={t("person.kalde.destiny")} sub={t("person.kalde.fullName")} p={k.destiny} planet={k.numberMeaning.planet} />
+        <KaldeCard title={t("person.kalde.soul")} sub={t("person.kalde.vowels")} p={k.soulUrge} />
+        <KaldeCard title={t("person.kalde.personality")} sub={t("person.kalde.consonants")} p={k.personality} />
       </div>
       {k.numberMeaning.title || k.numberMeaning.meaning ? (
         <div className="nk-card nk-panel" style={{ marginTop: 14 }}>
-          <h2 className="nk-h2">Kök {k.numberMeaning.number}{k.numberMeaning.planet ? ` · ${k.numberMeaning.planet}` : ""}</h2>
+          <h2 className="nk-h2">{t("person.kalde.rootHeading", { n: String(k.numberMeaning.number) })}{k.numberMeaning.planet ? ` · ${k.numberMeaning.planet}` : ""}</h2>
           {k.numberMeaning.title ? <p className="nk-lead">{k.numberMeaning.title}</p> : null}
           {k.numberMeaning.keywords.length ? <p className="nk-num-key" style={{ marginTop: 6 }}>{k.numberMeaning.keywords.join(" · ")}</p> : null}
           {k.numberMeaning.meaning ? <p className="nk-num-desc" style={{ marginTop: 6 }}>{k.numberMeaning.meaning}</p> : null}
@@ -488,12 +512,13 @@ export function KaldePanel({ k }: { k: ChaldeanResult }) {
 
 // ── İki sistem ─────────────────────────────────────────────────────────────────────────────────
 function SysRow({ label, py, ch, same }: { label: string; py: ReactNode; ch: ReactNode; same: boolean | null }) {
+  const t = useTranslations("numerology.classic");
   return (
     <tr>
-      <th scope="row" data-l="Kavram" style={{ fontWeight: 700 }}>{label}</th>
-      <td className="nk-v" data-l="Pisagor">{py}</td>
-      <td className="nk-v" data-l="Kalde">{ch}</td>
-      <td data-l="Uyum">{same === null ? <span className="nk-badge">—</span> : same ? <span className="nk-badge nk-ok">Aynı kök</span> : <span className="nk-badge">Farklı</span>}</td>
+      <th scope="row" data-l={t("person.dual.colConcept")} style={{ fontWeight: 700 }}>{label}</th>
+      <td className="nk-v" data-l={t("other.colPythagorean")}>{py}</td>
+      <td className="nk-v" data-l={t("other.colChaldean")}>{ch}</td>
+      <td data-l={t("other.colAgreement")}>{same === null ? <span className="nk-badge">—</span> : same ? <span className="nk-badge nk-ok">{t("other.sameRoot")}</span> : <span className="nk-badge">{t("other.different")}</span>}</td>
     </tr>
   );
 }
@@ -502,29 +527,31 @@ const pyShow = (n: ClassicNumber) => compoundDisplay(n) ?? String(n.value);
 const chShow = (p: ChaldeanPart) => (p.compound !== null ? `${p.compound}/${p.root}` : String(p.root));
 
 export function DualPanel({ dual, chart, chaldean }: { dual: DualResult; chart: ChartResult | null; chaldean: ChaldeanResult | null }) {
+  const t = useTranslations("numerology.classic");
   return (
     <div className="nk-card nk-panel">
       <div className="nk-num-top">
         <div>
-          <h2 className="nk-h2">İki sistem yan yana</h2>
-          <p className="nk-lead">Pisagor ve Kalde farklı harf tablosu kullanır; aynı kavramda farklı sonuç beklenen bir durumdur. Sayılar birleştirilmez.</p>
+          <h2 className="nk-h2">{t("person.dual.title")}</h2>
+          <p className="nk-lead">{t("person.dual.lead")}</p>
         </div>
         <VerificationBadge v={dual.verification} />
       </div>
       <table className="nk-sys-table">
-        <caption className="nk-sr-only">Pisagor ve Kalde karşılaştırması</caption>
-        <thead><tr><th scope="col">Kavram</th><th scope="col">Pisagor</th><th scope="col">Kalde</th><th scope="col">Uyum</th></tr></thead>
+        <caption className="nk-sr-only">{t("person.dual.caption")}</caption>
+        <thead><tr><th scope="col">{t("person.dual.colConcept")}</th><th scope="col">{t("other.colPythagorean")}</th><th scope="col">{t("other.colChaldean")}</th><th scope="col">{t("other.colAgreement")}</th></tr></thead>
         <tbody>
-          <SysRow label="İsim (İfade / Kader)" py={pyShow(dual.pythagorean)} ch={<>{chShow(dual.chaldean)}{dual.chaldean.planet ? ` · ${dual.chaldean.planet}` : ""}</>} same={dual.agreement} />
-          {chart && chaldean ? <SysRow label="Ruh" py={pyShow(chart.core.soulUrge)} ch={chShow(chaldean.soulUrge)} same={digitRoot(chart.core.soulUrge.value) === chaldean.soulUrge.root} /> : null}
-          {chart && chaldean ? <SysRow label="Kişilik" py={pyShow(chart.core.personality)} ch={chShow(chaldean.personality)} same={digitRoot(chart.core.personality.value) === chaldean.personality.root} /> : null}
+          <SysRow label={t("person.dual.rowName")} py={pyShow(dual.pythagorean)} ch={<>{chShow(dual.chaldean)}{dual.chaldean.planet ? ` · ${dual.chaldean.planet}` : ""}</>} same={dual.agreement} />
+          {chart && chaldean ? <SysRow label={t("person.dual.rowSoul")} py={pyShow(chart.core.soulUrge)} ch={chShow(chaldean.soulUrge)} same={digitRoot(chart.core.soulUrge.value) === chaldean.soulUrge.root} /> : null}
+          {chart && chaldean ? <SysRow label={t("person.dual.rowPersonality")} py={pyShow(chart.core.personality)} ch={chShow(chaldean.personality)} same={digitRoot(chart.core.personality.value) === chaldean.personality.root} /> : null}
         </tbody>
       </table>
+      {/* dual.note / title / keywords: sağlayıcı metni (snapshot) → çevrilmez. */}
       {dual.note ? <p className="nk-num-desc" style={{ marginTop: 10 }}>{dual.note}</p> : null}
       <MismatchNote v={dual.verification} />
       <div className="nk-section-grid" style={{ marginTop: 12 }}>
-        <div><p className="nk-mh">Pisagor · {dual.pythagorean.title}</p>{dual.pythagorean.keywords.length ? <p className="nk-num-key">{dual.pythagorean.keywords.join(" · ")}</p> : null}<NumberBadges n={dual.pythagorean} /></div>
-        <div><p className="nk-mh">Kalde · {dual.chaldean.title}</p>{dual.chaldean.caution ? <span className="nk-badge nk-bad">Dikkat</span> : null}</div>
+        <div><p className="nk-mh">{t("other.pythagoreanTitle", { title: dual.pythagorean.title ?? "" })}</p>{dual.pythagorean.keywords.length ? <p className="nk-num-key">{dual.pythagorean.keywords.join(" · ")}</p> : null}<NumberBadges n={dual.pythagorean} /></div>
+        <div><p className="nk-mh">{t("person.dual.chaldeanTitle", { title: dual.chaldean.title ?? "" })}</p>{dual.chaldean.caution ? <span className="nk-badge nk-bad">{t("person.dual.caution")}</span> : null}</div>
       </div>
     </div>
   );

@@ -71,7 +71,7 @@
       "legacy": {
         "notInSnapshot": "Not stored in the Holistic Numerology record",
         "special19": "Special number 19: {fields}",
-        "noSpecial19": "No special number 19 in Ana Kulvar or Yan Kulvar",
+        "noSpecial19": "No special number 19 in the Main Lane or Side Lane",
         "digitRoot": "Digital root {root}",
         "kulvarNoKey": "The key is not stored in this record; no comparison is made",
         "kulvarKeyRoot": "Compared: key {key} (root {root})",

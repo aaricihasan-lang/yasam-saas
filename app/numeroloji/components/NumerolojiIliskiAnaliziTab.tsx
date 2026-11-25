@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import type { PinKoduBoxes } from "@/lib/numeroloji";
 import { analyzeRelationship, type RelationshipAnalysisResult } from "@/lib/numeroloji";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
@@ -34,6 +36,10 @@ const ELEMENT_COLORS: Record<string, { text: string; bar: string; bg: string; ri
 const ELEMENT_ORDER = ["Hava", "Su", "Ateş", "Toprak", "Nötr"] as const;
 /** Kullanıcıya gösterilen element adı: 9 = "Eter / Nötr" (iç anahtar "Nötr"). */
 const elementLabel = (el: string) => (el === "Nötr" ? "Eter/Nötr" : el);
+/** I18N: kanonik element kodu (motor anahtarı, DEĞİŞMEZ) → katalog anahtarı (yalnız gösterim). */
+const ELEMENT_KEY: Record<string, string> = { Hava: "air", Su: "water", Ateş: "fire", Toprak: "earth", Nötr: "neutral" };
+/** I18N: kanonik miktar sınıfı kodu (motor: eksik/yeterli/dengeli) → katalog anahtarı. */
+const LEVEL_KEY: Record<string, string> = { eksik: "low", yeterli: "sufficient", dengeli: "balanced" };
 
 // ─── Input formatters ─────────────────────────────────────────────────────────
 
@@ -103,6 +109,7 @@ function SectionCard({ title, subtitle, children, accent = "violet", info }: {
 }
 
 function PersonCatalogText({ who, name, digit, text, shade }: { who: string; name: string; digit: number; text: string | null; shade: "violet" | "fuchsia" }) {
+  const t = useTranslations("numerology.tabs.relationship");
   return (
     <details className="min-w-0 rounded-lg bg-slate-50/70 p-2 ring-1 ring-slate-200/60">
       <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-bold text-slate-700">
@@ -110,7 +117,7 @@ function PersonCatalogText({ who, name, digit, text, shade }: { who: string; nam
         <span className="min-w-0 truncate">{who}: {name}</span>
       </summary>
       <p className="mt-1.5 max-h-40 overflow-y-auto text-[11px] leading-[1.55] text-slate-600">
-        {text ?? <span className="text-slate-400">Kaynak metni bekleniyor.</span>}
+        {text ?? <span className="text-slate-400">{t("sourcePending")}</span>}
       </p>
     </details>
   );
@@ -130,6 +137,7 @@ function PerPersonLayer({
   layer: { aDigit: number; bDigit: number; aText: string | null; bText: string | null };
   info?: React.ReactNode;
 }) {
+  const t = useTranslations("numerology.tabs.relationship");
   return (
     <div className="border-b border-slate-100/70 py-2 last:border-b-0">
       <div className="mb-1 flex items-center gap-1.5">
@@ -137,8 +145,8 @@ function PerPersonLayer({
         {info}
       </div>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        <PersonCatalogText who="1. Kişi" name={p1} digit={layer.aDigit} text={layer.aText} shade="violet" />
-        <PersonCatalogText who="2. Kişi" name={p2 || "—"} digit={layer.bDigit} text={layer.bText} shade="fuchsia" />
+        <PersonCatalogText who={t("person1")} name={p1} digit={layer.aDigit} text={layer.aText} shade="violet" />
+        <PersonCatalogText who={t("person2")} name={p2 || "—"} digit={layer.bDigit} text={layer.bText} shade="fuchsia" />
       </div>
     </div>
   );
@@ -158,6 +166,12 @@ export function NumerolojiIliskiAnaliziTab({
   kisi1Surname,
   kisi1BirthDate,
 }: NumerolojiIliskiAnaliziTabProps) {
+  const t = useTranslations("numerology.tabs.relationship");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N: motorun TR alan/kural/sınıf metinleri TR'de birebir; diğer dillerde kanonik koddan (hane no / sınıf kodu) katalog.
+  const elName = (el: string) => (isSourceLocale ? elementLabel(el) : ELEMENT_KEY[el] ? t(`elements.${ELEMENT_KEY[el]}`) : el);
+  const fieldName = (position: number, trField: string) => (isSourceLocale ? trField : t(`fields.${position}`));
+  const levelName = (lvl: string | null) => (lvl === null ? "" : isSourceLocale || !LEVEL_KEY[lvl] ? lvl : t(`levels.${LEVEL_KEY[lvl]}`));
   const [kisi2Name, setKisi2Name] = useState("");
   const [kisi2Surname, setKisi2Surname] = useState("");
   const [kisi2BirthDate, setKisi2BirthDate] = useState("");
@@ -216,7 +230,7 @@ export function NumerolojiIliskiAnaliziTab({
 
   const normalizedBirthDate = kisi2BirthDate.trim().replace(/\//g, ".");
 
-  const kisi2Label = kisi2AdSoyad ?? "2. Kişi";
+  const kisi2Label = kisi2AdSoyad ?? t("person2");
 
   // ── Render ─────────────────────────────────────────────────────────────────────
   return (
@@ -227,7 +241,7 @@ export function NumerolojiIliskiAnaliziTab({
         {/* Kişi 1 */}
         <div className="relative min-w-0 overflow-hidden border-b border-slate-100/70 pb-3 md:border-b-0 md:pb-0 md:rounded-[14px] md:border md:border-violet-200/70 md:bg-gradient-to-br md:from-violet-50/80 md:via-white md:to-white md:px-3 md:py-2.5 md:shadow-[0_0_12px_rgba(139,92,246,0.07)]">
           <div className="mb-1 flex flex-wrap items-center gap-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">1. Kişi · Mevcut Kayıt</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">{t("person1Current")}</p>
           </div>
           <p className="text-sm font-black text-slate-900 leading-tight">{kisi1AdSoyad}</p>
           <p className="text-[10px] text-slate-400 tabular-nums">{kisi1BirthDate || "—"}</p>
@@ -247,9 +261,9 @@ export function NumerolojiIliskiAnaliziTab({
           {!kisi2Editing && kisi2Valid && !showDanisan ? (
             <>
               <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">{t("person2")}</p>
                 <button type="button" onClick={() => setKisi2Editing(true)} className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50">
-                  ✎ Düzenle
+                  {t("edit")}
                 </button>
               </div>
               <p className="text-sm font-black text-slate-900 leading-tight">{kisi2AdSoyad || "—"}</p>
@@ -259,20 +273,20 @@ export function NumerolojiIliskiAnaliziTab({
           ) : (
             <>
               <div className="relative mb-1.5 flex min-w-0 items-center justify-between gap-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">{t("person2")}</p>
                 <button type="button" onClick={handleDanisanToggle} className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50">
-                  {/* C10 (2026-11-04): liste kayıtlı Numeroloji analizleridir (danışan listesi değil) → etiket. */}{showDanisan ? "✕ Kapat" : "Kayıtlı Analizden Seç"}
+                  {/* C10 (2026-11-04): liste kayıtlı Numeroloji analizleridir (danışan listesi değil) → etiket. */}{showDanisan ? t("close") : t("pickSaved")}
                 </button>
               </div>
 
               {showDanisan ? (
                 <div className="space-y-1.5">
-                  <input type="text" value={danisanSearch} onChange={(e) => setDanisanSearch(e.target.value)} placeholder="İsim veya tarih ile ara..." className={inputClass} autoFocus />
+                  <input type="text" value={danisanSearch} onChange={(e) => setDanisanSearch(e.target.value)} placeholder={t("searchPlaceholder")} className={inputClass} autoFocus />
                   <div className="max-h-36 overflow-y-auto rounded-lg border border-violet-100 bg-white">
                     {danisanLoading ? (
-                      <p className="px-3 py-2 text-xs text-slate-400">Yükleniyor…</p>
+                      <p className="px-3 py-2 text-xs text-slate-400">{t("loading")}</p>
                     ) : filteredDanisan.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-slate-400">Kayıt bulunamadı.</p>
+                      <p className="px-3 py-2 text-xs text-slate-400">{t("noRecords")}</p>
                     ) : (
                       filteredDanisan.map((d) => (
                         <button key={d.id} type="button" onClick={() => handleDanisanSec(d)} className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition hover:bg-violet-50">
@@ -287,27 +301,27 @@ export function NumerolojiIliskiAnaliziTab({
                 <div className="space-y-1">
                   <div className="grid grid-cols-2 gap-1">
                     <div>
-                      <label className={labelClass}>Ad</label>
+                      <label className={labelClass}>{t("firstName")}</label>
                       <input type="text" value={kisi2Name} onChange={(e) => setKisi2Name(formatAdInput(e.target.value))} placeholder="Esra Nur" className={inputClass} />
                     </div>
                     <div>
-                      <label className={labelClass}>Soyad</label>
+                      <label className={labelClass}>{t("surname")}</label>
                       <input type="text" value={kisi2Surname} onChange={(e) => setKisi2Surname(formatSoyadInput(e.target.value))} placeholder="KONUK" className={inputClass} />
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Doğum Tarihi (GG/AA/YYYY)</label>
+                    <label className={labelClass}>{t("birthDate")}</label>
                     <NumerolojiTarihInput value={kisi2BirthDate} onChange={setKisi2BirthDate} className={inputClass} />
                   </div>
                   {kisi2Valid ? (
                     <div className="flex items-center justify-between gap-2">
                       <PinRow pin={kisi2Pin8} shade="fuchsia" />
                       <button type="button" onClick={() => setKisi2Editing(false)} className="shrink-0 rounded-md bg-fuchsia-100 px-2 py-0.5 text-[9px] font-bold text-fuchsia-700 transition hover:bg-fuchsia-200">
-                        ✓ Onayla
+                        {t("confirm")}
                       </button>
                     </div>
                   ) : normalizedBirthDate ? (
-                    <p className="text-[10px] font-semibold text-rose-500">Geçerli tarih girin (GG/AA/YYYY)</p>
+                    <p className="text-[10px] font-semibold text-rose-500">{t("invalidDate")}</p>
                   ) : null}
                 </div>
               )}
@@ -323,7 +337,7 @@ export function NumerolojiIliskiAnaliziTab({
           <div className="relative min-w-0 overflow-hidden bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-700 px-[clamp(8px,2.5vw,14px)] py-4 md:rounded-[16px] md:px-4 md:shadow-[0_8px_32px_rgba(139,92,246,0.40)]">
             <div className="pointer-events-none absolute -left-8 -top-8 hidden h-32 w-32 rounded-full bg-white/10 blur-2xl md:block" aria-hidden />
             <div className="relative mb-3 flex items-center gap-1.5">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">Sinerji PIN Kodu</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/70">{t("synergyPin")}</p>
             </div>
             <div className="relative grid grid-cols-4 gap-2 sm:grid-cols-8">
               {analiz.synergyPin.pin.map((d, i) => {
@@ -340,29 +354,29 @@ export function NumerolojiIliskiAnaliziTab({
             {/* 9. hane + Ruh Duygusu */}
             <div className="relative mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-white/10 px-2 py-2 text-center backdrop-blur-sm">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-white/50">9. Hane · Neden Bir Aradayız</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-white/50">{t("digit9Why")}</p>
                 <p className="mt-0.5 text-lg font-black text-white leading-tight">{analiz.whyTogether.digit}</p>
                 <p className="text-[8px] text-white/45 tabular-nums">Σ={analiz.whyTogether.sum}</p>
               </div>
               <div className="rounded-lg bg-white/10 px-2 py-2 text-center backdrop-blur-sm">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-white/50">Ruh Duygusu · 8. Hane</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-white/50">{t("soulFeeling8")}</p>
                 <p className="mt-0.5 text-lg font-black text-white leading-tight">{analiz.relationshipSoulFeeling.digit}</p>
               </div>
             </div>
           </div>
 
           {/* 3) Hane karşılaştırması — DEFAULT KAPALI, Sinerji PIN'in hemen altında */}
-          <SectionCard title="Sinerji Hane Karşılaştırması" accent="violet">
+          <SectionCard title={t("digitCompare")} accent="violet">
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-bold text-violet-700">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-violet-200 bg-white text-[11px] leading-none text-violet-600">ⓘ</span>
-                <span className="group-open:hidden">Hane karşılaştırmasını göster</span>
-                <span className="hidden group-open:inline">Hane karşılaştırmasını gizle</span>
+                <span className="group-open:hidden">{t("showCompare")}</span>
+                <span className="hidden group-open:inline">{t("hideCompare")}</span>
               </summary>
               <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                 {analiz.synergyPin.steps.map((s) => (
                   <div key={s.index} className="min-w-0 p-1.5 text-center md:rounded-xl md:border md:border-violet-100/70 md:bg-gradient-to-b md:from-white md:to-violet-50/30 md:p-2.5 md:shadow-sm">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{s.index}. Hane</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("digitN", { n: String(s.index) })}</p>
                     <div className="mt-1.5 flex items-center justify-center gap-1 text-sm font-black">
                       <span className="text-violet-600">{s.a}</span>
                       <span className="text-slate-300 text-xs">+</span>
@@ -378,70 +392,70 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* 4) İlişki Üçgeni — Sinerji PIN Yorumu (canonical hane→alan eşlemesi) */}
-          <SectionCard title="İlişki Üçgeni — Sinerji PIN Yorumu" subtitle="Sinerji PIN haneleri 1,2,3,6,7,8 · dışında: 4 (Yaşam Döngüsü), 5 (Ders)" accent="violet">
+          <SectionCard title={t("triangleTitle")} subtitle={t("triangleSub")} accent="violet">
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {analiz.relationshipTriangle.nodes.map((n) => (
                 <div key={n.position} className="min-w-0 rounded-lg bg-violet-50/70 p-2 ring-1 ring-violet-200/50">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-violet-500">{n.position}. hane</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-violet-500">{t("digitNLower", { n: String(n.position) })}</span>
                     <span className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-violet-500 px-1 text-[10px] font-black text-white">{n.value}</span>
                   </div>
-                  <p className="mt-0.5 text-[10px] font-semibold text-slate-700">{n.field}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-slate-700">{fieldName(n.position, n.field)}</p>
                   {n.text && <p className="mt-1 text-[9px] leading-[1.4] text-slate-500 line-clamp-3">{n.text}</p>}
                 </div>
               ))}
             </div>
             {analiz.relationshipTriangle.ruleText && (
-              <p className="mt-2 text-[10px] leading-[1.55] text-slate-500">{analiz.relationshipTriangle.ruleText}</p>
+              <p className="mt-2 text-[10px] leading-[1.55] text-slate-500">{isSourceLocale ? analiz.relationshipTriangle.ruleText : t("triangleRule")}</p>
             )}
           </SectionCard>
 
           {/* 5) Ruh Duygusu — Sinerji PIN 8. hane */}
-          <SectionCard title="Ruh Duygusu" subtitle="Sinerji PIN · 8. hane" accent="violet">
+          <SectionCard title={t("soulFeeling")} subtitle={t("soulFeelingSub")} accent="violet">
             <div className="flex items-start gap-2">
               <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-500 text-sm font-black text-white">{analiz.relationshipSoulFeeling.digit}</span>
               <p className="min-w-0 text-[11px] leading-[1.55] text-slate-700">
-                {analiz.relationshipSoulFeeling.text ?? <span className="text-slate-400">Kaynak metni bekleniyor.</span>}
+                {analiz.relationshipSoulFeeling.text ?? <span className="text-slate-400">{t("sourcePending")}</span>}
               </p>
             </div>
           </SectionCard>
 
           {/* 6) Neden Bir Aradayız? — Sinerji PIN 9. hane */}
           <SectionCard
-            title="Neden Bir Aradayız?"
-            subtitle={`Sinerji PIN · 9. hane · Σ=${analiz.whyTogether.sum}`}
+            title={t("whyTitle")}
+            subtitle={t("whySub", { sum: String(analiz.whyTogether.sum) })}
             accent="violet"
           >
             <div className="flex items-start gap-2">
               <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fuchsia-500 text-sm font-black text-white">{analiz.whyTogether.digit}</span>
               <p className="min-w-0 text-[11px] leading-[1.55] text-slate-700">
-                {analiz.whyTogether.text ?? <span className="text-slate-400">Bu hane için kaynak metni PDF dosyasından bekleniyor.</span>}
+                {analiz.whyTogether.text ?? <span className="text-slate-400">{t("whyPending")}</span>}
               </p>
             </div>
           </SectionCard>
 
           {/* 7) İlişki Dinamikleri — kaynak katalog metinleri (kitap 2. seviye) */}
-          <SectionCard title="İlişki Dinamikleri" subtitle="Kaynak: eğitim notu katalogları" accent="sky">
+          <SectionCard title={t("dynamicsTitle")} subtitle={t("dynamicsSub")} accent="sky">
             <PerPersonLayer
-              label="Yaşam Kodu Sayısı"
+              label={t("lifeCodeNumber")}
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.lifeCodeCompatibility}
             />
             <PerPersonLayer
-              label="İsim Sayısı"
+              label={t("nameNumber")}
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.nameNumberCompatibility}
             />
             <PerPersonLayer
-              label="Edinim Sayısı"
+              label={t("acquisitionNumber")}
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.acquisitionCompatibility}
             />
             <PerPersonLayer
-              label="Doğum Günü Sayısı"
+              label={t("birthdayNumber")}
               p1={kisi1AdSoyad}
               p2={kisi2AdSoyad}
               layer={analiz.birthdayCompatibility}
@@ -449,23 +463,23 @@ export function NumerolojiIliskiAnaliziTab({
 
             {/* Kiminle ne tür ilişki — yönlü (kişi adı + Yaşam Kodu ile bağlamlı) */}
             <div className="border-b border-slate-100/70 py-2 last:border-b-0">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-sky-700">Kiminle Ne Tür İlişki (yönlü)</p>
+              <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-sky-700">{t("relTypeTitle")}</p>
               <details className="group">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-700">
                   <span className="inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 py-0.5 text-violet-800">
                     <span className="min-w-0 truncate font-bold">{kisi1AdSoyad}</span>
-                    <span className="font-black">— Yaşam Kodu {analiz.relationshipType.aDigit}</span>
+                    <span className="font-black">{t("lifeCodeDash", { n: String(analiz.relationshipType.aDigit) })}</span>
                   </span>
                   <span className="text-slate-400">→</span>
                   <span className="inline-flex items-center gap-1 rounded bg-fuchsia-100 px-1.5 py-0.5 text-fuchsia-800">
                     <span className="min-w-0 truncate font-bold">{kisi2Label}</span>
-                    <span className="font-black">— Yaşam Kodu {analiz.relationshipType.bDigit}</span>
+                    <span className="font-black">{t("lifeCodeDash", { n: String(analiz.relationshipType.bDigit) })}</span>
                   </span>
-                  <span className="text-slate-400 group-open:hidden">· Yorumu göster</span>
+                  <span className="text-slate-400 group-open:hidden">{t("showReading")}</span>
                 </summary>
                 <p className="mt-1.5 text-[11px] leading-[1.55] text-slate-700">{analiz.relationshipType.aToB ?? "—"}</p>
                 <p className="mt-1.5 border-t border-slate-100 pt-1.5 text-[11px] leading-[1.55] text-slate-500">
-                  <span className="font-bold">{kisi2Label} — Yaşam Kodu {analiz.relationshipType.bDigit} → {kisi1AdSoyad} — Yaşam Kodu {analiz.relationshipType.aDigit}:</span> {analiz.relationshipType.bToA ?? "—"}
+                  <span className="font-bold">{t("relTypeReverse", { b: kisi2Label, bDigit: String(analiz.relationshipType.bDigit), a: kisi1AdSoyad, aDigit: String(analiz.relationshipType.aDigit) })}</span> {analiz.relationshipType.bToA ?? "—"}
                 </p>
               </details>
             </div>
@@ -474,15 +488,15 @@ export function NumerolojiIliskiAnaliziTab({
             <div className="py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">Ortak Konu Sayısı — Hangi Konularda Anlaşırız?</p>
+                  <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">{t("commonTitle")}</p>
                 </div>
                 <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-sky-500 px-2 text-sm font-black text-white">{analiz.commonTopics.commonDigit}</span>
               </div>
               <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-bold text-slate-700">
-                <span className="min-w-0 truncate">{kisi1AdSoyad} — İsim Sayısı {analiz.commonTopics.aNameNumber}</span>
+                <span className="min-w-0 truncate">{t("nameNumberOf", { who: kisi1AdSoyad, n: String(analiz.commonTopics.aNameNumber) })}</span>
                 <span className="text-slate-300">+</span>
-                <span className="min-w-0 truncate">{kisi2Label} — İsim Sayısı {analiz.commonTopics.bNameNumber}</span>
-                <span className="text-slate-400">= Ortak Rakam</span>
+                <span className="min-w-0 truncate">{t("nameNumberOf", { who: kisi2Label, n: String(analiz.commonTopics.bNameNumber) })}</span>
+                <span className="text-slate-400">{t("commonDigitEq")}</span>
                 <span className="tabular-nums text-sky-700">{analiz.commonTopics.commonDigit}</span>
               </p>
               {analiz.commonTopics.text && <p className="mt-1.5 text-[11px] leading-[1.55] text-slate-700">{analiz.commonTopics.text}</p>}
@@ -490,16 +504,16 @@ export function NumerolojiIliskiAnaliziTab({
           </SectionCard>
 
           {/* 8) Enerji Dağılımı — element (tie korunur) + işleme tipi */}
-          <SectionCard title="Enerji Dağılımı" accent="amber">
+          <SectionCard title={t("energyTitle")} accent="amber">
             {/* Öne çıkan elementler — TIE KORUNUR (keyfi sıralama yok) */}
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-500">Öne Çıkan Elementler:</span>
+              <span className="text-[10px] font-bold text-slate-500">{t("highlighted")}</span>
               {analiz.elementBalance.highlighted.length === 0 ? (
                 <span className="text-[10px] text-slate-400">—</span>
               ) : (
                 analiz.elementBalance.highlighted.map((el) => (
                   <span key={el} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${ELEMENT_COLORS[el]?.bg} ${ELEMENT_COLORS[el]?.text} ${ELEMENT_COLORS[el]?.ring}`}>
-                    {ELEMENT_EMOJI[el]} {elementLabel(el)} ({analiz.elementBalance.counts[el as keyof typeof analiz.elementBalance.counts]})
+                    {ELEMENT_EMOJI[el]} {elName(el)} ({analiz.elementBalance.counts[el as keyof typeof analiz.elementBalance.counts]})
                   </span>
                 ))
               )}
@@ -512,34 +526,34 @@ export function NumerolojiIliskiAnaliziTab({
                 const pct = count === 0 ? 0 : Math.max(6, (count / 8) * 100);
                 return (
                   <div key={el} className="flex min-w-0 items-center gap-2">
-                    <span className={`w-[4.5rem] shrink-0 text-[11px] font-bold ${c.text}`}>{ELEMENT_EMOJI[el]} {elementLabel(el)}</span>
+                    <span className={`w-[4.5rem] shrink-0 text-[11px] font-bold ${c.text}`}>{ELEMENT_EMOJI[el]} {elName(el)}</span>
                     <div className="min-w-0 flex-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-full rounded-full transition-all duration-500 ${c.bar}`} style={{ width: `${pct}%` }} />
                     </div>
                     <span className="w-4 shrink-0 text-center text-xs font-black text-slate-600 tabular-nums">{count}</span>
-                    <span className="w-14 shrink-0 text-right text-[9px] font-semibold text-slate-400">{lvl ?? ""}</span>
+                    <span className="w-14 shrink-0 text-right text-[9px] font-semibold text-slate-400">{levelName(lvl)}</span>
                   </div>
                 );
               })}
             </div>
-            <p className="mt-1.5 text-[9px] text-slate-400">Kaynak miktar sınıfı yalnızca 1=eksik · 2=yeterli · 3=dengeli için tanımlıdır; diğer sayılar için etiket üretilmez.</p>
+            <p className="mt-1.5 text-[9px] text-slate-400">{t("levelNote")}</p>
           </SectionCard>
 
           {/* İşleme Tipi (Baskın/Edilgen) — SKOR DEĞİLDİR */}
-          <SectionCard title="İlişkinin İşleme Tipi" subtitle="Baskın / Edilgen dağılımı — bu bir uyum puanı DEĞİLDİR" accent="rose">
+          <SectionCard title={t("modeTitle")} subtitle={t("modeSub")} accent="rose">
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl bg-rose-50 p-3 text-center ring-1 ring-rose-200/60">
-                <p className="text-[8px] font-black uppercase tracking-widest text-rose-400">Baskın (Etken)</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-rose-400">{t("dominant")}</p>
                 <p className="mt-0.5 text-3xl font-black text-rose-700 tabular-nums leading-none">{analiz.dominance.baskin}</p>
                 <p className="mt-1 text-[9px] text-rose-400">1, 3, 6, 8</p>
               </div>
               <div className="rounded-xl bg-sky-50 p-3 text-center ring-1 ring-sky-200/60">
-                <p className="text-[8px] font-black uppercase tracking-widest text-sky-400">Edilgen (Alıcı)</p>
+                <p className="text-[8px] font-black uppercase tracking-widest text-sky-400">{t("passive")}</p>
                 <p className="mt-0.5 text-3xl font-black text-sky-700 tabular-nums leading-none">{analiz.dominance.edilgen}</p>
                 <p className="mt-1 text-[9px] text-sky-400">2, 4, 5, 7</p>
               </div>
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">Her 9 hanesi baskın ve edilgene 0,5’er katkı verir. Bu değerler ilişkinin işleme biçimini gösterir; tek başına iyi/kötü hükmü üretmez.</p>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{t("modeNote")}</p>
           </SectionCard>
 
           {/* FAZ 6: Eş Uyumu (Ayrı Motor) ve Nikâh / Birliktelik Tarihi Etkisi bölümleri
@@ -549,14 +563,14 @@ export function NumerolojiIliskiAnaliziTab({
           <div className="flex min-w-0 items-start gap-2.5 rounded-[12px] border border-slate-200/80 bg-slate-50/80 px-3 py-2.5">
             <span className="mt-px shrink-0 text-slate-400">ℹ</span>
             <p className="text-[11px] leading-[1.65] text-slate-500">
-              Bu ekran ilişkinin Sinerji PIN’ini, element dağılımını ve işleme tipini hesaplar. <span className="font-bold">Genel/tek bir uyum yüzdesi üretilmez.</span> Yorumlama uzman tarafından, ilgili eğitim notu esas alınarak yapılmalıdır.
+              {t.rich("infoNote", { b: (chunks) => <span className="font-bold">{chunks}</span> })}
             </p>
           </div>
         </>
       ) : (
         <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-8 text-center md:rounded-[14px] md:border-2 md:border-dashed md:border-violet-200/70 md:bg-white/60 md:px-4">
           <div className="text-2xl mb-2 opacity-50">♥</div>
-          <p className="text-xs font-semibold text-slate-500">2. kişinin doğum tarihini girerek ilişki enerjisini hesaplayın.</p>
+          <p className="text-xs font-semibold text-slate-500">{t("emptyPrompt")}</p>
         </div>
       )}
     </div>

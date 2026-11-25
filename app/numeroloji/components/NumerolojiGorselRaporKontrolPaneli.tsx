@@ -29,6 +29,7 @@ export function GorselRaporKontrolYanPanel({
   setTasKutle,
 }: GorselRaporKontrolYanPanelProps) {
   const t = useTranslations("numerology.app.visual");
+  const tResult = useTranslations("numerology.result.detail");
   return (
     <aside className="shrink-0 space-y-3 rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-sm ring-1 ring-violet-100/50 lg:sticky lg:top-2 lg:w-[min(100%,280px)]">
       <label className="flex cursor-pointer items-start gap-2 text-xs font-semibold text-slate-800">
@@ -82,7 +83,7 @@ export function GorselRaporKontrolYanPanel({
       </div>
       <div>
         <label htmlFor="noj-tas-kutle" className="mb-1 block text-xs font-bold text-slate-700">
-          Kütle taşları
+          {tResult("stones.mass")}
         </label>
         <textarea
           id="noj-tas-kutle"

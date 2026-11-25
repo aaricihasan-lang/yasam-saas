@@ -15,6 +15,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type Tone = "violet" | "sky" | "amber" | "emerald" | "fuchsia" | "rose" | "white";
 
@@ -105,11 +106,12 @@ function MathLine({ children }: { children: ReactNode }) {
 }
 
 function TeachingBody({ e }: { e: CalculationExplanation }) {
+  const t = useTranslations("numerology.app.calcInfo");
   return (
     <div className="space-y-4">
       {e.usedInputs?.length ? (
         <section>
-          <SectionLabel>Kullanılan bilgiler</SectionLabel>
+          <SectionLabel>{t("usedInputs")}</SectionLabel>
           <ul className="mt-1.5 space-y-1">
             {e.usedInputs.map((it, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-sm text-slate-700">
@@ -124,7 +126,7 @@ function TeachingBody({ e }: { e: CalculationExplanation }) {
 
       {e.unusedInputs?.length ? (
         <section className="rounded-xl border border-amber-200/70 bg-amber-50/60 px-3 py-2">
-          <SectionLabel>Bu hesapta kullanılmaz</SectionLabel>
+          <SectionLabel>{t("unusedInputs")}</SectionLabel>
           <ul className="mt-1.5 space-y-1">
             {e.unusedInputs.map((it, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-sm text-slate-700">
@@ -139,14 +141,14 @@ function TeachingBody({ e }: { e: CalculationExplanation }) {
 
       {e.rationale ? (
         <section>
-          <SectionLabel>Hesabın mantığı</SectionLabel>
+          <SectionLabel>{t("rationale")}</SectionLabel>
           <p className="mt-1 text-sm leading-relaxed text-slate-700">{e.rationale}</p>
         </section>
       ) : null}
 
       {e.steps?.length ? (
         <section>
-          <SectionLabel>Adım adım hesap</SectionLabel>
+          <SectionLabel>{t("steps")}</SectionLabel>
           <ol className="mt-1.5 space-y-2.5">
             {e.steps.map((st, i) => (
               <li key={i} className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
@@ -168,7 +170,7 @@ function TeachingBody({ e }: { e: CalculationExplanation }) {
 
       {e.reduction?.length ? (
         <section>
-          <SectionLabel>Sadeleştirme</SectionLabel>
+          <SectionLabel>{t("reduction")}</SectionLabel>
           <div className="mt-1.5 space-y-0.5 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
             {e.reduction.map((ln, i) => (
               <MathLine key={i}>{ln}</MathLine>
@@ -179,7 +181,7 @@ function TeachingBody({ e }: { e: CalculationExplanation }) {
 
       {e.result ? (
         <section>
-          <SectionLabel>Sonuç</SectionLabel>
+          <SectionLabel>{t("result")}</SectionLabel>
           <p className="mt-1 text-base font-black text-violet-900">{e.result}</p>
           {e.resultNote ? (
             <p className="mt-1 text-xs leading-relaxed text-slate-500">{e.resultNote}</p>
@@ -189,7 +191,7 @@ function TeachingBody({ e }: { e: CalculationExplanation }) {
 
       {e.period ? (
         <section className="rounded-xl border border-emerald-200/70 bg-emerald-50/50 px-3 py-2">
-          <SectionLabel>Geçerlilik / dönem</SectionLabel>
+          <SectionLabel>{t("period")}</SectionLabel>
           <p className="mt-1 text-sm font-semibold leading-relaxed text-emerald-900">{e.period}</p>
         </section>
       ) : null}
@@ -209,17 +211,18 @@ function LegacyBody({
   result?: string;
   children?: ReactNode;
 }) {
+  const t = useTranslations("numerology.app.calcInfo");
   return (
     <div className="space-y-4">
       {formula ? (
         <section>
-          <SectionLabel>Formül</SectionLabel>
+          <SectionLabel>{t("formula")}</SectionLabel>
           <p className="mt-1 text-sm leading-relaxed text-slate-700">{formula}</p>
         </section>
       ) : null}
       {steps && steps.length ? (
         <section>
-          <SectionLabel>Hesap</SectionLabel>
+          <SectionLabel>{t("calc")}</SectionLabel>
           <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 font-mono text-[12px] leading-relaxed text-slate-800">
             {steps.join("\n")}
           </pre>
@@ -227,7 +230,7 @@ function LegacyBody({
       ) : null}
       {result ? (
         <section>
-          <SectionLabel>Sonuç</SectionLabel>
+          <SectionLabel>{t("result")}</SectionLabel>
           <p className="mt-1 text-base font-black text-violet-900">{result}</p>
         </section>
       ) : null}
@@ -246,6 +249,7 @@ export function NumerolojiCalculationInfo({
   tone = "violet",
   children,
 }: CalculationInfoProps) {
+  const t = useTranslations("numerology.app.calcInfo");
   const [mode, setMode] = useState<Mode | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const labelId = useId();
@@ -273,7 +277,7 @@ export function NumerolojiCalculationInfo({
   if (!hasCalc && !hasMeaning) return null;
 
   const chip = `inline-flex shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-bold leading-none shadow-sm transition ${TONE_CHIP[tone]}`;
-  const headerTitle = mode === "meaning" ? "Bu ne demek?" : "Nasıl hesaplandı?";
+  const headerTitle = mode === "meaning" ? t("meaningQ") : t("howQ");
 
   return (
     <>
@@ -283,11 +287,11 @@ export function NumerolojiCalculationInfo({
             type="button"
             onClick={() => setMode("meaning")}
             aria-haspopup="dialog"
-            aria-label={`${title}: Bu ne demek?`}
-            title="Bu ne demek?"
+            aria-label={t("meaningAria", { title: title ?? "" })}
+            title={t("meaningQ")}
             className={chip}
           >
-            <span aria-hidden>ⓘ</span> Bu ne demek?
+            <span aria-hidden>ⓘ</span> {t("meaningQ")}
           </button>
         ) : null}
         {hasCalc ? (
@@ -295,11 +299,11 @@ export function NumerolojiCalculationInfo({
             type="button"
             onClick={() => setMode("calc")}
             aria-haspopup="dialog"
-            aria-label={`${title}: Nasıl hesaplandı?`}
-            title="Nasıl hesaplandı?"
+            aria-label={t("howAria", { title: title ?? "" })}
+            title={t("howQ")}
             className={chip}
           >
-            <span aria-hidden>∑</span> Nasıl hesaplandı?
+            <span aria-hidden>∑</span> {t("howQ")}
           </button>
         ) : null}
       </span>
@@ -327,7 +331,7 @@ export function NumerolojiCalculationInfo({
                     ref={closeRef}
                     type="button"
                     onClick={() => setMode(null)}
-                    aria-label="Kapat"
+                    aria-label={t("close")}
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 text-lg font-black text-white transition hover:bg-white/25"
                   >
                     ✕
@@ -349,8 +353,8 @@ export function NumerolojiCalculationInfo({
                 <div className="border-t border-slate-100 px-5 py-3">
                   <p className="text-[11px] leading-relaxed text-slate-400">
                     {mode === "meaning"
-                      ? "Bu, hesabın kısa bir kavram tanımıdır; kişisel yorum içermez."
-                      : "Bu döküm yalnız sayının nasıl bulunduğunu gösterir; numerolojik yorum içermez."}
+                      ? t("meaningFoot")
+                      : t("calcFoot")}
                   </p>
                 </div>
               </div>

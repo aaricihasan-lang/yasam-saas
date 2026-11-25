@@ -4,6 +4,8 @@ import Link from "next/link";
 import { User } from "lucide-react";
 import styles from "@/app/_premium/numeroloji/numerolojiListe.module.css";
 import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { resolveRecordMotor } from "../utils/analysisJson";
 import { nrDisplay } from "../utils/numerolojiPlainMetin";
 
@@ -73,6 +75,8 @@ export function NumerolojiListeKarti({
   isSelected?: boolean;
   onToggleSelect?: () => void;
 }) {
+  const t = useTranslations("numerology.result.card");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const adSoyad = `${row.name} ${row.surname}`.replace(/\s+/g, " ").trim();
   const vals = useMemo(() => kartDegerleri(row), [row]);
   const pinStr = vals?.pin ?? null;
@@ -83,7 +87,7 @@ export function NumerolojiListeKarti({
         <label className={styles.checkAbs} onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
-            aria-label={`${adSoyad} seç`}
+            aria-label={t("selectAria", { name: adSoyad })}
             checked={Boolean(isSelected)}
             onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
           />
@@ -99,9 +103,9 @@ export function NumerolojiListeKarti({
         <div className={styles.body}>
           <h2 className={styles.name}>{adSoyad}</h2>
           <p className={styles.meta}>
-            <span>Doğum: {row.birth_date}</span>
+            <span>{t("birthPrefix")}{row.birth_date}</span>
             <span>
-              {new Date(row.created_at).toLocaleString("tr-TR", {
+              {new Date(row.created_at).toLocaleString(isSourceLocale ? "tr-TR" : "en-GB", {
                 dateStyle: "short",
                 timeStyle: "short",
               })}
@@ -109,18 +113,18 @@ export function NumerolojiListeKarti({
           </p>
           {vals ? (
             <div className={styles.nums}>
-              <NrChip label="Ana" value={vals.ana} />
-              <NrChip label="Yan" value={vals.yan} />
-              <NrChip label="İfade" value={vals.ifade} />
-              <NrChip label="Hayat Yolu" value={vals.hy} />
+              <NrChip label={t("ana")} value={vals.ana} />
+              <NrChip label={t("yan")} value={vals.yan} />
+              <NrChip label={t("ifade")} value={vals.ifade} />
+              <NrChip label={t("hayatYolu")} value={vals.hy} />
             </div>
           ) : null}
         </div>
         <div className={onToggleSelect !== undefined ? styles.sideSpacer : styles.side}>
-          <span className={styles.detay}>DETAY</span>
+          <span className={styles.detay}>{t("detail")}</span>
           {pinStr ? (
             <p className={styles.pin}>
-              PIN <b>{pinStr}</b>
+              {`${t("pin")} `}<b>{pinStr}</b>
             </p>
           ) : null}
         </div>

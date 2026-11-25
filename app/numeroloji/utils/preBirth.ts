@@ -23,6 +23,20 @@ export function preBirthActiveYearText(birth: CalendarDate): string {
   return `Doğum öncesi — henüz aktif kişisel yıl yok. İlk aktif kişisel yıl doğum gününde (${fmt(birth)}) başlar.`;
 }
 
+/** Çeviri fonksiyonu (`numerology.tabs.timing.preBirth` ad alanı). */
+export type PreBirthT = (key: string, values?: Record<string, string>) => string;
+
+/** I18N: kaynak dil dışı ekranlar için aynı notlar (karar ve tarih biçimi aynı; TR fonksiyonları birebir kalır). */
+export function preBirthNoteEn(t: PreBirthT, birth: CalendarDate, ref: CalendarDate): string {
+  return t("note", { birth: fmt(birth), ref: fmt(ref) });
+}
+export function preBirthActiveYearTextEn(t: PreBirthT, birth: CalendarDate): string {
+  return t("activeYear", { birth: fmt(birth) });
+}
+export function preBirthEvreTextEn(t: PreBirthT, firstEnergy: number | undefined): string {
+  return firstEnergy !== undefined ? t("evreWithEnergy", { energy: String(firstEnergy) }) : t("evre");
+}
+
 /** Yaşam Evresi yerine gösterilen açıklama (ilk evre enerjisi motorun PIN timeline'ından). */
 export function preBirthEvreText(firstEnergy: number | undefined): string {
   return `Doğum öncesi — yaşam evresi doğumla başlar. İlk evre: Evre 1${firstEnergy !== undefined ? ` (enerji ${firstEnergy})` : ""}.`;
