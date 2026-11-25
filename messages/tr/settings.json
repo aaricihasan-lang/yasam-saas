@@ -93,7 +93,13 @@
       "searchPlaceholder": "Örn. Manisa, İzmir…",
       "selected": "Seçili:",
       "save": "Varsayılan konumu kaydet",
-      "hint": "Varsayılan konum, Kozmik Ajanda tutulma görünürlüğü gibi konuma bağlı hesaplarda başlangıç şehri olarak kullanılır."
+      "hint": "Varsayılan konum, Kozmik Ajanda tutulma görünürlüğü gibi konuma bağlı hesaplarda başlangıç şehri olarak kullanılır.",
+      "errors": {
+        "codes": {
+          "NO_SESSION": "Oturum bulunamadı.",
+          "NETWORK": "Ağ hatası."
+        }
+      }
     },
     "workspace": {
       "layouts": {

@@ -505,6 +505,7 @@ function DirectContactOptions() {
 function LocationTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
   const t = useTranslations("settings.location");
+  const locale = useLocale();
   const isDemo = user.is_demo_account === true;
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
@@ -549,7 +550,9 @@ function LocationTab({ user }: { user: YasamUser }) {
         lat: selected.lat, lon: selected.lon, elev: selected.elev, tz: selected.tz, source: selected.source,
       });
     } else {
-      showToast({ message: res.error ?? t("saveFailed"), type: "error" });
+      // Kaynak dilde (tr) bugünkü metin BİREBİR; diğer dillerde istemci kaynaklı hata (oturum/ağ) koddan çevrilir.
+      const message = locale !== "tr" && res.code ? t(`errors.codes.${res.code}`) : res.error ?? t("saveFailed");
+      showToast({ message, type: "error" });
     }
   }
 
