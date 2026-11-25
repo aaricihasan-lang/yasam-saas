@@ -40,7 +40,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const yearParam = req.nextUrl.searchParams.get("year");
   const eqFilters: Record<string, string> = {};
   if (yearParam !== null && yearParam.trim() !== "") {
-    if (validYear(yearParam) === null) return cuppingError(400, "Geçersiz yıl.");
+    if (validYear(yearParam) === null) return cuppingError(400, "Geçersiz yıl.", "CUP_YEAR_INVALID");
     eqFilters.year = yearParam.trim();
   }
 
@@ -63,16 +63,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, CALENDAR_PLAN_WRITABLE);
-  if (!String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.");
+  if (!String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.", "CUP_NAME_REQUIRED");
 
   const year = validYear(fields.year);
-  if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`);
+  if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, "CUP_YEAR_OUT_OF_RANGE");
   fields.year = year;
 
   // advice_template_id opsiyonel; verilirse AYNI tenant şablonu olmalı (cross-tenant FK backstop).
   if (fields.advice_template_id != null && String(fields.advice_template_id).trim() !== "") {
     const owned = await assertOwnedRef(db, CUPPING_TABLES.adviceTemplates, tenantId, fields.advice_template_id);
-    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.");
+    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.", "CUP_TEMPLATE_NOT_OWNED");
   } else {
     delete fields.advice_template_id;
   }
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       .eq("year", year)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (exErr) return cuppingError(500, "İşlem tamamlanamadı.");
+    if (exErr) return cuppingError(500, "İşlem tamamlanamadı.", "CUP_DB_FAIL");
     if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json({ ok: true, plan: existing[0], reused: true });
     }

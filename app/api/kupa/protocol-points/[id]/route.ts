@@ -22,7 +22,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "İlişki id gerekli.");
+  if (!id) return cuppingError(400, "İlişki id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -30,7 +30,7 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, PROTOCOL_POINT_META_WRITABLE);
-  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.");
+  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
 
   const res = await updateEntity(db, CUPPING_TABLES.protocolPoints, tenantId, id, fields);
   if (!res.ok) {
@@ -49,7 +49,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "İlişki id gerekli.");
+  if (!id) return cuppingError(400, "İlişki id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -63,10 +63,10 @@ export async function DELETE(
     // 23503: step (uygulama akışı) hâlâ bu bölgeyi referanslıyor → detach engellendi.
     if (isFkDeleteViolation((error as { code?: string }).code)) {
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
-      return cuppingError(409, "Bu bölge protokolün uygulama akışında (bir adım) kullanılıyor. Önce ilgili adımı düzenleyin.");
+      return cuppingError(409, "Bu bölge protokolün uygulama akışında (bir adım) kullanılıyor. Önce ilgili adımı düzenleyin.", "CUP_POINT_IN_STEP");
     }
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "server" });
-    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
   }
   // Protokolden ayırma = protokol düzenlemesi; hiçbir satır silinmediyse (no-op) olay YOK.
   if ((data?.length ?? 0) > 0) await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });

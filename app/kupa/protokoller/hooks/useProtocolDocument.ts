@@ -25,10 +25,8 @@ import {
   type CuppingTechnique,
   type CuppingSafetyNote,
   type CuppingSource,
+  isKupaNotFound,
 } from "@/app/kupa/lib/api";
-
-// i18n-ignore: sunucunun 404 güvenli mesajıyla KARŞILAŞTIRMA anahtarı (kontrol akışı; gösterilmez) — lib/cupping/api.ts NOT_FOUND ile birebir.
-const NOT_FOUND_MSG = "Kayıt bu hesaba ait değil veya bulunamadı.";
 
 /**
  * Protokol dosyasının TÜM bölümlerini yükler. Master listeleri (points/techniques/
@@ -100,7 +98,8 @@ export function useProtocolDocument(id: string) {
       setMasterSources(msrc);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Yüklenemedi.";
-      if (msg === NOT_FOUND_MSG) setNotFound(true);
+      // I18N-F1-R3: 404 tespiti metne değil dil-bağımsız koda bağlı (CUP_NOT_FOUND ⇔ eski NOT_FOUND metni).
+      if (isKupaNotFound(e)) setNotFound(true);
       else setError(msg);
     } finally {
       setLoading(false);
@@ -147,7 +146,8 @@ export function useProtocolDocument(id: string) {
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Yüklenemedi.";
-        if (msg === NOT_FOUND_MSG) setNotFound(true);
+        // I18N-F1-R3: 404 tespiti metne değil dil-bağımsız koda bağlı (CUP_NOT_FOUND ⇔ eski NOT_FOUND metni).
+        if (isKupaNotFound(e)) setNotFound(true);
         else setError(msg);
       } finally {
         if (!cancelled) setLoading(false);

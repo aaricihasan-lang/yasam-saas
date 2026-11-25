@@ -30,7 +30,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
   const fields = pickWritable(parsed.data, KNOWLEDGE_WRITABLE);
   if (!String(fields.title ?? "").trim()) {
-    return NextResponse.json({ ok: false, error: "Başlık gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_TITLE_REQUIRED", error: "Başlık gerekli." }, { status: 400 });
   }
   const res = await insertEntity(db, CUPPING_TABLES.knowledge, tenantId, fields);
   if (!res.ok) {

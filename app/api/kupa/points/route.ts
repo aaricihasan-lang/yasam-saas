@@ -40,7 +40,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const fields = pickWritable(parsed.data, POINT_WRITABLE);
   if (!String(fields.name ?? "").trim()) {
-    return NextResponse.json({ ok: false, error: "Nokta adı gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_NAME_REQUIRED", error: "Nokta adı gerekli." }, { status: 400 });
   }
 
   const res = await insertEntity(db, CUPPING_TABLES.points, tenantId, fields);

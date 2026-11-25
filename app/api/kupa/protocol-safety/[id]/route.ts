@@ -16,7 +16,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "İlişki id gerekli.");
+  if (!id) return cuppingError(400, "İlişki id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -24,7 +24,7 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, PROTOCOL_SAFETY_META_WRITABLE);
-  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.");
+  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
 
   const res = await updateEntity(db, CUPPING_TABLES.protocolSafety, tenantId, id, fields);
   if (!res.ok) {
@@ -43,7 +43,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "İlişki id gerekli.");
+  if (!id) return cuppingError(400, "İlişki id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.protocolSafety, tenantId, id);

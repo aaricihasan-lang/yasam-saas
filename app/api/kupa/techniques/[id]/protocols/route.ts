@@ -23,12 +23,12 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Teknik id gerekli.");
+  if (!id) return cuppingError(400, "Teknik id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId } = guard;
 
   // Teknik bu tenant'a ait GERÇEK bir kayıt mı? (cross-tenant enumerasyonu engeller)
   if (!(await assertOwnedRef(db, CUPPING_TABLES.techniques, tenantId, id))) {
-    return cuppingError(404, "Teknik bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(404, "Teknik bu hesaba ait değil veya bulunamadı.", "CUP_TECHNIQUE_NOT_FOUND");
   }
 
   // (1) Bu tekniği içeren ilişki satırları (yalnız protocol_id).
@@ -37,7 +37,7 @@ export async function GET(
     .select("protocol_id")
     .eq("tenant_id", tenantId)
     .eq("technique_id", id);
-  if (relRes.error) return cuppingError(500, DB_FAIL);
+  if (relRes.error) return cuppingError(500, DB_FAIL, "CUP_DB_FAIL");
 
   const protocolIds = Array.from(
     new Set((relRes.data ?? []).map((r) => (r as { protocol_id: string }).protocol_id).filter(Boolean)),
@@ -52,7 +52,7 @@ export async function GET(
     .in("id", protocolIds)
     .order("sort_order", { ascending: true })
     .order("title", { ascending: true });
-  if (protoRes.error) return cuppingError(500, DB_FAIL);
+  if (protoRes.error) return cuppingError(500, DB_FAIL, "CUP_DB_FAIL");
 
   return NextResponse.json({ ok: true, protocols: protoRes.data ?? [] });
 }
