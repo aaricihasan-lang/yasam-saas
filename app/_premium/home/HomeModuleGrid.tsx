@@ -9,10 +9,12 @@
  * Kişisel gizleme / Favorilerim (lib/workspace/homeView.ts → HomeView.centers / favorites) bağlantısı sonraki aşamadadır.
  */
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE, resolveLocale } from "@/lib/i18n/locales";
+import { formatNumber } from "@/lib/i18n/format";
 import { CalendarDays, ChartColumn, Flower2, Folder, Layers, Leaf, Package, type LucideIcon } from "lucide-react";
 import type { ModuleLockReason, ModulePermissionKey } from "@/lib/auth/modulePermissions";
-import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
+import { deriveYhCardStatus, type YhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import type { ModuleCard } from "./homeCenters";
 import premium from "./home.module.css";
 
@@ -39,6 +41,15 @@ export type HomeModuleGridProps = {
 
 export default function HomeModuleGrid({ modules, cardLock, moduleStats, lastDateByKey, yhHealth, onLockedClick }: HomeModuleGridProps) {
   const t = useTranslations("home");
+  const locale = resolveLocale(useLocale());
+  /**
+   * I18N — YH kart metni: durum türetimi (deriveYhCardStatus) aynen; kaynak dilde (tr) türetilen metin birebir,
+   * diğer dillerde durum türü (kind) → home.yhStatus.<kind>. "—" (erişilemedi) dilden bağımsız.
+   */
+  const yhCardText = (status: YhCardStatus): string =>
+    locale === DEFAULT_LOCALE || status.kind === "unavailable"
+      ? status.text
+      : t(`yhStatus.${status.kind}`, { count: formatNumber(status.rows ?? 0, undefined, locale) });
   return (
     <div className={premium.grid} data-testid="home-hub-grid">
       {modules.map((item, index) => {
@@ -67,7 +78,7 @@ export default function HomeModuleGrid({ modules, cardLock, moduleStats, lastDat
                 ? t("moduleCard.noRecords")
                 : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
           : item.permissionKey === "yasam_hafizasi"
-            ? deriveYhCardStatus(yhHealth).text
+            ? yhCardText(deriveYhCardStatus(yhHealth))
             : t("common.contentReady");
         // Üst blok: nesne + başlık + açıklama (yerleşim CSS ızgara alanlarıyla; geniş kartta nesne solda, dar kartta üstte).
         const body = (
