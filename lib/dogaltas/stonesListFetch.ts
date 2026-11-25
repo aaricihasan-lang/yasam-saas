@@ -180,12 +180,22 @@ export function buildTurkishInsensitiveRegex(safeTerm: string): string | null {
 export function buildStonesListSearchOrFilter(
   term: string,
   mode: SearchMode = "name",
-  opts: { legacySchema?: boolean; schemaLevel?: ContentSchemaLevel } = {},
+  opts: { legacySchema?: boolean; schemaLevel?: ContentSchemaLevel; nameVariants?: readonly string[] } = {},
 ): string | null {
   const safeTerm = sanitizeOrSearchTerm(term);
   if (!safeTerm) return null;
-  const regex = buildTurkishInsensitiveRegex(safeTerm);
-  if (!regex) return null;
+  const base = buildTurkishInsensitiveRegex(safeTerm);
+  if (!base) return null;
+  // I18N-F1-R3 (EN arayüz): standart taşın İngilizce adı yazıldıysa o taşın Türkçe yazımları da aranır
+  // (lib/dogaltas/stoneNames.ts stoneSearchTrVariants; TR arayüzde nameVariants boş → çıktı birebir aynı).
+  // Her yazım kullanıcı terimiyle AYNI sanitize + literal-regex kaçışından geçer; birleştirici yalnız sabit "|".
+  const alts = [base];
+  for (const v of opts.nameVariants ?? []) {
+    const safeV = sanitizeOrSearchTerm(v);
+    const rv = safeV ? buildTurkishInsensitiveRegex(safeV) : null;
+    if (rv && !alts.includes(rv)) alts.push(rv);
+  }
+  const regex = alts.join("|");
 
   const columns =
     mode === "content"

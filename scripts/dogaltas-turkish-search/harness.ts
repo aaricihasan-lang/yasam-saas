@@ -125,7 +125,9 @@ for (const [text, q, exp] of SPECIAL) ok(`ÖZEL: "${text}" ← ${JSON.stringify(
   const route = readFileSync(resolve(ROOT, "app/api/dogaltas/stones/route.ts"), "utf8");
   ok("TENANT: liste sorgusu .in(tenant_id, ids) korunur", /\.select\(STONES_LIST_SELECT[\s\S]*?\.in\("tenant_id", ids\)/.test(route));
   ok("TENANT: sayaç sorgusu .in(tenant_id, ids) korunur", route.includes('.select("id", { count: "exact", head: true }).in("tenant_id", ids)'));
-  ok("TENANT: arama filtresi tenant sorgusuna AND olarak eklenir (.or ayrı çağrı)", (route.match(/buildStonesListSearchOrFilter\(q, searchMode, \{ schemaLevel \}\); if \(or\) query = query\.or\(or\);/g) || []).length === 2);
+  // I18N-F1-R3: çağrıya EN arama genişletmesi (nameVariants) eklendi; niyet aynı — filtre yine tenant sorgusuna ayrı .or() ile
+  // AND olarak eklenir, iki sorgu yolunda (sayaç + liste) da.
+  ok("TENANT: arama filtresi tenant sorgusuna AND olarak eklenir (.or ayrı çağrı)", (route.match(/buildStonesListSearchOrFilter\(q, searchMode, \{ schemaLevel, nameVariants \}\); if \(or\) query = query\.or\(or\);/g) || []).length === 2);
   ok("Sayfalama/sıralama korunur", route.includes(".range(offset, offset + limit - 1)") && route.includes('.order("id", { ascending: true })'));
 }
 

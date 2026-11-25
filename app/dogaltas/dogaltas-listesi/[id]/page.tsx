@@ -1,7 +1,8 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import {
@@ -641,6 +642,7 @@ function TextBlock({
 
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
+  const locale = useLocale();
   const se = useDogaltasServerError();
   const tl = useTranslations("stones.longText");
   const tre = useTranslations("stones.reportErrors");
@@ -1475,6 +1477,9 @@ function StoneDetailPage() {
     () => (stone ? toSafeStone(stone as unknown as Record<string, unknown>) : null),
     [stone],
   );
+  // Görünen başlık: demo vitrin taşı EN arayüzde EN ad; kullanıcının taşı / TR arayüz birebir. Düzenleyici, silme onayı ve
+  // kayıt her zaman saklanan adı (safeStone.stone_name) kullanır.
+  const shownStoneName = safeStone ? stoneRecordDisplayName(safeStone, locale) : "";
   // Madde 14: arama eşleşmesi çok kaynaklı taşta TÜM kaynakların metninde aranır.
   // Bilgi kaydı modeli: alan eşleşmesi o alanın TÜM kayıtlarında (eski metinler + yeni kayıtlar) aranır.
   const fieldSearchText = (field: SourceTextField): string | null => fieldEntriesText(entriesByField[field]) || null;
@@ -1674,7 +1679,7 @@ function StoneDetailPage() {
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-                  {renderHighlightedText(safeStone.stone_name, highlightQuery)}
+                  {renderHighlightedText(shownStoneName, highlightQuery)}
                 </h1>
                 {sectionMatches?.stoneName ? <SearchMatchBadge /> : null}
               </div>
@@ -1826,7 +1831,7 @@ function StoneDetailPage() {
                       </button>
                     )}
                     <h2 className="w-full break-words border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
-                      {renderHighlightedText(safeStone.stone_name, highlightQuery)}
+                      {renderHighlightedText(shownStoneName, highlightQuery)}
                     </h2>
                   </div>
 
@@ -1873,7 +1878,7 @@ function StoneDetailPage() {
                   <div className="min-w-0 px-3 py-2 text-center">
                     <div className="text-[34px]">💎</div>
                     <h2 className="mt-1 break-words text-sm font-black text-slate-900">
-                      {safeStone.stone_name}
+                      {shownStoneName}
                     </h2>
                     <p className="mt-1 text-[10px] leading-4 text-slate-400">
                       {t("image.none")}
@@ -2371,7 +2376,7 @@ function StoneDetailPage() {
         open={Boolean(activeReader)}
         title={activeReader?.title ?? ""}
         badge={activeReader?.badge ?? ""}
-        subtitle={`${t("readerSubtitle", { name: safeStone.stone_name })}${(activeReader?.entries?.length ?? 0) > 1 ? ` · ${t("readerEntryCount", { n: activeReader!.entries!.length })}` : ""}`}
+        subtitle={`${t("readerSubtitle", { name: shownStoneName })}${(activeReader?.entries?.length ?? 0) > 1 ? ` · ${t("readerEntryCount", { n: activeReader!.entries!.length })}` : ""}`}
         text={activeReader?.text ?? ""}
         entries={activeReader?.entries}
         highlightQuery={highlightQuery}

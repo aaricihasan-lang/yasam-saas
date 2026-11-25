@@ -19,6 +19,7 @@ import { viewerGet } from "../_shared/api";
 import { AuthImage } from "../_shared/AuthImage";
 import { FACET_ORDER, formatHardness, splitKeywords } from "../_shared/labels";
 import { ModuleNav, NotFoundState, useLibraryLabels } from "../LibraryClient";
+import { libraryStoneName, libraryStoneSecondaryName } from "@/lib/dogaltas/stoneNames";
 import s from "../kutuphane.module.css";
 
 type Mode = "default" | "verified" | "tr" | "en";
@@ -138,7 +139,7 @@ export default function StoneDetailClient({ slug }: { slug: string }) {
           <div>
             <div className={s.photo}>
               {item.image ? (
-                <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={tl("imageAlt", { name: item.name_tr })} className={s.phImg} placeholderClassName={s.phEmpty} />
+                <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={tl("imageAlt", { name: libraryStoneName(item, locale) })} className={s.phImg} placeholderClassName={s.phEmpty} />
               ) : (
                 <span className={s.phEmpty}>{tl("noImage")}</span>
               )}
@@ -179,8 +180,11 @@ export default function StoneDetailClient({ slug }: { slug: string }) {
 
         <div className={s.main}>
           <header className={s.head}>
-            <h1>{item.name_tr}</h1>
-            {item.name_en && item.name_en !== item.name_tr ? <p>{t("englishName", { name: item.name_en })}</p> : null}
+            {/* Sistem kartı adı: TR'de name_tr + "İngilizce adı"; EN'de name_en birincil + "Turkish name" (kaynak alanlar değişmez). */}
+            <h1>{libraryStoneName(item, locale)}</h1>
+            {libraryStoneSecondaryName(item, locale) ? (
+              <p>{t(locale === "en" ? "turkishName" : "englishName", { name: libraryStoneSecondaryName(item, locale) ?? "" })}</p>
+            ) : null}
           </header>
 
           <div className={s.srcbar}>
@@ -264,7 +268,7 @@ export default function StoneDetailClient({ slug }: { slug: string }) {
               <div className={s.pairs}>
                 {item.pairings.map((p) => (
                   <Link key={p.slug} className={s.pair} href={`/dogaltas/kutuphane/${p.slug}`}>
-                    {p.name_tr}
+                    {libraryStoneName(p, locale)}
                   </Link>
                 ))}
               </div>

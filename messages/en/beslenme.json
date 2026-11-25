@@ -129,10 +129,10 @@
         "archived": "Archived"
       },
       "mizac": {
-        "dem": "Sanguine (Warm-Moist)",
-        "safra": "Choleric (Warm-Dry)",
-        "sovdavi": "Melancholic (Cold-Dry)",
-        "balgam": "Phlegmatic (Cold-Moist)"
+        "dem": "Sanguine (Hot–Moist)",
+        "safra": "Choleric (Hot–Dry)",
+        "sovdavi": "Melancholic (Cold–Dry)",
+        "balgam": "Phlegmatic (Cold–Moist)"
       },
       "kan": {
         "0": "0 (Zero)",

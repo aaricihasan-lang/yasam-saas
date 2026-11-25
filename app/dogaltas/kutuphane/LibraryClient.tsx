@@ -12,9 +12,14 @@ import type { StoneLibraryFacetCatalog, StoneLibraryKeyedFacet, StoneLibraryList
 import { viewerGet } from "./_shared/api";
 import { AuthImage } from "./_shared/AuthImage";
 import { FACET_ORDER } from "./_shared/labels";
+import { libraryStoneName, libraryStoneSecondaryName, sortLibraryItemsForLocale } from "@/lib/dogaltas/stoneNames";
 import s from "./kutuphane.module.css";
 
 const PAGE = 30;
+/** EN arayüzde (arama terimi yokken) İngilizce ada göre sıralama için yayımlanmış kartların tamamı sayfa sayfa okunur
+ *  (sunucu sırası Türkçe `sort_key`; migration yok). Üst sınırı aşan kütüphanede sunucu sırasına dönülür. */
+const EN_SORT_FETCH_PAGE = 50;
+const EN_SORT_MAX_ITEMS = 500;
 type Search = { total: number; limit: number; offset: number; items: StoneLibraryListItem[] };
 type Selected = Record<StoneLibraryKeyedFacet | "birth_month", string[]>;
 const emptySel = (): Selected => ({ color: [], chakra: [], zodiac: [], element: [], planet: [], birth_month: [] });
@@ -54,7 +59,7 @@ export function NotFoundState() {
 
 /** ownerWorkspaceHref: "Kütüphane Yönetimi" sekmesi (yalnız owner yoklaması başarılıysa verilir; uzmanlara yok). */
 export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHref?: string } = {}) {
-  const { t, monthName, facetValueLabel } = useLibraryLabels();
+  const { t, locale, monthName, facetValueLabel } = useLibraryLabels();
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [sel, setSel] = useState<Selected>(emptySel);
@@ -84,24 +89,41 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     return () => ctrl.abort();
   }, []);
 
-  const queryKey = useMemo(() => {
+  // EN arayüz + arama terimi yok → görünen (İngilizce) ada göre sıra. Arama terimi varken sunucunun alaka sırası korunur.
+  // TR arayüzde istek ve sıra birebir aynı.
+  const sortByEn = locale === "en" && !debouncedQ;
+  const filterQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (debouncedQ) p.set("q", debouncedQ);
     for (const k of [...FACET_ORDER, "birth_month"] as const) for (const v of sel[k]) p.append(k, v);
+    return p;
+  }, [debouncedQ, sel]);
+  const queryKey = useMemo(() => {
+    const p = new URLSearchParams(filterQuery);
     p.set("limit", String(PAGE));
     p.set("offset", String(offset));
     return p.toString();
-  }, [debouncedQ, sel, offset]);
+  }, [filterQuery, offset]);
+  const resultKey = sortByEn ? `${queryKey}#en` : queryKey;
 
   useEffect(() => {
     const ctrl = new AbortController();
     void (async () => {
+      if (sortByEn) {
+        const all = await fetchAllForEnSort(filterQuery, ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        if (all) {
+          const items = sortLibraryItemsForLocale(all.items, locale).slice(offset, offset + PAGE);
+          setResult({ key: resultKey, data: { total: all.total, limit: PAGE, offset, items }, denied: false });
+          return;
+        }
+      }
       const r = await viewerGet<Search & { ok: true }>(`/api/dogaltas/kutuphane?${queryKey}`, ctrl.signal);
       if (ctrl.signal.aborted) return;
-      setResult({ key: queryKey, data: r.ok ? r.data : null, denied: !r.ok });
+      setResult({ key: resultKey, data: r.ok ? r.data : null, denied: !r.ok });
     })();
     return () => ctrl.abort();
-  }, [queryKey]);
+  }, [queryKey, resultKey, sortByEn, filterQuery, offset, locale]);
 
   const toggle = (k: keyof Selected, v: string) => {
     setSel((cur) => ({ ...cur, [k]: cur[k].includes(v) ? cur[k].filter((x) => x !== v) : [...cur[k], v] }));
@@ -128,7 +150,7 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     );
   }
 
-  const loading = !result || result.key !== queryKey;
+  const loading = !result || result.key !== resultKey;
   const data = result?.data ?? null;
   const total = data?.total ?? 0;
 
@@ -281,21 +303,45 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
   );
 }
 
+/**
+ * EN sıralaması için filtreye uyan tüm yayımlanmış kartlar (sayfa sayfa; yalnız okuma ucu, kredi/sağlayıcı çağrısı yok).
+ * Hata / yetkisiz / üst sınır aşımı → null (çağıran sunucu sayfalamasına döner).
+ */
+async function fetchAllForEnSort(filter: URLSearchParams, signal: AbortSignal): Promise<{ total: number; items: StoneLibraryListItem[] } | null> {
+  const items: StoneLibraryListItem[] = [];
+  let total = 0;
+  for (let off = 0; off < EN_SORT_MAX_ITEMS; off += EN_SORT_FETCH_PAGE) {
+    const p = new URLSearchParams(filter);
+    p.set("limit", String(EN_SORT_FETCH_PAGE));
+    p.set("offset", String(off));
+    const r = await viewerGet<Search & { ok: true }>(`/api/dogaltas/kutuphane?${p.toString()}`, signal);
+    if (!r.ok || signal.aborted) return null;
+    total = r.data.total;
+    if (total > EN_SORT_MAX_ITEMS) return null;
+    items.push(...r.data.items);
+    if (r.data.items.length < EN_SORT_FETCH_PAGE || items.length >= total) break;
+  }
+  return { total, items };
+}
+
 function StoneCard({ item }: { item: StoneLibraryListItem }) {
-  const { t, facetValueLabel } = useLibraryLabels();
+  const { t, locale, facetValueLabel } = useLibraryLabels();
+  // Sistem kartı: EN arayüzde name_en birincil, Türkçe ad alt satırda; TR'de bugünkü gibi name_tr + name_en alt satır.
+  const name = libraryStoneName(item, locale);
+  const secondary = libraryStoneSecondaryName(item, locale);
   const tags = [...(item.facets.color ?? []), ...(item.facets.chakra ?? [])].map(facetValueLabel);
   return (
     <Link className={s.card} href={`/dogaltas/kutuphane/${item.slug}`}>
       <span className={s.ph}>
         {item.has_image ? (
-          <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={t("imageAlt", { name: item.name_tr })} lazy className={s.phImg} placeholderClassName={s.phEmpty} />
+          <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={t("imageAlt", { name })} lazy className={s.phImg} placeholderClassName={s.phEmpty} />
         ) : (
           <span className={s.phEmpty}>{t("noImage")}</span>
         )}
       </span>
       <span className={s.cardBody}>
-        <h3>{item.name_tr}</h3>
-        {item.name_en && item.name_en !== item.name_tr ? <span className={s.alt}>{item.name_en}</span> : null}
+        <h3>{name}</h3>
+        {secondary ? <span className={s.alt}>{secondary}</span> : null}
         {tags.length ? (
           <span className={s.tags}>
             {tags.slice(0, 3).map((t) => (

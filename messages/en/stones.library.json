@@ -72,6 +72,7 @@
         "stoneInfo": "Stone details",
         "associations": "Associations",
         "englishName": "English name: {name}",
+        "turkishName": "Turkish name: {name}",
         "contentSource": "Content source",
         "sourceOnlyNote": "A verified Turkish translation of this stone has not been published yet; the content is shown as the source text (Turkish).",
         "fieldMissing": "This field is not included in this source.",
