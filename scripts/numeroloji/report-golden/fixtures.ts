@@ -19,6 +19,7 @@ import { hesaplaNumeroloji } from "@/lib/numeroloji";
 import { NUMEROLOJI_METHODOLOGY_VERSION } from "@/lib/numeroloji/methodology";
 import { buildKnowledgeLookupPlan } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeLookup";
 import * as KF from "../../numeroloji-klasik/report/fixtures";
+import { safeText } from "@/lib/numeroloji-klasik/report/sanitize";
 
 export type Mode = "base" | "tr" | "en";
 export type Built = { buffer: Buffer; filename: string | null; kind: "docx" | "png" | "svg" };
@@ -251,7 +252,8 @@ function classicFixture(name: string, fileKind: string, title: string, build: (m
       const filename = extra.output ? fn(fileKind, title, KF.GEN_AT, extra.output) : fn(fileKind, title, KF.GEN_AT);
       return { buffer, filename, kind: "docx" };
     },
-    content: () => [...strings(data), "Uzman Gülşen Işıkçı"],
+    // Sağlayıcı/kayıt metni rapora safeText (marka/etiket/URL temizliği) ile girer → temizlenmiş hali de içeriktir.
+    content: () => strings(data).flatMap((x) => [x, safeText(x, 100000)]).concat("Uzman Gülşen Işıkçı"),
   };
 }
 const COMMON = { generatedAt: KF.GEN_AT, expertName: "Uzman Gülşen Işıkçı" };

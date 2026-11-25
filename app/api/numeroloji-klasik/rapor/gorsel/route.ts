@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return classicJson(500, { ok: false, code: "PNG_FAILED", error: "Görsel rapor oluşturulamadı. Lütfen tekrar deneyin." });
   }
   await trackUsage(guard, req, { module: "numerology", action: "report_generated", subEntity: "analysis", resourceId: row.id });
-  const filename = buildReportFilename("kisi", row.title, at).replace(/\.docx$/, ".png");
+  const filename = buildReportFilename("kisi", row.title, at, output).replace(/\.docx$/, ".png");
   return new Response(new Uint8Array(out.png), {
     status: 200,
     headers: {
