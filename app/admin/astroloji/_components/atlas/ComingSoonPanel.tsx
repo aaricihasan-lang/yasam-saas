@@ -13,13 +13,14 @@
  * açılıyorsa maddesi de aynı sürümde düşer (önceden düşüp boş bağlantı bırakmaz). Boş kalan bölüm gösterilmez.
  */
 import { ChevronDown } from "lucide-react";
-import { AVAILABLE_TECHNIQUES, visibleComingSoonSections } from "../../_lib/comingSoon";
+import { useTranslations } from "next-intl";
+import { AVAILABLE_TECHNIQUES, COMING_SOON_ITEM_CODES, COMING_SOON_SECTION_CODES, visibleComingSoonSections } from "../../_lib/comingSoon";
 import { AtlasViewTitle, atlasEyebrow, atlasGhostBtn, atlasPanel } from "../AtlasShell";
 
 type Section = { title: string; items: string[]; notes?: string[] };
 
-export const COMING_SOON_STATUS = "GELİŞTİRİLİYOR";
-
+// I18N-F1-R5: aşağıdaki TR bölüm/madde metinleri KANONİK ANAHTARDIR (görünürlük eşlemesi _lib/comingSoon.ts + harness'lar);
+// ekranda her dilde koddan katalogla (atlas.soon) çizilir — TR katalog değeri = bu metin (atlas-a-r5-i18n kilidi).
 export const COMING_SOON_SECTIONS: readonly Section[] = [
   {
     title: "Klasik Batı Horary Ekolleri",
@@ -105,74 +106,72 @@ export function comingSoonVisibleSections(available: ReadonlySet<string> = AVAIL
   return visibleComingSoonSections(COMING_SOON_SECTIONS, available);
 }
 
-const PROCESS_NOTES = [
-  "Bu bölümde “Geliştiriliyor” ifadesi; araştırma, teknik uygunluk incelemesi, hesaplama doğrulaması, entegrasyon hazırlığı veya yazılım geliştirme aşamalarını kapsar.",
-  "Listelenen tekniklerin tamamı henüz kullanıma açık değildir. Bazı başlıklar mevcut analizlerin genişletilmesine ilişkindir.",
-  "Yeni özellikler, teknik doğrulamalar ve uzman değerlendirmeleri tamamlandıkça aşamalı olarak sunulacaktır.",
-  "Kesin bir yayın tarihi taahhüt edilmemektedir.",
-];
 
 export default function ComingSoonPanel({ onHome }: { onHome: () => void }) {
+  const t = useTranslations("atlas.soon");
   const sections = comingSoonVisibleSections();
   return (
     <div className="flex min-w-0 flex-col gap-5" data-testid="atlas-coming-soon">
       <AtlasViewTitle
-        eyebrow="Yakında"
-        title="GÖKYÜZÜ ATLASI GENİŞLİYOR"
-        sub="Yeni Haritalar — Geleneksel Astroloji Ekolleri — Yeni Hesaplamalar"
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        sub={t("sub")}
         actions={
           <button type="button" onClick={onHome} className={atlasGhostBtn}>
-            Ana ekrana dön
+            {t("back")}
           </button>
         }
       />
 
-      <section className={`${atlasPanel} px-4 py-5 sm:px-7 sm:py-6`} aria-label="Gökyüzü Atlası genişliyor">
+      <section className={`${atlasPanel} px-4 py-5 sm:px-7 sm:py-6`} aria-label={t("ariaExpanding")}>
         <p className="max-w-3xl text-[15px] leading-relaxed text-slate-700">
-          Yaşam Sistemi, farklı astroloji geleneklerini kendi hesaplama kurallarıyla aynı platformda buluşturmak için gelişmeye devam ediyor.
+          {t("intro1")}
         </p>
         <p className="mt-3 max-w-3xl text-[15px] leading-relaxed text-slate-700">
-          Yeni astroloji haritaları, geleneksel Horary ekolleri, Vedik Prashna yöntemleri ve hesaplama altyapımızın sunduğu yeni imkânlar üzerinde çalışmalar yürütülüyor.
+          {t("intro2")}
         </p>
       </section>
 
       <div className="grid min-w-0 gap-3">
-        {sections.map((s, i) => (
-          <details key={s.title} open className={`${atlasPanel} group min-w-0 overflow-hidden`} data-soon-section={i + 1}>
-            <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 outline-none sm:px-7 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <span className="text-[1.05rem] font-medium leading-snug text-[#0b1430] [font-family:var(--font-atlas-display)] sm:text-lg">
-                    {i + 1}. {s.title}
-                  </span>
-                  <span className="inline-flex shrink-0 items-center rounded-full border border-[#d9c9a3] bg-[#f5ecd7] px-2.5 py-0.5 text-[10.5px] font-semibold tracking-[0.14em] text-[#7a5a1e]" data-soon-status>
-                    {COMING_SOON_STATUS}
+        {sections.map((s, i) => {
+          const code = COMING_SOON_SECTION_CODES[s.title];
+          return (
+            <details key={s.title} open className={`${atlasPanel} group min-w-0 overflow-hidden`} data-soon-section={i + 1}>
+              <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 outline-none sm:px-7 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <span className="text-[1.05rem] font-medium leading-snug text-[#0b1430] [font-family:var(--font-atlas-display)] sm:text-lg">
+                      {i + 1}. {t(`sections.${code}`)}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center rounded-full border border-[#d9c9a3] bg-[#f5ecd7] px-2.5 py-0.5 text-[10.5px] font-semibold tracking-[0.14em] text-[#7a5a1e]" data-soon-status>
+                      {t("status")}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-[#b8954e] motion-safe:transition-transform group-open:rotate-180" aria-hidden="true" />
-            </summary>
-            <div className="border-t border-[#ece3cf] px-4 pb-5 pt-4 sm:px-7">
-              <p className="break-words text-[15px] font-medium leading-relaxed text-slate-800" data-soon-items>
-                {s.items.join(" — ")}
-              </p>
-              {s.notes?.map((n) => (
-                <p key={n} className="mt-3 max-w-3xl break-words text-sm leading-relaxed text-slate-600">
-                  {n}
+                <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-[#b8954e] motion-safe:transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <div className="border-t border-[#ece3cf] px-4 pb-5 pt-4 sm:px-7">
+                <p className="break-words text-[15px] font-medium leading-relaxed text-slate-800" data-soon-items>
+                  {s.items.map((it) => t(`items.${COMING_SOON_ITEM_CODES[it]}`)).join(" — ")}
                 </p>
-              ))}
-            </div>
-          </details>
-        ))}
+                {s.notes?.map((n, k) => (
+                  <p key={n} className="mt-3 max-w-3xl break-words text-sm leading-relaxed text-slate-600">
+                    {t(`notes.${code}_${k + 1}`)}
+                  </p>
+                ))}
+              </div>
+            </details>
+          );
+        })}
       </div>
 
       <section className={`${atlasPanel} px-4 py-5 sm:px-7 sm:py-6`} aria-labelledby="atlas-soon-process">
         <h3 id="atlas-soon-process" className={`${atlasEyebrow} !text-[#8a6a2a]`}>
-          GELİŞTİRME SÜRECİ HAKKINDA
+          {t("processTitle")}
         </h3>
-        {PROCESS_NOTES.map((n) => (
-          <p key={n} className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-700">
-            {n}
+        {(["p1", "p2", "p3", "p4"] as const).map((k) => (
+          <p key={k} className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-700">
+            {t(`process.${k}`)}
           </p>
         ))}
       </section>
