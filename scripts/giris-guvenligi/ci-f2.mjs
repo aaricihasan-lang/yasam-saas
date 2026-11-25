@@ -101,6 +101,8 @@ const TSX = [
   // F3: gerçek gönderim öncesi SMTP kabul provası — production sağlayıcı yolu (env → smtpProvider → DB kota) + sahte TLS sunucusu;
   // Owner doğrulama → kitsiz red → kit → zorunluluk → e-posta koduyla giriş; süre / kesinti / kimlik / TLS hataları; uzman korunur.
   "scripts/giris-guvenligi/f3-smtp-kabul-provasi.harness.ts",
+  // F3 yayın sonrası: kapsam bildirimi durdurduğunda giriş + denetim kaydı korunur (scope_closed izi), Owner bildirimi gider.
+  "scripts/giris-guvenligi/f3-bildirim-izi.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
