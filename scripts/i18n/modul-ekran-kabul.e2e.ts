@@ -274,9 +274,18 @@ async function seed(env: TestEnv): Promise<{ fx: Fixture; seedNotes: string[] }>
   let anamnesis: string | null = null;
   try {
     const r = await q(
-      `insert into public.client_anamneses(tenant_id, client_id, kind, title, assessment_date, status, template_version, answers, created_by_user_id, completed_by_user_id, completed_at)
-       values ($1,$2,'initial','ZZ anamnez formu','2026-11-10','completed','std-v1',$3,$4,$4,'2026-11-10T10:00:00Z') returning id`,
-      [tenant, client, JSON.stringify({ "A.reason": "ZZ basvuru nedeni" }), userId],
+      // API'nin (POST /api/clients/[id]/anamnez) yazdığı TAM şekil: form_custom 4 anahtarlı, client_snapshot dolu.
+      // DB varsayılanı '{}' API'nin hiç yazmadığı bir şekildir → editör (effectiveSections: custom.labels[...]) çöker.
+      `insert into public.client_anamneses(tenant_id, client_id, kind, title, assessment_date, status, template_key, template_version, form_custom, answers, source_links, client_snapshot, created_by_user_id, completed_by_user_id, completed_at)
+       values ($1,$2,'initial','ZZ anamnez formu','2026-11-10','completed','standard','std-v1',$3,$4,'{}'::jsonb,$5,$6,$6,'2026-11-10T10:00:00Z') returning id`,
+      [
+        tenant,
+        client,
+        JSON.stringify({ hidden: [], labels: {}, enabledSections: [], custom: [] }),
+        JSON.stringify({ "A.reason": "ZZ basvuru nedeni" }),
+        JSON.stringify({ ad: SYN.clientAd, soyad: SYN.clientSoyad, dogum: "1991-04-12" }),
+        userId,
+      ],
     );
     anamnesis = String(r.rows[0]?.id ?? "") || null;
     notes.push("tohum: anamnez ✓");
@@ -572,6 +581,9 @@ async function screenTour(browser: Browser, env: TestEnv, fx: Fixture, lang: Lan
       results.push(res);
       const flag = res.verdict === "PASS" ? "PASS" : res.verdict === "FAIL" ? "FAIL" : "ATLA";
       console.log(`  ${flag} [${lang} ${width}] ${r.id} http=${res.status ?? "-"} taşma=${res.overflowPx} çökme=${res.crash ? "E" : "H"} konsol=${res.consoleErrors} api5xx=${res.api5xx.length}${lang === "en" ? ` tr-aday=${res.trCandidates}` : ""}${res.note ? ` (${res.note})` : ""}`);
+      // Tanı: ozet.md yazılamasa da (süreç erken düşerse) taşan öğe + çökme nedeni CI günlüğünde kalsın.
+      if (res.overflowPx > 1) console.log(`      taşan öğeler: ${res.overflowOffenders.join(" · ") || "(saptanamadı)"}`);
+      if (res.crash) console.log(`      çökme: ${res.crashReason ?? "-"}${res.pageErrors.length ? ` | pageerror: ${res.pageErrors[0]!.slice(0, 300)}` : ""}${res.consoleSamples.length ? ` | konsol: ${res.consoleSamples.join(" ‖ ").slice(0, 400)}` : ""}`);
       if (res.crash) {
         // Çöken sayfa sonraki rotayı etkilemesin: yeni sekme.
         await page.close().catch(() => undefined);
@@ -711,6 +723,9 @@ async function scenarioWord(browser: Browser, env: TestEnv, fx: Fixture, lang: L
       const shot = `senaryo-S4-word-pencere-${lang}.png`;
       await page.screenshot({ path: path.join(OUT, shot) });
       const respP = page.waitForResponse((r) => r.url().includes("/word-report") && r.request().method() === "POST", { timeout: 90_000 });
+      // gen.click() hata verirse respP hiç beklenmez; finally'de ctx kapanınca reddedilir → işlenmemiş ret
+      // tüm süreci düşürür (45570872612: "page.waitForResponse: Target page ... closed") ve ozet.md yazılmaz.
+      respP.catch(() => undefined);
       await gen.click();
       const resp = await respP;
       const ct = resp.headers()["content-type"] ?? "";
