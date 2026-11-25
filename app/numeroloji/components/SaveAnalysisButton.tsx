@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { localizeApiError } from "@/lib/i18n/apiError";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -27,6 +30,9 @@ export function SaveAnalysisButton({
   variant = "default",
 }: Props) {
   const { showToast } = useToast();
+  const t = useTranslations("numerology.app.save");
+  const tApi = useTranslations("common.apiErrors");
+  const locale = useLocale();
   // Çift kayıt koruması: senkron kilit + başarıdan sonra aynı analiz (imza) değişmedikçe
   // buton "Kaydedildi ✓" olarak pasif kalır (tekrar tık → ikinci insert olmaz).
   const { run, pending: busy } = useSubmitLock();
@@ -118,13 +124,14 @@ export function SaveAnalysisButton({
       if (!result) return; // kilitliyken ikinci tık: yok say
       error = result.error;
     } catch (e) {
-      error = e instanceof Error ? e.message : "Bilinmeyen hata";
+      error = e instanceof Error ? e.message : t("unknownError");
     }
 
     if (error) {
       showToast({
-        title: "Kayıt yapılamadı",
-        message: error,
+        title: t("failedTitle"),
+        // TR: yardımcı/sunucu metni birebir; diğer dillerde genel hata metni (karışık dil yok).
+        message: locale === DEFAULT_LOCALE ? error : localizeApiError(tApi, locale, { error }),
         type: "error",
       });
       return;
@@ -132,7 +139,7 @@ export function SaveAnalysisButton({
 
     setSavedSignature(sig);
     showToast({
-      message: "Analiz kaydedildi",
+      message: t("success"),
       type: "success",
     });
   }
@@ -172,7 +179,7 @@ export function SaveAnalysisButton({
           : `rounded-2xl border border-violet-300/80 bg-white px-6 py-3 text-sm font-black uppercase tracking-[0.14em] text-violet-900 shadow-sm ring-1 ring-violet-100/80 transition hover:border-amber-300/70 hover:bg-amber-50/90 hover:text-amber-950 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100/80 disabled:text-slate-400 disabled:shadow-none disabled:ring-slate-100 sm:w-auto ${className}`
       }
     >
-      {busy ? (phase === "check" ? "Kontrol ediliyor…" : "Kaydediliyor…") : alreadySaved ? "Kaydedildi ✓" : "KAYDET"}
+      {busy ? (phase === "check" ? t("checking") : t("saving")) : alreadySaved ? t("saved") : t("save")}
     </button>
     </>
   );

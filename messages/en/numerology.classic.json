@@ -1,0 +1,228 @@
+{
+  "numerology": {
+    "classic": {
+      "shared": {
+        "crumbCentre": "Numerology Centre",
+        "crumbClassic": "Classical Numerology"
+      },
+      "labels": {
+        "method": {
+          "pythagorean": "Pythagorean (Western)",
+          "chaldean": "Chaldean (Cheiro)"
+        },
+        "interpretationHeading": "Classical method interpretation",
+        "numberKind": {
+          "single": "Single digit",
+          "master": "Master number",
+          "compound": "Compound number"
+        },
+        "compoundNature": {
+          "fortunate": "Fortunate",
+          "unfortunate": "Unfortunate",
+          "mixed": "Mixed"
+        },
+        "businessRating": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "caution": "Caution",
+          "avoid": "Avoid"
+        },
+        "verification": {
+          "match": "Verified by independent calculation",
+          "mismatch": "Does not match independent calculation",
+          "unverified": "Not verified"
+        },
+        "meaning": {
+          "strengths": "Strengths",
+          "challenges": "Challenges",
+          "career": "Career",
+          "relationships": "Relationships",
+          "spirituality": "Spirituality"
+        },
+        "core": {
+          "lifePath": "Life Path",
+          "expression": "Expression",
+          "soulUrge": "Soul Urge"
+        }
+      },
+      "meta": {
+        "hubTitle": "Classical Numerology · Yaşam Sistemi",
+        "libraryTitle": "Number Knowledge Library · Classical Numerology",
+        "relationshipTitle": "Relationship Analysis · Classical Numerology",
+        "namesTitle": "Name Options · Classical Numerology",
+        "businessTitle": "Business Numerology · Classical Numerology",
+        "recordsTitle": "Saved Analyses · Classical Numerology"
+      },
+      "hub": {
+        "title": "Western and Chaldean traditions",
+        "sub": "Pythagorean core numbers, karmic structure, timing cycles and Chaldean compound numbers — every step calculated traceably.",
+        "chipsLabel": "Core principles of the method",
+        "chipMaster": "Master numbers 11 · 22 · 33",
+        "sectionsLabel": "Classical Numerology sections",
+        "tiles": {
+          "new": {
+            "title": "New Analysis",
+            "desc": "Calculate all techniques, or only the ones you choose, from full name and date of birth.",
+            "badge": "Start here"
+          },
+          "records": {
+            "title": "Saved Analyses",
+            "desc": "Stored Classical analyses; renaming, deletion and Word export."
+          },
+          "library": {
+            "title": "Number Knowledge Library",
+            "desc": "Meanings of 1–9, master numbers and Chaldean compound numbers 10–52."
+          },
+          "relationship": {
+            "title": "Relationship Analysis",
+            "desc": "Compatibility of two people’s core numbers and their complementary aspects."
+          },
+          "business": {
+            "title": "Business Numerology",
+            "desc": "The Chaldean number of a company or brand name and its traditional assessment."
+          },
+          "names": {
+            "title": "Name Options",
+            "desc": "Compare up to six candidate names side by side using Pythagorean and Chaldean."
+          }
+        },
+        "stone": {
+          "title": "Numerology – Natural Stones",
+          "desc": "The “Stones” tab of a person analysis shows three sources separately: stones suggested by the chart, vibration match and planetary association, together with your stock information. Suggestions are symbolic and traditional; they make no health claims.",
+          "badgeSymbolic": "Symbolic / traditional",
+          "badgeWhere": "In the analysis result · Stones"
+        }
+      },
+      "kit": {
+        "crumbsLabel": "Breadcrumb",
+        "loading": "Loading…",
+        "cancel": "Cancel",
+        "pleaseWait": "Please wait…",
+        "verified": "Verified",
+        "mismatch": "Mismatch",
+        "mismatchPlain": "The independent calculation gave a different result.",
+        "mismatchWithValue": "The independent calculation gave a different result (independent calculation: {value}).",
+        "expertDecides": "The decision rests with the practitioner.",
+        "yes": "yes",
+        "no": "no",
+        "traceLabel": "How was it calculated?",
+        "karmicDebt": "Karmic debt {value}"
+      },
+      "dupDialog": {
+        "titleFailed": "Previous records could not be checked",
+        "titleDuplicate": "A saved analysis already exists for this person",
+        "failedLead": "We could not check right now whether a record already exists with this full name and date of birth. You can try again or save without checking.",
+        "failedHint": "Nothing has been saved yet; the result on this page is kept.",
+        "leadSingle": "You have a person analysis saved with this full name and date of birth. Would you like to open the existing record or save a new analysis?",
+        "leadMany": "You have {total} person analyses saved with this full name and date of birth. Would you like to open the existing record or save a new analysis?",
+        "hint": "The existing record opens in a new tab; the unsaved result on this page is not lost. The earlier record is not changed.",
+        "matchesLabel": "Matching records",
+        "born": "Born {date}",
+        "savedAt": "Saved {date}",
+        "openThis": "Open This Record",
+        "shownOf": "Showing the {shown} most recent records ({total} in total).",
+        "checking": "Checking…",
+        "retry": "Try Again",
+        "openExisting": "Open Existing Record",
+        "saveAnyway": "Save Anyway",
+        "saveNewAnyway": "Save as New Anyway",
+        "cancel": "Cancel"
+      },
+      "premiumArt": {
+        "sceneCaption": "PYTHAGOREAN · CHALDEAN"
+      },
+      "library": {
+        "title": "Number Knowledge Library",
+        "sub": "Fixed number meanings of the classical method. Contains no personal data; interpretations follow the traditional method.",
+        "tabsLabel": "Library sections",
+        "tabs": {
+          "pythagorean_meaning": "Pythagorean number meanings",
+          "chaldean_compound": "Chaldean compound numbers"
+        },
+        "numberFallback": "Number {n}",
+        "compoundFallback": "Compound {n}",
+        "root": "Root {n}",
+        "sameAs": "Same meaning as {n}",
+        "retry": "Try again",
+        "loading": "Loading library…",
+        "emptyTitle": "Library content has not been loaded yet",
+        "emptyBody": "Number meanings will appear here once your administrator has imported them."
+      },
+      "report": {
+        "groups": {
+          "core": "Core numbers",
+          "karmic": "Karmic lessons and debts",
+          "timing": "Pinnacles, challenges, personal cycles",
+          "bridge": "Bridge numbers",
+          "name_letters": "Name letters",
+          "hidden_subconscious": "Hidden passion and subconscious self",
+          "birthday_profile": "Birthday profile",
+          "maturity": "Maturity",
+          "chaldean": "Chaldean (Cheiro)",
+          "dual": "Two-system comparison",
+          "lucky": "Lucky associations",
+          "stones": "Stone suggestions (with information note)"
+        },
+        "variants": {
+          "summary": { "label": "Summary", "desc": "Numbers and short meanings" },
+          "technical": { "label": "Technical", "desc": "Calculation traces and verification status" },
+          "full": { "label": "Full", "desc": "All sections and interpretations" }
+        },
+        "wordTitle": "Word report",
+        "leadPerson": "Choose the sections to include in the report.",
+        "leadOther": "A Word report is generated from the analysis result.",
+        "sectionsLegend": "Report sections",
+        "fullHint": "The full report includes all sections.",
+        "detailLevel": "Level of detail",
+        "downloaded": "Report downloaded.",
+        "preparing": "Preparing…",
+        "wordDownload": "Download Word",
+        "stonesWord": "Stone report (Word)",
+        "preview": "Preview",
+        "png": {
+          "title": "Visual report (PNG)",
+          "lead": "Core numbers, karmic and periodic information in a single-page, high-resolution image. Suitable for sharing and printing.",
+          "alt": "Classical Numerology visual report preview",
+          "download": "Download PNG",
+          "build": "Create visual report"
+        }
+      },
+      "other": {
+        "compatibility": "Compatibility · {value}%",
+        "scorePercent": "{value}%",
+        "relTitle": "Numerological compatibility",
+        "scoreBadge": "Classical method score · cannot be verified",
+        "scoreNote": "Classical method score · its formula is not documented in the source, so it cannot be independently verified; the numbers below are checked independently.",
+        "independentCheck": "Independent check of the numbers",
+        "notSpecified": "Not specified.",
+        "advice": "Recommendation",
+        "bizSub": "Chaldean (Cheiro) · business name",
+        "favorableCompound": "Fortunate compound",
+        "assessment": "Assessment",
+        "industries": "Traditionally compatible fields",
+        "namesTitle": "Candidate names side by side",
+        "namesLead": "Each candidate is calculated separately with both systems; the numbers are not combined and no ranking is made.",
+        "namesCaption": "Pythagorean and Chaldean numbers of the candidate names",
+        "colCandidate": "Candidate",
+        "colPythagorean": "Pythagorean",
+        "colChaldean": "Chaldean",
+        "colAgreement": "Agreement",
+        "sameRoot": "Same root",
+        "different": "Different",
+        "failedCandidates": "Candidates that could not be calculated: {list}",
+        "pythagoreanTitle": "Pythagorean · {title}",
+        "chaldeanValue": "Chaldean {value}",
+        "chaldeanCaution": "Chaldean · Caution",
+        "tracePythagorean": "Pythagorean · How was it calculated?",
+        "traceChaldean": "Chaldean · How was it calculated?"
+      },
+      "draft": {
+        "crumbResult": "Analysis Result",
+        "loading": "Loading result…",
+        "missingTitle": "Unsaved result not found",
+        "newAnalysis": "New Analysis",
+        "missingBody": "Unsaved results can only be viewed in the tab where they were calculated, while that tab remains open. You can enter the details and calculate again; analyses you save are kept in Saved Analyses."
+      }
+    }
+  }
+}

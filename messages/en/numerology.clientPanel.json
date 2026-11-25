@@ -1,0 +1,19 @@
+{
+  "numerology": {
+    "clientPanel": {
+      "title": "Classical Numerology",
+      "intro": "Classical Numerology analyses from the Numerology Centre (separate from the Holistic Numerology records above).",
+      "new": "New Classical Numerology analysis",
+      "loadError": "Classical Numerology records could not be loaded right now.",
+      "empty": "There are no Classical Numerology analyses linked to this client.",
+      "analysisFallback": "Analysis",
+      "partial": " · partial",
+      "kinds": {
+        "person": "Personal analysis",
+        "relationship": "Relationship compatibility",
+        "business": "Business name",
+        "names": "Name options"
+      }
+    }
+  }
+}

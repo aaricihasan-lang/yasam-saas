@@ -4,6 +4,7 @@
 // Tamamı bu projede üretilmiş SVG çizimlerdir (dış görsel / lisans bağımlılığı yok). Hepsi aria-hidden.
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 
 const NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -111,6 +112,7 @@ function PyTable({ x, y, w, gid }: { x: number; y: number; w: number; gid: strin
 /** Klasik Numeroloji vitrin görseli (ana sayfa üst bandı ve yöntem kartı). */
 export function ClassicHeroArt({ className, variant = "hero" }: { className?: string; variant?: "hero" | "card" }) {
   const gid = `nkA${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const caption = useTranslations("numerology.classic.premiumArt")("sceneCaption");
   if (variant === "card") {
     return (
       <svg className={className} viewBox="84 0 476 178" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
@@ -140,7 +142,7 @@ export function ClassicHeroArt({ className, variant = "hero" }: { className?: st
       <Sparkle x={292} y={30} s={7} />
       <Sparkle x={540} y={196} s={5} o={0.7} />
       <Sparkle x={46} y={34} s={4} o={0.6} />
-      <text x={421} y={206} textAnchor="middle" fontFamily="Georgia, serif" fontSize={11} letterSpacing="3" fill="#6a7fa3">PİSAGOR · KALDE</text>
+      <text x={421} y={206} textAnchor="middle" fontFamily="Georgia, serif" fontSize={11} letterSpacing="3" fill="#6a7fa3">{caption}</text>
     </svg>
   );
 }

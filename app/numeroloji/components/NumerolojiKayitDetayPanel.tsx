@@ -23,6 +23,7 @@ import {
   updateNumerologyAnalysisGorsel,
 } from "../helpers/numerolojiKayit";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import { ChronoRecordProvider } from "../hooks/ChronoRecordContext";
 import {
   extractGorselFromAnalysisData,
   extractTasFromAnalysisData,
@@ -465,6 +466,8 @@ export function NumerolojiKayitDetayPanel({
 
   // NUM-MOB-2: mobilde kutusuz (dış kart kaldırıldı); md+ mevcut kart korunur.
   return (
+    // I18N-0003: kaydın yapısal doğum tarihi + sunucu süzme durumu kronolojik bölümlere bağlamla iletilir.
+    <ChronoRecordProvider birthDate={birthDate} analysisData={analysisData}>
     <div className="w-full overflow-hidden md:rounded-[16px] md:border md:border-violet-200/55 md:bg-white/80 md:shadow-[0_0_18px_rgba(139,92,246,0.08)] md:backdrop-blur-xl">
       {/* NUM-MOB-2-FIX1: mobilde sekme başlığı kutusuz (bg/border yok); md+ korunur. */}
       <div className="px-0 py-2 md:border-b md:border-violet-100/60 md:bg-gradient-to-r md:from-violet-50/60 md:via-white/80 md:to-fuchsia-50/40 md:px-4">
@@ -640,6 +643,7 @@ export function NumerolojiKayitDetayPanel({
           )
         : null}
     </div>
+    </ChronoRecordProvider>
   );
 }
 

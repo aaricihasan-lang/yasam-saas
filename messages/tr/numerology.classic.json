@@ -1,0 +1,228 @@
+{
+  "numerology": {
+    "classic": {
+      "shared": {
+        "crumbCentre": "Numeroloji Merkezi",
+        "crumbClassic": "Klasik Numeroloji"
+      },
+      "labels": {
+        "method": {
+          "pythagorean": "Pisagor (Batı)",
+          "chaldean": "Kalde (Cheiro)"
+        },
+        "interpretationHeading": "Klasik yöntem yorumu",
+        "numberKind": {
+          "single": "Tek hane",
+          "master": "Usta sayı",
+          "compound": "Bileşik sayı"
+        },
+        "compoundNature": {
+          "fortunate": "Uğurlu",
+          "unfortunate": "Uğursuz",
+          "mixed": "Karışık"
+        },
+        "businessRating": {
+          "excellent": "Mükemmel",
+          "good": "İyi",
+          "caution": "Dikkat",
+          "avoid": "Kaçınılmalı"
+        },
+        "verification": {
+          "match": "Bağımsız hesapla doğrulandı",
+          "mismatch": "Bağımsız hesapla uyuşmuyor",
+          "unverified": "Doğrulanmadı"
+        },
+        "meaning": {
+          "strengths": "Güçlü yönler",
+          "challenges": "Zorlayıcı yönler",
+          "career": "Kariyer",
+          "relationships": "İlişkiler",
+          "spirituality": "Ruhsallık"
+        },
+        "core": {
+          "lifePath": "Yaşam Yolu",
+          "expression": "İfade",
+          "soulUrge": "Ruh Güdüsü"
+        }
+      },
+      "meta": {
+        "hubTitle": "Klasik Numeroloji · Yaşam Sistemi",
+        "libraryTitle": "Sayı Bilgi Kütüphanesi · Klasik Numeroloji",
+        "relationshipTitle": "İlişki Analizi · Klasik Numeroloji",
+        "namesTitle": "İsim Seçenekleri · Klasik Numeroloji",
+        "businessTitle": "İşletme Numerolojisi · Klasik Numeroloji",
+        "recordsTitle": "Kayıtlı Analizler · Klasik Numeroloji"
+      },
+      "hub": {
+        "title": "Batı ve Kalde gelenekleri",
+        "sub": "Pisagor çekirdek sayıları, karmik yapı, zamanlama döngüleri ve Kalde bileşik sayıları — her adımı izlenebilir hesapla.",
+        "chipsLabel": "Yöntemin temel ilkeleri",
+        "chipMaster": "Usta sayılar 11 · 22 · 33",
+        "sectionsLabel": "Klasik Numeroloji bölümleri",
+        "tiles": {
+          "new": {
+            "title": "Yeni Analiz",
+            "desc": "Ad soyad ve doğum tarihiyle tüm teknikleri ya da seçtiklerinizi hesaplayın.",
+            "badge": "Buradan başlayın"
+          },
+          "records": {
+            "title": "Kayıtlı Analizler",
+            "desc": "Saklanan Klasik analizler; yeniden adlandırma, silme ve Word çıktısı."
+          },
+          "library": {
+            "title": "Sayı Bilgi Kütüphanesi",
+            "desc": "1–9, usta sayılar ve Kalde 10–52 bileşik sayı anlamları."
+          },
+          "relationship": {
+            "title": "İlişki Analizi",
+            "desc": "İki kişinin çekirdek sayılarının uyumu ve tamamlayıcı yönleri."
+          },
+          "business": {
+            "title": "İşletme Numerolojisi",
+            "desc": "Firma ve marka adının Kalde sayısı ve geleneksel değerlendirmesi."
+          },
+          "names": {
+            "title": "İsim Seçenekleri",
+            "desc": "En çok altı aday ismi Pisagor ve Kalde ile yan yana inceleyin."
+          }
+        },
+        "stone": {
+          "title": "Numeroloji – Doğaltaş",
+          "desc": "Kişi analizinin “Taşlar” sekmesinde üç kaynak ayrı gösterilir: haritanın önerdiği taşlar, titreşim eşleşmesi ve gezegen ilişkisi; stok bilginizle birlikte. Öneriler sembolik ve gelenekseldir; sağlık iddiası taşımaz.",
+          "badgeSymbolic": "Sembolik / geleneksel",
+          "badgeWhere": "Analiz sonucunda · Taşlar"
+        }
+      },
+      "kit": {
+        "crumbsLabel": "Konum",
+        "loading": "Yükleniyor…",
+        "cancel": "Vazgeç",
+        "pleaseWait": "Lütfen bekleyin…",
+        "verified": "Doğrulandı",
+        "mismatch": "Uyuşmazlık",
+        "mismatchPlain": "Bağımsız hesap farklı sonuç verdi.",
+        "mismatchWithValue": "Bağımsız hesap farklı sonuç verdi (bağımsız hesap: {value}).",
+        "expertDecides": "Karar uzmanındır.",
+        "yes": "evet",
+        "no": "hayır",
+        "traceLabel": "Nasıl Hesaplandı?",
+        "karmicDebt": "Karmik borç {value}"
+      },
+      "dupDialog": {
+        "titleFailed": "Önceki kayıtlar kontrol edilemedi",
+        "titleDuplicate": "Bu kişi için kayıtlı analiz var",
+        "failedLead": "Bu ad soyad ve doğum tarihiyle daha önce kayıt yapılıp yapılmadığı şu anda kontrol edilemedi. Tekrar deneyebilir ya da kontrol etmeden kaydedebilirsiniz.",
+        "failedHint": "Henüz hiçbir şey kaydedilmedi; bu sayfadaki sonuç korunur.",
+        "leadSingle": "Bu ad soyad ve doğum tarihiyle kaydedilmiş bir kişi analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "leadMany": "Bu ad soyad ve doğum tarihiyle kaydedilmiş {total} kişi analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "hint": "Mevcut kayıt yeni sekmede açılır; bu sayfadaki kaydedilmemiş sonuç kaybolmaz. Eski kayıt değiştirilmez.",
+        "matchesLabel": "Eşleşen kayıtlar",
+        "born": "Doğum {date}",
+        "savedAt": "Kayıt {date}",
+        "openThis": "Bu Kaydı Aç",
+        "shownOf": "En yeni {shown} kayıt gösteriliyor (toplam {total}).",
+        "checking": "Kontrol ediliyor…",
+        "retry": "Tekrar Dene",
+        "openExisting": "Mevcut Kaydı Aç",
+        "saveAnyway": "Yine de Kaydet",
+        "saveNewAnyway": "Yine de Yeni Kaydet",
+        "cancel": "Vazgeç"
+      },
+      "premiumArt": {
+        "sceneCaption": "PİSAGOR · KALDE"
+      },
+      "library": {
+        "title": "Sayı Bilgi Kütüphanesi",
+        "sub": "Klasik yöntemin sabit sayı anlamları. Kişisel veri içermez; yorumlar geleneksel yöntem yorumudur.",
+        "tabsLabel": "Kütüphane bölümleri",
+        "tabs": {
+          "pythagorean_meaning": "Pisagor sayı anlamları",
+          "chaldean_compound": "Kalde bileşik sayılar"
+        },
+        "numberFallback": "Sayı {n}",
+        "compoundFallback": "Bileşik {n}",
+        "root": "Kök {n}",
+        "sameAs": "{n} ile aynı anlam",
+        "retry": "Tekrar dene",
+        "loading": "Kütüphane yükleniyor…",
+        "emptyTitle": "Kütüphane içeriği henüz yüklenmedi",
+        "emptyBody": "Sayı anlamları yöneticiniz tarafından içe aktarıldığında burada görünecek."
+      },
+      "report": {
+        "groups": {
+          "core": "Çekirdek sayılar",
+          "karmic": "Karmik dersler ve borçlar",
+          "timing": "Zirveler, zorluklar, kişisel döngüler",
+          "bridge": "Köprü sayıları",
+          "name_letters": "İsim harfleri",
+          "hidden_subconscious": "Gizli tutku ve bilinçaltı benlik",
+          "birthday_profile": "Doğum günü profili",
+          "maturity": "Olgunluk",
+          "chaldean": "Kalde (Cheiro)",
+          "dual": "İki sistem karşılaştırması",
+          "lucky": "Uğurlu ilişkiler",
+          "stones": "Taş önerileri (bilgilendirme notuyla)"
+        },
+        "variants": {
+          "summary": { "label": "Özet", "desc": "Sayılar ve kısa anlamlar" },
+          "technical": { "label": "Teknik", "desc": "Hesap izleri ve doğrulama durumu" },
+          "full": { "label": "Tam", "desc": "Tüm bölümler ve yorumlar" }
+        },
+        "wordTitle": "Word raporu",
+        "leadPerson": "Rapora girecek bölümleri seçin.",
+        "leadOther": "Analiz sonucundan Word raporu üretilir.",
+        "sectionsLegend": "Rapor bölümleri",
+        "fullHint": "Tam raporda tüm bölümler yer alır.",
+        "detailLevel": "Ayrıntı düzeyi",
+        "downloaded": "Rapor indirildi.",
+        "preparing": "Hazırlanıyor…",
+        "wordDownload": "Word indir",
+        "stonesWord": "Taş raporu (Word)",
+        "preview": "Önizleme",
+        "png": {
+          "title": "Görsel rapor (PNG)",
+          "lead": "Temel sayılar, karmik ve dönemsel bilgiler tek sayfalık yüksek çözünürlüklü görselde. Paylaşım ve baskı için uygundur.",
+          "alt": "Klasik Numeroloji görsel raporu önizlemesi",
+          "download": "PNG indir",
+          "build": "Görsel raporu oluştur"
+        }
+      },
+      "other": {
+        "compatibility": "Uyum · %{value}",
+        "scorePercent": "%{value}",
+        "relTitle": "Numerolojik uyum",
+        "scoreBadge": "Klasik yöntem puanı · doğrulanamaz",
+        "scoreNote": "Klasik yöntem puanı · formülü kaynakta belgelenmediği için bağımsız doğrulanamaz; aşağıdaki sayılar ayrıca bağımsız olarak kontrol edilir.",
+        "independentCheck": "Sayıların bağımsız kontrolü",
+        "notSpecified": "Belirtilmemiş.",
+        "advice": "Öneri",
+        "bizSub": "Kalde (Cheiro) · işletme adı",
+        "favorableCompound": "Uğurlu bileşik",
+        "assessment": "Değerlendirme",
+        "industries": "Geleneksel olarak uyumlu alanlar",
+        "namesTitle": "Aday adlar yan yana",
+        "namesLead": "Her aday iki sistemle ayrı hesaplanır; sayılar birleştirilmez ve sıralama yapılmaz.",
+        "namesCaption": "Aday adların Pisagor ve Kalde sayıları",
+        "colCandidate": "Aday",
+        "colPythagorean": "Pisagor",
+        "colChaldean": "Kalde",
+        "colAgreement": "Uyum",
+        "sameRoot": "Aynı kök",
+        "different": "Farklı",
+        "failedCandidates": "Hesaplanamayan adaylar: {list}",
+        "pythagoreanTitle": "Pisagor · {title}",
+        "chaldeanValue": "Kalde {value}",
+        "chaldeanCaution": "Kalde · Dikkat",
+        "tracePythagorean": "Pisagor · Nasıl Hesaplandı?",
+        "traceChaldean": "Kalde · Nasıl Hesaplandı?"
+      },
+      "draft": {
+        "crumbResult": "Analiz Sonucu",
+        "loading": "Sonuç yükleniyor…",
+        "missingTitle": "Kaydedilmemiş sonuç bulunamadı",
+        "newAnalysis": "Yeni Analiz",
+        "missingBody": "Kaydedilmemiş sonuçlar yalnız hesaplandıkları sekmede, sekme açık kaldıkça görüntülenir. Bilgileri girip yeniden hesaplayabilirsiniz; kaydettiğiniz analizler Kayıtlı Analizler’de durur."
+      }
+    }
+  }
+}

@@ -27,7 +27,7 @@ import {
   WidthType,
 } from "docx";
 import { parseBirthDate, mucadeleKonuText, MUCADELE_ONCEKI_METOD_NOTU, type MucadeleResult, type Zirve } from "@/lib/numeroloji";
-import { parseBirthDateFlexible } from "@/app/numeroloji/utils/numerolojiInput";
+import { chronoBirthYear as resolveChronoBirthYear } from "@/app/numeroloji/utils/chronoBirth";
 import {
   computeUniversalTiming,
   computePersonalTiming,
@@ -618,7 +618,10 @@ export function buildPersonSections(
   // KAPALI → currentIstanbulYear() (önceki davranış birebir).
   const chronoCutoffYear = chronoLimitYear(currentIstanbulYear(), futureYears);
   // NUM-005: row.birth_date DB'den ISO (YYYY-MM-DD) veya TR gelebilir → esnek sınır parser'ı.
-  const chronoBirthYear = parseBirthDateFlexible(row.birth_date)?.year ?? null;
+  // I18N-0003: doğum yılı tek çözücüden (kayıt alanı birincil; snapshot metni yalnız eski kayıt geri
+  // dönüşü; harf segmentleri çapraz doğrulama). Çözülemez/çelişkili → yetki KAPALI iken kronoloji gizli.
+  const chronoBirthYear = resolveChronoBirthYear(motor, row.birth_date);
+  const chronoOpen = futureYears || chronoBirthYear !== null;
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
   // FA-02: analiz anı (created_at timestamptz) Europe/Istanbul; rapor tarihi yerel gün;
   // doğum tarihi TEXT (ISO veya GG.AA.YYYY) → kaydırmasız gösterim (anlaşılamazsa ham metin).
@@ -674,12 +677,12 @@ export function buildPersonSections(
         blocks.push(subHeading("Elementler"));
         blocks.push(...elementCards(motor));
         const chronoNote = () => p(chronoNoteText(futureYears), { size: S_SMALL, color: BODY, before: 40 });
-        const deg = degisimBlocks(row.birth_date, chronoCutoffYear);
+        const deg = chronoOpen ? degisimBlocks(row.birth_date, chronoCutoffYear) : [];
         if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); blocks.push(chronoNote()); }
         const z = zirveCards(motor, chronoBirthYear, chronoCutoffYear); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); blocks.push(chronoNote()); }
         // AŞAMA 1 P3: mucadeleBlocks kendi "Mücadele Yılları" alt başlığını üretir; burada tekrar eklenmez.
         const muc = mucadeleBlocks(motor, chronoBirthYear, chronoCutoffYear); if (muc.length) { blocks.push(...muc); blocks.push(chronoNote()); }
-        const harf = harflerTable(motor, chronoCutoffYear); if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); blocks.push(chronoNote()); }
+        const harf = chronoOpen ? harflerTable(motor, chronoCutoffYear) : null; if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); blocks.push(chronoNote()); }
       }
     } else if (tab === "detailed") {
       // Hesap Özetsiz de seçiliyse hesap bölümlerini TEKRAR ETME → doğrudan yorumlara geç.

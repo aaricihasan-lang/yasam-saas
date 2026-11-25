@@ -1,0 +1,201 @@
+{
+  "numerology": {
+    "app": {
+      "gate": {
+        "metaTitle": "Numeroloji Merkezi · Yaşam Sistemi",
+        "eyebrow": "Numeroloji Merkezi",
+        "title": "Hangi numeroloji yöntemiyle çalışacaksınız?",
+        "sub": "İki yöntem bağımsızdır; hesap kuralları ve kayıtlar ayrı tutulur. Dilediğiniz zaman iki kaydı yan yana inceleyebilirsiniz.",
+        "methodsAria": "Numeroloji yöntemleri",
+        "idLetterTable": "Harf tablosu",
+        "idMasterNumber": "Usta sayı",
+        "idTechniques": "Temel teknikler",
+        "a": {
+          "title": "Bütüncül Numeroloji",
+          "sub": "Eğitim tekniklerine dayalı, bütüncül numeroloji çalışma alanı.",
+          "idcardAria": "Yöntem kimlik kartı — Bütüncül Numeroloji",
+          "letterTable": "Pisagor harf tablosu + eğitim teknikleri",
+          "masterNumber": "Tüm rakamlar tek seferde toplanır, ara toplam gösterilir (ör. 32/5).",
+          "chips": {
+            "pin": "PİN",
+            "anaKulvar": "Ana Kulvar",
+            "yanKulvar": "Yan Kulvar",
+            "cakraOmurgasi": "Çakra Omurgası",
+            "elementler": "Elementler",
+            "hayatYolu": "Hayat Yolu"
+          },
+          "foot": "Kendi çalışma alanında açılır.",
+          "cta": "Bütüncül Numeroloji’yi aç →"
+        },
+        "b": {
+          "title": "Klasik Numeroloji",
+          "sub": "Batı ve Kalde gelenekleri; adım adım doğrulanabilir hesap.",
+          "idcardAria": "Yöntem kimlik kartı — Klasik Numeroloji",
+          "letterTable": "Pisagor (Batı) ve Kalde (Cheiro) — iki ayrı yöntem",
+          "masterNumber": "Ay, gün ve yıl ayrı indirgenir; 11 · 22 · 33 korunur.",
+          "chips": {
+            "cekirdek": "Çekirdek Sayılar",
+            "karmik": "Karmik Dersler",
+            "zirveler": "Zirveler",
+            "kopruler": "Köprüler",
+            "kaldeBilesik": "Kalde Bileşik",
+            "ikiSistem": "İki Sistem"
+          },
+          "foot": "Her sayının hesabı adım adım gösterilir.",
+          "cta": "Klasik Numeroloji’yi aç →"
+        },
+        "compare": {
+          "title": "Karşılaştırmalı İnceleme",
+          "lead": "Aynı danışanın iki yöntemdeki kayıtlarını kavram kavram yan yana inceleyin. Sayılar birleştirilmez; orijinal analizler değişmez.",
+          "badge": "İki yöntem"
+        }
+      },
+      "home": {
+        "title": "Numeroloji",
+        "sub": "Yaşam haritanızı hesaplayın, raporunuzu oluşturun ve analizlerinizi saklayın. Modülü seçin.",
+        "navAria": "Numeroloji alanları",
+        "cards": {
+          "analiz": {
+            "title": "Numeroloji Analizi",
+            "desc": "Ad, soyad ve doğum tarihi ile tam motor çıktısı; sekmeli analiz, premium yaşam haritası görseli ve yüksek çözünürlüklü PNG dışa aktarım tek ekranda.",
+            "badge": "Buradan başlayın"
+          },
+          "kayitli": {
+            "title": "Kayıtlı Analizler",
+            "desc": "Kayıtlarınızı listeleyin; ad soyad, doğum tarihi ve kayıt zamanıyla birlikte her kaydı açıp tam metin özetini anında görüntüleyin."
+          },
+          "bilgi": {
+            "title": "Bilgi Bankası",
+            "desc": "Numeroloji eğitim notları, açıklamalar, yorum metinleri ve bilgi içeriklerini tek merkezde düzenleyin."
+          }
+        },
+        "foot": "Numeroloji — sayıların diliyle kendinizi keşfedin, yaşam haritanızı analiz edin ve bilgiyi tek merkezde yönetin."
+      },
+      "list": {
+        "tenantMissing": "Aktif kullanıcı tenant_id bulunamadı. Lütfen tekrar giriş yapın.",
+        "loadFailed": "Kayıtlar yüklenemedi: {detail}",
+        "demoTitle": "Demo Modu",
+        "demoNoDelete": "Demo hesapta silme işlemi gerçekleştirilemez.",
+        "errorTitle": "Hata",
+        "deleteFailed": "Seçili kayıtlar silinemedi: {detail}",
+        "unknownError": "Bilinmeyen hata",
+        "deleteNothing": "Silme işlemi gerçekleşmedi. Lütfen tekrar deneyin.",
+        "successTitle": "Başarılı",
+        "deleted": "{countText} analiz başarıyla silindi.",
+        "demoNoWord": "Demo hesapta toplu Word raporu alınamaz.",
+        "noSession": "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.",
+        "reportFailed": "Rapor oluşturulamadı.",
+        "reportDownloaded": "Numeroloji raporu indirildi.",
+        "infoTitle": "Bilgi",
+        "emptyTabs": "Bazı bölümlerde içerik yoktu ve eklenmedi: {list}",
+        "pageNavAria": "Sayfa gezinmesi",
+        "newAnalysis": "Yeni analiz",
+        "title": "Kayıtlı analizler",
+        "sub": "Tüm numeroloji kayıtlarınızı görüntüleyin ve yönetin.",
+        "demoBannerTitle": "Demo Modu — Örnek Analiz Listesi",
+        "demoBannerText": "<b>{name}</b> örnek analizi tamamen açıktır ve tüm içeriğe erişilebilir. Diğer kayıtlar sistemi göstermek için eklenmiştir; analiz içerikleri demo güvenliği nedeniyle flu gösterilir.",
+        "searchAria": "Ad veya soyad ara",
+        "searchPlaceholder": "Ad veya soyad ara…",
+        "loading": "Yükleniyor…",
+        "empty": "Henüz kayıtlı analiz yok.",
+        "noMatch": "Aramanızla eşleşen kayıt bulunamadı."
+      },
+      "duplicate": {
+        "titleFailed": "Önceki kayıtlar kontrol edilemedi",
+        "titleDuplicate": "Bu kişi için kayıtlı analiz var",
+        "failedBody": "Bu isim, soyisim ve doğum tarihiyle daha önce kayıt yapılıp yapılmadığı şu anda kontrol edilemedi. Tekrar deneyebilir ya da kontrol etmeden kaydedebilirsiniz.",
+        "failedNote": "Henüz hiçbir şey kaydedilmedi; bu sayfadaki çalışmanız korunur.",
+        "bodySingle": "Bu isim, soyisim ve doğum tarihiyle daha önce kaydedilmiş bir analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "bodyMany": "Bu isim, soyisim ve doğum tarihiyle daha önce kaydedilmiş {countText} analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "note": "Mevcut kayıt yeni sekmede açılır; bu sayfadaki çalışmanız kaybolmaz. Eski kayıt değiştirilmez.",
+        "matchesAria": "Eşleşen kayıtlar",
+        "birth": "Doğum {date}",
+        "createdSuffix": " · Kayıt {date}",
+        "openThis": "Bu Kaydı Aç",
+        "singleRecord": "Kayıt: {name} {surname} · Doğum {birth}",
+        "checking": "Kontrol ediliyor…",
+        "retry": "Tekrar Dene",
+        "openExisting": "Mevcut Kaydı Aç",
+        "saving": "Kaydediliyor…",
+        "saveAnyway": "Yine de Kaydet",
+        "saveNewAnyway": "Yine de Yeni Kaydet",
+        "cancel": "Vazgeç"
+      },
+      "save": {
+        "checking": "Kontrol ediliyor…",
+        "saving": "Kaydediliyor…",
+        "saved": "Kaydedildi ✓",
+        "save": "KAYDET",
+        "failedTitle": "Kayıt yapılamadı",
+        "unknownError": "Bilinmeyen hata",
+        "success": "Analiz kaydedildi"
+      },
+      "visual": {
+        "showStones": "Taş önerilerini görsel raporda göster",
+        "expertName": "Uzman adı",
+        "expertPlaceholder": "Örn. Hasan Arıcı",
+        "braceletStones": "Bileklik taşları",
+        "necklaceStones": "Kolye taşları",
+        "commaPlaceholder": "Virgülle ayırarak yazın",
+        "themeAria": "Görsel rapor teması",
+        "preparing": "Görsel hazırlanıyor...",
+        "pngDownload": "⤓ PNG İndir",
+        "fullscreen": "Tam Ekran",
+        "fullscreenThemeAria": "Tam ekran teması"
+      },
+      "picker": {
+        "title": "Word Raporu — Bölüm Seçimi",
+        "sub": "Rapora eklenecek bölümleri seçin",
+        "tabs": {
+          "summary": "Sonuç Özeti",
+          "plain": "Analiz (Hesap Özetsiz)",
+          "detailed": "Analiz (Hesap Özetli)",
+          "zamanlama": "Zamanlama & Gelişim",
+          "tas": "Taş Açıklamaları"
+        },
+        "refDateLabel": "Zamanlama referans tarihi",
+        "refDateHint": "Yıl, ay, gün ve gelişim hesapları bu tarihe göre oluşturulur.",
+        "atLeastOne": "En az bir bölüm seçin.",
+        "refDateRequired": "Zamanlama için geçerli bir referans tarihi seçin.",
+        "cancel": "Vazgeç",
+        "preparing": "Hazırlanıyor…",
+        "generate": "Word Oluştur"
+      },
+      "clientLink": {
+        "readFailed": "Danışan bağlantısı okunamadı.",
+        "network": "Ağ hatası. Bağlantını kontrol et.",
+        "aria": "Danışan bağlantısı",
+        "linkedLabel": "Bağlı danışan:",
+        "linkedUnknown": "Bir danışana bağlı",
+        "notLinked": "Bu analiz bir danışana bağlı değil.",
+        "autoNote": "Danışan analizleri, Danışan Yolculuğu'nda danışan kaydedilince otomatik oluşturulur."
+      },
+      "fontSize": {
+        "aria": "Yazı boyutu",
+        "decrease": "Yazıyı küçült",
+        "increase": "Yazıyı büyüt"
+      },
+      "rowError": {
+        "unreadable": "⚠️ Bu kayıt okunamadı (veri eski veya bozuk olabilir)."
+      },
+      "calcInfo": {
+        "usedInputs": "Kullanılan bilgiler",
+        "unusedInputs": "Bu hesapta kullanılmaz",
+        "rationale": "Hesabın mantığı",
+        "steps": "Adım adım hesap",
+        "reduction": "Sadeleştirme",
+        "result": "Sonuç",
+        "period": "Geçerlilik / dönem",
+        "formula": "Formül",
+        "calc": "Hesap",
+        "meaningQ": "Bu ne demek?",
+        "howQ": "Nasıl hesaplandı?",
+        "meaningAria": "{title}: Bu ne demek?",
+        "howAria": "{title}: Nasıl hesaplandı?",
+        "close": "Kapat",
+        "meaningFoot": "Bu, hesabın kısa bir kavram tanımıdır; kişisel yorum içermez.",
+        "calcFoot": "Bu döküm yalnız sayının nasıl bulunduğunu gösterir; numerolojik yorum içermez."
+      }
+    }
+  }
+}

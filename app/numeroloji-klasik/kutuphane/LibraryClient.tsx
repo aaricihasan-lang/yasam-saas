@@ -4,18 +4,17 @@
 //   Pisagor anlamları: 1–9, 11, 22, 33 · Kalde bileşik sayılar: 10–52 (nitelik rozetleriyle).
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import type { CompoundNature, MeaningBlock } from "@/lib/numeroloji-klasik/model";
-import { COMPOUND_NATURE_LABELS, INTERPRETATION_HEADING, NUMBER_KIND_LABELS } from "@/lib/numeroloji-klasik/labels";
+// Etiketler numerology.classic.labels katalogundan (TR değerleri lib/numeroloji-klasik/labels.ts ile birebir).
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
 import { num, rec, str, strList } from "../_lib/format";
 import type { CatalogEntry, CatalogResponse } from "../_lib/types";
 import { Alert, Hero, Shell, Skeleton } from "../_ui/kit";
 
 type Kind = "pythagorean_meaning" | "chaldean_compound";
-const TABS: { kind: Kind; label: string }[] = [
-  { kind: "pythagorean_meaning", label: "Pisagor sayı anlamları" },
-  { kind: "chaldean_compound", label: "Kalde bileşik sayılar" },
-];
+// `kind` kanonik katalog kodudur (API sorgusu); sekme adı numerology.classic.library.tabs.<kind>.
+const TABS: { kind: Kind }[] = [{ kind: "pythagorean_meaning" }, { kind: "chaldean_compound" }];
 const NATURE_CLASS: Record<CompoundNature, string> = { fortunate: "nk-ok", unfortunate: "nk-bad", mixed: "nk-warn" };
 
 function asMeaning(v: unknown): MeaningBlock | null {
@@ -34,6 +33,7 @@ function asMeaning(v: unknown): MeaningBlock | null {
 }
 
 function PyCard({ e }: { e: CatalogEntry }) {
+  const t = useTranslations("numerology.classic");
   const p = rec(e.payload);
   const m = asMeaning(p?.meaning);
   const n = num(p?.number) ?? e.number;
@@ -43,21 +43,21 @@ function PyCard({ e }: { e: CatalogEntry }) {
       <div className="nk-lib-head">
         <span className="nk-lib-no">{n}</span>
         <div>
-          <h3 className="nk-h3">{m?.title || `Sayı ${n}`}</h3>
-          <div className="nk-badges">{master ? <span className="nk-badge nk-master">{NUMBER_KIND_LABELS.master}</span> : <span className="nk-badge">{NUMBER_KIND_LABELS.single}</span>}</div>
+          <h3 className="nk-h3">{m?.title || t("library.numberFallback", { n: String(n) })}</h3>
+          <div className="nk-badges">{master ? <span className="nk-badge nk-master">{t("labels.numberKind.master")}</span> : <span className="nk-badge">{t("labels.numberKind.single")}</span>}</div>
         </div>
       </div>
       {m?.keywords.length ? <p className="nk-num-key">{m.keywords.join(" · ")}</p> : null}
       {m?.description ? <p className="nk-num-desc">{m.description}</p> : null}
       {m && (m.strengths.length || m.challenges.length) ? (
         <details className="nk-trace nk-meaning">
-          <summary>{INTERPRETATION_HEADING}</summary>
+          <summary>{t("labels.interpretationHeading")}</summary>
           <div className="nk-meaning-body">
-            {m.strengths.length ? (<><p className="nk-mh">Güçlü yönler</p><ul>{m.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
-            {m.challenges.length ? (<><p className="nk-mh">Zorlayıcı yönler</p><ul>{m.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
-            {m.career ? (<><p className="nk-mh">Kariyer</p><p>{m.career}</p></>) : null}
-            {m.relationships ? (<><p className="nk-mh">İlişkiler</p><p>{m.relationships}</p></>) : null}
-            {m.spirituality ? (<><p className="nk-mh">Ruhsallık</p><p>{m.spirituality}</p></>) : null}
+            {m.strengths.length ? (<><p className="nk-mh">{t("labels.meaning.strengths")}</p><ul>{m.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
+            {m.challenges.length ? (<><p className="nk-mh">{t("labels.meaning.challenges")}</p><ul>{m.challenges.map((s, i) => <li key={i}>{s}</li>)}</ul></>) : null}
+            {m.career ? (<><p className="nk-mh">{t("labels.meaning.career")}</p><p>{m.career}</p></>) : null}
+            {m.relationships ? (<><p className="nk-mh">{t("labels.meaning.relationships")}</p><p>{m.relationships}</p></>) : null}
+            {m.spirituality ? (<><p className="nk-mh">{t("labels.meaning.spirituality")}</p><p>{m.spirituality}</p></>) : null}
           </div>
         </details>
       ) : null}
@@ -66,6 +66,7 @@ function PyCard({ e }: { e: CatalogEntry }) {
 }
 
 function ChCard({ e }: { e: CatalogEntry }) {
+  const t = useTranslations("numerology.classic");
   const p = rec(e.payload);
   const n = num(p?.number) ?? e.number;
   const nature = (["fortunate", "unfortunate", "mixed"] as const).find((x) => x === p?.nature) ?? null;
@@ -76,11 +77,11 @@ function ChCard({ e }: { e: CatalogEntry }) {
       <div className="nk-lib-head">
         <span className="nk-lib-no">{n}</span>
         <div>
-          <h3 className="nk-h3">{str(p?.name) ?? `Bileşik ${n}`}</h3>
+          <h3 className="nk-h3">{str(p?.name) ?? t("library.compoundFallback", { n: String(n) })}</h3>
           <div className="nk-badges">
-            {nature ? <span className={`nk-badge ${NATURE_CLASS[nature]}`}>{COMPOUND_NATURE_LABELS[nature]}</span> : null}
-            {root !== null ? <span className="nk-badge">Kök {root}</span> : null}
-            {sameAs !== null ? <span className="nk-badge">{sameAs} ile aynı anlam</span> : null}
+            {nature ? <span className={`nk-badge ${NATURE_CLASS[nature]}`}>{t(`labels.compoundNature.${nature}`)}</span> : null}
+            {root !== null ? <span className="nk-badge">{t("library.root", { n: String(root) })}</span> : null}
+            {sameAs !== null ? <span className="nk-badge">{t("library.sameAs", { n: String(sameAs) })}</span> : null}
           </div>
         </div>
       </div>
@@ -90,6 +91,7 @@ function ChCard({ e }: { e: CatalogEntry }) {
 }
 
 export default function LibraryClient() {
+  const t = useTranslations("numerology.classic");
   const [tab, setTab] = useState<Kind>("pythagorean_meaning");
   const [data, setData] = useState<Partial<Record<Kind, CatalogEntry[]>>>({});
   const [error, setError] = useState<Partial<Record<Kind, string>>>({});
@@ -129,23 +131,23 @@ export default function LibraryClient() {
   const entries = data[tab];
   const err = error[tab];
   return (
-    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" }, { href: "/numeroloji-klasik", label: "Klasik Numeroloji" }, { label: "Sayı Bilgi Kütüphanesi" }]}>
-      <Hero compact eyebrow="Klasik Numeroloji" title="Sayı Bilgi Kütüphanesi" sub="Klasik yöntemin sabit sayı anlamları. Kişisel veri içermez; yorumlar geleneksel yöntem yorumudur." />
-      <div className="nk-lib-tabs" role="tablist" aria-label="Kütüphane bölümleri">
-        {TABS.map((t, i) => (
-          <button key={t.kind} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`nk-lib-tab-${t.kind}`} aria-controls="nk-lib-panel"
-            aria-selected={tab === t.kind} tabIndex={tab === t.kind ? 0 : -1} className="nk-tab" onClick={() => setTab(t.kind)} onKeyDown={(e) => onKey(e, i)}>
-            {t.label}
+    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: t("shared.crumbCentre") }, { href: "/numeroloji-klasik", label: t("shared.crumbClassic") }, { label: t("library.title") }]}>
+      <Hero compact eyebrow={t("shared.crumbClassic")} title={t("library.title")} sub={t("library.sub")} />
+      <div className="nk-lib-tabs" role="tablist" aria-label={t("library.tabsLabel")}>
+        {TABS.map((x, i) => (
+          <button key={x.kind} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`nk-lib-tab-${x.kind}`} aria-controls="nk-lib-panel"
+            aria-selected={tab === x.kind} tabIndex={tab === x.kind ? 0 : -1} className="nk-tab" onClick={() => setTab(x.kind)} onKeyDown={(e) => onKey(e, i)}>
+            {t(`library.tabs.${x.kind}`)}
           </button>
         ))}
       </div>
       <section id="nk-lib-panel" role="tabpanel" aria-labelledby={`nk-lib-tab-${tab}`}>
         {err ? (
-          <Alert tone="error" action={<button type="button" className="nk-btn nk-sm" onClick={() => { setError((e) => ({ ...e, [tab]: undefined })); setRetry((x) => x + 1); }}>Tekrar dene</button>}>{err}</Alert>
+          <Alert tone="error" action={<button type="button" className="nk-btn nk-sm" onClick={() => { setError((e) => ({ ...e, [tab]: undefined })); setRetry((x) => x + 1); }}>{t("library.retry")}</button>}>{err}</Alert>
         ) : loading === tab || !entries ? (
-          <Skeleton lines={6} label="Kütüphane yükleniyor…" />
+          <Skeleton lines={6} label={t("library.loading")} />
         ) : entries.length === 0 ? (
-          <Alert tone="info" title="Kütüphane içeriği henüz yüklenmedi">Sayı anlamları yöneticiniz tarafından içe aktarıldığında burada görünecek.</Alert>
+          <Alert tone="info" title={t("library.emptyTitle")}>{t("library.emptyBody")}</Alert>
         ) : (
           <div className="nk-lib-grid">
             {entries.map((e) => (tab === "pythagorean_meaning" ? <PyCard key={`${e.kind}-${e.number}`} e={e} /> : <ChCard key={`${e.kind}-${e.number}`} e={e} />))}

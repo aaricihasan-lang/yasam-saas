@@ -18,7 +18,7 @@ import { REPORT_FONT } from "@/lib/docx/reportHelpers";
 import { formatDateLoose, formatInstantDateTime } from "@/lib/time/reportTime";
 import { LEGACY_METHOD_NOTE, extractSummaryFromAnalysisData, resolveRecordMotor } from "@/app/numeroloji/utils/analysisJson";
 import { nrDisplay } from "@/app/numeroloji/utils/numerolojiPlainMetin";
-import { parseBirthDateFlexible } from "@/app/numeroloji/utils/numerolojiInput";
+import { chronoBirthYear } from "@/app/numeroloji/utils/chronoBirth";
 import {
   chronoLimitYear,
   chronoNoteText,
@@ -106,26 +106,52 @@ function pinPyramid(pin: unknown, color: string): ReportChild[] {
 }
 
 // ── Değişim–Dönüşüm: snapshot'taki KAYITLI metinden okunur (hesap YOK) ───────────
+// I18N-0003: başlık eşlemesi DİLDEN BAĞIMSIZ (TR kayıtlı başlıklar + EN karşılıkları tanınır). Görünürlük
+// kararı her satırın KENDİ yapısal başlangıç yılına (effectStartYear) ve tek çözücüden gelen doğum yılına
+// dayanır; satır yapısı tutarsızsa (sıra/yıl ilişkisi bozuk) bölüm FAIL-CLOSED atlanır.
 type DegisimRow = { index: number; changeYear: number; chakra: number; effectStartYear: number; period: string };
+// i18n-ignore: kayıtlı motor metnindeki kanonik başlıklar (DB snapshot) — çevrilmez, yalnız tanınır.
+const DEG_CHANGE = "(?:Değişim|Change)";
+// i18n-ignore: kayıtlı motor metni başlığı (Çakra / Chakra)
+const DEG_CHAKRA = "(?:Çakra|Chakra)";
+// i18n-ignore: kayıtlı motor metni başlığı (Etki Dönemi / Effect Period)
+const DEG_EFFECT = "(?:Etki Dönemi|Effect Period)";
+// i18n-ignore: kayıtlı motor metnindeki ikinci bölüm başlığı (gün ve ay dahil)
+const DEG_FULL_SPLIT = /2\)\s*(?:GÜN VE AY DAH[İI]L|INCLUDING DAY AND MONTH)/i;
+const DEG_YEAR_RE = new RegExp(
+  String.raw`(\d+)\.\s*${DEG_CHANGE}:\s*(\d{4})\s*→\s*${DEG_CHAKRA}:\s*(\d+)\.\s*${DEG_CHAKRA}\s*\n\s*${DEG_EFFECT} \((?:yaklaşık|approx\.?)\):\s*(\d{4}) (?:yılının|year,) (\d+)\. (?:ayından|month) (?:to )?(\d{4}) (?:yılının|year,) \d+\. (?:ayına kadar|month)`, // i18n-ignore: kayıtlı motor metnini (TR/EN) tanıma deseni — kanonik, gösterilmez
+  "g",
+);
+const DEG_FULL_RE = new RegExp(
+  String.raw`(\d+)\.\s*${DEG_CHANGE}:\s*(\d{4})\s*→\s*${DEG_CHAKRA}:\s*(\d+)\.\s*${DEG_CHAKRA}\s*\n\s*${DEG_EFFECT}:\s*(\d{4}) (?:yılının|year,) (\d{2})\.(\d{2}) (?:tarihinden|to) (\d{4}) (?:yılının|year,) \d{2}\.\d{2}(?: tarihine kadar)?`, // i18n-ignore: kayıtlı motor metnini (TR/EN) tanıma deseni — kanonik, gösterilmez
+  "g",
+);
+
+/** Satırlar yapısal olarak tutarlı mı? (1..n sıralı; etki başlangıcı = değişim yılı − 1; bitiş = değişim yılı) */
+function degisimRowsConsistent(rows: (DegisimRow & { effectEndYear: number })[]): boolean {
+  return rows.every((r, i) => r.index === i + 1 && r.effectStartYear === r.changeYear - 1 && r.effectEndYear === r.changeYear);
+}
+
 export function parseSavedDegisim(text: unknown): { yearOnly: DegisimRow[]; fullDate: DegisimRow[] } | null {
-  if (typeof text !== "string" || !text.includes("Değişim")) return null;
-  const parts = text.split(/2\)\s*GÜN VE AY DAH[İI]L/i);
-  const read = (chunk: string | undefined, full: boolean): DegisimRow[] => {
+  if (typeof text !== "string" || !new RegExp(DEG_CHANGE).test(text)) return null;
+  const parts = text.split(DEG_FULL_SPLIT);
+  const read = (chunk: string | undefined, full: boolean): (DegisimRow & { effectEndYear: number })[] | null => {
     if (!chunk) return [];
-    const out: DegisimRow[] = [];
-    const re = full
-      ? /(\d+)\.\s*Değişim:\s*(\d{4})\s*→\s*Çakra:\s*(\d+)\.\s*Çakra\s*\n\s*Etki Dönemi:\s*(\d{4}) yılının (\d{2})\.(\d{2}) tarihinden (\d{4}) yılının \d{2}\.\d{2} tarihine kadar/g
-      : /(\d+)\.\s*Değişim:\s*(\d{4})\s*→\s*Çakra:\s*(\d+)\.\s*Çakra\s*\n\s*Etki Dönemi \(yaklaşık\):\s*(\d{4}) yılının (\d+)\. ayından (\d{4}) yılının \d+\. ayına kadar/g;
+    const out: (DegisimRow & { effectEndYear: number })[] = [];
+    const re = new RegExp(full ? DEG_FULL_RE : DEG_YEAR_RE);
     for (const m of chunk.matchAll(re)) {
       const [index, changeYear, chakra, start] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
       const period = full ? `${m[4]}.${m[5]}.${m[6]} – ${m[7]}.${m[5]}.${m[6]}` : `${m[4]}–${m[6]} (${m[5]}. ay)`;
-      out.push({ index, changeYear, chakra, effectStartYear: start, period });
+      out.push({ index, changeYear, chakra, effectStartYear: start, period, effectEndYear: Number(full ? m[7] : m[6]) });
     }
-    return out;
+    return degisimRowsConsistent(out) ? out : null;
   };
   const yearOnly = read(parts[0], false);
   const fullDate = read(parts[1], true);
-  return yearOnly.length || fullDate.length ? { yearOnly, fullDate } : null;
+  // Herhangi bir parça tutarsızsa belirsiz kayıt → bölüm yok (fail-closed).
+  if (yearOnly === null || fullDate === null) return null;
+  const strip = (rs: (DegisimRow & { effectEndYear: number })[]): DegisimRow[] => rs.map((r) => ({ index: r.index, changeYear: r.changeYear, chakra: r.chakra, effectStartYear: r.effectStartYear, period: r.period }));
+  return yearOnly.length || fullDate.length ? { yearOnly: strip(yearOnly), fullDate: strip(fullDate) } : null;
 }
 
 export function buildSavedNumerologySection(row: SavedNumerologyRow, color: string, opts: SavedNumerologyOpts = {}): ReportChild[] {
@@ -135,7 +161,10 @@ export function buildSavedNumerologySection(row: SavedNumerologyRow, color: stri
   const summary = extractSummaryFromAnalysisData(row.analysis_data);
   const futureYears = opts.futureYears === true;
   const cutoff = chronoLimitYear(opts.currentYear ?? currentIstanbulYear(), futureYears);
-  const birthYear = parseBirthDateFlexible(row.birth_date)?.year ?? null;
+  // I18N-0003: doğum yılı tek çözücüden (kayıt `birth_date` birincil, snapshot metni yalnız eski kayıt geri
+  // dönüşü, harf segmentleri çapraz doğrulama). Çözülemez/çelişkili → null → yetki KAPALI iken kronoloji gizli.
+  const birthYear = chronoBirthYear(motor, row.birth_date);
+  const chronoOpen = futureYears || birthYear !== null;
   const chrono = () => dyNote(chronoNoteText(futureYears));
 
   const out: ReportChild[] = [];
@@ -206,7 +235,7 @@ export function buildSavedNumerologySection(row: SavedNumerologyRow, color: stri
   }
 
   // 5) Değişim–Dönüşüm (kayıtlı metinden; başlamamış dönem gizli — Numeroloji Word kuralı)
-  const deg = parseSavedDegisim(m.degisimDonusumMetni);
+  const deg = chronoOpen ? parseSavedDegisim(m.degisimDonusumMetni) : null;
   if (deg) {
     const y = deg.yearOnly.filter((r) => r.effectStartYear <= cutoff);
     const f = deg.fullDate.filter((r) => r.effectStartYear <= cutoff);
@@ -256,7 +285,7 @@ export function buildSavedNumerologySection(row: SavedNumerologyRow, color: stri
 
   // 8) Harflerin Yankılanışı
   const hy = m.harflerinYankilanisi as HarfYankilanisiSegment[] | undefined;
-  if (Array.isArray(hy) && hy.length) {
+  if (chronoOpen && Array.isArray(hy) && hy.length) {
     const cut = cutoffHarfSegments(hy, cutoff);
     if (cut.length) {
       out.push(dySubTitle("Harflerin Yankılanışı", color));

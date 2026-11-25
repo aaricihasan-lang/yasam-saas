@@ -11,6 +11,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
 import styles from "@/app/_premium/numeroloji/numerolojiHub.module.css";
@@ -57,32 +58,27 @@ function Icon({ name, size, stroke }: { name: keyof typeof ICON; size: number; s
 }
 
 type HubCard = {
+  /** Görünür metinler: numerology.app.home.cards.<key>.{title,desc,badge} */
   key: "analiz" | "kayitli" | "bilgi";
   href: string;
-  title: string;
-  desc: string;
   icon: keyof typeof ICON;
   tone: "violet" | "indigo" | "plum";
   art: { w: number; h: number };
-  badge?: string;
+  hasBadge?: boolean;
 };
 
 const CARDS: readonly HubCard[] = [
   {
     key: "analiz",
     href: "/numeroloji/analiz",
-    title: "Numeroloji Analizi",
-    desc: "Ad, soyad ve doğum tarihi ile tam motor çıktısı; sekmeli analiz, premium yaşam haritası görseli ve yüksek çözünürlüklü PNG dışa aktarım tek ekranda.",
     icon: "sparkle",
     tone: "violet",
     art: { w: 250, h: 280 },
-    badge: "Buradan başlayın",
+    hasBadge: true,
   },
   {
     key: "kayitli",
     href: "/numeroloji/liste",
-    title: "Kayıtlı Analizler",
-    desc: "Kayıtlarınızı listeleyin; ad soyad, doğum tarihi ve kayıt zamanıyla birlikte her kaydı açıp tam metin özetini anında görüntüleyin.",
     icon: "archive",
     tone: "indigo",
     art: { w: 245, h: 336 },
@@ -90,8 +86,6 @@ const CARDS: readonly HubCard[] = [
   {
     key: "bilgi",
     href: "/numeroloji/bilgi-bankasi",
-    title: "Bilgi Bankası",
-    desc: "Numeroloji eğitim notları, açıklamalar, yorum metinleri ve bilgi içeriklerini tek merkezde düzenleyin.",
     icon: "book",
     tone: "plum",
     art: { w: 296, h: 336 },
@@ -99,6 +93,7 @@ const CARDS: readonly HubCard[] = [
 ];
 
 export default function NumerolojiHubPage() {
+  const t = useTranslations("numerology.app.home");
   return (
     <main className={`${styles.page} ${energyFontVars}`} data-testid="numeroloji-hub">
       <div className={styles.scene} aria-hidden />
@@ -117,14 +112,14 @@ export default function NumerolojiHubPage() {
             <p className={styles.eyebrow}>
               <span>Yaşam Sistemi</span>
             </p>
-            <h1 className={styles.heroTitle}>Numeroloji</h1>
+            <h1 className={styles.heroTitle}>{t("title")}</h1>
             <p className={styles.heroSub}>
-              Yaşam haritanızı hesaplayın, raporunuzu oluşturun ve analizlerinizi saklayın. Modülü seçin.
+              {t("sub")}
             </p>
           </div>
         </header>
 
-        <nav className={styles.cards} aria-label="Numeroloji alanları">
+        <nav className={styles.cards} aria-label={t("navAria")}>
           {CARDS.map((card) => (
             <Link
               key={card.key}
@@ -148,13 +143,13 @@ export default function NumerolojiHubPage() {
                   />
                 </span>
               </span>
-              {card.badge ? <span className={styles.badge}>{card.badge}</span> : null}
+              {card.hasBadge ? <span className={styles.badge}>{t(`cards.${card.key}.badge`)}</span> : null}
               <div className={styles.cardBody}>
                 <span className={styles.cardIcon} aria-hidden>
                   <Icon name={card.icon} size={26} stroke={1.8} />
                 </span>
-                <h2 className={styles.cardTitle}>{card.title}</h2>
-                <p className={styles.cardDesc}>{card.desc}</p>
+                <h2 className={styles.cardTitle}>{t(`cards.${card.key}.title`)}</h2>
+                <p className={styles.cardDesc}>{t(`cards.${card.key}.desc`)}</p>
               </div>
             </Link>
           ))}
@@ -164,7 +159,7 @@ export default function NumerolojiHubPage() {
           <span className={styles.footIcon} aria-hidden>
             <Icon name="flower" size={20} stroke={1.4} />
           </span>
-          Numeroloji — sayıların diliyle kendinizi keşfedin, yaşam haritanızı analiz edin ve bilgiyi tek merkezde yönetin.
+          {t("foot")}
         </p>
       </div>
     </main>
