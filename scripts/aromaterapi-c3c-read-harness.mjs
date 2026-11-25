@@ -203,8 +203,10 @@ check("U 'Bilgi Kayıtları' terimi kullanılıyor", /Bilgi Kayıtları|Bilgi Ka
 
 // Preparat detay "Üretim ve Elde Ediliş" sözleşmesi (şema boşluğu boş-durum).
 const PREP_DETAIL = read("app/aromaterapi/katalog/preparatlar/[id]/page.tsx");
+// I18N (2026-11-25): bölüm başlığı aromatherapy.catalog.prep.methods anahtarına taşındı; anahtar + TR değer birebir.
 check("U preparat detay 'Üretim ve Elde Ediliş' bölümü var",
-  /Üretim ve Elde Ediliş/.test(PREP_DETAIL));
+  /t\("methods"\)/.test(PREP_DETAIL) &&
+  /^Üretim ve Elde Ediliş/.test(JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.catalog.prep.methods));
 check("U preparat detay sahte yöntem üretmez (şema boşluğu boş-durum)",
   /SchemaGapNote|henüz.*girilmemiş/i.test(PREP_DETAIL));
 
