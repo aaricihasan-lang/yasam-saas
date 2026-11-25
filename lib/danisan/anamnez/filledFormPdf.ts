@@ -17,6 +17,7 @@ import {
   TEAL,
   TOP,
   Writer,
+  pdfDocumentLang,
 } from "./blankFormPdf";
 import type { AnamnezRecord, AnswerValue, RowColumn, RowValue, YndValue } from "./types";
 
@@ -82,7 +83,7 @@ export function buildFilledAnamnesisPdf(input: FilledFormInput): Uint8Array {
   const yesNo = { yes: m.field.yes, no: m.field.no };
   const custom = record.form_custom ?? { hidden: [], labels: {}, enabledSections: [], custom: [] };
   const answers = (record.answers ?? {}) as Record<string, AnswerValue>;
-  const w = new Writer(input.fontBase64);
+  const w = new Writer(input.fontBase64, pdfDocumentLang(locale));
   const doc = w.doc;
   const completed = record.status === "completed";
 

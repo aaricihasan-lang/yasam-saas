@@ -1,0 +1,330 @@
+{
+  "reports": {
+    "clients": {
+      "brand": "YAŞAM SİSTEMİ",
+      "tagline": "Holistic Life Analysis Platform",
+      "reportDate": "Report Date",
+      "expert": "Practitioner",
+      "untitledClient": "Unnamed Client",
+      "fileClient": "client",
+      "info": {
+        "heading": "Client Information",
+        "phone": "Phone",
+        "birthDate": "Date of Birth",
+        "meetingDate": "Meeting Date",
+        "zodiac": "Zodiac Sign",
+        "bloodType": "Blood Type",
+        "temperament": "Temperament",
+        "healthNote": "Health Note",
+        "address": "Address",
+        "suggestions": "Recommendations"
+      },
+      "temperament": {
+        "safra": "Choleric",
+        "sovdavi": "Melancholic",
+        "dem": "Sanguine",
+        "balgam": "Phlegmatic"
+      },
+      "stats": {
+        "sessions": "Sessions",
+        "appointments": "Appointments",
+        "stones": "Stone Records",
+        "homeworks": "Homework",
+        "analyses": "Analyses"
+      },
+      "sections": {
+        "notes": "Notes",
+        "anamnez": "Intake (Anamnesis)",
+        "sessions": "Sessions",
+        "appointments": "Appointments",
+        "stones": "Stone Suggestions",
+        "homeworks": "Homework",
+        "analyses": "Analyses",
+        "nutrition": "Nutrition Summary",
+        "humanDesign": "Human Design",
+        "numerology": "Numerology — Saved Analysis",
+        "journey": "Client Journey",
+        "charges": "Pricing"
+      },
+      "sessions": {
+        "count": "{count, plural, one {{shown} session} other {{shown} sessions}}",
+        "totalMinutes": " · {minutes} min in total",
+        "fallbackTitle": "Session",
+        "duration": "Duration",
+        "minutes": "{minutes} min",
+        "note": "Session Note",
+        "actions": "Actions Taken",
+        "suggestions": "Recommendations",
+        "nextPlan": "Next Session Plan"
+      },
+      "appointments": {
+        "colDate": "Date",
+        "colTitle": "Appointment",
+        "colStatus": "Status",
+        "colNote": "Note",
+        "defaultTitle": "Meeting",
+        "status": {
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "noResult": "No outcome entered",
+          "upcoming": "Upcoming"
+        }
+      },
+      "stones": {
+        "fallbackTitle": "Stone",
+        "usageType": "Usage Type",
+        "usageDetail": "Usage Detail",
+        "combination": "Combination",
+        "warning": "Warning",
+        "generalNote": "General Note",
+        "otherNotes": "Other Notes",
+        "photos": "Photos",
+        "photosAll": "{count, plural, one {{shown} photo} other {{shown} photos}}",
+        "photosPartial": "{added} of {total} photos added",
+        "omitted": "{count, plural, one {{shown} photo} other {{shown} photos}} because of the report size limit",
+        "unreadable": "{count, plural, one {{shown} photo} other {{shown} photos}} because it could not be read",
+        "reasonsJoin": ", ",
+        "photosNote": "Not added to the report: {reasons}. All photos can be viewed in the stone record in the app."
+      },
+      "combinations": {
+        "heading": "Saved Combinations",
+        "fallbackTitle": "Combination",
+        "stones": "Stones",
+        "purpose": "Purpose",
+        "note": "Note",
+        "mineral": "Mineral Summary",
+        "warning": "Warning / Stock Summary"
+      },
+      "homework": {
+        "fallbackTitle": "Homework",
+        "type": "Type",
+        "start": "Start",
+        "end": "End",
+        "status": "Status",
+        "description": "Description",
+        "expertNote": "Practitioner's Note",
+        "feedback": "Client Feedback",
+        "statusLabel": {
+          "bekliyor": "Pending",
+          "devam": "In Progress",
+          "tamamlandi": "Completed",
+          "iptal": "Cancelled",
+          "gecikti": "Overdue"
+        },
+        "statusUnknown": "Unknown"
+      },
+      "analysis": {
+        "note": "Analysis Note",
+        "type": {
+          "chakra": "Chakra Analysis",
+          "planet": "Chakra–Planetary Analysis",
+          "default": "Analysis"
+        },
+        "tables": {
+          "beforeEnergy": "Before Session — Energy Bodies",
+          "afterEnergy": "After Session — Energy Bodies",
+          "beforeChakra": "Chakras — Before Session",
+          "afterChakra": "Chakras — After Session",
+          "before": "Before Session",
+          "after": "After Session"
+        },
+        "cols": {
+          "area": "Area",
+          "mark": "Value (+/−) %",
+          "male": "Masculine Energy",
+          "female": "Feminine Energy",
+          "chakra": "Chakra"
+        },
+        "bodies": {
+          "ruhsal": "Spiritual Energy Body",
+          "zihinsel": "Mental Energy Body",
+          "duygusal": "Emotional Energy Body",
+          "eterik": "Etheric Energy Body",
+          "fiziksel": "Physical Energy Body"
+        },
+        "chakras": {
+          "tac": "Crown Chakra",
+          "goz": "Third Eye Chakra",
+          "bogaz": "Throat Chakra",
+          "kalp": "Heart Chakra",
+          "mide": "Solar Plexus Chakra",
+          "sakral": "Sacral Chakra",
+          "kok": "Root Chakra"
+        },
+        "planetRows": {
+          "tac": "Crown",
+          "goz": "Third Eye",
+          "bogaz": "Throat",
+          "kalp": "Heart",
+          "mide": "Solar Plexus",
+          "sakral": "Sacral",
+          "kok": "Root"
+        },
+        "planets": {
+          "gunes": "SUN",
+          "ay": "MOON",
+          "merkur": "MERCURY",
+          "mars": "MARS",
+          "venus": "VENUS"
+        },
+        "singleDate": "Analysis date: {date}",
+        "singleEmpty": "This analysis record contains no measured values.",
+        "singleSubtitle": "Analysis Report",
+        "singleMetaDate": "Analysis Date",
+        "file": "client-analysis"
+      },
+      "charges": {
+        "colDate": "Date",
+        "colCategory": "Main Type",
+        "colDetail": "Detail",
+        "colPayment": "Payment",
+        "colAmount": "Amount",
+        "category": {
+          "session": "Session",
+          "homework": "Homework",
+          "analysis": "Analysis",
+          "other": "Other"
+        },
+        "payment": {
+          "paid": "Paid",
+          "unpaid": "Unpaid",
+          "unknown": "Not specified"
+        },
+        "totalRecords": "Total Records",
+        "totalFee": "Total Fee",
+        "unpaid": "Unpaid",
+        "unpaidValue": "{count, plural, one {{shown} record} other {{shown} records}} · {amount}"
+      },
+      "journey": {
+        "colDate": "Date",
+        "colType": "Type",
+        "colRecord": "Record",
+        "category": {
+          "appointment": "Appointment",
+          "stone": "Stone Suggestion",
+          "session": "Session",
+          "homework": "Homework",
+          "analysis": "Analysis"
+        },
+        "summary": "{count, plural, one {{shown} record} other {{shown} records}} · chronological order (oldest first)"
+      },
+      "humanDesignNote": "Transferred from the saved professional report in the Human Design module{dateSuffix}.",
+      "humanDesignDateSuffix": " (report date: {date})",
+      "tabs": {
+        "subtitle": "Client Journey",
+        "empty": "There is no recorded data in this section.",
+        "file": "client",
+        "title": {
+          "genel": "General Information",
+          "notlar": "Client Notes",
+          "randevular": "Appointment History",
+          "taslar": "Stone Suggestions",
+          "seanslar": "Session History",
+          "ucretlendirme": "Pricing",
+          "odevler": "Homework Tracking",
+          "analizler": "Analysis Results"
+        },
+        "slug": {
+          "genel": "general-information",
+          "notlar": "notes",
+          "randevular": "appointments",
+          "taslar": "stones",
+          "seanslar": "sessions",
+          "ucretlendirme": "pricing",
+          "odevler": "homework",
+          "analizler": "analyses"
+        }
+      },
+      "full": {
+        "title": "Client File",
+        "subtitle": "Individual Tracking and Analysis Report · {variant}",
+        "variant": {
+          "full": "Full Report",
+          "custom": "Custom Report"
+        },
+        "footer": "Client Report · {name}",
+        "docTitle": "Client File — {name}",
+        "file": "client-report"
+      },
+      "range": {
+        "title": "Date Range Report",
+        "subtitle": "Client Journey Summary",
+        "scopeNote": "This report covers records between {start} — {end}. Client information is independent of the date range.",
+        "empty": "There are no records in the selected date range to include in the report.",
+        "meta": "Date Range",
+        "footer": "Date Range Report · {name}",
+        "docTitle": "Date Range Report — {name}",
+        "file": "client-date-range"
+      },
+      "bulk": {
+        "indexHeading": "Client Index",
+        "indexNote": "This file contains the client files of {count, plural, one {{shown} client} other {{shown} clients}} in order.",
+        "colNo": "No.",
+        "colClient": "Client",
+        "colBirth": "Date of Birth",
+        "badge": "Client {index} / {total}",
+        "title": "Client Files",
+        "subtitle": "Bulk Client Report",
+        "clients": "{count, plural, one {{shown} Client} other {{shown} Clients}}",
+        "footer": "Client Files · Yaşam Sistemi",
+        "docTitle": "Client Files — Yaşam Sistemi",
+        "file": "client-files-{total}-clients"
+      },
+      "anamnez": {
+        "intro": "Transferred as saved from the client's completed intake (anamnesis) form. The client's explicit consent record is on file. Only answered fields are shown.",
+        "unreadable": "The structure of this intake form could not be read; its content was not included in the report.",
+        "form": "Form",
+        "assessmentDate": "Assessment Date",
+        "completedAt": "Completed",
+        "noAnswers": "This completed form has no answered fields."
+      },
+      "nutrition": {
+        "introWithPrefs": "Transferred from the client profile, declared allergies, preferred / avoided foods and measurement summary in the Nutrition module. Nutrition plans are not included in this report; the plan's own Word report can be exported separately.",
+        "intro": "Transferred from the client profile, declared allergies and measurement summary in the Nutrition module. Nutrition plans are not included in this report; the plan's own Word report can be exported separately.",
+        "profile": "Nutrition Profile",
+        "goal": "Goal",
+        "goalNote": "Goal Note",
+        "activity": "Activity Level",
+        "dietaryPattern": "Dietary Pattern",
+        "mealCount": "Daily Meal Count",
+        "targetWeight": "Target Weight",
+        "water": "Water Intake",
+        "lifestyle": "Lifestyle",
+        "generalNote": "General Note",
+        "goalType": {
+          "weight_loss": "Weight Loss",
+          "weight_gain": "Weight Gain",
+          "maintenance": "Maintenance / Balance",
+          "muscle_gain": "Muscle Gain",
+          "healthy_lifestyle": "Healthy Lifestyle",
+          "other": "Other"
+        },
+        "activityLevel": {
+          "sedentary": "Sedentary",
+          "light": "Lightly Active",
+          "moderate": "Moderately Active",
+          "active": "Active",
+          "very_active": "Very Active"
+        },
+        "allergens": "Declared Allergies",
+        "colAllergen": "Allergy",
+        "colNote": "Note",
+        "preferences": "Preferred / Avoided Foods",
+        "colStance": "Status",
+        "colFood": "Food",
+        "stance": {
+          "preferred": "Preferred",
+          "avoided": "Avoided"
+        },
+        "measurements": "Measurement Summary",
+        "colDate": "Date",
+        "colWeight": "Weight",
+        "colHeight": "Height",
+        "colWaist": "Waist",
+        "colHip": "Hip",
+        "measurementsShown": "{count, plural, one {The last measurement is shown} other {The last {shown} measurements are shown}} (total {total})."
+      },
+      "money": "₺{amount}"
+    }
+  }
+}

@@ -26,6 +26,8 @@ const steps = [
   ["kapı negatif testleri", ["scripts/i18n/gates.negative.test.mjs"]],
   // Çıktı dili sözleşmesi: TR rapor golden'ı (bayt-bayt) + EN dil/nöbetçi/sayı kontrolleri (Kupa pilotu + ortak motorlar).
   ["rapor golden (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden.harness.ts"]],
+  // Rapor grubu A+B (Ajanda, Ürün/Stok, Danışan Yolculuğu tekli/toplu, Anamnez PDF): TR golden + EN kontrolleri.
+  ["rapor golden A+B (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden-ab.harness.ts"]],
   ...["2a", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j"].map((h) => [`Doğaltaş ${h}`, [`scripts/stones-i18n-${h}-harness.mjs`]]),
 ];
 

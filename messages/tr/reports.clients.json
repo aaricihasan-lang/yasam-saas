@@ -1,0 +1,330 @@
+{
+  "reports": {
+    "clients": {
+      "brand": "YAŞAM SİSTEMİ",
+      "tagline": "Bütüncül Yaşam Analizi Platformu",
+      "reportDate": "Rapor Tarihi",
+      "expert": "Uzman",
+      "untitledClient": "İsimsiz Danışan",
+      "fileClient": "danisan",
+      "info": {
+        "heading": "Danışan Bilgileri",
+        "phone": "Telefon",
+        "birthDate": "Doğum Tarihi",
+        "meetingDate": "Görüşme Tarihi",
+        "zodiac": "Burç",
+        "bloodType": "Kan Grubu",
+        "temperament": "Mizaç",
+        "healthNote": "Sağlık Notu",
+        "address": "Adres",
+        "suggestions": "Öneriler"
+      },
+      "temperament": {
+        "safra": "Safra",
+        "sovdavi": "Sovdavi",
+        "dem": "Dem",
+        "balgam": "Balgam"
+      },
+      "stats": {
+        "sessions": "Seans",
+        "appointments": "Randevu",
+        "stones": "Taş Kaydı",
+        "homeworks": "Ödev",
+        "analyses": "Analiz"
+      },
+      "sections": {
+        "notes": "Notlar",
+        "anamnez": "Anamnez",
+        "sessions": "Seanslar",
+        "appointments": "Randevular",
+        "stones": "Taş Önerileri",
+        "homeworks": "Ödevler",
+        "analyses": "Analizler",
+        "nutrition": "Beslenme Özeti",
+        "humanDesign": "Human Design",
+        "numerology": "Numeroloji — Kayıtlı Analiz",
+        "journey": "Danışan Yolculuğu",
+        "charges": "Ücretlendirme"
+      },
+      "sessions": {
+        "count": "{count, plural, other {{shown} seans}}",
+        "totalMinutes": " · toplam {minutes} dk",
+        "fallbackTitle": "Seans",
+        "duration": "Süre",
+        "minutes": "{minutes} dk",
+        "note": "Seans Notu",
+        "actions": "Yapılan İşlemler",
+        "suggestions": "Öneriler",
+        "nextPlan": "Sonraki Seans Planı"
+      },
+      "appointments": {
+        "colDate": "Tarih",
+        "colTitle": "Randevu",
+        "colStatus": "Durum",
+        "colNote": "Not",
+        "defaultTitle": "Görüşme",
+        "status": {
+          "completed": "Tamamlandı",
+          "cancelled": "İptal",
+          "noResult": "Sonuç girilmedi",
+          "upcoming": "Yaklaşan"
+        }
+      },
+      "stones": {
+        "fallbackTitle": "Taş",
+        "usageType": "Kullanım Türü",
+        "usageDetail": "Kullanım Detayı",
+        "combination": "Kombin",
+        "warning": "Uyarı",
+        "generalNote": "Genel Not",
+        "otherNotes": "Diğer Notlar",
+        "photos": "Fotoğraflar",
+        "photosAll": "{count, plural, other {{shown} fotoğraf}}",
+        "photosPartial": "{total} fotoğraftan {added} tanesi eklendi",
+        "omitted": "{count, plural, other {{shown} fotoğraf}} rapor boyutu sınırı nedeniyle",
+        "unreadable": "{count, plural, other {{shown} fotoğraf}} okunamadığı için",
+        "reasonsJoin": ", ",
+        "photosNote": "{reasons} rapora eklenmedi. Tüm fotoğraflar uygulamadaki taş kaydında görüntülenebilir."
+      },
+      "combinations": {
+        "heading": "Kayıtlı Kombinasyonlar",
+        "fallbackTitle": "Kombinasyon",
+        "stones": "Taşlar",
+        "purpose": "Amaç",
+        "note": "Not",
+        "mineral": "Mineral Özeti",
+        "warning": "Uyarı / Stok Özeti"
+      },
+      "homework": {
+        "fallbackTitle": "Ödev",
+        "type": "Tür",
+        "start": "Başlangıç",
+        "end": "Bitiş",
+        "status": "Durum",
+        "description": "Açıklama",
+        "expertNote": "Uzman Notu",
+        "feedback": "Danışan Geri Bildirimi",
+        "statusLabel": {
+          "bekliyor": "Bekliyor",
+          "devam": "Devam Ediyor",
+          "tamamlandi": "Tamamlandı",
+          "iptal": "İptal",
+          "gecikti": "Gecikti"
+        },
+        "statusUnknown": "Bilinmiyor"
+      },
+      "analysis": {
+        "note": "Analiz Notu",
+        "type": {
+          "chakra": "Çakra Analizi",
+          "planet": "Çakra-Gezegen Analizi",
+          "default": "Analiz"
+        },
+        "tables": {
+          "beforeEnergy": "Seans Öncesi — Enerji Bedenleri",
+          "afterEnergy": "Seans Sonrası — Enerji Bedenleri",
+          "beforeChakra": "Çakralar — Seans Öncesi",
+          "afterChakra": "Çakralar — Seans Sonrası",
+          "before": "Seans Öncesi",
+          "after": "Seans Sonrası"
+        },
+        "cols": {
+          "area": "Alan",
+          "mark": "İşaret / Sayı %",
+          "male": "Eril Enerji",
+          "female": "Dişil Enerji",
+          "chakra": "Çakra"
+        },
+        "bodies": {
+          "ruhsal": "Ruhsal Enerji Bedeni",
+          "zihinsel": "Zihinsel Enerji Bedeni",
+          "duygusal": "Duygusal Enerji Bedeni",
+          "eterik": "Eterik Enerji Bedeni",
+          "fiziksel": "Fiziksel Enerji Bedeni"
+        },
+        "chakras": {
+          "tac": "Tepe / Taç Çakrası",
+          "goz": "3. Göz Çakrası",
+          "bogaz": "Boğaz Çakrası",
+          "kalp": "Kalp Çakrası",
+          "mide": "Mide Çakrası",
+          "sakral": "Sakral (Karın) Çakrası",
+          "kok": "Kök Çakrası"
+        },
+        "planetRows": {
+          "tac": "Tepe / Taç",
+          "goz": "3. Göz",
+          "bogaz": "Boğaz",
+          "kalp": "Kalp",
+          "mide": "Mide",
+          "sakral": "Sakral (Karın)",
+          "kok": "Kök"
+        },
+        "planets": {
+          "gunes": "GÜNEŞ",
+          "ay": "AY",
+          "merkur": "MERKÜR",
+          "mars": "MARS",
+          "venus": "VENÜS"
+        },
+        "singleDate": "Analiz tarihi: {date}",
+        "singleEmpty": "Bu analiz kaydında ölçülmüş değer bulunmuyor.",
+        "singleSubtitle": "Analiz Raporu",
+        "singleMetaDate": "Analiz Tarihi",
+        "file": "danisan-analiz"
+      },
+      "charges": {
+        "colDate": "Tarih",
+        "colCategory": "Ana Tür",
+        "colDetail": "Detay",
+        "colPayment": "Ödeme",
+        "colAmount": "Tutar",
+        "category": {
+          "session": "Seans",
+          "homework": "Ödev",
+          "analysis": "Analiz",
+          "other": "Diğer"
+        },
+        "payment": {
+          "paid": "Ödendi",
+          "unpaid": "Ödenmedi",
+          "unknown": "Belirtilmemiş"
+        },
+        "totalRecords": "Toplam Kayıt",
+        "totalFee": "Toplam Ücret",
+        "unpaid": "Ödenmemiş",
+        "unpaidValue": "{count, plural, other {{shown} kayıt}} · {amount}"
+      },
+      "journey": {
+        "colDate": "Tarih",
+        "colType": "Tür",
+        "colRecord": "Kayıt",
+        "category": {
+          "appointment": "Randevu",
+          "stone": "Taş Önerisi",
+          "session": "Seans",
+          "homework": "Ödev",
+          "analysis": "Analiz"
+        },
+        "summary": "{count, plural, other {{shown} kayıt}} · kronolojik sıralama (eskiden yeniye)"
+      },
+      "humanDesignNote": "Human Design modülündeki kayıtlı profesyonel rapordan aktarılmıştır{dateSuffix}.",
+      "humanDesignDateSuffix": " (rapor tarihi: {date})",
+      "tabs": {
+        "subtitle": "Danışan Yolculuğu",
+        "empty": "Bu bölümde kayıtlı veri bulunmuyor.",
+        "file": "danisan",
+        "title": {
+          "genel": "Genel Bilgiler",
+          "notlar": "Danışan Notları",
+          "randevular": "Randevu Geçmişi",
+          "taslar": "Taş Önerileri",
+          "seanslar": "Seans Geçmişi",
+          "ucretlendirme": "Ücretlendirme",
+          "odevler": "Ödev Takibi",
+          "analizler": "Analiz Sonuçları"
+        },
+        "slug": {
+          "genel": "genel-bilgiler",
+          "notlar": "notlar",
+          "randevular": "randevular",
+          "taslar": "taslar",
+          "seanslar": "seanslar",
+          "ucretlendirme": "ucretlendirme",
+          "odevler": "odevler",
+          "analizler": "analizler"
+        }
+      },
+      "full": {
+        "title": "Danışan Dosyası",
+        "subtitle": "Bireysel Takip ve Analiz Raporu · {variant}",
+        "variant": {
+          "full": "Tam Rapor",
+          "custom": "Özel Rapor"
+        },
+        "footer": "Danışan Raporu · {name}",
+        "docTitle": "Danışan Dosyası — {name}",
+        "file": "danisan-raporu"
+      },
+      "range": {
+        "title": "Tarih Aralığı Raporu",
+        "subtitle": "Danışan Yolculuğu Özeti",
+        "scopeNote": "Bu rapor {start} — {end} arasındaki kayıtları içerir. Danışan bilgileri tarihten bağımsızdır.",
+        "empty": "Seçilen tarih aralığında rapora girecek kayıt bulunmuyor.",
+        "meta": "Tarih Aralığı",
+        "footer": "Tarih Aralığı Raporu · {name}",
+        "docTitle": "Tarih Aralığı Raporu — {name}",
+        "file": "danisan-tarih-araligi"
+      },
+      "bulk": {
+        "indexHeading": "Danışan Dizini",
+        "indexNote": "Bu dosya {count, plural, other {{shown} danışanın}} danışan dosyasını sırasıyla içerir.",
+        "colNo": "No",
+        "colClient": "Danışan",
+        "colBirth": "Doğum Tarihi",
+        "badge": "Danışan {index} / {total}",
+        "title": "Danışan Dosyaları",
+        "subtitle": "Toplu Danışan Raporu",
+        "clients": "{count, plural, other {{shown} Danışan}}",
+        "footer": "Danışan Dosyaları · Yaşam Sistemi",
+        "docTitle": "Danışan Dosyaları — Yaşam Sistemi",
+        "file": "danisan-dosyalari-{total}-danisan"
+      },
+      "anamnez": {
+        "intro": "Danışanın tamamlanmış anamnez formundan, kaydedildiği haliyle aktarılmıştır. Danışanın açık rıza kaydı mevcuttur. Yalnız yanıtlanmış alanlar gösterilir.",
+        "unreadable": "Bu anamnez formunun yapısı okunamadı; içerik rapora aktarılmadı.",
+        "form": "Form",
+        "assessmentDate": "Değerlendirme Tarihi",
+        "completedAt": "Tamamlanma",
+        "noAnswers": "Bu tamamlanmış formda yanıtlanmış alan bulunmuyor."
+      },
+      "nutrition": {
+        "introWithPrefs": "Beslenme modülündeki danışan profili, beyan edilen alerjiler, tercih edilen / kaçınılan besinler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir.",
+        "intro": "Beslenme modülündeki danışan profili, beyan edilen alerjiler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir.",
+        "profile": "Beslenme Profili",
+        "goal": "Hedef",
+        "goalNote": "Hedef Notu",
+        "activity": "Aktivite Düzeyi",
+        "dietaryPattern": "Beslenme Düzeni",
+        "mealCount": "Günlük Öğün Sayısı",
+        "targetWeight": "Hedef Kilo",
+        "water": "Su Tüketimi",
+        "lifestyle": "Yaşam Tarzı",
+        "generalNote": "Genel Not",
+        "goalType": {
+          "weight_loss": "Kilo Verme",
+          "weight_gain": "Kilo Alma",
+          "maintenance": "Koruma / Denge",
+          "muscle_gain": "Kas Kazanımı",
+          "healthy_lifestyle": "Sağlıklı Yaşam",
+          "other": "Diğer"
+        },
+        "activityLevel": {
+          "sedentary": "Hareketsiz",
+          "light": "Az Hareketli",
+          "moderate": "Orta Hareketli",
+          "active": "Hareketli",
+          "very_active": "Çok Hareketli"
+        },
+        "allergens": "Beyan Edilen Alerjiler",
+        "colAllergen": "Alerji",
+        "colNote": "Not",
+        "preferences": "Tercih Edilen / Kaçınılan Besinler",
+        "colStance": "Durum",
+        "colFood": "Besin",
+        "stance": {
+          "preferred": "Tercih Edilen",
+          "avoided": "Kaçınılan"
+        },
+        "measurements": "Ölçüm Özeti",
+        "colDate": "Tarih",
+        "colWeight": "Kilo",
+        "colHeight": "Boy",
+        "colWaist": "Bel",
+        "colHip": "Kalça",
+        "measurementsShown": "{count, plural, other {Son {shown} ölçüm gösterilmiştir}} (toplam {total})."
+      },
+      "money": "{amount} ₺"
+    }
+  }
+}
