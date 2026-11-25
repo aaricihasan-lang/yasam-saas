@@ -1,0 +1,113 @@
+{
+  "atlas": {
+    "vedicMonthly": {
+      "month": {
+        "m1": "Ocak",
+        "m2": "Şubat",
+        "m3": "Mart",
+        "m4": "Nisan",
+        "m5": "Mayıs",
+        "m6": "Haziran",
+        "m7": "Temmuz",
+        "m8": "Ağustos",
+        "m9": "Eylül",
+        "m10": "Ekim",
+        "m11": "Kasım",
+        "m12": "Aralık"
+      },
+      "frameLine": "· sidereal (Lahiri) · UTC takvim ayı",
+      "display": "Gösterim",
+      "displayTzLabel": "Gösterim saat dilimi",
+      "text": {
+        "method": "Aylık gökyüzü takvimi: sidereal (nirayana) zodyak, Lahiri ayanamsa. Doğum verisi kullanılmaz (doğum anı deklinasyonları bölümü hariç). Olay anları sağlayıcının dakika hassasiyetindeki arama sonuçlarıdır; Yaşam bu anları yeniden hesaplamaz, yalnız iç tutarlılığını denetler.",
+        "window": "Pencere UTC takvim ayıdır (ayın 1'i 00:00 UTC → sonraki ayın 1'i 00:00 UTC). Yerel saatler her olay için seçilen saat diliminin o andaki ofsetiyle (yaz/kış saati dahil) gösterilir; bu nedenle yerel ayın ilk / son saatlerindeki bazı olaylar komşu ayın kaydında yer alabilir.",
+        "aspectVsDrishti": "Buradaki açılar ASTRONOMİK açılardır: iki gezegenin ekliptik boylam farkının belirli bir dereceye (0°, 60°, 90°, 120°, 180° ve minör açılar) eşitlendiği an. Geleneksel Vedik graha drishti (Parashari bütün-burç bakışları: herkes 7., Mars 4/8, Jüpiter 5/9, Satürn 3/10) AYRI bir yöntemdir ve “Graha Drishti” / “Gochara” tekniklerinde gösterilir; bu tablo drishti yerine kullanılmamalıdır.",
+        "aspectZodiac": "Açı anı iki boylamın FARKINA bağlıdır; ayanamsa iki tarafta sadeleştiği için anlar sidereal ve tropikal zodyakta aynıdır. Boylam sütunları sidereal (Lahiri) değerdir.",
+        "declination": "Deklinasyon paralelleri ekliptik boylam açılarından AYRI bir matematiksel alandır: gök ekvatoruna göre kuzey / güney açısal uzaklık (deklinasyon) karşılaştırılır. Paralel = iki gezegen aynı yarımkürede eşit deklinasyonda (|d1 − d2| ≤ orb); kontraparalel = karşı yarımkürelerde eşit deklinasyonda (|d1 + d2| ≤ orb). Deklinasyon zodyak seçiminden (sidereal / tropikal) bağımsızdır.",
+        "parallelsSampling": "Aylık paralel anı, iki gezegenin deklinasyonlarının eşitlendiği (paralel) ya da karşı yarımkürede eşitlendiği (kontraparalel) dakika hassasiyetindeki kesinleşme anıdır. Kapsam yedi görünür gezegendir (Güneş … Satürn; Rahu / Ketu yok).",
+        "station": "Retro / direkt istasyon (duraklama) anları bu takvimin sağlayıcı verisinde yoktur ve Yaşam tarafından üretilmez; burç girişlerinde yalnız geçiş anındaki hareket yönü (ileri / geri) gösterilir. Rahu ve Ketu ortalama hareketle geri yönde ilerler.",
+        "natalDeclination": "Doğum anının deklinasyonları ve doğum haritasındaki paralel / kontraparaleller (orb 1,5°). Bu bölüm doğum saatine bağlıdır; saat bilinmiyorsa hesaplanmaz."
+      },
+      "section": {
+        "ingress": "Gezegen burç girişleri",
+        "aspects": "Gezegenler arası açı kesinleşmeleri",
+        "lunar": "Ay açıları",
+        "parallels": "Deklinasyon paralelleri (aylık)",
+        "natal_parallels": "Doğum anı deklinasyonları"
+      },
+      "kind": {
+        "ingress": "Burç girişi",
+        "aspect": "Açı",
+        "lunar": "Ay açısı",
+        "parallel": "Deklinasyon"
+      },
+      "declType": {
+        "parallel": "Paralel",
+        "contraparallel": "Kontraparalel"
+      },
+      "graha": {
+        "sun": "Güneş",
+        "moon": "Ay",
+        "mars": "Mars",
+        "mercury": "Merkür",
+        "jupiter": "Jüpiter",
+        "venus": "Venüs",
+        "saturn": "Satürn",
+        "rahu": "Rahu",
+        "ketu": "Ketu"
+      },
+      "missingA": "Gösterilmeyen bölüm: ",
+      "missingB": " (bölüm hesaplanamadı ya da doğum saati bilinmiyor).",
+      "summary": {
+        "title": "Aylık özet",
+        "ingressA": "Burç girişi: ",
+        "ingressB": " (Ay ",
+        "ingressC": "; diğer ",
+        "aspectA": "Gezegenler arası açı: ",
+        "aspectB": " (majör ",
+        "aspectC": " · minör ",
+        "lunar": "Ay açısı: ",
+        "declA": "Deklinasyon: paralel ",
+        "declB": " · kontraparalel ",
+        "keyIngresses": "Ay dışındaki girişler:",
+        "keyIngress": "{graha} {sign} ({at}{retro})",
+        "retro": ", geri"
+      },
+      "filter": {
+        "label": "Filtre",
+        "planet": "Gezegen:",
+        "majorOnly": " Yalnız majör açılar"
+      },
+      "timeline": {
+        "title": "Zaman çizelgesi",
+        "titleOpen": "Zaman çizelgesi (",
+        "empty": "Seçili filtrede olay yok.",
+        "more": " olay daha göster"
+      },
+      "startTitle": "Ay başı konumları (1. gün 00:00 UTC)",
+      "natal": {
+        "title": "Doğum anı deklinasyonları",
+        "none": "Orb içinde paralel / kontraparalel yok.",
+        "orbSep": ") · orb "
+      },
+      "kbLabel": "Aylık takvim Bilgi Bankası",
+      "kbEmpty": "Bu ayın olayları için Bilgi Bankası kaydınız yok (burç girişi / astronomik açı / deklinasyon konuları).",
+      "fields": {
+        "legend": "Takvim ayı ve bölümler",
+        "prev": "Önceki ay",
+        "month": "Takvim ayı",
+        "next": "Sonraki ay",
+        "tz": "Gösterim saat dilimi",
+        "tzAria": "Aylık takvim gösterim saat dilimi",
+        "rangeA": "Takvim ayı ",
+        "rangeB": " aralığında olmalıdır.",
+        "sectionsAria": "Aylık takvim bölümleri",
+        "natalHint": " — danışanın doğum anı; doğum saati gerekir",
+        "pickOne": "En az bir bölüm seçin.",
+        "requests": "Her bölüm ayrı hesap ve kayıttır (en çok {n} istek; aynı ay daha önce hesaplandıysa yeni istek yok).",
+        "requestTail": " Ayanamsa: Lahiri (sabit). Pencere UTC takvim ayıdır; saat dilimi yalnız gösterimi değiştirir.",
+        "aspectNote": "Açılar astronomik açılardır (boylam farkı); geleneksel graha drishti için “Graha Drishti” tekniğini kullanın."
+      }
+    }
+  }
+}

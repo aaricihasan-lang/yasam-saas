@@ -12,6 +12,7 @@ import tr_atlasVedic from "@/messages/tr/atlas.vedic.json";
 import tr_atlasVedicExtra from "@/messages/tr/atlas.vedicExtra.json";
 import tr_atlasVedicHarita from "@/messages/tr/atlas.vedicHarita.json";
 import tr_atlasVedicMatch from "@/messages/tr/atlas.vedicMatch.json";
+import tr_atlasVedicMonthly from "@/messages/tr/atlas.vedicMonthly.json";
 import tr_authClient from "@/messages/tr/auth.client.json";
 import tr_authEmail from "@/messages/tr/auth.email.json";
 import tr_authServer from "@/messages/tr/auth.server.json";
@@ -59,6 +60,7 @@ import en_atlasVedic from "@/messages/en/atlas.vedic.json";
 import en_atlasVedicExtra from "@/messages/en/atlas.vedicExtra.json";
 import en_atlasVedicHarita from "@/messages/en/atlas.vedicHarita.json";
 import en_atlasVedicMatch from "@/messages/en/atlas.vedicMatch.json";
+import en_atlasVedicMonthly from "@/messages/en/atlas.vedicMonthly.json";
 import en_authClient from "@/messages/en/auth.client.json";
 import en_authEmail from "@/messages/en/auth.email.json";
 import en_authServer from "@/messages/en/auth.server.json";
@@ -99,8 +101,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "atlas.vedicMonthly.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "atlas.vedicMonthly.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -114,6 +116,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_atlasVedicExtra,
     tr_atlasVedicHarita,
     tr_atlasVedicMatch,
+    tr_atlasVedicMonthly,
     tr_authClient,
     tr_authEmail,
     tr_authServer,
@@ -163,6 +166,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_atlasVedicExtra,
     en_atlasVedicHarita,
     en_atlasVedicMatch,
+    en_atlasVedicMonthly,
     en_authClient,
     en_authEmail,
     en_authServer,
