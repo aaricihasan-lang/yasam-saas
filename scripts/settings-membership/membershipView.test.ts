@@ -12,6 +12,9 @@ import {
   type TrialStatusLite,
 } from "../../lib/settings/membershipView";
 import { TRIAL_MESSAGES } from "../../lib/trial/trialCore";
+import { localizeTrialError, trialErrorCode, TRIAL_ERROR_CODES } from "../../lib/trial/trialErrors";
+import trTrial from "../../messages/tr/trial.json";
+import enTrial from "../../messages/en/trial.json";
 
 let pass = 0;
 let fail = 0;
@@ -153,6 +156,40 @@ console.log("\n── Demo / admin ──");
 
 // I18N QA A-05: kaynak-dil çeviricisi eksik anahtarda HAM ANAHTAR döndürmez (güvenli yedek: boş metin).
 ok(trMembershipTx("settings.membership.yokBoyleBirAnahtar") === "" && trMembershipTx("settings.membership.noEndDate") === NO_END_DATE_TEXT, "kaynak-dil çevirici: eksik anahtar → ham anahtar yok");
+
+// I18N-F1-R3: deneme hata kodları → trial.errors.codes.<KOD>. TR katalog kopyası sunucunun Türkçe metniyle BİREBİR
+// (TRIAL_MESSAGES + roxyMeter "kredi doğrulanamadı"); EN'de Roxy adı geçmez; TR ekranda sunucu metni aynen gösterilir.
+console.log("\n── Deneme hata kodları (i18n) ──");
+{
+  const trCodes = trTrial.trial.errors.codes as Record<string, string>;
+  const enCodes = enTrial.trial.errors.codes as Record<string, string>;
+  const expectTr: Record<string, string> = {
+    TRIAL_EXPIRED: TRIAL_MESSAGES.expired,
+    TRIAL_SUSPENDED: TRIAL_MESSAGES.suspended,
+    TRIAL_REVIEW: TRIAL_MESSAGES.review,
+    TRIAL_NOT_STARTED: TRIAL_MESSAGES.notStarted,
+    TRIAL_CREDIT_LIMIT: TRIAL_MESSAGES.creditDaily,
+    TRIAL_CREDIT_MODULE_LIMIT: TRIAL_MESSAGES.creditModule,
+    TRIAL_CREDIT_UNAVAILABLE: "Kredi durumu doğrulanamadı. Lütfen biraz sonra tekrar deneyin.",
+    MODULE_NOT_IN_TRIAL: TRIAL_MESSAGES.moduleNotInTrial,
+  };
+  ok(TRIAL_ERROR_CODES.every((c) => trCodes[c] === expectTr[c]), "TR katalog = sunucu Türkçe metni (8 kod, birebir)");
+  ok(TRIAL_ERROR_CODES.every((c) => typeof enCodes[c] === "string" && enCodes[c] !== "" && !/roxy/i.test(enCodes[c])), "EN: 8 kod dolu, Roxy adı yok");
+  ok(
+    trialErrorCode({ code: "MODULE_DENIED", trialCode: "MODULE_NOT_IN_TRIAL" }) === "MODULE_NOT_IN_TRIAL" &&
+      trialErrorCode({ code: "MODULE_DENIED" }) === null &&
+      trialErrorCode({ code: "TRIAL_EXPIRED" }) === "TRIAL_EXPIRED" &&
+      trialErrorCode({ code: "TRIAL_CREDIT_LIMIT", trialCode: "TRIAL_CREDIT_MODULE_LIMIT" }) === "TRIAL_CREDIT_MODULE_LIMIT" &&
+      trialErrorCode(null) === null,
+    "trialErrorCode: EK trialCode önce, deneme dışı kod → null",
+  );
+  const mk = (codes: Record<string, string>) =>
+    Object.assign((k: string) => codes[k.replace(/^codes\./, "")] ?? k, { has: (k: string) => k.replace(/^codes\./, "") in codes });
+  const body = { code: "TRIAL_CREDIT_LIMIT", trialCode: "TRIAL_CREDIT_LIMIT", error: TRIAL_MESSAGES.creditDaily };
+  ok(localizeTrialError(mk(trCodes), "tr", body) === TRIAL_MESSAGES.creditDaily, "tr: sunucu metni birebir");
+  ok(localizeTrialError(mk(enCodes), "en", body) === enCodes.TRIAL_CREDIT_LIMIT, "en: koddan çeviri (Türkçe sızmaz)");
+  ok(localizeTrialError(mk(enCodes), "en", { code: "MODULE_DENIED", error: "x" }) === null, "deneme dışı hata → null (çağıran kendi eşlemesi)");
+}
 
 console.log(`\nToplam: ${pass} geçti, ${fail} kaldı`);
 if (fail > 0) process.exit(1);
