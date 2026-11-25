@@ -68,7 +68,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   loadIssue?: string | null;
 }) {
   const t = useTranslations("stock.history");
-  const ss = useStockServerText();
+  const ss = useStockServerText();
 
   const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const deleteConfirm = useDeleteConfirm();

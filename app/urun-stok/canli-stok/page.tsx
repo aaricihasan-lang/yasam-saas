@@ -93,7 +93,7 @@ function StockCard({
   onAdjust: (row: LiveStockRow, delta: number, idempotencyKey: string) => Promise<StockDeltaResult>;
 }) {
   const t = useTranslations("stock.live");
-  const ss = useStockServerText();
+  const ss = useStockServerText();
 
   const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const uiLocale = useLocale() as ActiveLocale;
