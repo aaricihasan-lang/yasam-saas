@@ -21,6 +21,11 @@ on:
       - "scripts/i18n/modul-ekran-kabul.e2e.ts"
       - ".github/workflows/i18n-modul-ekran.yml"
   workflow_dispatch:
+    inputs:
+      extra:
+        description: "Ek test argümanları (R5: ör. --skip-tour --s6-repeat 5 --only <rota-id>)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -50,7 +55,7 @@ jobs:
             args: --locales tr --widths 1280,768,390,360
           - locale: en
             gate: "on"
-            args: --locales en --widths 1280,768,390,360
+            args: --locales en --widths 1280,768,390,360 --s6-repeat 5
           - locale: kapali
             gate: "off"
             args: --locales tr --widths 1280,360 --gate-closed
@@ -73,10 +78,12 @@ jobs:
           NEXT_PUBLIC_I18N_LOCALE_SWITCHING: ${{ matrix.gate }}
           NODE_OPTIONS: --max-old-space-size=6144
       - name: Modül ekran kabulü (${{ matrix.locale }})
-        run: npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts ${{ matrix.args }} --budget-min 42 --out "$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}"
+        run: npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts ${{ matrix.args }} $MODUL_EKRAN_EXTRA --budget-min 42 --out "$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}"
         env:
           # Doğaltaş Bilgi Kütüphanesi sunucu kapısı (istek anında okunur); kapalıyken ekran 404 olur.
           STONE_LIBRARY_ENABLED: "true"
+          # R5: elle tetiklemede ek argümanlar (betiğe doğrudan gömülmez; ortam değişkeni → kabuk sözcüklerine bölünür).
+          MODUL_EKRAN_EXTRA: ${{ inputs.extra }}
       - name: Özet (iş özeti sayfasına)
         if: always()
         run: |
