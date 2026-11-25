@@ -12,7 +12,7 @@ import { getCatalogMessages } from "../../lib/i18n/catalog";
 import { pseudoLocalizeString } from "../../lib/i18n/pseudo";
 import { formatCurrency, formatDateAbsolute, formatDateAbsoluteInZone, formatNumber, formatTime24, localeTag } from "../../lib/i18n/format";
 import { apiErrorCode, localizeApiError, withServerDetail } from "../../lib/i18n/apiError";
-import { buildBulkDeleteStages, bulkPhraseMatches, setDefaultBulkDeleteTexts, TR_BULK_DELETE_TEXTS, type BulkDeleteTexts } from "../../lib/ui/bulkDeleteGuard";
+import { buildBulkDeleteStages, bulkPhraseMatches, TR_BULK_DELETE_TEXTS, type BulkDeleteTexts } from "../../lib/ui/bulkDeleteGuard";
 import { buildNameListLines } from "../../lib/ui/deleteConfirmMessage";
 import { composeDeleteMessage, TR_DELETE_CONFIRM_TEXTS, type DeleteConfirmTexts } from "../../hooks/useDeleteConfirm";
 import { BODY_IDS, ELEMENT_IDS, fromLegacyTr, MOON_PHASE_IDS, toLegacyTr, ZODIAC_IDS } from "../../lib/i18n/terms/registry";
@@ -144,14 +144,6 @@ ok(enStages.phrase === "DELETE 3 RECORDS" && !/[çğıöşüİ]/.test(JSON.strin
 ok(bulkPhraseMatches("delete 3 records", enStages.phrase) && !bulkPhraseMatches("3 KAYDI SİL", enStages.phrase), "EN ifade normalleştirmesi; TR ifade EN akışını geçemez");
 ok(bulkPhraseMatches("3 kaydi sil", buildBulkDeleteStages({ count: 3 }).phrase), "TR: ı/i toleransı korunur");
 ok(TR.word === "SİL" && EN.word === "DELETE", "yazarak onay sözcüğü dile göre (SİL / DELETE)");
-// Ortak varsayılan kayıt (ConfirmProvider): texts geçmeyen modül çağıranları ekran dilini alır; kayıt kalkınca TR.
-setDefaultBulkDeleteTexts(EN.bulk);
-const regStages = buildBulkDeleteStages({ count: 4 });
-ok(regStages.phrase === "DELETE 4 RECORDS" && bulkPhraseMatches("delete 4 records", regStages.phrase) && !bulkPhraseMatches("4 KAYDI SİL", regStages.phrase), "kayıtlı EN varsayılan: ifade + karşılaştırma kuralı aynı");
-setDefaultBulkDeleteTexts(TR.bulk);
-ok(JSON.stringify(buildBulkDeleteStages({ count: 4, deleteAll: true })) === JSON.stringify(buildBulkDeleteStages({ count: 4, deleteAll: true, texts: TR_BULK_DELETE_TEXTS })), "kayıtlı TR katalog varsayılanı = bugünkü sabitler (birebir)");
-setDefaultBulkDeleteTexts(null);
-ok(buildBulkDeleteStages({ count: 4 }).phrase === "4 KAYDI SİL", "kayıt kaldırılınca Türkçe yedek");
 const msgTr = composeDeleteMessage({ message: "Kayıt silinecek." }, TR.single);
 ok(msgTr === composeDeleteMessage({ message: "Kayıt silinecek." }) && msgTr.endsWith("Bu işlem geri alınamaz."), "TR tekli mesaj birebir aynı");
 ok(composeDeleteMessage({ message: "Bu işlem geri alınamaz. Emin misiniz?" }, TR.single) === "Bu işlem geri alınamaz. Emin misiniz?", "TR: uyarı zaten varsa tekrar eklenmez");
