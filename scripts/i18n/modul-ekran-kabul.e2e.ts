@@ -1060,21 +1060,38 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const switchTo = async (u: { userId: string; userRecord: Record<string, unknown> }) => {
         const tok = `zz-modul-ekran-s6-${randomUUID().slice(0, 12)}`;
         await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
-        const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
-        await ctx.clearCookies();
-        if (keep.length) await ctx.addCookies(keep);
+        const keepLocale = async () => {
+          const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
+          await ctx.clearCookies();
+          if (keep.length) await ctx.addCookies(keep);
+        };
+        await keepLocale();
         await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
         await page.evaluate(([uu, tk]) => {
           localStorage.clear();
           localStorage.setItem("yasam_user", uu as string);
           localStorage.setItem("yasam_session_token", tk as string);
         }, [JSON.stringify(u.userRecord), tok]);
+        // Ara sayfa ÖNCEKİ hesabın localStorage'ıyla açıldı → çerez geçişi önceki hesaba HttpOnly oturum çerezi yazmış olabilir
+        // (koşu 45608410435: B'nin /api/me/locale isteği 403 "Oturum kimliği uyuşmuyor"). Gerçek çıkışta bu çerez silinir →
+        // burada da ikinci kez temizlenir (NEXT_LOCALE cihaz çerezi yine korunur).
+        await keepLocale();
       };
+      // Tanı: hesap tercihi okuması (/api/me/locale GET) adım başına durum + tercih (koşular arası tutarsızlık 957f0fa06).
+      let prefLog: string[] = [];
+      page.on("response", (r) => {
+        if (!r.url().startsWith(`${APP}/api/me/locale`) || r.request().method() !== "GET") return;
+        void r.json().then((j: { preference?: { status?: string; locale?: string; reason?: string } }) => {
+          prefLog.push(`${r.status()}:${j?.preference?.status ?? "?"}${j?.preference?.locale ? `=${j.preference.locale}` : ""}${j?.preference?.reason ? `(${j.preference.reason})` : ""}`);
+        }).catch(() => prefLog.push(`${r.status()}:gövde-yok`));
+      });
       const visit = async (p: string, want: string | null) => {
+        prefLog = [];
         await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
         await settle(page);
         if (want) await waitLang(page, want, 20_000);
-        return htmlLang(page);
+        const l = await htmlLang(page);
+        return prefLog.length ? `${l} [me/locale ${prefLog.join(",")}]` : l;
       };
       await switchTo({ userId: fx.userId, userRecord: fx.userRecord });
       const a1 = await visit("/", "en"); steps.push(`A ana sayfa → ${a1}`);
@@ -1090,8 +1107,9 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const a3 = await visit("/", "en"); steps.push(`A tekrar ana sayfa → ${a3}`);
       const prefA = await prefOf(env, fx.userId);
       const prefB = await prefOf(env, B.userId);
-      const ok = a1 === "en" && a2 === "en" && b1 === "tr" && b2 === "tr" && a3 === "en" && prefA === "en" && prefB === null;
-      const finding = b0 !== "tr" ? "; BULGU: hesap değişiminden hemen sonra ana sayfaya uğramadan açılan ekran önceki hesabın dilinde (hesap→çerez eşitlemesi yalnız LanguageSelector'ın bulunduğu ana sayfada)" : "";
+      const is = (v: string, l: string) => v === l || v.startsWith(`${l} `);
+      const ok = is(a1, "en") && is(a2, "en") && is(b1, "tr") && is(b2, "tr") && is(a3, "en") && prefA === "en" && prefB === null;
+      const finding = !is(b0, "tr") ? "; BULGU: hesap değişiminden hemen sonra ana sayfaya uğramadan açılan ekran önceki hesabın dilinde (hesap→çerez eşitlemesi yalnız LanguageSelector'ın bulunduğu ana sayfada)" : "";
       return { ok, shot, detail: `${steps.join("; ")}; DB tercih A=${prefA ?? "yok"} B=${prefB ?? "yok"}${finding}` };
     } finally {
       await ctx.close().catch(() => undefined);
