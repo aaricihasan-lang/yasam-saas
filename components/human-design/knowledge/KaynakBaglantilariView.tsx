@@ -1,6 +1,7 @@
 import { Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { HdKnowledgeEvidence } from "@/lib/human-design/knowledge/expertReadTypes";
-import { RELATION_LABELS } from "./knowledgeConstants";
+import { RELATION_TYPES } from "./knowledgeConstants";
 import { KnowledgeEmpty } from "./KnowledgeStates";
 
 /**
@@ -10,8 +11,9 @@ import { KnowledgeEmpty } from "./KnowledgeStates";
  * aksi halde kilit rozeti gösterilir (fail-closed; metin hiç gelmez).
  */
 export function KaynakBaglantilariView({ evidence }: { evidence: HdKnowledgeEvidence[] }) {
+  const t = useTranslations("hd.knowledge.canonical");
   if (evidence.length === 0) {
-    return <KnowledgeEmpty title="Henüz kaynak bağlantısı yok" />;
+    return <KnowledgeEmpty title={t("noEvidence")} />;
   }
 
   return (
@@ -20,17 +22,17 @@ export function KaynakBaglantilariView({ evidence }: { evidence: HdKnowledgeEvid
         <li key={i} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
-              {RELATION_LABELS[e.relation_type] ?? e.relation_type}
+              {RELATION_TYPES.has(e.relation_type) ? t(`relation.${e.relation_type}`) : e.relation_type}
             </span>
             {e.is_primary && (
-              <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">birincil</span>
+              <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">{t("primary")}</span>
             )}
             {e.is_single_source && (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">tek-kaynak</span>
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">{t("singleSource")}</span>
             )}
           </div>
 
-          <p className="mt-1.5 text-sm font-semibold text-slate-800">{e.source.title || "(başlıksız kaynak)"}</p>
+          <p className="mt-1.5 text-sm font-semibold text-slate-800">{e.source.title || t("untitledSource")}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
             {e.source.authors.length > 0 && <span>{e.source.authors.join(", ")}</span>}
             {(e.passage.locator_label || e.passage.locator_value) && (
@@ -51,7 +53,7 @@ export function KaynakBaglantilariView({ evidence }: { evidence: HdKnowledgeEvid
 
           {e.full_text_restricted ? (
             <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">
-              <Lock className="h-3 w-3" /> Tam metin telif/kullanım hakkı gereği gösterilmiyor
+              <Lock className="h-3 w-3" /> {t("restricted")}
             </p>
           ) : (
             (e.original_text || e.faithful_translation) && (
@@ -59,14 +61,14 @@ export function KaynakBaglantilariView({ evidence }: { evidence: HdKnowledgeEvid
                 {e.original_text && (
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                      Özgün Metin{e.original_language_tag ? ` · ${e.original_language_tag}` : ""}
+                      {t("originalText")}{e.original_language_tag ? ` · ${e.original_language_tag}` : ""}
                     </p>
                     <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700">{e.original_text}</p>
                   </div>
                 )}
                 {e.faithful_translation && (
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Sadık Çeviri</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t("faithfulTranslation")}</p>
                     <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-700">{e.faithful_translation}</p>
                   </div>
                 )}

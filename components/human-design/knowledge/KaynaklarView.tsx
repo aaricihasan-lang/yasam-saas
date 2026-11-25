@@ -1,17 +1,19 @@
+import { useTranslations } from "next-intl";
 import type { HdKnowledgeSourceRef } from "@/lib/human-design/knowledge/expertReadTypes";
 import { KnowledgeEmpty } from "./KnowledgeStates";
 
 /** Salt-okuma Kaynaklar (bibliyografik) görünümü. Yalnız hak-güvenli metadata. */
 export function KaynaklarView({ sources }: { sources: HdKnowledgeSourceRef[] }) {
+  const t = useTranslations("hd.knowledge.canonical");
   if (sources.length === 0) {
-    return <KnowledgeEmpty title="Bu içeriğe bağlı kaynak yok" />;
+    return <KnowledgeEmpty title={t("noSources")} />;
   }
 
   return (
     <ul className="space-y-2">
       {sources.map((s) => (
         <li key={s.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <p className="text-sm font-bold text-slate-800">{s.title || "(başlıksız kaynak)"}</p>
+          <p className="text-sm font-bold text-slate-800">{s.title || t("untitledSource")}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
             {s.authors.length > 0 && <span>{s.authors.join(", ")}</span>}
             {s.organization && <span>· {s.organization}</span>}

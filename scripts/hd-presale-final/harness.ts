@@ -656,7 +656,9 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     assert(/!isAdmin \? \(\s*<HdKnowledgeWorkspace/.test(p) && !/KnowledgeEmpty/.test(p), "uzmana boş ekran");
     assert(!/Eski Bilgi Bankası \(yedek\)/.test(p) && !/Eski Bilgi Bankası/.test(src("app/human-design/bilgi-bankasi/legacy/page.tsx")), "yedek dili duruyor");
     const l = src("app/human-design/bilgi-bankasi/components/HdBilgiKayitListesi.tsx");
-    assert(/rows\.length === 0 \? "Henüz Bilgi Bankası kaydınız yok\."/.test(l), "boş durum koşulu");
+    // I18N-F1-R5: metin katalogda (TR değeri bayt-bayt aynı); niyet korunur — boş durum metni yalnız 0 kayıtta.
+    assert(/rows\.length === 0 \? t\("list\.emptyNone"\)/.test(l), "boş durum koşulu");
+    assert(JSON.parse(src("messages/tr/hd.knowledge.json")).hd.knowledge.list.emptyNone === "Henüz Bilgi Bankası kaydınız yok.", "boş durum TR metni");
   });
   await t("P2-12: toplu silme yalnız görünen seçimler; filtre değişince seçim temizlenir", () => {
     const l = src("app/human-design/bilgi-bankasi/components/HdBilgiKayitListesi.tsx");

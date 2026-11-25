@@ -4,37 +4,18 @@
  */
 import type { HdEntityKind } from "@/lib/human-design/knowledge/expertReadTypes";
 
-export const KIND_LABELS: Record<HdEntityKind, string> = {
-  tip: "Tip",
-  otorite: "Otorite",
-  kapi: "Kapı",
-  kanal: "Kanal",
-};
+// Görünen adlar katalogda (I18N-F1-R5): hd.knowledge.canonical.kind.<tür>, .contentField.<alan>, .relation.<ilişki>.
+// TR değerleri önceki sabit etiketlerle bayt-bayt aynı; anahtarlar / kodlar değişmedi.
 
 export const KIND_ORDER: HdEntityKind[] = ["tip", "otorite", "kapi", "kanal"];
 
 /** İçerik türüne özgü alanların (key → başlık) sözleşmesi. */
-export const CONTENT_TYPE_FIELDS: Record<HdEntityKind, { key: string; label: string }[]> = {
-  tip: [
-    { key: "strategy_text", label: "Strateji" },
-    { key: "signature_text", label: "İmza" },
-    { key: "not_self_text", label: "Yanlış-Benlik" },
-  ],
-  otorite: [
-    { key: "decision_mechanism", label: "Karar Mekanizması" },
-    { key: "application_text", label: "Uygulama" },
-    { key: "caution_notes", label: "Dikkat Notları" },
-  ],
-  kapi: [{ key: "general_theme", label: "Genel Tema" }],
-  kanal: [
-    { key: "full_channel_text", label: "Tam Kanal Metni" },
-    { key: "hanging_gate_context", label: "Tek Uçlu (Hanging Gate) Bağlam" },
-  ],
+export const CONTENT_TYPE_FIELDS: Record<HdEntityKind, { key: string }[]> = {
+  tip: [{ key: "strategy_text" }, { key: "signature_text" }, { key: "not_self_text" }],
+  otorite: [{ key: "decision_mechanism" }, { key: "application_text" }, { key: "caution_notes" }],
+  kapi: [{ key: "general_theme" }],
+  kanal: [{ key: "full_channel_text" }, { key: "hanging_gate_context" }],
 };
 
-export const RELATION_LABELS: Record<string, string> = {
-  supports: "Destekler",
-  contradicts: "Çelişir",
-  school_specific: "Ekole özgü",
-  background: "Arka plan",
-};
+/** Bilinen kanıt ilişki türleri (görünen ad katalogda; bilinmeyen tür ham kodla gösterilir). */
+export const RELATION_TYPES: ReadonlySet<string> = new Set(["supports", "contradicts", "school_specific", "background"]);

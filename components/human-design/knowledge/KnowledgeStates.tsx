@@ -1,11 +1,13 @@
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 /** Yüklenme durumu (canonical Bilgi Bankası paylaşılan sunumu). */
-export function KnowledgeLoading({ label = "Yükleniyor…" }: { label?: string }) {
+export function KnowledgeLoading({ label }: { label?: string }) {
+  const t = useTranslations("hd.knowledge.canonical");
   return (
     <div className="flex items-center justify-center gap-2 py-14 text-sm text-slate-500">
-      <Loader2 className="h-4 w-4 animate-spin" /> {label}
+      <Loader2 className="h-4 w-4 animate-spin" /> {label ?? t("loading")}
     </div>
   );
 }
@@ -31,9 +33,10 @@ export function KnowledgeEmpty({ title, hint }: { title: string; hint?: ReactNod
 
 /** Modül kilidi (human_design uzmana kapalı / oturum yok). */
 export function KnowledgeLocked({ message }: { message: string }) {
+  const t = useTranslations("hd.knowledge.canonical");
   return (
     <div className="mx-auto my-8 max-w-xl rounded-2xl border border-amber-200 bg-amber-50/80 px-6 py-10 text-center">
-      <p className="text-sm font-bold text-amber-800">Bilgi Bankası şu an erişilebilir değil</p>
+      <p className="text-sm font-bold text-amber-800">{t("unavailable")}</p>
       <p className="mt-1.5 text-xs leading-relaxed text-amber-700">{message}</p>
     </div>
   );

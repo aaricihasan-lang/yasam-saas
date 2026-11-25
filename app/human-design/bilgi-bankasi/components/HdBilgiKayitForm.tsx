@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKbLabels } from "../helpers/useKbLabels";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -50,16 +52,18 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
   const { showToast } = useToast();
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
+  const t = useTranslations("hd.knowledge");
+  const labels = useKbLabels();
 
   async function handleSave() {
     if (!form.category) {
-      showToast({ message: "Kategori seçin.", type: "warning" });
+      showToast({ message: t("form.pickCategory"), type: "warning" });
       return;
     }
     const gateChannel = isHdGateChannelCategory(form.category);
     if (gateChannel ? !form.structuredValue : !form.title.trim()) {
       const isStructured = !!getStructuredCategoryOptions(form.category);
-      showToast({ message: isStructured ? "Değer seçin." : "Başlık girin.", type: "warning" });
+      showToast({ message: isStructured ? t("form.pickValue") : t("form.enterTitle"), type: "warning" });
       return;
     }
     // Kapı/kanal: başlık = numara + görünen ad (boş ad → hazır ad). Kod numaradan.
@@ -88,16 +92,16 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
     setSaving(false);
     if (existingId) {
       // Aynı kod için ikinci kayıt açılmaz → mevcut kayda git (ad/açıklama orada düzenlenir).
-      showToast({ message: "Bu seçim için zaten kaydınız var. Mevcut kayıt açılıyor...", type: "info" });
+      showToast({ message: t("form.exists"), type: "info" });
       onSuccess?.();
       router.push(`/human-design/bilgi-bankasi/${existingId}`);
       return;
     }
     if (error || !id) {
-      showToast({ message: `Hata: ${error ?? "Kayıt oluşturulamadı."}`, type: "error" });
+      showToast({ message: t("form.error", { error: error ? labels.err(error) : t("form.createFailed") }), type: "error" });
       return;
     }
-    showToast({ message: "Kayıt oluşturuldu. Editöre yönlendiriliyorsunuz...", type: "success" });
+    showToast({ message: t("form.created"), type: "success" });
     onSuccess?.();
     // Yeni kayıt bütünsel tam sayfa editöre yönlendirilir.
     router.push(`/human-design/bilgi-bankasi/${id}`);
@@ -106,10 +110,10 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
   return (
     <div className="space-y-6">
       <section>
-        <p className={sectionCls}>Temel Bilgiler</p>
+        <p className={sectionCls}>{t("form.basics")}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelCls}>Kategori *</label>
+            <label className={labelCls}>{t("form.categoryLabel")}</label>
             <select
               value={form.category}
               onChange={(e) =>
@@ -123,10 +127,10 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
               }
               className={`h-9 ${fieldBase}`}
             >
-              <option value="">Seçin...</option>
+              <option value="">{t("form.choose")}</option>
               {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
-                  {cat}
+                  {labels.category(cat)}
                 </option>
               ))}
             </select>
@@ -146,7 +150,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
             />
           ) : (
           <div>
-            <label className={labelCls}>Başlık *</label>
+            <label className={labelCls}>{t("form.titleLabel")}</label>
             {(() => {
               const opts: StructuredOption[] | null = getStructuredCategoryOptions(form.category);
               if (opts) {
@@ -163,9 +167,9 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
                     }}
                     className={`h-9 ${fieldBase}`}
                   >
-                    <option value="">— Seçin —</option>
+                    <option value="">{t("form.chooseDash")}</option>
                     {opts.map((opt) => (
-                      <option key={opt.code} value={opt.code}>{opt.label}</option>
+                      <option key={opt.code} value={opt.code}>{labels.option(form.category, opt)}</option>
                     ))}
                   </select>
                 );
@@ -175,7 +179,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="Başlık girin..."
+                  placeholder={t("form.titlePlaceholder")}
                   className={`h-9 ${fieldBase}`}
                 />
               );
@@ -184,7 +188,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           )}
 
           <div>
-            <label className={labelCls}>Kod (otomatik)</label>
+            <label className={labelCls}>{t("form.codeAuto")}</label>
             <input
               type="text"
               value={computeCode(form.category, form.title, form.structuredValue)}
@@ -194,7 +198,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           </div>
 
           <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
-            Kayıtlar otomatik sıralanır (kapılar numaraya, kanallar kapı çiftine göre). Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Bilgi ve Açıklamalar tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
+            {t.rich("form.note", { b: (c) => <span className="font-bold">{c}</span> })}
           </div>
         </div>
       </section>
@@ -205,7 +209,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           onClick={() => setForm(empty)}
           className="h-9 rounded-xl border border-indigo-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-indigo-900 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50/80"
         >
-          Temizle
+          {t("form.clear")}
         </button>
         <button
           type="button"
@@ -213,7 +217,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           disabled={saving}
           className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Oluşturuluyor..." : "Oluştur ve Düzenle"}
+          {saving ? t("form.creating") : t("form.createAndEdit")}
         </button>
       </div>
     </div>

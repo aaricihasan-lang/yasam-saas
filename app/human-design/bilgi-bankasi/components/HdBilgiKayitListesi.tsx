@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useKbLabels } from "../helpers/useKbLabels";
+import { KB_NETWORK_ERROR } from "../helpers/kbNetworkError";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -14,9 +19,9 @@ import {
   type HdKnowledgeRow,
 } from "../helpers/hdBilgiKayit";
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
   try {
-    return new Date(iso).toLocaleDateString("tr-TR", {
+    return new Date(iso).toLocaleDateString(localeTag(locale as ActiveLocale), {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -39,10 +44,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 function CategoryBadge({ category }: { category: string }) {
+  const labels = useKbLabels();
   const cls = CATEGORY_COLORS[category] ?? "bg-slate-100 text-slate-700 ring-slate-200/80";
   return (
     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${cls}`}>
-      {category}
+      {labels.category(category)}
     </span>
   );
 }
@@ -51,6 +57,14 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.knowledge");
+  const locale = useLocale();
+  const labels = useKbLabels();
+  // Ortak ağ hatası ekran diline eşlenir (kararlı bağımlılıklar: t + locale; sunucu metni aynen).
+  const kbErr = useCallback(
+    (e: string | null | undefined) => (locale !== "tr" && e === KB_NETWORK_ERROR ? t("networkError") : String(e ?? "")),
+    [t, locale],
+  );
 
   const [rows, setRows] = useState<HdKnowledgeRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,13 +81,13 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
     ({ rows: data, error }: Awaited<ReturnType<typeof listHdKnowledgeRecords>>) => {
       setLoading(false);
       if (error) {
-        showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
+        showToast({ message: t("list.loadError", { error: kbErr(error) }), type: "error" });
       } else {
         setRows(sortHdKnowledgeRecords(data));
         setSelected(new Set());
       }
     },
-    [showToast],
+    [showToast, t, kbErr],
   );
 
   // Silme vb. sonrası yeniden yükleme (yükleniyor durumu gösterilir).
@@ -140,18 +154,18 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
 
   async function handleDeleteOne(id: string) {
     const ok = await confirm({
-      title: "Kaydı sil",
-      message: "Bu kayıt kalıcı olarak silinecek. Emin misiniz?",
+      title: t("list.deleteOneTitle"),
+      message: t("list.deleteOneMessage"),
       tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      confirmText: t("list.delete"),
+      cancelText: t("list.cancel"),
     });
     if (!ok) return;
     const { error } = await deleteHdKnowledgeRecord(id);
     if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
+      showToast({ message: t("list.deleteError", { error: kbErr(error) }), type: "error" });
     } else {
-      showToast({ message: "Kayıt silindi.", type: "success" });
+      showToast({ message: t("list.deleted"), type: "success" });
       loadRows();
     }
   }
@@ -160,16 +174,15 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
     const ids = [...visibleSelectedIds];
     if (ids.length === 0 || bulkRef.current) return;
     bulkRef.current = true; // onay süresince de kilitli → çift tıklama ikinci akış açmaz
-    const message =
-      "Ekranda seçili kayıtlar ve bunlara bağlı kaynaklar kalıcı olarak silinecek. Kayıtlı raporlarınız etkilenmez.";
+    const message = t("list.bulkMessage");
     const ok = requiresBulkDeleteGuard(ids.length)
       ? await runBulkDeleteConfirm(confirm, { count: ids.length, detail: message })
       : await confirm({
-          title: `${ids.length} kaydı sil`,
-          message: `${message} Emin misiniz?`,
+          title: t("list.bulkTitle", { count: ids.length }),
+          message: t("list.bulkConfirm", { message }),
           tone: "danger",
-          confirmText: "Sil",
-          cancelText: "Vazgeç",
+          confirmText: t("list.delete"),
+          cancelText: t("list.cancel"),
         });
     if (!ok) {
       bulkRef.current = false;
@@ -180,9 +193,9 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
     bulkRef.current = false;
     setBulkBusy(false);
     if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
+      showToast({ message: t("list.deleteError", { error: kbErr(error) }), type: "error" });
     } else {
-      showToast({ message: `${ids.length} kayıt silindi.`, type: "success" });
+      showToast({ message: t("list.bulkDeleted", { count: ids.length }), type: "success" });
       loadRows();
     }
   }
@@ -195,38 +208,38 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Başlık, kod veya içerikte ara..."
+          placeholder={t("list.searchPlaceholder")}
           className="h-9 min-w-[180px] flex-1 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400"
         />
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          aria-label="Kategori filtresi"
+          aria-label={t("list.categoryFilter")}
           className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
         >
-          <option value="">Tüm Kategoriler</option>
+          <option value="">{t("list.allCategories")}</option>
           {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
-              {cat}
+              {labels.category(cat)}
             </option>
           ))}
         </select>
         <select
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as "" | "active" | "passive")}
-          aria-label="Durum filtresi"
+          aria-label={t("list.statusFilter")}
           className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
         >
-          <option value="">Tüm Durumlar</option>
-          <option value="active">Aktif</option>
-          <option value="passive">Pasif</option>
+          <option value="">{t("list.allStatuses")}</option>
+          <option value="active">{t("list.active")}</option>
+          <option value="passive">{t("list.passive")}</option>
         </select>
         <button
           type="button"
           onClick={loadRows}
           className="h-9 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
         >
-          Yenile
+          {t("list.refresh")}
         </button>
         {visibleSelectedIds.length > 0 && (
           <button
@@ -235,7 +248,7 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
             disabled={bulkBusy}
             className="h-9 rounded-xl border border-rose-300/80 bg-rose-600 px-4 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105 disabled:opacity-60"
           >
-            {bulkBusy ? "Siliniyor..." : `${visibleSelectedIds.length} Seçiliyi Sil`}
+            {bulkBusy ? t("list.deleting") : t("list.deleteSelected", { count: visibleSelectedIds.length })}
           </button>
         )}
       </div>
@@ -243,19 +256,19 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
       {/* Tablo */}
       {loading ? (
         <div className="flex items-center justify-center py-16 text-sm text-slate-500">
-          Yükleniyor...
+          {t("list.loading")}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-slate-500">
           {/* "Henüz kayıt yok" YALNIZ gerçekten sıfır kayıt varken görünür. */}
-          <span>{rows.length === 0 ? "Henüz Bilgi Bankası kaydınız yok." : "Filtreye uyan kayıt bulunamadı."}</span>
+          <span>{rows.length === 0 ? t("list.emptyNone") : t("list.emptyFiltered")}</span>
           {rows.length === 0 && onAddNew && (
             <button
               type="button"
               onClick={onAddNew}
               className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-black text-white shadow-sm transition hover:brightness-105"
             >
-              İlk Kaydı Ekle
+              {t("list.addFirst")}
             </button>
           )}
         </div>
@@ -269,30 +282,30 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                     type="checkbox"
                     checked={visibleSelectedIds.length === filtered.length && filtered.length > 0}
                     onChange={toggleAll}
-                    aria-label="Görünen tüm kayıtları seç"
+                    aria-label={t("list.selectAllVisible")}
                     className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                   />
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">
-                  Kategori
+                  {t("col.category")}
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">
-                  Başlık
+                  {t("col.title")}
                 </th>
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">
-                  Kod
+                  {t("col.code")}
                 </th>
                 <th className="hidden px-3 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">
-                  Aktif
+                  {t("col.active")}
                 </th>
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
-                  Güncelleme
+                  {t("col.updated")}
                 </th>
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
-                  İlişkiler
+                  {t("col.relations")}
                 </th>
                 <th className="hidden px-3 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">
-                  İşlem
+                  {t("col.action")}
                 </th>
               </tr>
             </thead>
@@ -307,7 +320,7 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                       type="checkbox"
                       checked={selected.has(row.id)}
                       onChange={() => toggleOne(row.id)}
-                      aria-label={`${row.title} kaydını seç`}
+                      aria-label={t("list.selectRow", { title: row.title ?? "" })}
                       className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                     />
                   </td>
@@ -324,14 +337,14 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                         onClick={() => router.push(`/human-design/bilgi-bankasi/${row.id}`)}
                         className="h-9 rounded-lg border border-indigo-200 bg-white px-3.5 text-xs font-bold text-indigo-700"
                       >
-                        Düzenle
+                        {t("list.edit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteOne(row.id)}
                         className="h-9 rounded-lg border border-rose-200 bg-white px-3.5 text-xs font-bold text-rose-600"
                       >
-                        Sil
+                        {t("list.delete")}
                       </button>
                     </div>
                   </td>
@@ -348,17 +361,17 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                     />
                   </td>
                   <td className="hidden px-3 py-3 text-xs text-slate-500 lg:table-cell">
-                    {formatDate(row.updated_at)}
+                    {formatDate(row.updated_at, locale)}
                   </td>
                   <td className="hidden px-3 py-3 lg:table-cell">
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-200/70" title="Merkez">
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-200/70" title={t("list.relCenter")}>
                         M{(row.related_centers ?? []).length}
                       </span>
-                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/70" title="Kanal">
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/70" title={t("list.relChannel")}>
                         K{(row.related_channels ?? []).length}
                       </span>
-                      <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700 ring-1 ring-orange-200/70" title="Kapı">
+                      <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700 ring-1 ring-orange-200/70" title={t("list.relGate")}>
                         G{(row.related_gates ?? []).length}
                       </span>
                     </div>
@@ -370,14 +383,14 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                         onClick={() => router.push(`/human-design/bilgi-bankasi/${row.id}`)}
                         className="h-7 rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
                       >
-                        Düzenle
+                        {t("list.edit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteOne(row.id)}
                         className="h-7 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50"
                       >
-                        Sil
+                        {t("list.delete")}
                       </button>
                     </div>
                   </td>
@@ -386,8 +399,8 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
             </tbody>
           </table>
           <div className="border-t border-indigo-50/80 bg-slate-50/60 px-4 py-2 text-xs text-slate-500">
-            {filtered.length} / {rows.length} kayıt
-            {visibleSelectedIds.length > 0 && ` · ${visibleSelectedIds.length} seçili`}
+            {t("list.footer", { shown: filtered.length, total: rows.length })}
+            {visibleSelectedIds.length > 0 && ` · ${t("list.selectedCount", { count: visibleSelectedIds.length })}`}
           </div>
         </div>
       )}

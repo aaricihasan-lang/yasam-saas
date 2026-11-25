@@ -6,6 +6,7 @@
  * ile GET atar. YALNIZ okuma; mutation fonksiyonu YOK. service_role tarayıcıya gelmez.
  * Auth deseni hdBilgiKayit.ts (chartsClient) ile aynıdır.
  */
+import { KB_NETWORK_ERROR } from "./kbNetworkError";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type {
   HdEntityKind,
@@ -39,7 +40,7 @@ export async function fetchCanonicalGroups(kind: HdEntityKind): Promise<GroupsRe
       cache: "no-store",
     });
   } catch {
-    return { ok: false, locked: false, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { ok: false, locked: false, error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && Array.isArray(j.items)) {
@@ -61,7 +62,7 @@ export async function fetchCanonicalEntity(canonicalKey: string): Promise<Entity
       cache: "no-store",
     });
   } catch {
-    return { ok: false, locked: false, notFound: false, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { ok: false, locked: false, notFound: false, error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && j.entity && typeof j.entity === "object") {

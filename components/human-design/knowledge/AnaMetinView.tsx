@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type {
   HdEntityKind,
   HdKnowledgeContent,
@@ -13,11 +14,12 @@ export function AnaMetinView({
   content: HdKnowledgeContent | null;
   entityKind: HdEntityKind;
 }) {
+  const t = useTranslations("hd.knowledge.canonical");
   if (!content) {
     return (
       <KnowledgeEmpty
-        title="Bu kayıt için henüz yayınlanmış içerik yok"
-        hint="İçerik yayınlandığında burada görünecektir."
+        title={t("noPublishedContent")}
+        hint={t("noPublishedHint")}
       />
     );
   }
@@ -30,26 +32,26 @@ export function AnaMetinView({
   const hasReport = content.report_text.trim() !== "";
 
   if (!hasGeneral && !hasReport && typeFields.length === 0) {
-    return <KnowledgeEmpty title="İçerik boş" />;
+    return <KnowledgeEmpty title={t("contentEmpty")} />;
   }
 
   return (
     <div className="space-y-5">
       {hasGeneral && (
         <section>
-          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">Genel Açıklama</h3>
+          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">{t("generalDescription")}</h3>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{content.general_description}</p>
         </section>
       )}
       {hasReport && (
         <section>
-          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">Kaynaklandırılmış Ana Metin</h3>
+          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">{t("sourcedMainText")}</h3>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{content.report_text}</p>
         </section>
       )}
       {typeFields.map((f) => (
         <section key={f.key}>
-          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">{f.label}</h3>
+          <h3 className="mb-1 text-xs font-black uppercase tracking-wide text-indigo-700">{t(`contentField.${f.key}`)}</h3>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {(content as unknown as Record<string, string>)[f.key]}
           </p>

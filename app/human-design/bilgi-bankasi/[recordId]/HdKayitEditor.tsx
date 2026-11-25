@@ -1,7 +1,10 @@
 "use client";
 
-import { KB_CONTENT_LABEL, KB_NOTES_HELP, KB_NOTES_LABEL, kbContentHelp } from "@/lib/human-design/knowledge/kbFieldLabels";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useKbLabels, kbCategoryCode } from "../helpers/useKbLabels";
+import { useHdTerms } from "../../_i18n/useHdTerms";
+import { KB_NETWORK_ERROR } from "../helpers/kbNetworkError";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -28,7 +31,7 @@ import {
   type HdKnowledgeRow,
 } from "../helpers/hdBilgiKayit";
 import { listHdSources, type HdSourceRow } from "../helpers/hdKaynaklar";
-import { HdKaynakEditor, rightsStatusLabel } from "../components/HdKaynakEditor";
+import { HdKaynakEditor, useRightsStatusLabel } from "../components/HdKaynakEditor";
 import {
   HdGateChannelNameField,
   hdComposeTitleFor,
@@ -156,6 +159,20 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.knowledge");
+  const isTr = useLocale() === "tr";
+  const labels = useKbLabels();
+  const terms = useHdTerms();
+  // Ortak ağ hatası ekran diline eşlenir (kararlı bağımlılıklar; sunucu metni aynen).
+  const kbErr = useCallback(
+    (e: string | null | undefined) => (!isTr && e === KB_NETWORK_ERROR ? t("networkError") : String(e ?? "")),
+    [t, isTr],
+  );
+  const rightsStatusLabel = useRightsStatusLabel();
+  // İlişki öğelerinin GÖRÜNEN adı (kayıtlı kod değişmez; TR'de sözlük etiketi aynen).
+  const centerLabel = (c: { code: string; label: string }) => (isTr ? c.label : terms.label("center", c.code));
+  const channelLabel = (c: { code: string; label: string }) => (isTr ? c.label : terms.label("channel", c.code));
+  const gateLabel = (g: { code: number; label: string }) => (isTr ? g.label : t("gateOption", { n: g.code }));
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -251,7 +268,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     listHdSources(recordId).then(({ rows, error }) => {
       if (!alive) return;
       if (error) {
-        showToast({ message: `Kaynaklar yüklenemedi: ${error}`, type: "error" });
+        showToast({ message: t("editor.sourcesLoadError", { error: kbErr(error) }), type: "error" });
         return;
       }
       setSources(rows);
@@ -260,7 +277,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     return () => {
       alive = false;
     };
-  }, [recordId, showToast]);
+  }, [recordId, showToast, t, kbErr]);
 
   const dirty = form !== null && JSON.stringify(form) !== snapshot;
   // Kayıt formu kirli VEYA açık bir kaynak taslağı varsa kaydedilmemiş iş vardır;
@@ -270,13 +287,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const confirmLeave = useCallback(
     () =>
       confirm({
-        title: "Kaydedilmemiş değişiklikler",
-        message: "Bu kayıtta veya kaynaklarında kaydedilmemiş değişiklikler var. Sayfadan ayrılırsanız kaybolacak.",
-        confirmText: "Değişiklikleri At ve Çık",
-        cancelText: "Sayfada Kal",
+        title: t("editor.unsavedTitle"),
+        message: t("editor.leaveMessage"),
+        confirmText: t("editor.leaveConfirm"),
+        cancelText: t("editor.stayOnPage"),
         tone: "danger",
       }),
-    [confirm],
+    [confirm, t],
   );
   useHdLeaveGuard(hasUnsavedWork, confirmLeave);
 
@@ -284,15 +301,15 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   const confirmSourceSwitch = useCallback(async (): Promise<boolean> => {
     if (!sourceDirty) return true;
     const ok = await confirm({
-      title: "Kaydedilmemiş kaynak değişiklikleri",
-      message: "Açık kaynaktaki değişiklikler henüz kaydedilmedi. Devam ederseniz kaybolacak.",
-      confirmText: "Değişiklikleri At",
-      cancelText: "Vazgeç",
+      title: t("editor.sourceUnsavedTitle"),
+      message: t("editor.sourceUnsavedMessage"),
+      confirmText: t("editor.discard"),
+      cancelText: t("list.cancel"),
       tone: "danger",
     });
     if (ok) setSourceDirty(false);
     return ok;
-  }, [sourceDirty, confirm]);
+  }, [sourceDirty, confirm, t]);
   const switchSource = useCallback(
     async (id: string | null) => {
       if (id === activeSourceId) return;
@@ -353,13 +370,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   async function handleSave() {
     if (!form) return;
     if (!form.category) {
-      showToast({ message: "Kategori seçin.", type: "warning" });
+      showToast({ message: t("form.pickCategory"), type: "warning" });
       setSection("content");
       return;
     }
     const gateChannel = isHdGateChannelCategory(form.category);
     if (gateChannel ? !form.structuredValue : !form.title.trim()) {
-      showToast({ message: gateChannel ? "Kapı/kanal seçin." : "Başlık girin.", type: "warning" });
+      showToast({ message: gateChannel ? t("editor.pickGateChannel") : t("form.enterTitle"), type: "warning" });
       setSection("content");
       return;
     }
@@ -367,7 +384,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     // Pasif (taslak) kayıt boş içerikle kaydedilebilir.
     if (form.is_active && !form.content.trim()) {
       showToast({
-        message: `Kaydı aktif etmek için ${KB_CONTENT_LABEL} alanını doldurun.`,
+        message: t("editor.activateNeedsContent", { field: t("fields.contentLabel") }),
         type: "warning",
       });
       setSection("content");
@@ -395,29 +412,29 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     }, recordVersionRef.current);
     setSaving(false);
     if (error) {
-      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : t("form.error", { error: kbErr(error) }), type: "error" });
       return;
     }
     recordVersionRef.current = updatedAt ?? recordVersionRef.current;
     setSnapshot(JSON.stringify(form)); // kayıttan sonra dirty=false
-    showToast({ message: "Kayıt güncellendi.", type: "success" });
+    showToast({ message: t("editor.updated"), type: "success" });
   }
 
   async function handleDelete() {
     const ok = await confirm({
-      title: "Kaydı sil",
-      message: "Bu kayıt (ve bağlı kaynakları) kalıcı olarak silinecek. Emin misiniz?",
+      title: t("list.deleteOneTitle"),
+      message: t("editor.deleteMessage"),
       tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      confirmText: t("list.delete"),
+      cancelText: t("list.cancel"),
     });
     if (!ok) return;
     const { error } = await deleteHdKnowledgeRecord(recordId);
     if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
+      showToast({ message: t("list.deleteError", { error: kbErr(error) }), type: "error" });
       return;
     }
-    showToast({ message: "Kayıt silindi.", type: "success" });
+    showToast({ message: t("list.deleted"), type: "success" });
     router.push(LIST_HREF);
   }
 
@@ -473,27 +490,30 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       HUMAN_DESIGN_CENTERS.filter((c) => {
         if (!form) return false;
         if (onlySelected && !form.related_centers.includes(c.code)) return false;
-        return trMatch(c.label, relSearch) || trMatch(c.code, relSearch);
+        return trMatch(centerLabel(c), relSearch) || trMatch(c.code, relSearch);
       }),
-    [form, onlySelected, relSearch],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- centerLabel yalnız dil/sözlükten türer
+    [form, onlySelected, relSearch, isTr],
   );
   const channelsView = useMemo(
     () =>
       HUMAN_DESIGN_CHANNELS.filter((c) => {
         if (!form) return false;
         if (onlySelected && !form.related_channels.includes(c.code)) return false;
-        return trMatch(c.label, relSearch) || trMatch(c.code, relSearch);
+        return trMatch(channelLabel(c), relSearch) || trMatch(c.code, relSearch);
       }),
-    [form, onlySelected, relSearch],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- channelLabel yalnız dil/sözlükten türer
+    [form, onlySelected, relSearch, isTr],
   );
   const gatesView = useMemo(
     () =>
       HUMAN_DESIGN_GATES.filter((g) => {
         if (!form) return false;
         if (onlySelected && !form.related_gates.includes(g.code)) return false;
-        return trMatch(g.label, relSearch) || String(g.code).includes(relSearch.trim());
+        return trMatch(gateLabel(g), relSearch) || String(g.code).includes(relSearch.trim());
       }),
-    [form, onlySelected, relSearch],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gateLabel yalnız dil/sözlükten türer
+    [form, onlySelected, relSearch, isTr],
   );
 
   // -------- yükleniyor / bulunamadı --------
@@ -501,7 +521,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     return (
       <HumanDesignShell>
         <div className="flex items-center justify-center py-24 text-sm text-slate-500">
-          Yükleniyor...
+          {t("list.loading")}
         </div>
       </HumanDesignShell>
     );
@@ -510,16 +530,16 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     return (
       <HumanDesignShell>
         <div className={`${cardCls} mx-auto max-w-lg text-center`}>
-          <p className="text-lg font-black text-slate-900">Kayıt bulunamadı</p>
+          <p className="text-lg font-black text-slate-900">{t("editor.notFound")}</p>
           <p className="mt-1 text-sm text-slate-600">
-            Bu kayıt silinmiş olabilir veya bu hesaba ait değildir.
+            {t("editor.notFoundHelp")}
           </p>
           <button
             type="button"
             onClick={() => router.push(LIST_HREF)}
             className="mt-4 h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:brightness-105"
           >
-            Listeye Dön
+            {t("editor.backToList")}
           </button>
         </div>
       </HumanDesignShell>
@@ -533,9 +553,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     : sources.find((s) => s.id === activeSourceId) ?? null;
 
   const SECTIONS: { id: SectionId; label: string; desc: string }[] = [
-    { id: "content", label: "İçerik", desc: "Temel bilgiler, bilgi ve açıklamalar, özel çalışma notları." },
-    { id: "sources", label: "Kaynaklar", desc: "Bu bilgiyi dayandıran kaynaklar; her biri ayrı tutulur." },
-    { id: "relations", label: "İlişkiler", desc: "Bu bilgiyle bağlantılı merkez, kanal ve kapıları işaretleyin." },
+    { id: "content", label: t("editor.secContent"), desc: t("editor.secContentDesc") },
+    { id: "sources", label: t("editor.secSources"), desc: t("editor.secSourcesDesc") },
+    { id: "relations", label: t("editor.secRelations"), desc: t("editor.secRelationsDesc") },
   ];
 
   return (
@@ -556,16 +576,16 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <button
             type="button"
             onClick={requestLeave}
-            aria-label="Listeye Dön"
+            aria-label={t("editor.backToList")}
             className="h-10 min-w-10 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:h-9"
           >
             <span aria-hidden className="sm:hidden">←</span>
-            <span className="hidden sm:inline">← Listeye Dön</span>
+            <span className="hidden sm:inline">← {t("editor.backToList")}</span>
           </button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="hidden truncate text-[11px] font-black uppercase tracking-widest text-indigo-500 sm:inline">
-                {form.category || "Kategori seçilmedi"}
+                {form.category ? labels.category(form.category) : t("editor.noCategory")}
               </span>
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
@@ -575,16 +595,16 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${form.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
-                {form.is_active ? "Aktif" : "Pasif"}
+                {form.is_active ? t("list.active") : t("list.passive")}
               </span>
               {dirty && (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">
-                  Kaydedilmemiş
+                  {t("editor.unsavedBadge")}
                 </span>
               )}
             </div>
             <h1 className="truncate text-sm font-black text-slate-900 sm:text-lg">
-              {form.title || "Başlıksız kayıt"}
+              {form.title || t("editor.untitled")}
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -593,7 +613,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               onClick={handleDelete}
               className="h-10 rounded-xl border border-rose-200 bg-white px-3 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 sm:h-9"
             >
-              Sil
+              {t("list.delete")}
             </button>
             <button
               type="button"
@@ -601,7 +621,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               disabled={saving}
               className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-6"
             >
-              {saving ? "Kaydediliyor..." : "Kaydet"}
+              {saving ? t("editor.saving") : t("editor.save")}
             </button>
           </div>
         </div>
@@ -637,10 +657,10 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       {section === "content" && (
         <div className="space-y-4">
           <section className={cardCls}>
-            <p className={sectionCls}>Temel Bilgiler</p>
+            <p className={sectionCls}>{t("form.basics")}</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Kategori *</label>
+                <label className={labelCls}>{t("form.categoryLabel")}</label>
                 <select
                   value={form.category}
                   disabled={identityLocked}
@@ -649,9 +669,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   }
                   className={`h-9 ${fieldBase} ${identityLocked ? "cursor-not-allowed bg-slate-50/80 text-slate-500" : ""}`}
                 >
-                  <option value="">Seçin...</option>
+                  <option value="">{t("form.choose")}</option>
                   {HD_KNOWLEDGE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat}>{labels.category(cat)}</option>
                   ))}
                 </select>
               </div>
@@ -668,7 +688,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 />
               ) : (
               <div>
-                <label className={labelCls}>Başlık *</label>
+                <label className={labelCls}>{t("form.titleLabel")}</label>
                 {(() => {
                   const opts: StructuredOption[] | null = getStructuredCategoryOptionsForEdit(form.category, originalStructured);
                   if (opts) {
@@ -681,9 +701,9 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                         }}
                         className={`h-9 ${fieldBase}`}
                       >
-                        <option value="">— Seçin —</option>
+                        <option value="">{t("form.chooseDash")}</option>
                         {opts.map((opt) => (
-                          <option key={opt.code} value={opt.code}>{opt.label}</option>
+                          <option key={opt.code} value={opt.code}>{labels.option(form.category, opt)}</option>
                         ))}
                       </select>
                     );
@@ -693,7 +713,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                       type="text"
                       value={form.title}
                       onChange={(e) => patch({ title: e.target.value })}
-                      placeholder="Başlık girin..."
+                      placeholder={t("form.titlePlaceholder")}
                       className={`h-9 ${fieldBase}`}
                     />
                   );
@@ -701,7 +721,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               </div>
               )}
               <div>
-                <label className={labelCls}>Kod (otomatik)</label>
+                <label className={labelCls}>{t("form.codeAuto")}</label>
                 <input
                   type="text"
                   value={computeCode(form.category, form.title, form.structuredValue)}
@@ -718,27 +738,27 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                 />
                 <label htmlFor="hd-editor-active" className="text-sm font-semibold text-slate-700">
-                  Aktif kayıt
+                  {t("editor.activeRecord")}
                 </label>
               </div>
               <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
                 {isHdGateChannelCategory(form.category) ? (
-                  <>Kayıtlar otomatik sıralanır: kapılar numaraya, kanallar kapı çiftine göre.</>
+                  <>{t("editor.noteGateChannel")}</>
                 ) : isStructured ? (
-                  <><span className="font-bold">Yapısal kategori: </span>Kod dropdown seçiminden otomatik üretilir ve rapor kod eşleşmesinde kullanılır. Başlığı elle yazmayın.</>
+                  <>{t.rich("editor.noteStructured", { b: (c) => <span className="font-bold">{c}</span> })}</>
                 ) : form.category ? (
-                  <><span className="font-bold">Serbest kategori: </span>Başlık serbest; kod başlıktan türetilir. Harita kodlarıyla eşleşmediği için Word raporuna eklenmez.</>
+                  <>{t.rich("editor.noteFree", { b: (c) => <span className="font-bold">{c}</span> })}</>
                 ) : (
-                  <>Önce kategori seçin.</>
+                  <>{t("editor.notePickCategory")}</>
                 )}
               </div>
             </div>
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>{KB_CONTENT_LABEL}</p>
+            <p className={sectionCls}>{t("fields.contentLabel")}</p>
             <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800" data-hd-kb-content-help>
-              {kbContentHelp(form.category)}
+              {t("fields.contentHelp", { subject: t(`subject.${kbCategoryCode(form.category) ?? "none"}`) })}
             </div>
             <textarea
               value={form.content}
@@ -749,39 +769,39 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>{KB_NOTES_LABEL}</p>
+            <p className={sectionCls}>{t("fields.notesLabel")}</p>
             <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600" data-hd-kb-notes-help>
-              {KB_NOTES_HELP}
+              {t("fields.notesHelp")}
             </div>
             <textarea
               value={form.expertNotes}
               onChange={(e) => patch({ expertNotes: e.target.value })}
               rows={6}
-              placeholder="Kendi notların..."
+              placeholder={t("editor.notesPlaceholder")}
               className={`${fieldBase} resize-y leading-relaxed`}
             />
           </section>
 
           <section className={cardCls}>
-            <p className={sectionCls}>Anahtar Kelimeler & Etiketler</p>
+            <p className={sectionCls}>{t("editor.keywordsTags")}</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Anahtar Kelimeler</label>
+                <label className={labelCls}>{t("editor.keywords")}</label>
                 <input
                   type="text"
                   value={form.keywordsText}
                   onChange={(e) => patch({ keywordsText: e.target.value })}
-                  placeholder="virgülle ayırın"
+                  placeholder={t("editor.commaSeparated")}
                   className={`h-9 ${fieldBase}`}
                 />
               </div>
               <div>
-                <label className={labelCls}>Etiketler</label>
+                <label className={labelCls}>{t("editor.tags")}</label>
                 <input
                   type="text"
                   value={form.tagsText}
                   onChange={(e) => patch({ tagsText: e.target.value })}
-                  placeholder="virgülle ayırın"
+                  placeholder={t("editor.commaSeparated")}
                   className={`h-9 ${fieldBase}`}
                 />
               </div>
@@ -797,20 +817,20 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <div className={`${cardCls} lg:sticky lg:top-40 lg:self-start`}>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-widest text-indigo-700">
-                Kaynaklar ({sources.length})
+                {t("editor.sourcesCount", { count: sources.length })}
               </p>
               <button
                 type="button"
                 onClick={handleAddSource}
                 disabled={draftSource !== null}
-                title={draftSource ? "Önce açık taslağı kaydedin veya iptal edin" : undefined}
+                title={draftSource ? t("editor.draftOpenHint") : undefined}
                 className="rounded-lg border border-dashed border-indigo-300 px-2.5 py-1 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
               >
-                + Ekle
+                {t("editor.addSource")}
               </button>
             </div>
             {sources.length === 0 && !draftSource ? (
-              <p className="py-6 text-center text-xs text-slate-500">Henüz kaynak yok.</p>
+              <p className="py-6 text-center text-xs text-slate-500">{t("editor.noSources")}</p>
             ) : (
               <ul className="space-y-1.5">
                 {sources.map((s) => (
@@ -825,7 +845,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                       }`}
                     >
                       <p className="truncate text-sm font-bold text-slate-800">
-                        {s.source_name?.trim() || "Adsız kaynak"}
+                        {s.source_name?.trim() || t("editor.unnamedSource")}
                       </p>
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">
                         {rightsStatusLabel(s.rights_status)}
@@ -845,13 +865,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                       }`}
                     >
                       <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-800">
-                        {draftSource.source_name?.trim() || "Yeni Kaynak"}
+                        {draftSource.source_name?.trim() || t("editor.newSource")}
                         <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">
-                          Taslak
+                          {t("editor.draft")}
                         </span>
                       </p>
                       <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                        Henüz kaydedilmedi
+                        {t("editor.notSavedYet")}
                       </p>
                     </button>
                   </li>
@@ -876,7 +896,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               />
             ) : (
               <p className="py-16 text-center text-sm text-slate-500">
-                Soldan bir kaynak seçin veya “+ Ekle” ile yeni kaynak oluşturun.
+                {t("editor.pickSource")}
               </p>
             )}
           </div>
@@ -888,25 +908,26 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
         <div className="space-y-4">
           <div className={cardCls}>
             <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-600">
-              Bu bilgiyle bağlantılı merkezleri, kanalları ve kapıları burada işaretleyin. Bu seçimler kaydı düzenlemek ve ilgili Human Design öğeleriyle ilişkilendirmek için kullanılır; danışan raporuna otomatik içerik eklemez.
+              {t("editor.relationsHelp")}
             </div>
 
             {/* Seçili özet */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">
-                {form.related_centers.length} merkez
+                {t("editor.centersCount", { count: form.related_centers.length })}
               </span>
               <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">
-                {form.related_channels.length} kanal
+                {t("editor.channelsCount", { count: form.related_channels.length })}
               </span>
               <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-black text-orange-800">
-                {form.related_gates.length} kapı
+                {t("editor.gatesCount", { count: form.related_gates.length })}
               </span>
             </div>
             {(form.related_centers.length + form.related_channels.length + form.related_gates.length) > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {form.related_centers.map((c) => {
-                  const label = HUMAN_DESIGN_CENTERS.find((x) => x.code === c)?.label ?? c;
+                  const hit = HUMAN_DESIGN_CENTERS.find((x) => x.code === c);
+                  const label = hit ? centerLabel(hit) : c;
                   return (
                     <button key={`c-${c}`} type="button" onClick={() => toggleCenter(c)}
                       className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
@@ -915,7 +936,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   );
                 })}
                 {form.related_channels.map((c) => {
-                  const label = HUMAN_DESIGN_CHANNELS.find((x) => x.code === c)?.label ?? c;
+                  const hit = HUMAN_DESIGN_CHANNELS.find((x) => x.code === c);
+                  const label = hit ? channelLabel(hit) : c;
                   return (
                     <button key={`ch-${c}`} type="button" onClick={() => toggleChannel(c)}
                       className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100">
@@ -926,7 +948,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 {form.related_gates.map((g) => (
                   <button key={`g-${g}`} type="button" onClick={() => toggleGate(g)}
                     className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-bold text-orange-800 ring-1 ring-orange-200 hover:bg-orange-100">
-                    Kapı {g} ✕
+                    {t("gateOption", { n: g })} ✕
                   </button>
                 ))}
               </div>
@@ -938,7 +960,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                 type="text"
                 value={relSearch}
                 onChange={(e) => setRelSearch(e.target.value)}
-                placeholder="Merkez, kanal veya kapı ara..."
+                placeholder={t("editor.relSearch")}
                 className={`h-9 min-w-[200px] flex-1 ${fieldBase}`}
               />
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
@@ -948,7 +970,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   onChange={(e) => setOnlySelected(e.target.checked)}
                   className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
                 />
-                Yalnız seçilenleri göster
+                {t("editor.onlySelected")}
               </label>
             </div>
           </div>
@@ -957,13 +979,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <section className={cardCls}>
             <button type="button" onClick={() => setOpenCenters((v) => !v)}
               className="flex w-full items-center justify-between">
-              <span className={sectionCls + " mb-0"}>Merkezler ({form.related_centers.length})</span>
+              <span className={sectionCls + " mb-0"}>{t("editor.centersHeading", { count: form.related_centers.length })}</span>
               <span className="text-slate-400">{openCenters ? "▾" : "▸"}</span>
             </button>
             {openCenters && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {centersView.length === 0 ? (
-                  <p className="text-xs text-slate-400">Eşleşen merkez yok.</p>
+                  <p className="text-xs text-slate-400">{t("editor.noCenterMatch")}</p>
                 ) : centersView.map((center) => {
                   const sel = form.related_centers.includes(center.code);
                   return (
@@ -973,7 +995,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                           ? "border-transparent bg-indigo-600 text-white shadow-[0_3px_10px_rgba(79,70,229,0.3)]"
                           : "border-indigo-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-indigo-50"
                       }`}>
-                      {center.label}
+                      {centerLabel(center)}
                     </button>
                   );
                 })}
@@ -985,13 +1007,13 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <section className={cardCls}>
             <button type="button" onClick={() => setOpenChannels((v) => !v)}
               className="flex w-full items-center justify-between">
-              <span className={sectionCls + " mb-0"}>Kanallar ({form.related_channels.length})</span>
+              <span className={sectionCls + " mb-0"}>{t("editor.channelsHeading", { count: form.related_channels.length })}</span>
               <span className="text-slate-400">{openChannels ? "▾" : "▸"}</span>
             </button>
             {openChannels && (
               <div className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
                 {channelsView.length === 0 ? (
-                  <p className="text-xs text-slate-400">Eşleşen kanal yok.</p>
+                  <p className="text-xs text-slate-400">{t("editor.noChannelMatch")}</p>
                 ) : channelsView.map((ch) => {
                   const sel = form.related_channels.includes(ch.code);
                   return (
@@ -1001,7 +1023,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                       }`}>
                       <input type="checkbox" checked={sel} onChange={() => toggleChannel(ch.code)}
                         className="h-3.5 w-3.5 rounded border-indigo-300 accent-indigo-600" />
-                      {ch.label}
+                      {channelLabel(ch)}
                     </label>
                   );
                 })}
@@ -1013,17 +1035,17 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <section className={cardCls}>
             <button type="button" onClick={() => setOpenGates((v) => !v)}
               className="flex w-full items-center justify-between">
-              <span className={sectionCls + " mb-0"}>Kapılar ({form.related_gates.length})</span>
+              <span className={sectionCls + " mb-0"}>{t("editor.gatesHeading", { count: form.related_gates.length })}</span>
               <span className="text-slate-400">{openGates ? "▾" : "▸"}</span>
             </button>
             {openGates && (
               <div className="mt-3 grid grid-cols-6 gap-1.5 sm:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12">
                 {gatesView.length === 0 ? (
-                  <p className="col-span-full text-xs text-slate-400">Eşleşen kapı yok.</p>
+                  <p className="col-span-full text-xs text-slate-400">{t("editor.noGateMatch")}</p>
                 ) : gatesView.map((gate) => {
                   const sel = form.related_gates.includes(gate.code);
                   return (
-                    <button key={gate.code} type="button" title={gate.label}
+                    <button key={gate.code} type="button" title={gateLabel(gate)}
                       onClick={() => toggleGate(gate.code)}
                       className={`flex h-9 w-full items-center justify-center rounded-lg text-xs font-bold transition-all ${
                         sel
@@ -1043,11 +1065,11 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       {/* Kaydedilmemiş değişiklik — çıkış onayı */}
       {leaveOpen && (
         <HdUnsavedChangesDialog
-          title="Kaydedilmemiş değişiklikler"
-          message="Bu kayıtta kaydedilmemiş değişiklikler var. Ne yapmak istersiniz?"
+          title={t("editor.unsavedTitle")}
+          message={t("editor.leaveDialogMessage")}
           actions={[
-            { key: "cancel", label: "Sayfada kal", tone: "safe" },
-            { key: "discard", label: "Değişiklikleri at ve çık", tone: "danger" },
+            { key: "cancel", label: t("editor.stayLower"), tone: "safe" },
+            { key: "discard", label: t("editor.discardAndLeave"), tone: "danger" },
           ]}
           onAction={(key) => {
             setLeaveOpen(false);

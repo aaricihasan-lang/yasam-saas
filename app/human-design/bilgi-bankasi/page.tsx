@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { HumanDesignShell } from "../components/HumanDesignShell";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -16,7 +17,6 @@ import { sortCanonicalRows } from "@/lib/human-design/admin/hdSort";
 import { badgeForContentStatus } from "@/lib/human-design/admin/hdContentBadge";
 import type { HdCanonicalAdminListRow } from "@/lib/human-design/admin/centralContentTypes";
 import type { HdEntityKind } from "@/lib/human-design/knowledge/expertReadTypes";
-import { HD_ADMIN_SOURCE_LABELS } from "../kayitli-haritalar/components/HdChartKnowledgeTabs";
 
 type AdminSource = "central" | "expert" | "system";
 
@@ -51,6 +51,9 @@ export default function HdCanonicalBilgiBankasiPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const bulkGuardRef = useRef(false);
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.knowledge");
+  // Yorum kaynağı adları (TR değerleri HdChartKnowledgeTabs.HD_ADMIN_SOURCE_LABELS ile bayt-eşit; ana ajan hd.records).
+  const sourceLabel = useTranslations("hd.records.tabs");
 
   useEffect(() => {
     const u = readYasamUser();
@@ -104,8 +107,7 @@ export default function HdCanonicalBilgiBankasiPage() {
     try {
       const ok = await runBulkDeleteConfirm(confirm, {
         count: ids.length,
-        detail:
-          "İçeriği olan kayıtların içeriği (ve bağlı kanıt bağlantıları) kaldırılacaktır. Canonical kimlik kayıtları silinmeyecektir.",
+        detail: t("page.bulkDetail"),
       });
       if (ok) await runBulkDelete(ids);
     } finally {
@@ -125,9 +127,9 @@ export default function HdCanonicalBilgiBankasiPage() {
     setPendingBulk(null);
     if (r.ok) {
       const skipped = r.data.entities_without_content;
-      setMsg(`${r.data.deleted_count} içerik silindi${skipped ? ` · ${skipped} kayıtta içerik yoktu` : ""}. Canonical kimlikler korundu.`);
+      setMsg(t("page.bulkDone", { deleted: r.data.deleted_count, skippedNote: skipped ? t("page.bulkSkipped", { skipped }) : "" }));
       await load(kind, isAdmin);
-    } else setMsg(`Toplu silme başarısız: ${r.error}`);
+    } else setMsg(t("page.bulkFailed", { error: String(r.error) }));
   };
 
   const pendingCount = pendingBulk?.length ?? 0;
@@ -135,22 +137,22 @@ export default function HdCanonicalBilgiBankasiPage() {
   return (
     <HumanDesignShell maxWidthClass="max-w-[1400px]">
       {isDemo && (
-        <DemoModuleBanner className="mb-3" message="Demo hesabında Human Design bilgi bankası görüntülenebilir. İçerik yönetimi yapılamaz." />
+        <DemoModuleBanner className="mb-3" message={t("page.demo")} />
       )}
 
       <div className="mb-4 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
-        <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Human Design — Bilgi Bankası</h1>
+        <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">{t("page.title")}</h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
           {isAdmin
-            ? "Üç ayrı yorum kaynağı: Merkezi Bilgi Bankası Yorumu (taslak dahil tüm merkezî kayıtlar; düzenleme ve toplu içerik silme), Uzman Bilgilerim (kendi kişisel kayıtlarınız) ve haritaya bağlı Sistem Yorumu."
-            : "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir."}
+            ? t("page.introAdmin")
+            : t("page.introExpert")}
         </p>
       </div>
 
       {msg && <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 ring-1 ring-slate-100">{msg}</p>}
 
       {isAdmin ? (
-        <div role="tablist" aria-label="Yorum kaynakları" className="mb-3 flex w-full flex-wrap gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto sm:inline-flex" data-hd-admin-source-tabs>
+        <div role="tablist" aria-label={t("page.sourcesAria")} className="mb-3 flex w-full flex-wrap gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto sm:inline-flex" data-hd-admin-source-tabs>
           {(["central", "expert", "system"] as const).map((key) => (
             <button
               key={key}
@@ -162,7 +164,7 @@ export default function HdCanonicalBilgiBankasiPage() {
                 adminSource === key ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              {HD_ADMIN_SOURCE_LABELS[key]}
+              {sourceLabel(key)}
             </button>
           ))}
         </div>
@@ -173,19 +175,18 @@ export default function HdCanonicalBilgiBankasiPage() {
       ) : adminSource === "expert" ? (
         <div data-hd-admin-source="expert">
           <p className="mb-2 text-xs leading-relaxed text-slate-600">
-            Kendi kişisel Bilgi Bankanız (normal uzmanlarla aynı çalışma alanı). Merkezî içerikle birleşmez; analizde ve Word&apos;de &quot;{HD_ADMIN_SOURCE_LABELS.expert}&quot; olarak kullanılır.
+            {t("page.expertNote", { label: sourceLabel("expert") })}
           </p>
           <HdKnowledgeWorkspace isDemo={isDemo} />
         </div>
       ) : adminSource === "system" ? (
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 ring-1 ring-indigo-200/60" data-hd-admin-source="system">
-          <p className="text-sm font-bold text-slate-800">{HD_ADMIN_SOURCE_LABELS.system} haritaya bağlıdır</p>
+          <p className="text-sm font-bold text-slate-800">{t("page.systemBound", { label: sourceLabel("system") })}</p>
           <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-            Bu yorum, bir haritanın hesaplama altyapımızla hesaplanması sırasında kaydedilir ve yalnız o haritanın ekranında görüntülenir.
-            Düzenlenebilir bir kütüphane değildir; görüntülemek yeni bir hesaplama isteği oluşturmaz. Kayıtlı yorum olmayan haritalarda gösterilmez.
+            {t("page.systemNote")}
           </p>
           <Link href="/human-design/danisanlar" className="mt-3 inline-flex text-sm font-bold text-indigo-600 underline-offset-2 hover:underline">
-            Human Design Analizlerim&apos;e git →
+            {t("page.goAnalyses")}
           </Link>
         </div>
       ) : (
@@ -198,7 +199,7 @@ export default function HdCanonicalBilgiBankasiPage() {
             loading={loading}
             error={error}
             hrefFor={(key) => `/human-design/bilgi-bankasi/canonical/${encodeURIComponent(key)}`}
-            emptyLabel="Bu türde kimlik bulunamadı."
+            emptyLabel={t("page.emptyKind")}
             selectable={isAdmin && !isDemo}
             onBulkDelete={(ids) => void requestBulkDelete(ids)}
             bulkBusy={bulkBusy}
@@ -209,17 +210,16 @@ export default function HdCanonicalBilgiBankasiPage() {
 
       <HdConfirmModal
         open={pendingBulk !== null}
-        title="Seçili içerikleri sil"
+        title={t("page.bulkTitle")}
         severity="danger"
         description={
           <>
-            <span className="font-semibold text-slate-800">{pendingCount} kayıt</span> seçildi.
-            İçeriği olan kayıtların içeriği (ve bağlı kanıt bağlantıları) kaldırılacaktır.
-            <span className="mt-1 block font-semibold text-slate-700">Canonical kimlik kayıtları silinmeyecektir.</span>
-            <span className="mt-1 block font-bold text-rose-600">Bu işlem geri alınamaz.</span>
+            {t.rich("page.bulkBody", { count: pendingCount, b: (c) => <span className="font-semibold text-slate-800">{c}</span> })}
+            <span className="mt-1 block font-semibold text-slate-700">{t("page.bulkKeep")}</span>
+            <span className="mt-1 block font-bold text-rose-600">{t("page.irreversible")}</span>
           </>
         }
-        confirmLabel="Seçili İçerikleri Sil"
+        confirmLabel={t("page.bulkConfirm")}
         loading={bulkBusy}
         onConfirm={() => void runBulkDelete()}
         onCancel={() => setPendingBulk(null)}

@@ -1,6 +1,7 @@
 // Bilgi Bankası dinamik KAYNAK sekmeleri — /api/hd/knowledge-sources (service_role) istemci sarmalayıcısı.
 // Auth deseni hdBilgiKayit.ts'i yansıtır. Kaynaklar varsayılan rapora AKMAZ.
 
+import { KB_NETWORK_ERROR } from "./kbNetworkError";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type {
   HumanDesignKnowledgeSource,
@@ -32,7 +33,7 @@ export async function listHdSources(
       { method: "GET", headers: authHeaders() },
     );
   } catch {
-    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+    return { rows: [], error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && Array.isArray(j.rows)) {
@@ -53,7 +54,7 @@ export async function insertHdSource(
       body: JSON.stringify({ ...input, recordId }),
     });
   } catch {
-    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { id: null, error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
@@ -76,7 +77,7 @@ export async function updateHdSource(
       body: JSON.stringify(expectedUpdatedAt ? { ...input, id, expected_updated_at: expectedUpdatedAt } : { ...input, id }),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
@@ -91,7 +92,7 @@ export async function deleteHdSource(id: string): Promise<{ error: string | null
       headers: authHeaders(),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null };
