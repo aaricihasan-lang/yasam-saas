@@ -12,8 +12,22 @@ import { ROXY_PROVIDER_ID } from "../providers/roxy/config";
 
 const TABLE = "human_design_charts";
 
+/**
+ * I18N-F1-R5 / A6 — dil başına anlatı (YALNIZ `opts.narrative` verilirse; varsayılan çağrı = bugünkü davranış birebir).
+ * `lang`: anlatının dili ("tr" = kayıtlı provider_raw). `requested`: istenen dil; kayıt yoksa TR döner + `available: false`.
+ */
+export type SystemReadingNarrativeInfo = { lang: string; requested: string; available: boolean };
+
+/** Anlatı okuyucu (lib/human-design/narrative/narrativeService.readChartNarrative bağlanır). Sağlayıcı ÇAĞIRAMAZ. */
+export type SystemReadingNarrativeReader = (
+  db: SupabaseClient,
+  tenantId: string,
+  chartId: string,
+  lang: string,
+) => Promise<{ kind: "hit"; lang: string; raw: unknown } | { kind: "none" }>;
+
 export type SystemReadingResult =
-  | { status: 200; body: { ok: true; available: true; data: SystemReadingDto } }
+  | { status: 200; body: { ok: true; available: true; data: SystemReadingDto; narrative?: SystemReadingNarrativeInfo } }
   | { status: 200; body: { ok: true; available: false } }
   | { status: 400 | 404 | 500; body: { ok: false; code: string; error: string } };
 
@@ -23,6 +37,7 @@ export async function getChartSystemReading(
   db: SupabaseClient,
   tenantId: string,
   id: string | null,
+  opts?: { lang?: string; narrative?: SystemReadingNarrativeReader },
 ): Promise<SystemReadingResult> {
   if (!id || !ID_RE.test(id)) {
     return { status: 400, body: { ok: false, code: "INVALID_ID", error: "Geçerli bir harita kimliği gerekli." } };
@@ -47,5 +62,16 @@ export async function getChartSystemReading(
   }
   const dto = extractSystemReading(row.provider_raw);
   if (!dto) return { status: 200, body: { ok: true, available: false } };
+  // A6: yalnız okuyucu verildiyse (bayrak açık) ve TR dışı dil istendiyse ayrı anlatı deposuna bakılır. Bulunamazsa / doğrulanamazsa
+  // TR anlatı aynen döner (`narrative.available: false`) — sağlayıcı çağrısı YOK, harita satırı DEĞİŞMEZ.
+  const requested = opts?.lang;
+  if (opts?.narrative && requested && requested !== "tr") {
+    const n = await opts.narrative(db, tenantId, id, requested);
+    const localized = n.kind === "hit" ? extractSystemReading(n.raw, { providerLang: n.lang }) : null;
+    if (localized && n.kind === "hit") {
+      return { status: 200, body: { ok: true, available: true, data: localized, narrative: { lang: n.lang, requested, available: true } } };
+    }
+    return { status: 200, body: { ok: true, available: true, data: dto, narrative: { lang: "tr", requested, available: false } } };
+  }
   return { status: 200, body: { ok: true, available: true, data: dto } };
 }
