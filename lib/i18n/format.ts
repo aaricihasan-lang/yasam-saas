@@ -11,7 +11,8 @@
  * veri girebilir; normalizasyon ayrı bir konudur.
  *
  * İleride EN/DE/FR açıldığında yalnız `BCP47` tablosu genişletilecek; çağrı
- * yerleri değişmeyecek.
+ * yerleri değişmeyecek. Mutlak sayısal tarih (formatDateAbsolute*) ekran dilini
+ * isteğe bağlı `locale` argümanıyla alır (A13); argümansız çağrı bugünkü `DD.MM.YYYY`.
  */
 import { DEFAULT_LOCALE, type ActiveLocale, type PlannedLocale } from "./locales";
 
@@ -66,29 +67,41 @@ export function formatTime(
 }
 
 /**
- * MUTLAK (absolute) TARİH — global ürün sözleşmesi: TÜM locale'lerde `DD.MM.YYYY`.
- * Locale'e BAĞLI DEĞİLDİR (tr-TR de en-GB de → noktalı, sıra gün.ay.yıl). Danışan
- * doğum/görüşme/randevu gibi absolute tarih alanlarında kullanılır. Açıklayıcı /
+ * Owner kararı A13 (I18N-F1-R5, Owner §19): mutlak sayısal tarihte ayraç dile göre.
+ * tr (ve de) → `DD.MM.YYYY` (bugünkü sözleşme, BAYT-BAYT aynı) · en → en-GB `DD/MM/YYYY`.
+ * Sıra her dilde gün/ay/yıl (en-US MM/DD/YYYY YOK); saat her dilde 24 saat.
+ * Yalnız GÖSTERİM: doğum saati / astronomik girdi / tarih giriş sözleşmesi / ISO saklama / DB değeri DEĞİŞMEZ.
+ * Bilinmeyen / verilmeyen dil → kaynak dil (tr) biçimi (geriye uyumlu: eski çağrılar aynen `DD.MM.YYYY`).
+ */
+export function absoluteDateSeparator(locale?: ActiveLocale | PlannedLocale | string): "." | "/" {
+  return locale === "en" ? "/" : ".";
+}
+
+/**
+ * MUTLAK (absolute) TARİH — gün.ay.yıl sırası her dilde sabit; ayraç dile göre (A13):
+ * tr `DD.MM.YYYY` · en `DD/MM/YYYY`. `locale` verilmezse `DD.MM.YYYY` (bugünkü çıktı, TR regresyonu yok).
+ * Danışan doğum/görüşme/randevu gibi absolute tarih alanlarında kullanılır. Açıklayıcı /
  * relative tarihler ve takvim ay/gün adları locale'e göre kalır (bu helper DEĞİL).
  * Tarih bileşenleri tarayıcı yerel saat diliminden okunur (mevcut tr-TR
  * `toLocaleDateString` davranışıyla BYTE-AYNI → TR regresyonu yok).
  */
-export function formatDateAbsolute(value: DateInput): string {
+export function formatDateAbsolute(value: DateInput, locale?: ActiveLocale | PlannedLocale): string {
   const d = toDate(value);
   if (!d) return "";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
-  return `${dd}.${mm}.${yyyy}`;
+  const sep = absoluteDateSeparator(locale);
+  return `${dd}${sep}${mm}${sep}${yyyy}`;
 }
 
-/** Mutlak tarih + 24 saat biçiminde saat: `DD.MM.YYYY HH:mm` (tüm locale). */
-export function formatDateTimeAbsolute(value: DateInput): string {
+/** Mutlak tarih + 24 saat biçiminde saat: tr `DD.MM.YYYY HH:mm` · en `DD/MM/YYYY HH:mm`. */
+export function formatDateTimeAbsolute(value: DateInput, locale?: ActiveLocale | PlannedLocale): string {
   const d = toDate(value);
   if (!d) return "";
   const hh = String(d.getHours()).padStart(2, "0");
   const min = String(d.getMinutes()).padStart(2, "0");
-  return `${formatDateAbsolute(d)} ${hh}:${min}`;
+  return `${formatDateAbsolute(d, locale)} ${hh}:${min}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,13 +145,19 @@ export function formatTime24(value: DateInput, locale: ActiveLocale | PlannedLoc
 
 /**
  * MUTLAK TARİH — belirli bir saat diliminde (sunucu render'ı / rapor üretimi için). formatDateAbsolute çalışma
- * ortamının yerel saat dilimini kullanır; sunucu UTC iken gün kayabilir. Bu sürüm `DD.MM.YYYY` sözleşmesini
- * korur ve bileşenleri verilen saat diliminden okur (varsayılan Europe/Istanbul).
+ * ortamının yerel saat dilimini kullanır; sunucu UTC iken gün kayabilir. Bu sürüm gün/ay/yıl sözleşmesini
+ * korur (tr `DD.MM.YYYY`, en `DD/MM/YYYY`; locale verilmezse `DD.MM.YYYY`) ve bileşenleri verilen saat
+ * diliminden okur (varsayılan Europe/Istanbul).
  */
-export function formatDateAbsoluteInZone(value: DateInput, timeZone = "Europe/Istanbul"): string {
+export function formatDateAbsoluteInZone(
+  value: DateInput,
+  timeZone = "Europe/Istanbul",
+  locale?: ActiveLocale | PlannedLocale,
+): string {
   const d = toDate(value);
   if (!d) return "";
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("day")}.${get("month")}.${get("year")}`;
+  const sep = absoluteDateSeparator(locale);
+  return `${get("day")}${sep}${get("month")}${sep}${get("year")}`;
 }

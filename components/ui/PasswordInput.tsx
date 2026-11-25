@@ -2,6 +2,7 @@
 
 import { useId, useState, type ComponentProps } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * Parola alanı + göster/gizle ("göz") kontrolü — TÜM kullanıcıya açık parola alanlarında ortak.
@@ -27,7 +28,8 @@ export default function PasswordInput({ wrapperClassName, className, id, disable
   const [visible, setVisible] = useState(false);
   const autoId = useId();
   const inputId = id ?? `pw-${autoId}`;
-  const label = visible ? "Parolayı gizle" : "Parolayı göster";
+  const t = useTranslations("auth.ui.passwordInput");
+  const label = visible ? t("hide") : t("show");
 
   return (
     <div className={`relative ${wrapperClassName ?? ""}`}>

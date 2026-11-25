@@ -177,6 +177,67 @@
           "title": "Link the session to your phone",
           "p1": "This can only be done in the <b>Yaşam Sistemi</b> Android app on your phone, with a paired trusted phone. There is nothing to do in the browser."
         }
+      },
+      "moduleAccess": {
+        "eyebrow": "Access restricted",
+        "session": {
+          "title": "Your Session Has Ended",
+          "line1": "For your security, the session on this device has been closed.",
+          "line2": "Sign in again to continue where you left off."
+        },
+        "membership": {
+          "title": "Your Membership Is Not Active",
+          "line1": "Your membership has not been approved yet or has been deactivated by an administrator.",
+          "line2": "Please contact your administrator to access the modules."
+        },
+        "permission": {
+          "title": "You Do Not Have Access",
+          "line1": "This module is not active on your account.",
+          "line2": "Please contact your administrator."
+        },
+        "signIn": "Sign In",
+        "backHome": "Back to Home"
+      },
+      "sessions": {
+        "title": "My Sessions",
+        "refresh": "Refresh",
+        "intro": "If a device has been lost, you can close its session here. The Android app session stays open until you sign out or close it.",
+        "loading": "Loading…",
+        "loadFailed": "Sessions could not be loaded.",
+        "loadFailedNetwork": "Sessions could not be loaded. Check your connection.",
+        "revokeFailed": "The session could not be closed.",
+        "revokeFailedNetwork": "The session could not be closed. Check your connection.",
+        "confirmCurrent": "Do you want to close the session on this device? You will be signed out.",
+        "confirmOther": "Do you want to close the \"{device}\" session?",
+        "androidPersistent": "Android app (persistent)",
+        "pending": "Awaiting approval",
+        "thisDevice": "This device",
+        "kindAndroid": "Android app",
+        "kindWeb": "Web",
+        "openedAt": "Opened {date}",
+        "lastSeenAt": "Last seen {date}",
+        "revoke": "Close this session",
+        "endedSummary": "Recently closed sessions ({count})",
+        "endReasonDefault": "Closed",
+        "endReason": {
+          "user_logout": "Signed out",
+          "owner_self_revoked": "Closed from this screen",
+          "expired_idle": "Expired (inactive)",
+          "expired_absolute": "Expired",
+          "expired_policy_cleanup": "Expired",
+          "stale": "Closed at a new sign-in",
+          "replaced_same_device": "Signed in again on the same device",
+          "owner_denied": "Not approved",
+          "pending_expired": "Approval expired",
+          "password_changed": "Password changed",
+          "admin_terminated": "Closed by an administrator",
+          "admin_logout_all": "Closed by an administrator",
+          "admin_password_reset": "Password reset"
+        }
+      },
+      "passwordInput": {
+        "show": "Show password",
+        "hide": "Hide password"
       }
     }
   }
