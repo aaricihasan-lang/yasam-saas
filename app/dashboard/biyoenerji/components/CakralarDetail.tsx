@@ -419,7 +419,7 @@ export default function CakralarDetail({ id }: { id: string }) {
       setLoading(false);
       const message = err instanceof Error ? err.message : String(err);
       console.error("[CakralarDetail] loadRecord exception:", message);
-      setErrorMessage(`Beklenmeyen hata: ${message}`);
+      setErrorMessage(tl("unexpected", { detail: errText(message, tl("serverError")) }));
       if (lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
@@ -728,7 +728,7 @@ export default function CakralarDetail({ id }: { id: string }) {
         <div key={`gb-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {b.title ? (
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {CL.blockTitle(b.title)}
+              {CLm.blockTitle(b.title)}
             </span>
           ) : null}
           <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-slate-800">
