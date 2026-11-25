@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +25,7 @@ import {
   deductInventoryForSales,
   filesToDataUrls,
   filterInventory,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   fmtTrim,
   formatTotalsCard,
   isDizi,
@@ -51,14 +55,12 @@ import {
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
@@ -138,6 +140,17 @@ const tabBtn = (active: boolean) =>
       : "border-2 border-violet-200 bg-white/90 text-slate-700 hover:border-violet-400"
   }`;
 
+// i18n-ignore: kanonik sıralama değerleri (sortInventory switch karşılaştırması) — çevrilmez; etiketler stock.pages.stone / stock.common.sort
+const SORT_NAME_ASC = "Taş Adı (A→Z)";
+// i18n-ignore: kanonik sıralama değeri
+const SORT_NAME_DESC = "Taş Adı (Z→A)";
+// i18n-ignore: kanonik sıralama değeri
+const SORT_TYPE_ASC = "Tür (A→Z)";
+// i18n-ignore: kanonik sıralama değeri
+const SORT_STOCK_ASC = "Stok (Az→Çok)";
+// i18n-ignore: kanonik sıralama değeri
+const SORT_STOCK_DESC = "Stok (Çok→Az)";
+
 function PhotoGalleryModal({
   photos,
   onClose,
@@ -145,6 +158,8 @@ function PhotoGalleryModal({
   photos: string[];
   onClose: () => void;
 }) {
+  const tS = useTranslations("stock.common");
+  const tD = useTranslations("stock.pages.stone");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
 
@@ -156,11 +171,11 @@ function PhotoGalleryModal({
           onClick={onClose}
           className="absolute right-4 top-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black"
         >
-          Kapat
+          {tS("close")}
         </button>
-        <h3 className="mb-4 text-xl font-black text-slate-900">Fotoğraf Galerisi</h3>
+        <h3 className="mb-4 text-xl font-black text-slate-900">{tD("galleryTitle")}</h3>
         {safe.length === 0 ? (
-          <p className="py-16 text-center text-slate-600">Fotoğraf yok.</p>
+          <p className="py-16 text-center text-slate-600">{tD("noPhotoDot")}</p>
         ) : (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -175,14 +190,14 @@ function PhotoGalleryModal({
                 className={btnSecondary}
                 onClick={() => setIdx((i) => (i - 1 + safe.length) % safe.length)}
               >
-                ◀ Önceki
+                {tD("prev")}
               </button>
               <button
                 type="button"
                 className={btnSecondary}
                 onClick={() => setIdx((i) => (i + 1) % safe.length)}
               >
-                Sonraki ▶
+                {tD("next")}
               </button>
             </div>
           </>
@@ -193,6 +208,9 @@ function PhotoGalleryModal({
 }
 
 function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: () => void }) {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const tS = useTranslations("stock.common");
+  const tD = useTranslations("stock.pages.stone");
   const [gallery, setGallery] = useState<string[] | null>(null);
   const photos = record.photos || [];
 
@@ -202,14 +220,14 @@ function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: ()
         <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border-2 border-white/90 bg-white shadow-2xl">
           <div className="border-b border-slate-100 p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <h3 className="text-2xl font-black text-slate-900">Satış Detayı — {record.name}</h3>
+              <h3 className="text-2xl font-black text-slate-900">{tD("saleDetail", { name: record.name })}</h3>
               <button
                 type="button"
                 disabled={!photos.length}
                 onClick={() => setGallery(photos)}
                 className={btnSecondary}
               >
-                Fotoğrafları Aç ({photos.length})
+                {tD("openPhotos", { count: photos.length })}
               </button>
             </div>
           </div>
@@ -217,11 +235,11 @@ function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: ()
             <table className="w-full min-w-[520px] border-separate border-spacing-y-2 text-base">
               <thead>
                 <tr className="text-left text-sm font-black uppercase tracking-wide text-violet-800">
-                  <th className="px-3 py-2">Taş</th>
-                  <th className="px-3 py-2">Tür</th>
-                  <th className="px-3 py-2 text-center">Birim ₺</th>
-                  <th className="px-3 py-2 text-center">Adet</th>
-                  <th className="px-3 py-2 text-center">Satır ₺</th>
+                  <th className="px-3 py-2">{tD("colStone")}</th>
+                  <th className="px-3 py-2">{tD("colType")}</th>
+                  <th className="px-3 py-2 text-center">{tD("colUnitTry")}</th>
+                  <th className="px-3 py-2 text-center">{tD("colPieces")}</th>
+                  <th className="px-3 py-2 text-center">{tD("colLineTry")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,13 +255,13 @@ function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: ()
               </tbody>
             </table>
             <div className="mt-6 flex flex-wrap justify-end gap-6 text-lg font-black">
-              <span>Maliyet: {fmtMoney(record.total_cost)}</span>
-              <span className="text-emerald-800">Satış: {fmtMoney(record.sale_price)}</span>
+              <span>{tD("costLine", { value: fmtMoney(record.total_cost) })}</span>
+              <span className="text-emerald-800">{tD("saleLine", { value: fmtMoney(record.sale_price) })}</span>
             </div>
           </div>
           <div className="border-t border-slate-100 p-4 text-right">
             <button type="button" onClick={onClose} className={btnSecondary}>
-              Kapat
+              {tS("close")}
             </button>
           </div>
         </div>
@@ -262,6 +280,10 @@ type RecipeRow = {
 };
 
 export default function DogaltasUrunStokPage() {
+  const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const tS = useTranslations("stock.common");
+  const tD = useTranslations("stock.pages.stone");
   useBfcacheRefresh();
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
@@ -305,8 +327,12 @@ export default function DogaltasUrunStokPage() {
     if (demo) { setSales(loadSales()); setHistoryLoadIssue(null); return; }
     const res = await loadDbCategorySales("dogaltas");
     setSales(dbToDogaltasRecords(res.sales));
-    setHistoryLoadIssue(salesLoadIssue(res));
-  }, []);
+    {
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setHistoryLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
+    }
+  }, [ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -333,7 +359,7 @@ export default function DogaltasUrunStokPage() {
   const [adetTl, setAdetTl] = useState("");
   const [pendingPhotos, setPendingPhotos] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState("Taş Adı (A→Z)");
+  const [sortMode, setSortMode] = useState(SORT_NAME_ASC);
   const [critAdet, setCritAdet] = useState("3");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [stockMsg, setStockMsg] = useState<string | null>(null);
@@ -372,7 +398,7 @@ export default function DogaltasUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => addStockNow())
-      .catch((e: unknown) => setStockMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+      .catch((e: unknown) => setStockMsg(ss.exception(e, tS("msg.saveIncomplete"))));
   }
 
   async function addStockNow() {
@@ -412,7 +438,7 @@ export default function DogaltasUrunStokPage() {
         pendingPhotos,
       });
       if (!result.ok) {
-        setStockMsg(result.error);
+        setStockMsg(ss.text(result.error, tS("msg.invalidInput")));
         return;
       }
       items = result.items;
@@ -423,7 +449,7 @@ export default function DogaltasUrunStokPage() {
       setInventory(items);
       if (!saved) {
         setStockMsg(
-          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+          tS("msg.storageFull"),
         );
         return;
       }
@@ -441,14 +467,14 @@ export default function DogaltasUrunStokPage() {
           retryRef.current = null;
           await reloadInventory();
           setStockMsg(
-            "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin.",
+            tS("msg.conflict"),
           );
           return;
         }
         if (!res.ok) {
           retryRef.current = { signature, targetId: targetKey, isNew: false, baseStock };
           setStockMsg(
-            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+            tS("msg.cloudAddFailed", { error: ss.detail(res.error) }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -457,8 +483,8 @@ export default function DogaltasUrunStokPage() {
         await reloadInventory();
         setStockMsg(
           res.created
-            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
-            : "Kayıt güncellendi ve buluta kaydedildi.",
+            ? tS("msg.cloudAdded")
+            : tS("msg.cloudUpdated"),
         );
       }
     }
@@ -479,7 +505,7 @@ export default function DogaltasUrunStokPage() {
     // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
     const removed = displayedStock.filter((it) => selectedKeys.has(itemKeyFrom(it)));
     if (removed.length === 0) {
-      setStockMsg("Silmek için en az bir satır seçin.");
+      setStockMsg(tD("pickRowToDelete"));
       return;
     }
     deleteBusyRef.current = true;
@@ -487,11 +513,11 @@ export default function DogaltasUrunStokPage() {
     try {
       const removedKeys = new Set(removed.map((it) => itemKeyFrom(it)));
       const ok = await deleteConfirm({
-        title: "Stok kaydı silinecek",
-        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-        names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || "(adsız taş)"),
+        title: tS("msg.deleteTitle"),
+        message: tS("msg.deleteMessage", { count: String(removed.length) }),
+        names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || tD("unnamedStone")),
         count: removed.length,
-        noun: "stok kaydı",
+        noun: tS("msg.noun"),
       });
       if (!ok) return;
       const count = removed.length;
@@ -501,18 +527,18 @@ export default function DogaltasUrunStokPage() {
         const res = await deleteDogaltasInventoryItems(activeTenantId, removed);
         await reloadInventory();
         if (!res.ok) {
-          setStockMsg(`Silme tamamlanamadı: ${res.error} Silinemeyen kayıtlar listede kalır.`);
+          setStockMsg(tD("deleteIncomplete", { error: ss.isSourceLocale ? String(res.error) : ss.detail(res.error) }));
           return;
         }
         setSelectedKeys(new Set());
-        setStockMsg(`${count} kayıt silindi.`);
+        setStockMsg(tS("msg.recordsDeleted", { count }));
         return;
       }
       const next = inventory.filter((it) => !removedKeys.has(itemKeyFrom(it)));
       saveInventory(next);
       setInventory(next);
       setSelectedKeys(new Set());
-      setStockMsg(`${count} kayıt silindi.`);
+      setStockMsg(tS("msg.recordsDeleted", { count }));
     } finally {
       deleteBusyRef.current = false;
       setDeleteBusy(false);
@@ -525,7 +551,7 @@ export default function DogaltasUrunStokPage() {
 
   function openStockPhotos(it: InvItem) {
     if (!it.photos?.length) {
-      setStockMsg("Bu kayıtta fotoğraf yok.");
+      setStockMsg(tD("noPhotoRecord"));
       return;
     }
     setPhotoModal(it.photos);
@@ -575,19 +601,19 @@ export default function DogaltasUrunStokPage() {
   function addRecipeLine() {
     const it = inventory.find((i) => itemKeyFrom(i) === pickKey);
     if (!it) {
-      setPricingMsg("Önce envanterden bir taş seçin.");
+      setPricingMsg(tD("pickStoneFirst"));
       return;
     }
     const rate = toFloat(usdRate, 0);
     const rateEur = toFloat(eurRate, 0);
     const { unit, currency, warning } = unitCostAndCurrency(it, rate, rateEur);
     if (warning) {
-      setPricingMsg(warning);
+      setPricingMsg(ss.text(warning, tS("msg.invalidInput")));
       return;
     }
     if (unit <= 0) {
       setPricingMsg(
-        "Bu taş için geçerli bir birim maliyet hesaplanamadı. Lütfen en az Dizi $, Dizi ₺ veya Adet ₺ değerlerinden biri dolu olsun.",
+        tD("noUnitCost"),
       );
       return;
     }
@@ -611,11 +637,11 @@ export default function DogaltasUrunStokPage() {
   function buildRecordFromForm(): SaleRecord | null {
     const product = turkishUpper(productName.trim());
     if (!product) {
-      setPricingMsg("Ürün adı girin.");
+      setPricingMsg(tD("enterProductName"));
       return null;
     }
     if (recipeRows.length === 0) {
-      setPricingMsg("Önce ürüne ait taşları ekleyin.");
+      setPricingMsg(tD("addStonesFirst"));
       return null;
     }
     const lines = recipeRows
@@ -628,7 +654,7 @@ export default function DogaltasUrunStokPage() {
         qty: r.qty,
       }));
     if (!lines.length) {
-      setPricingMsg("Geçerli satır bulunamadı.");
+      setPricingMsg(tD("noValidRow"));
       return null;
     }
     return buildSaleRecord({
@@ -647,7 +673,7 @@ export default function DogaltasUrunStokPage() {
       const uid = editingUid;
       setBasket((b) => updateBasketItem(b, uid, rec));
       resetProductForm();
-      setPricingMsg("Sepet satırı güncellendi.");
+      setPricingMsg(tD("basketRowUpdated"));
       return;
     }
     const uid = makeBasketUid((basketSeqRef.current += 1));
@@ -675,21 +701,21 @@ export default function DogaltasUrunStokPage() {
     setInvSearch("");
     setPickKey("");
     setPricingMsg(
-      `"${rec.name}" düzenleniyor. Değişiklikleri kaydetmek için Güncelle'ye basın.`,
+      tD("editing", { name: rec.name }),
     );
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function cancelEditBasketItem() {
     resetProductForm();
-    setPricingMsg("Düzenleme iptal edildi. Satır korundu.");
+    setPricingMsg(tD("editCancelled"));
   }
 
   async function clearBasket() {
     if (!basket.length) return;
     const ok = await deleteConfirm({
-      title: "Sepet temizlenecek",
-      message: "Sepetteki tüm ürünler kaldırılacak. Devam etmek istiyor musunuz?",
+      title: tD("clearBasketTitle"),
+      message: tD("clearBasketMessage"),
     });
     if (!ok) return;
     setBasket([]);
@@ -702,7 +728,7 @@ export default function DogaltasUrunStokPage() {
   async function commitSale() {
     if (committingRef.current) return;
     if (!basket.length) {
-      setPricingMsg("Kaydedilecek satış yok.");
+      setPricingMsg(tD("nothingToSave"));
       return;
     }
     committingRef.current = true;
@@ -718,7 +744,7 @@ export default function DogaltasUrunStokPage() {
         void reloadSales();
         setBasket([]);
         resetProductForm();
-        setPricingMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        setPricingMsg(tS("msg.demoPreview"));
         return;
       }
 
@@ -735,7 +761,7 @@ export default function DogaltasUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "dogaltas", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setPricingMsg(res.error ?? "Satış kaydedilemedi.");
+        setPricingMsg(ss.text(res.error, tS("msg.saleFailed")));
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
@@ -743,9 +769,9 @@ export default function DogaltasUrunStokPage() {
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
+      setPricingMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : tS("msg.saleSaved"));
     } catch {
-      setPricingMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      setPricingMsg(tS("msg.networkError"));
       await reloadInventory();
     } finally {
       committingRef.current = false;
@@ -786,8 +812,8 @@ export default function DogaltasUrunStokPage() {
       saveSales(next);
       setSales(next);
       setStockMsg(missing.length > 0
-        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
-        : `${toCancel.length} satış iptal edildi, ${restoredCount} stok kalemi güncellendi (demo).`);
+        ? tS("msg.cancelledMissing", { list: [...new Set(missing)].join(", ") })
+        : tD("cancelledDemo", { sales: toCancel.length, items: restoredCount }));
       return;
     }
 
@@ -799,7 +825,7 @@ export default function DogaltasUrunStokPage() {
     }
     await reloadSales();
     await reloadInventory();
-    setStockMsg(describeCancelOutcomes(outcomes));
+    setStockMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: SaleRecord[], hide: boolean) {
@@ -809,20 +835,20 @@ export default function DogaltasUrunStokPage() {
       const next = sales.filter((r) => !recs.includes(r));
       saveSales(next);
       setSales(next);
-      setStockMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      setStockMsg(tS("msg.hiddenDemo", { count: String(recs.length) }));
       return;
     }
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setStockMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setStockMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
   if (!hydrated) {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-slate-600">
-          Yükleniyor…
+          {tS("loading")}
         </div>
       </main>
     );
@@ -838,41 +864,41 @@ export default function DogaltasUrunStokPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-4 w-full`}>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-800">Doğaltaş</p>
-          <h1 className="mt-1 text-2xl font-black text-slate-900">Ürün / Stok Yönetimi</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-800">{tD("eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-black text-slate-900">{tD("title")}</h1>
           <p className="mt-1 text-sm font-medium text-slate-600">
-            Mevcut taşlar, satış fiyatlandırma ve satış geçmişi — masaüstü stok mantığıyla.
+            {tD("subtitle")}
           </p>
         </header>
 
         <div className="mb-4 flex flex-wrap gap-2">
           <button type="button" className={tabBtn(tab === "stock")} onClick={() => setTab("stock")}>
-            Mevcut Taşlarım
+            {tD("tabStock")}
           </button>
           <button type="button" className={tabBtn(tab === "pricing")} onClick={() => setTab("pricing")}>
-            Satış & Fiyatlandırma
+            {tS("tabs.pricing")}
           </button>
           <button type="button" className={tabBtn(tab === "history")} onClick={() => setTab("history")}>
-            Satış Geçmişi
+            {tS("tabs.history")}
           </button>
         </div>
 
         {tab === "stock" && (
           <div className="w-full space-y-6">
             <section className={`${panelClass} w-full`}>
-              <h2 className="mb-3 text-base font-black text-slate-900">Yeni Kayıt Ekle</h2>
+              <h2 className="mb-3 text-base font-black text-slate-900">{tD("newRecord")}</h2>
               <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-black text-slate-700">Taş adı</span>
+                  <span className="mb-1 block text-sm font-black text-slate-700">{tD("stoneName")}</span>
                   <input
                     className={inputClass}
                     value={name}
                     onChange={(e) => setName(turkishUpper(e.target.value))}
-                    placeholder="Örn. SİTRİN"
+                    placeholder={tD("stoneNamePh")}
                   />
                 </label>
                 <SelectWithOther
-                  label="Tür"
+                  label={tD("typeLabel")}
                   options={STONE_TYPE_OPTIONS}
                   value={stoneType}
                   custom={stoneTypeCustom}
@@ -881,12 +907,12 @@ export default function DogaltasUrunStokPage() {
                   otherLabel="DİĞER"
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-sm font-black text-slate-700"
-                  placeholder="Örn. 12 MM DİZİ, BİLEKLİK"
+                  placeholder={tD("typePh")}
                   transform={turkishUpper}
-                  hint="Tür adında “DİZİ” geçerse (ör. 12 MM DİZİ) dizi olarak fiyatlandırılır; aksi hâlde adet bazında."
+                  hint={tD("typeHint")}
                 />
                 <label className="block">
-                  <span className="mb-1 block text-sm font-black text-slate-700">Stok adedi (+/-)</span>
+                  <span className="mb-1 block text-sm font-black text-slate-700">{tD("stockQty")}</span>
                   <input
                     className={inputClass}
                     type="number"
@@ -896,7 +922,7 @@ export default function DogaltasUrunStokPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-sm font-black text-slate-700">
-                    Dizi / ürün maliyeti TL
+                    {tD("costTl")}
                   </span>
                   <input
                     className={inputClass}
@@ -908,7 +934,7 @@ export default function DogaltasUrunStokPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-sm font-black text-slate-700">
-                    Dizi / ürün maliyeti USD
+                    {tD("costUsd")}
                   </span>
                   <input
                     className={inputClass}
@@ -920,7 +946,7 @@ export default function DogaltasUrunStokPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-sm font-black text-slate-700">
-                    Dizi / ürün maliyeti EUR
+                    {tD("costEur")}
                   </span>
                   <input
                     className={inputClass}
@@ -932,7 +958,7 @@ export default function DogaltasUrunStokPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-sm font-black text-slate-700">
-                    Adet ₺ (otomatik / manuel)
+                    {tD("pieceTry")}
                   </span>
                   <input
                     className={inputClass}
@@ -947,12 +973,12 @@ export default function DogaltasUrunStokPage() {
               <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr_1.2fr]">
                 <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3 shadow-sm">
                   <p className="text-xs font-black uppercase tracking-wide text-violet-800">
-                    Güncel kurlar
+                    {tD("currentRates")}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <label className="block">
                       <span className="mb-1 block text-sm font-bold text-slate-700">
-                        Dolar kuru
+                        {tD("usdRate")}
                       </span>
                       <input
                         className="h-9 w-full rounded-lg border-2 border-sky-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-violet-400"
@@ -960,12 +986,12 @@ export default function DogaltasUrunStokPage() {
                         step="0.0001"
                         value={stockUsdRate}
                         onChange={(e) => setStockUsdRate(e.target.value)}
-                        placeholder="Örn. 34.50"
+                        placeholder={tD("usdPh")}
                       />
                     </label>
                     <label className="block">
                       <span className="mb-1 block text-sm font-bold text-slate-700">
-                        Euro kuru
+                        {tD("eurRate")}
                       </span>
                       <input
                         className="h-9 w-full rounded-lg border-2 border-sky-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-violet-400"
@@ -973,24 +999,24 @@ export default function DogaltasUrunStokPage() {
                         step="0.0001"
                         value={stockEurRate}
                         onChange={(e) => setStockEurRate(e.target.value)}
-                        placeholder="Örn. 37.20"
+                        placeholder={tD("eurPh")}
                       />
                     </label>
                   </div>
                 </div>
                 <div className="rounded-xl border-2 border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50/80 p-3 shadow-sm lg:col-span-2">
                   <p className="text-xs font-black uppercase tracking-wide text-emerald-900">
-                    Anlık maliyet özeti
+                    {tD("costSummary")}
                   </p>
                   <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
                     <p className="text-sm font-semibold text-slate-800">
-                      Toplam TL maliyet:{" "}
+                      {tD("totalTlCost")}{" "}
                       <span className="font-black text-emerald-900">
                         {fmtMoney(stockCostPreview.totalCostTry)}
                       </span>
                     </p>
                     <p className="text-base font-semibold text-slate-800">
-                      Birim TL maliyet:{" "}
+                      {tD("unitTlCost")}{" "}
                       <span className="font-black text-emerald-900">
                         {stockCostPreview.unitCostTry != null
                           ? fmtMoney(stockCostPreview.unitCostTry)
@@ -1003,7 +1029,7 @@ export default function DogaltasUrunStokPage() {
                       key={msg}
                       className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900"
                     >
-                      {msg}
+                      {ss.text(msg, tS("msg.invalidInput"))}
                     </p>
                   ))}
                   {stockCostPreview.warnings.map((msg) => (
@@ -1011,7 +1037,7 @@ export default function DogaltasUrunStokPage() {
                       key={msg}
                       className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950"
                     >
-                      {msg}
+                      {ss.text(msg, tS("msg.invalidInput"))}
                     </p>
                   ))}
                 </div>
@@ -1019,7 +1045,7 @@ export default function DogaltasUrunStokPage() {
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <label className="cursor-pointer">
                   <span className={`${btnSecondary} inline-flex`}>
-                    ({pendingPhotos.length} foto) Foto Seç…
+                    {tD("pickPhotos", { count: pendingPhotos.length })}
                   </span>
                   <input
                     type="file"
@@ -1030,7 +1056,7 @@ export default function DogaltasUrunStokPage() {
                       const files = e.target.files;
                       if (!files?.length) return;
                       const { urls, error } = await filesToDataUrls(files);
-                      if (error) setStockMsg(error);
+                      if (error) setStockMsg(ss.photo(error));
                       else setPendingPhotos(urls);
                       e.target.value = "";
                     }}
@@ -1044,14 +1070,14 @@ export default function DogaltasUrunStokPage() {
                       existingCount: pendingPhotos.length,
                       existingBytes: dataUrlsByteSize(pendingPhotos),
                     });
-                    if (error) setStockMsg(error);
+                    if (error) setStockMsg(ss.photo(error));
                     else setPendingPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
-                  📷 Çek
+                  {tS("capture")}
                 </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleAddStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
-                  Ekle
+                  {tS("add")}
                 </button>
                 <p className="ml-auto rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-black text-amber-950">
                   {formatTotalsCard(stockTotals.totalTl, stockTotals.totalUsd)}
@@ -1068,23 +1094,23 @@ export default function DogaltasUrunStokPage() {
               <div className="mb-3 grid gap-3 md:grid-cols-3">
                 <input
                   className={inputClass}
-                  placeholder="Ara / Filtre…"
+                  placeholder={tD("searchFilter")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <select className={inputClass} value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
-                  <option>Taş Adı (A→Z)</option>
-                  <option>Taş Adı (Z→A)</option>
-                  <option>Tür (A→Z)</option>
-                  <option>Stok (Az→Çok)</option>
-                  <option>Stok (Çok→Az)</option>
+                  <option value={SORT_NAME_ASC}>{tD("sortNameAsc")}</option>
+                  <option value={SORT_NAME_DESC}>{tD("sortNameDesc")}</option>
+                  <option value={SORT_TYPE_ASC}>{tD("sortTypeAsc")}</option>
+                  <option value={SORT_STOCK_ASC}>{tS("sort.stockAsc")}</option>
+                  <option value={SORT_STOCK_DESC}>{tS("sort.stockDesc")}</option>
                 </select>
                 <input
                   className={inputClass}
                   type="number"
                   value={critAdet}
                   onChange={(e) => setCritAdet(e.target.value)}
-                  placeholder="Kritik (Adet)"
+                  placeholder={tD("critical")}
                 />
               </div>
 
@@ -1092,18 +1118,18 @@ export default function DogaltasUrunStokPage() {
                 <table className="w-full min-w-[1100px] border-separate border-spacing-y-2 text-base">
                   <thead>
                     <tr className="text-left text-sm font-black uppercase tracking-wide text-violet-800">
-                      <th className="w-12 px-2 py-3">Seç</th>
-                      <th className="w-12 px-2 py-3">No</th>
-                      <th className="px-4 py-3">Taş Adı</th>
-                      <th className="px-4 py-3">Tür</th>
-                      <th className="px-4 py-3 text-center">Stok</th>
-                      <th className="px-4 py-3 text-center">Maliyet (₺)</th>
+                      <th className="w-12 px-2 py-3">{tS("colSelect")}</th>
+                      <th className="w-12 px-2 py-3">{tS("colNo")}</th>
+                      <th className="px-4 py-3">{tD("colStoneName")}</th>
+                      <th className="px-4 py-3">{tD("colType")}</th>
+                      <th className="px-4 py-3 text-center">{tS("colStock")}</th>
+                      <th className="px-4 py-3 text-center">{tD("colCostTry")}</th>
                       <th className="px-4 py-3 text-center">USD $</th>
                       <th className="px-4 py-3 text-center">EUR €</th>
-                      <th className="px-4 py-3 text-center">Toplam Maliyet</th>
-                      <th className="px-4 py-3 text-center">Birim Maliyet</th>
-                      <th className="px-4 py-3 text-center">Adet Fiyatı</th>
-                      <th className="px-4 py-3 text-center">Foto</th>
+                      <th className="px-4 py-3 text-center">{tD("colTotalCost")}</th>
+                      <th className="px-4 py-3 text-center">{tS("colUnitCost")}</th>
+                      <th className="px-4 py-3 text-center">{tD("colPiecePrice")}</th>
+                      <th className="px-4 py-3 text-center">{tS("colPhoto")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1152,7 +1178,7 @@ export default function DogaltasUrunStokPage() {
                               className="font-black text-violet-700 underline"
                               onClick={() => openStockPhotos(it)}
                             >
-                              {it.photos?.length || 0} foto
+                              {tD("photoCount", { count: it.photos?.length || 0 })}
                             </button>
                           </td>
                         </tr>
@@ -1163,7 +1189,7 @@ export default function DogaltasUrunStokPage() {
               </div>
               <div className="mt-3 flex flex-wrap gap-3">
                 <button type="button" className={btnSecondary} disabled={deleteBusy} onClick={() => void deleteSelectedStock()}>
-                  Seçilenleri Sil
+                  {tS("deleteSelected")}
                 </button>
               </div>
             </section>
@@ -1176,7 +1202,7 @@ export default function DogaltasUrunStokPage() {
               <div className="grid w-full gap-4 lg:grid-cols-2 xl:grid-cols-2">
                 <input
                   className={inputClass}
-                  placeholder="Taş ara (envanterden)"
+                  placeholder={tD("searchStone")}
                   value={invSearch}
                   onChange={(e) => setInvSearch(turkishUpper(e.target.value))}
                 />
@@ -1185,7 +1211,7 @@ export default function DogaltasUrunStokPage() {
                   value={pickKey}
                   onChange={(e) => setPickKey(e.target.value)}
                 >
-                  <option value="">— Taş seç —</option>
+                  <option value="">{tD("pickStone")}</option>
                   {pickList.map((it) => (
                     <option key={itemKeyFrom(it)} value={itemKeyFrom(it)}>
                       {it.name} ({it.type})
@@ -1195,7 +1221,7 @@ export default function DogaltasUrunStokPage() {
               </div>
               <div className="flex flex-wrap gap-3">
                 <button type="button" className={btnPrimary} onClick={addRecipeLine}>
-                  Satıra Ekle
+                  {tD("addRow")}
                 </button>
                 <button
                   type="button"
@@ -1205,19 +1231,19 @@ export default function DogaltasUrunStokPage() {
                     setProductPhotos([]);
                   }}
                 >
-                  Çalışma Alanını Temizle
+                  {tD("clearWorkspace")}
                 </button>
               </div>
 
               <input
                 className={inputClass}
-                placeholder="Ürün adı"
+                placeholder={tS("productName")}
                 value={productName}
                 onChange={(e) => setProductName(turkishUpper(e.target.value))}
               />
               <label className="inline-block cursor-pointer">
                 <span className={btnSecondary}>
-                  ({productPhotos.length} foto) Ürün Fotoğrafı Seç
+                  {tD("productPhotoPick", { count: productPhotos.length })}
                 </span>
                 <input
                   type="file"
@@ -1228,7 +1254,7 @@ export default function DogaltasUrunStokPage() {
                     const f = e.target.files;
                     if (!f?.length) return;
                     const { urls, error } = await filesToDataUrls(f);
-                    if (error) setPricingMsg(error);
+                    if (error) setPricingMsg(ss.photo(error));
                     else setProductPhotos(urls);
                     e.target.value = "";
                   }}
@@ -1242,21 +1268,21 @@ export default function DogaltasUrunStokPage() {
                     existingCount: productPhotos.length,
                     existingBytes: dataUrlsByteSize(productPhotos),
                   });
-                  if (error) setPricingMsg(error);
+                  if (error) setPricingMsg(ss.photo(error));
                   else setProductPhotos((prev) => [...prev, ...urls]);
                 }}
               >
-                📷 Çek
+                {tS("capture")}
               </CameraCaptureButton>
 
               <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3">
                 <p className="text-xs font-black uppercase tracking-wide text-violet-800">
-                  Satış fiyatlandırma kurları
+                  {tD("pricingRates")}
                 </p>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold text-slate-700">
-                      Güncel Dolar Kuru
+                      {tD("currentUsd")}
                     </span>
                     <input
                       className={inputClass}
@@ -1268,7 +1294,7 @@ export default function DogaltasUrunStokPage() {
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-sm font-bold text-slate-700">
-                      Güncel Euro Kuru
+                      {tD("currentEur")}
                     </span>
                     <input
                       className={inputClass}
@@ -1285,12 +1311,12 @@ export default function DogaltasUrunStokPage() {
                 <table className="w-full min-w-[640px] text-base">
                   <thead>
                     <tr className="text-sm font-black text-violet-800">
-                      <th className="px-2 py-2">Taş</th>
-                      <th className="px-2 py-2">Tür</th>
-                      <th className="px-2 py-2">Para</th>
-                      <th className="px-2 py-2">Birim</th>
-                      <th className="px-2 py-2">Adet</th>
-                      <th className="px-2 py-2">Satır ₺</th>
+                      <th className="px-2 py-2">{tD("colStone")}</th>
+                      <th className="px-2 py-2">{tD("colType")}</th>
+                      <th className="px-2 py-2">{tD("colCurrency")}</th>
+                      <th className="px-2 py-2">{tD("colUnit")}</th>
+                      <th className="px-2 py-2">{tD("colPieces")}</th>
+                      <th className="px-2 py-2">{tD("colLineTry")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -1323,7 +1349,7 @@ export default function DogaltasUrunStokPage() {
                             className="text-sm font-black text-red-600"
                             onClick={() => setRecipeRows((rows) => rows.filter((_, j) => j !== i))}
                           >
-                            Sil
+                            {tS("delete")}
                           </button>
                         </td>
                       </tr>
@@ -1334,7 +1360,7 @@ export default function DogaltasUrunStokPage() {
 
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <label className="flex items-center gap-2 font-black">
-                  Kâr Oranı %
+                  {tD("profitPct")}
                   <input
                     className="h-12 w-24 rounded-xl border-2 border-sky-200 px-3 text-center"
                     value={profitPct}
@@ -1345,15 +1371,15 @@ export default function DogaltasUrunStokPage() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-center">
-                  <p className="text-sm font-bold text-slate-500">Toplam Maliyet</p>
+                  <p className="text-sm font-bold text-slate-500">{tD("totalCost")}</p>
                   <p className="text-xl font-black">{fmtMoney(recipeCost)}</p>
                 </div>
                 <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-center">
-                  <p className="text-sm font-bold text-slate-500">Kâr Tutarı</p>
+                  <p className="text-sm font-bold text-slate-500">{tD("profitAmount")}</p>
                   <p className="text-xl font-black">{fmtMoney(profitAmount)}</p>
                 </div>
                 <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center">
-                  <p className="text-sm font-bold text-slate-500">Satış Fiyatı</p>
+                  <p className="text-sm font-bold text-slate-500">{tD("salePrice")}</p>
                   <p className="text-xl font-black text-emerald-900">{fmtMoney(salePrice)}</p>
                 </div>
               </div>
@@ -1365,19 +1391,19 @@ export default function DogaltasUrunStokPage() {
                     className={`${btnPrimary} w-full`}
                     onClick={addToBasket}
                   >
-                    Güncelle
+                    {tD("update")}
                   </button>
                   <button
                     type="button"
                     className={`${btnSecondary} w-full`}
                     onClick={cancelEditBasketItem}
                   >
-                    Vazgeç
+                    {tD("cancel")}
                   </button>
                 </div>
               ) : (
                 <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
-                  Sepete Ekle
+                  {tS("addToBasket")}
                 </button>
               )}
               {pricingMsg ? (
@@ -1388,11 +1414,11 @@ export default function DogaltasUrunStokPage() {
             </section>
 
             <section className={`${panelClass} w-full`}>
-              <h2 className="mb-4 text-xl font-black">Sepet</h2>
+              <h2 className="mb-4 text-xl font-black">{tS("basket")}</h2>
               <div className="space-y-3">
                 {basket.length === 0 ? (
                   <p className="py-6 text-center text-sm font-semibold text-slate-500">
-                    Sepet boş.
+                    {tD("basketEmpty")}
                   </p>
                 ) : (
                   basket.map((item) => {
@@ -1411,21 +1437,21 @@ export default function DogaltasUrunStokPage() {
                           {rec.name}
                           {isEditing ? (
                             <span className="ml-2 rounded-full bg-violet-200 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-violet-800">
-                              Düzenleniyor
+                              {tD("editingBadge")}
                             </span>
                           ) : null}
                         </p>
                         <p className="text-sm text-slate-600">
-                          Maliyet {fmtMoney(rec.total_cost)} · Satış {fmtMoney(rec.sale_price)}
+                          {tD("costSaleLine", { cost: fmtMoney(rec.total_cost), sale: fmtMoney(rec.sale_price) })}
                         </p>
-                        <p className="text-sm">{(rec.photos || []).length} foto</p>
+                        <p className="text-sm">{tD("photoCount", { count: (rec.photos || []).length })}</p>
                         <div className="mt-2 flex flex-wrap gap-3">
                           <button
                             type="button"
                             className="text-sm font-black text-violet-700 hover:text-violet-900"
                             onClick={() => startEditBasketItem(item)}
                           >
-                            Düzenle
+                            {tS("edit")}
                           </button>
                           <button
                             type="button"
@@ -1434,10 +1460,10 @@ export default function DogaltasUrunStokPage() {
                               const uid = item.uid;
                               setBasket((b) => removeBasketItem(b, uid));
                               if (editingUid === uid) resetProductForm();
-                              setPricingMsg("Ürün sepetten çıkarıldı.");
+                              setPricingMsg(tD("removedFromBasket"));
                             }}
                           >
-                            Sil
+                            {tS("delete")}
                           </button>
                         </div>
                       </div>
@@ -1447,19 +1473,19 @@ export default function DogaltasUrunStokPage() {
               </div>
               <div className="mt-4 space-y-1 border-t-2 border-slate-100 pt-3 text-sm font-semibold text-slate-600">
                 <p className="flex justify-between">
-                  <span>Ürün</span>
+                  <span>{tD("colProduct")}</span>
                   <span className="font-black text-slate-900">{basketView.count}</span>
                 </p>
                 <p className="flex justify-between">
-                  <span>Toplam Maliyet</span>
+                  <span>{tD("totalCost")}</span>
                   <span className="font-black text-slate-900">{fmtMoney(basketView.totalCost)}</span>
                 </p>
                 <p className="flex justify-between">
-                  <span>Toplam Satış</span>
+                  <span>{tD("totalSale")}</span>
                   <span className="font-black text-slate-900">{fmtMoney(basketView.totalSale)}</span>
                 </p>
                 <p className="flex justify-between text-base font-black">
-                  <span>Toplam Kâr</span>
+                  <span>{tD("totalProfit")}</span>
                   <span
                     className={
                       basketView.totalProfit < 0 ? "text-rose-700" : "text-emerald-700"
@@ -1476,7 +1502,7 @@ export default function DogaltasUrunStokPage() {
                   onClick={clearBasket}
                   disabled={!basket.length}
                 >
-                  Sepeti Temizle
+                  {tS("clearBasket")}
                 </button>
                 <button
                   type="button"
@@ -1484,7 +1510,7 @@ export default function DogaltasUrunStokPage() {
                   onClick={() => void commitSale()}
                   disabled={!basket.length || isCommitting}
                 >
-                  {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
+                  {isCommitting ? tS("saving") : tS("commitSale")}
                 </button>
               </div>
             </section>

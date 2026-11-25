@@ -1,7 +1,9 @@
 "use client";
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import { OTHER_TEXT_MAX, isOtherOption } from "@/lib/urun-stok/selectOther";
+import { useStockServerText } from "./useStockServerText";
 
 /**
  * Ürün & Stok — "Diğer" destekli seçim alanı. Diğer seçiliyken serbest metin kutusu açılır
@@ -20,7 +22,7 @@ export function SelectWithOther({
   selectClassName,
   inputClassName,
   labelClassName = "mb-1 block text-sm font-black",
-  placeholder = "Yazınız",
+  placeholder: placeholderProp,
   transform,
   hint,
 }: {
@@ -40,6 +42,11 @@ export function SelectWithOther({
   /** Diğer seçiliyken gösterilen kısa ipucu. */
   hint?: string;
 }) {
+  const tOther = useTranslations("stock.hub.selectOther");
+  // K3-05: <option> DEĞERİ kanonik kalır; yalnız görünen etiket ekran diline eşlenir (isOtherOption değere bakar).
+  const ss = useStockServerText();
+  // otherLabel KANONİK (isOtherOption karşılaştırması) — çevrilmez; yalnız yer tutucu ve aria metni dile göre.
+  const placeholder = placeholderProp ?? tOther("placeholder");
   const id = useId();
   const other = isOtherOption(value, otherLabel);
   // Kayıtlı değer listede yoksa (eski veri) seçim kutusu boş görünmesin.
@@ -52,7 +59,7 @@ export function SelectWithOther({
       <select id={`${id}-select`} className={selectClassName} value={value} onChange={(e) => onSelect(e.target.value)}>
         {opts.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {ss.option(o)}
           </option>
         ))}
       </select>
@@ -63,7 +70,7 @@ export function SelectWithOther({
             className={`${inputClassName ?? selectClassName} mt-2 min-h-[42px]`}
             value={custom}
             maxLength={OTHER_TEXT_MAX}
-            aria-label={`${label} — ${otherLabel} (yazınız)`}
+            aria-label={tOther("aria", { label, other: otherLabel })}
             aria-describedby={hint ? `${id}-hint` : undefined}
             placeholder={placeholder}
             onChange={(e) => onCustom(transform ? transform(e.target.value) : e.target.value)}

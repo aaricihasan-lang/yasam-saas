@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "./useStockServerText";
+import { useStockFormat } from "./useStockFormat";
+
 /**
  * Ürün & Stok kategori ekranlarının ortak "Satış Geçmişi" bölümü.
  *
@@ -16,7 +20,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { runInEffect } from "@/lib/runInEffect";
-import { fmtMoney } from "@/lib/urun-stok/dogaltasStockLogic";
+import { fmtMoney as libFmtMoney } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
   CANCEL_CONFIRM_MESSAGE,
   HIDE_CONFIRM_MESSAGE,
@@ -63,6 +67,10 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   /** Satış Öncesi Hata #3: geçmiş eksik yüklendiyse açıklama — toplamlar kesin sonuç olarak gösterilmez. */
   loadIssue?: string | null;
 }) {
+  const t = useTranslations("stock.history");
+  const ss = useStockServerText();
+
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const deleteConfirm = useDeleteConfirm();
   const { confirm } = useConfirm();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -114,20 +122,33 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   }
 
   const withNotes = (base: string, notes: string) => (notes ? `${base}\n\n${notes}` : base);
+  // QA K3-03: TR'de lib metinleri (confirmNotes + *_CONFIRM_MESSAGE) birebir; diğer dillerde aynı sayımlarla çevrilmiş not.
+  // F1-R3: diğer dillerde uygun olmama gerekçeleri de (ilk 5 kayıt, lib ile aynı) listelenir.
+  const notesFor = (
+    plan: { eligible: { otherCategoryItems?: number }[]; ineligible: { rec: { name?: string; timestamp?: string }; reason: string }[] },
+    trNotes: string,
+  ) => {
+    if (ss.isSourceLocale) return trNotes;
+    const notes: string[] = [];
+    const multi = plan.eligible.filter((r) => (r.otherCategoryItems ?? 0) > 0).length;
+    if (multi > 0) notes.push(t("noteMulti", { count: multi }));
+    if (plan.ineligible.length > 0) notes.push(ss.ineligibleNote(plan.ineligible));
+    return notes.join("\n\n");
+  };
 
   async function handleCancel() {
-    if (!selectedRecs.length) return onNotice("İşlem için satış seçin.");
+    if (!selectedRecs.length) return onNotice(t("pickSale"));
     if (!cancelPlan.eligible.length) {
-      return onNotice("Seçilen satışlar zaten iptal edilmiş; yeniden iptal edilemez.");
+      return onNotice(t("alreadyCancelled"));
     }
     const ok = await deleteConfirm({
-      title: "Satışı İptal Et",
-      message: withNotes(CANCEL_CONFIRM_MESSAGE, confirmNotes(cancelPlan)),
+      title: t("cancelSale"),
+      message: withNotes(ss.constant(CANCEL_CONFIRM_MESSAGE, t("confirmCancel")), notesFor(cancelPlan, confirmNotes(cancelPlan))),
       names: cancelPlan.eligible.map(recordLabel),
       count: cancelPlan.eligible.length,
-      noun: "satış",
-      confirmText: "Satışı İptal Et",
-      secondConfirmText: "Satışı İptal Et",
+      noun: t("nounSale"),
+      confirmText: t("cancelSale"),
+      secondConfirmText: t("cancelSale"),
       irreversible: true,
     });
     if (!ok) return;
@@ -138,16 +159,16 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   }
 
   async function handleHide() {
-    if (!selectedRecs.length) return onNotice("İşlem için satış seçin.");
-    if (!hidePlan.eligible.length) return onNotice("Seçilen satışlar zaten listeden silinmiş.");
+    if (!selectedRecs.length) return onNotice(t("pickSale"));
+    if (!hidePlan.eligible.length) return onNotice(t("alreadyHidden"));
     const ok = await deleteConfirm({
-      title: "Listeden Sil",
-      message: withNotes(HIDE_CONFIRM_MESSAGE, confirmNotes(hidePlan)),
+      title: t("removeFromList"),
+      message: withNotes(ss.constant(HIDE_CONFIRM_MESSAGE, t("confirmHide")), notesFor(hidePlan, confirmNotes(hidePlan))),
       names: hidePlan.eligible.map(recordLabel),
       count: hidePlan.eligible.length,
-      noun: "satış kaydı",
-      confirmText: "Listeden Sil",
-      secondConfirmText: "Listeden Sil",
+      noun: t("nounSaleRecord"),
+      confirmText: t("removeFromList"),
+      secondConfirmText: t("removeFromList"),
       irreversible: false,
     });
     if (!ok) return;
@@ -158,14 +179,14 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   }
 
   async function handleUnhide() {
-    if (!selectedRecs.length) return onNotice("Geri almak için satış seçin.");
-    if (!unhidePlan.eligible.length) return onNotice("Seçilen satışlar zaten listede.");
+    if (!selectedRecs.length) return onNotice(t("pickToRestore"));
+    if (!unhidePlan.eligible.length) return onNotice(t("alreadyListed"));
     const names = unhidePlan.eligible.map(recordLabel);
     const ok = await confirm({
-      title: "Listeye Geri Al",
-      message: `${withNotes(UNHIDE_CONFIRM_MESSAGE, confirmNotes(unhidePlan))}\n\n${names.length} kayıt:\n${names.slice(0, 10).map((n) => `• ${n}`).join("\n")}${names.length > 10 ? `\n… ve ${names.length - 10} kayıt daha` : ""}`,
-      confirmText: "Listeye Geri Al",
-      cancelText: "Vazgeç",
+      title: t("restore"),
+      message: `${withNotes(ss.constant(UNHIDE_CONFIRM_MESSAGE, t("confirmUnhide")), notesFor(unhidePlan, confirmNotes(unhidePlan)))}\n\n${t("restoreList", { count: String(names.length), list: names.slice(0, 10).map((n) => `• ${n}`).join("\n") })}${names.length > 10 ? t("andMore", { count: String(names.length - 10) }) : ""}`,
+      confirmText: t("restore"),
+      cancelText: t("cancel"),
     });
     if (!ok) return;
     await run(async () => {
@@ -176,30 +197,29 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
 
   const allVisibleSelected = visible.length > 0 && visible.every((v) => selected.has(v.key));
   const cancelReason = !selectedRecs.length
-    ? "Önce satış seçin"
+    ? t("pickFirst")
     : !cancelPlan.eligible.length
-      ? "Seçilen satışlar zaten iptal edilmiş"
+      ? t("alreadyCancelledShort")
       : "";
 
   return (
     <div className="w-full min-w-0">
       {loadIssue ? (
         <div role="alert" data-testid="sales-history-incomplete" className="mb-3 rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-900">
-          <p className="font-black text-red-800">Satış geçmişi eksik yüklendi — kısmi liste</p>
+          <p className="font-black text-red-800">{t("incompleteTitle")}</p>
           <p className="mt-1">{loadIssue}</p>
         </div>
       ) : (
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-base font-black" data-testid="sales-net-summary">
-        <span>Net Satış: {fmtMoney(summary.netSale)}</span>
-        <span>Net Kâr: {fmtMoney(summary.netProfit)}</span>
-        <span>Tamamlanan: {summary.completed}</span>
-        <span className="text-rose-700">İptal edilen: {summary.cancelled}</span>
+        <span>{t("netSale", { value: fmtMoney(summary.netSale) })}</span>
+        <span>{t("netProfit", { value: fmtMoney(summary.netProfit) })}</span>
+        <span>{t("completed", { count: String(summary.completed) })}</span>
+        <span className="text-rose-700">{t("cancelled", { count: String(summary.cancelled) })}</span>
         {extraSummary ? extraSummary(completed) : null}
       </div>
       )}
       <p className="mb-3 text-xs font-semibold text-slate-500">
-        Net toplamlara iptal edilen satışlar dahil edilmez. Listeden silinen satışlar iptal edilmediği için
-        toplamlarda kalır{summary.hidden > 0 ? ` (${summary.hidden} kayıt listeden silinmiş)` : ""}.
+        {t("totalsNote", { hidden: summary.hidden > 0 ? t("hiddenCount", { count: String(summary.hidden) }) : "" })}
       </p>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -209,19 +229,19 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
               type="button"
               className={`${btnBase} border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100`}
               disabled={busy || !cancelPlan.eligible.length}
-              title={cancelReason || "Satışı iptal eder; stokta bulunan ürünlerin miktarı geri eklenir"}
+              title={cancelReason || t("cancelTitle")}
               onClick={() => void handleCancel()}
             >
-              Satışı İptal Et
+              {t("cancelSale")}
             </button>
             <button
               type="button"
               className={`${btnBase} border-slate-300 bg-white text-slate-800 hover:bg-slate-50`}
               disabled={busy || !hidePlan.eligible.length}
-              title={!selectedRecs.length ? "Önce satış seçin" : "Yalnız görünür listeden kaldırır; stok değişmez"}
+              title={!selectedRecs.length ? t("pickFirst") : t("hideTitle")}
               onClick={() => void handleHide()}
             >
-              Listeden Sil
+              {t("removeFromList")}
             </button>
           </>
         ) : (
@@ -231,7 +251,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
             disabled={busy || !unhidePlan.eligible.length}
             onClick={() => void handleUnhide()}
           >
-            Listeye Geri Al
+            {t("restore")}
           </button>
         )}
         {!isDemo ? (
@@ -243,19 +263,19 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
               setShowArchive((v) => !v);
             }}
           >
-            {showArchive ? "← Satış geçmişine dön" : `Listeden silinenler (${summary.hidden})`}
+            {showArchive ? t("backToHistory") : t("hiddenList", { count: String(summary.hidden) })}
           </button>
         ) : null}
         {selectedRecs.length > 0 ? (
-          <span className="text-sm font-bold text-slate-600">{selectedRecs.length} satış seçili</span>
+          <span className="text-sm font-bold text-slate-600">{t("selectedCount", { count: String(selectedRecs.length) })}</span>
         ) : null}
       </div>
       {!showArchive && cancelReason && selectedRecs.length > 0 ? (
-        <p className="mb-2 text-sm font-semibold text-rose-700">{cancelReason}; yalnız “Listeden Sil” kullanılabilir.</p>
+        <p className="mb-2 text-sm font-semibold text-rose-700">{t("onlyHide", { reason: cancelReason })}</p>
       ) : null}
       {showArchive ? (
         <p className="mb-2 text-sm font-semibold text-slate-600">
-          Listeden silinen satışlar. Geri almak stok ve satış durumunu değiştirmez.
+          {t("archiveNote")}
         </p>
       ) : null}
 
@@ -263,21 +283,21 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
         <table className="w-full min-w-[760px] text-base">
           <thead>
             <tr className={`text-sm font-black uppercase ${headClassName}`}>
-              <th className="p-2">No</th>
+              <th className="p-2">{t("col.no")}</th>
               <th className="p-2">
                 <input
                   type="checkbox"
                   className="h-5 w-5"
-                  aria-label="Görünen tüm satışları seç"
+                  aria-label={t("selectAllAria")}
                   checked={allVisibleSelected}
                   onChange={(e) => setSelected(e.target.checked ? new Set(visible.map((v) => v.key)) : new Set())}
                 />
               </th>
-              <th className="p-2 text-left">Tarih</th>
-              <th className="p-2 text-left">Ürün</th>
-              <th className="p-2 text-left">Durum</th>
-              <th className="p-2 text-left">Maliyet</th>
-              <th className="p-2 text-left">Satış</th>
+              <th className="p-2 text-left">{t("col.date")}</th>
+              <th className="p-2 text-left">{t("col.product")}</th>
+              <th className="p-2 text-left">{t("col.status")}</th>
+              <th className="p-2 text-left">{t("col.cost")}</th>
+              <th className="p-2 text-left">{t("col.sale")}</th>
               <th className="p-2" />
             </tr>
           </thead>
@@ -285,7 +305,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-sm font-semibold text-slate-500">
-                  {showArchive ? "Listeden silinmiş satış yok." : "Gösterilecek satış yok."}
+                  {showArchive ? t("emptyArchive") : t("empty")}
                 </td>
               </tr>
             ) : (
@@ -296,7 +316,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
                     <input
                       type="checkbox"
                       className="h-5 w-5"
-                      aria-label={`Seç: ${recordLabel(rec)}`}
+                      aria-label={t("selectAria", { label: recordLabel(rec) })}
                       checked={selected.has(key)}
                       onChange={(e) =>
                         setSelected((prev) => {
@@ -313,22 +333,22 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
                     {rec.name}
                     {(rec.otherCategoryItems ?? 0) > 0 ? (
                       <span className="block text-xs font-bold text-amber-700">
-                        + başka kategoriden {rec.otherCategoryItems} ürün (işlemler satışın tamamına uygulanır)
+                        {t("otherCategory", { count: String(rec.otherCategoryItems) })}
                       </span>
                     ) : null}
                   </td>
                   <td className="p-2">
                     {isCancelled(rec) ? (
-                      <span className="rounded-lg bg-rose-100 px-2 py-1 text-xs font-black text-rose-800">İptal edildi</span>
+                      <span className="rounded-lg bg-rose-100 px-2 py-1 text-xs font-black text-rose-800">{t("statusCancelled")}</span>
                     ) : (
-                      <span className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-800">Tamamlandı</span>
+                      <span className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-black text-emerald-800">{t("statusCompleted")}</span>
                     )}
                   </td>
                   <td className="p-2">{fmtMoney(rec.total_cost)}</td>
                   <td className="p-2">{fmtMoney(rec.sale_price)}</td>
                   <td className="p-2">
                     <button type="button" className="font-black underline" onClick={() => onDetail(rec)}>
-                      Detay
+                      {t("detail")}
                     </button>
                   </td>
                 </tr>

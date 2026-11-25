@@ -59,7 +59,7 @@ export async function applyGuardedInventoryPatch(opts: {
       return {
         ok: false,
         failed: "client",
-        response: NextResponse.json({ ok: false, error: "Stok miktarı geçersiz." }, { status: 400 }),
+        response: NextResponse.json({ ok: false, code: "STK_INVALID_STOCK", error: "Stok miktarı geçersiz." }, { status: 400 }),
       };
     }
     fields[stockColumn] = next;
@@ -89,7 +89,7 @@ export async function applyGuardedInventoryPatch(opts: {
     return {
       ok: false,
       failed: "server",
-      response: NextResponse.json({ ok: false, error: "Stok kaydı güncellenemedi." }, { status: 500 }),
+      response: NextResponse.json({ ok: false, code: "STK_UPDATE_FAILED", error: "Stok kaydı güncellenemedi." }, { status: 500 }),
     };
   }
   if (data && data.length > 0) return { ok: true };
@@ -121,7 +121,7 @@ export async function applyGuardedInventoryPatch(opts: {
     ok: false,
     failed: "client",
     response: NextResponse.json(
-      { ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." },
+      { ok: false, code: "STK_NOT_FOUND", error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." },
       { status: 404 },
     ),
   };

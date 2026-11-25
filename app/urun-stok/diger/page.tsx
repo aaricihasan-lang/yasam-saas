@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -38,8 +42,8 @@ import {
   salePerBaseWithProfit,
   filesToDataUrls,
   filterOtherItems,
-  fmtMoney,
-  fmtQty,
+  fmtMoney as libFmtMoney,
+  fmtQty as libFmtQty,
   formatStockDisplay,
   formatVariantLabel,
   fromCanonical,
@@ -67,14 +71,12 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
@@ -199,15 +201,16 @@ function inferMeasureType(productGroup: string, productName: string, subCategory
 }
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
+  const tS = useTranslations("stock.common");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-md">
       <div className="relative max-h-[90vh] w-full max-w-3xl rounded-[28px] border-2 border-white/90 bg-white p-6 shadow-2xl">
         <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-xl border px-4 py-2 text-sm font-black">
-          Kapat
+          {tS("close")}
         </button>
-        <h3 className="mb-4 text-xl font-black">Fotoğraf</h3>
+        <h3 className="mb-4 text-xl font-black">{tS("photo")}</h3>
         {safe.length ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -222,7 +225,7 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
             </div>
           </>
         ) : (
-          <p className="py-12 text-center text-slate-500">Fotoğraf yok</p>
+          <p className="py-12 text-center text-slate-500">{tS("noPhoto")}</p>
         )}
       </div>
     </div>
@@ -230,6 +233,8 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 }
 
 function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClose: () => void }) {
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
+  const tS = useTranslations("stock.common");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
     <>
@@ -239,7 +244,7 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-lg font-black">{record.name}</h3>
               <button type="button" className={btnSecondary} onClick={() => setGallery(record.photos || [])}>
-                Foto ({record.photos?.length || 0})
+                {tS("photoCount", { count: String(record.photos?.length || 0) })}
               </button>
             </div>
           </div>
@@ -247,10 +252,10 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-black text-lime-800">
-                  <th className="py-1.5">Ürün</th>
-                  <th>Miktar</th>
-                  <th>Maliyet</th>
-                  <th>Satış</th>
+                  <th className="py-1.5">{tS("colProduct")}</th>
+                  <th>{tS("colQty")}</th>
+                  <th>{tS("colCost")}</th>
+                  <th>{tS("colSale")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,12 +272,12 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
               </tbody>
             </table>
             <p className="mt-3 text-right text-sm font-black">
-              Toplam: {fmtMoney(record.total_cost)} &rarr; {fmtMoney(record.sale_price)}
+              {tS("total", { cost: fmtMoney(record.total_cost), sale: fmtMoney(record.sale_price) })}
             </p>
           </div>
           <div className="border-t p-3 text-right">
             <button type="button" className={btnSecondary} onClick={onClose}>
-              Kapat
+              {tS("close")}
             </button>
           </div>
         </div>
@@ -283,6 +288,10 @@ function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClos
 }
 
 export default function DigerUrunStokPage() {
+  const ss = useStockServerText();
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
+  const tS = useTranslations("stock.common");
+  const tP = useTranslations("stock.pages.other");
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
   const saveLock = useSubmitLock();
@@ -323,8 +332,12 @@ export default function DigerUrunStokPage() {
     if (demo) { setSales(loadOtherSales()); setHistoryLoadIssue(null); return; }
     const res = await loadDbCategorySales("other");
     setSales(dbToOtherRecords(res.sales));
-    setHistoryLoadIssue(salesLoadIssue(res));
-  }, []);
+    {
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setHistoryLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
+    }
+  }, [ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -448,7 +461,7 @@ export default function DigerUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => saveStockNow())
-      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+      .catch((e: unknown) => setMsg(ss.exception(e, tS("msg.saveIncomplete"))));
   }
 
   async function saveStockNow() {
@@ -495,7 +508,7 @@ export default function DigerUrunStokPage() {
         deltaMode: plan.forceAbsolute ? false : addDelta,
       });
       if (!result.ok) {
-        setMsg(result.error);
+        setMsg(ss.text(result.error, tS("msg.invalidInput")));
         return;
       }
       items = result.items;
@@ -508,7 +521,7 @@ export default function DigerUrunStokPage() {
       setInventory(items);
       if (!saved) {
         setMsg(
-          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+          tS("msg.storageFull"),
         );
         return;
       }
@@ -532,15 +545,15 @@ export default function DigerUrunStokPage() {
           await reloadInv();
           setMsg(
             res.conflict
-              ? "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin."
-              : `Kayıt güncellenemedi: ${res.error}`,
+              ? tS("msg.conflict")
+              : tS("msg.updateFailed", { error: ss.detail(res.error) }),
           );
           return;
         }
         if (!res.ok) {
           retryRef.current = { signature, targetId: target.id, isNew, baseStock };
           setMsg(
-            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+            tS("msg.cloudAddFailed", { error: ss.detail(res.error) }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -550,15 +563,15 @@ export default function DigerUrunStokPage() {
         resetForm();
         setMsg(
           res.created
-            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
-            : "Kayıt güncellendi ve buluta kaydedildi.",
+            ? tS("msg.cloudAdded")
+            : tS("msg.cloudUpdated"),
         );
         return;
       }
     }
 
     resetForm();
-    setMsg(editingId ? "Kayıt güncellendi." : "Kayıt eklendi.");
+    setMsg(editingId ? tS("msg.updated") : tS("msg.added"));
   }
 
   const deleteBusyRef = useRef(false);
@@ -567,7 +580,7 @@ export default function DigerUrunStokPage() {
     // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
     const removed = displayed.filter((i) => selectedIds.has(i.id));
     if (!removed.length) {
-      setMsg("Silmek için seçim yapın.");
+      setMsg(tS("msg.pickToDelete"));
       return;
     }
     deleteBusyRef.current = true;
@@ -575,11 +588,11 @@ export default function DigerUrunStokPage() {
     try {
       const removedIds = new Set(removed.map((i) => i.id));
       const ok = await deleteConfirm({
-        title: "Stok kaydı silinecek",
-        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-        names: removed.map((i) => i.name || "(adsız ürün)"),
+        title: tS("msg.deleteTitle"),
+        message: tS("msg.deleteMessage", { count: String(removed.length) }),
+        names: removed.map((i) => i.name || tS("msg.unnamed")),
         count: removed.length,
-        noun: "stok kaydı",
+        noun: tS("msg.noun"),
       });
       if (!ok) return;
       const count = removed.length;
@@ -589,18 +602,18 @@ export default function DigerUrunStokPage() {
         const res = await deleteOtherInventoryItems(activeTenantId, removed);
         await reloadInv();
         if (!res.ok) {
-          setMsg(`Silme tamamlanamadı (${res.deleted}/${count} silindi): ${res.error} Silinemeyen kayıtlar listede kalır.`);
+          setMsg(tS("msg.deletePartial", { deleted: String(res.deleted), count: String(count), error: ss.detail(res.error) }));
           return;
         }
         setSelectedIds(new Set());
-        setMsg(`${count} kayıt silindi.`);
+        setMsg(tS("msg.recordsDeleted", { count }));
         return;
       }
       const next = inventory.filter((i) => !removedIds.has(i.id));
       saveOtherInventory(next);
       setInventory(next);
       setSelectedIds(new Set());
-      setMsg(`${count} kayıt silindi.`);
+      setMsg(tS("msg.recordsDeleted", { count }));
     } finally {
       deleteBusyRef.current = false;
       setDeleteBusy(false);
@@ -651,12 +664,12 @@ export default function DigerUrunStokPage() {
 
   function addToBasket() {
     if (!picked) {
-      setMsg("Ürün seçin.");
+      setMsg(tS("msg.pickProduct"));
       return;
     }
     const calc = calcLineAmounts(picked, toFloat(saleQty, 0), saleUnit);
     if ("error" in calc) {
-      setMsg(calc.error);
+      setMsg(ss.text(calc.error, tS("msg.invalidInput")));
       return;
     }
     const pct = toFloat(checkoutProfitPct, picked.profitPct);
@@ -685,7 +698,7 @@ export default function DigerUrunStokPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setSalePhotos([]);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   // USM-001/003/004/005: satış CANONICAL server RPC ile atomik. Fire-and-forget
@@ -693,7 +706,7 @@ export default function DigerUrunStokPage() {
   async function commitSale() {
     if (committingRef.current) return;
     if (!basket.length) {
-      setMsg("Sepet boş.");
+      setMsg(tS("msg.basketEmpty"));
       return;
     }
     committingRef.current = true;
@@ -710,7 +723,7 @@ export default function DigerUrunStokPage() {
         appendOtherSales(basket);
         void reloadSales();
         setBasket([]);
-        setMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        setMsg(tS("msg.demoPreview"));
         return;
       }
 
@@ -725,16 +738,16 @@ export default function DigerUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "other", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setMsg(res.error ?? "Satış kaydedilemedi.");
+        setMsg(ss.text(res.error, tS("msg.saleFailed")));
         await reloadInv();
         return;
       }
       setBasket([]);
       await reloadInv();
       await reloadSales();
-      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
+      setMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : tS("msg.saleSaved"));
     } catch {
-      setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      setMsg(tS("msg.networkError"));
       await reloadInv();
     } finally {
       committingRef.current = false;
@@ -765,8 +778,8 @@ export default function DigerUrunStokPage() {
       saveOtherSales(next);
       setSales(next);
       setMsg(missing.length > 0
-        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
-        : "Satış iptal edildi (demo).");
+        ? tS("msg.cancelledMissing", { list: [...new Set(missing)].join(", ") })
+        : tS("msg.cancelledDemo"));
       return;
     }
 
@@ -778,7 +791,7 @@ export default function DigerUrunStokPage() {
     }
     await reloadSales();
     await reloadInv();
-    setMsg(describeCancelOutcomes(outcomes));
+    setMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: OtherSaleRecord[], hide: boolean) {
@@ -788,13 +801,13 @@ export default function DigerUrunStokPage() {
       const next = sales.filter((r) => !recs.includes(r));
       saveOtherSales(next);
       setSales(next);
-      setMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      setMsg(tS("msg.hiddenDemo", { count: String(recs.length) }));
       return;
     }
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
 
@@ -802,7 +815,7 @@ export default function DigerUrunStokPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yükleniyor&hellip;
+          {tS("loading")}
         </div>
       </main>
     );
@@ -819,17 +832,17 @@ export default function DigerUrunStokPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-lime-700">Diğer Ürünler</p>
-          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Diğer Ürünler</h1>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-lime-700">{tP("title")}</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">{tP("title")}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Kategoriye sığmayan tüm ürünler &mdash; esnek grup, varyasyon ve ölçü &mdash; adet, gram/kg ve ml/litre &mdash; birim maliyet otomatik hesaplanır.
+            {tP("subtitle")}
           </p>
         </header>
 
         <div className="mb-3 flex flex-wrap gap-2">
           {(["stock", "pricing", "history"] as TabId[]).map((t) => (
             <button key={t} type="button" className={tabBtn(tab === t)} onClick={() => setTab(t)}>
-              {t === "stock" ? "Ürün/Stok" : t === "pricing" ? "Satış & Fiyatlandırma" : "Satış Geçmişi"}
+              {t === "stock" ? tS("tabs.stock") : t === "pricing" ? tS("tabs.pricing") : tS("tabs.history")}
             </button>
           ))}
         </div>
@@ -843,17 +856,17 @@ export default function DigerUrunStokPage() {
         {tab === "stock" && (
           <div className="w-full space-y-4">
             <section className={panelClass}>
-              <h2 className="mb-1 text-base font-black">{editId ? "Kayıt Düzenle" : "Yeni Ürün Kaydı"}</h2>
+              <h2 className="mb-1 text-base font-black">{editId ? tS("form.editRecord") : tS("form.newRecord")}</h2>
               <p className="mb-3 text-xs font-semibold text-slate-600">
-                Beden, renk, model gibi varyasyonlar için ayrı stok satırı açabilirsiniz.
+                {tP("variantHint")}
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-xs font-black">Ürün adı</span>
+                  <span className="mb-1 block text-xs font-black">{tS("productName")}</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
                 <SelectWithOther
-                  label="Ürün grubu"
+                  label={tS("form.productGroup")}
                   options={PRODUCT_GROUPS}
                   value={productGroup}
                   custom={productGroupCustom}
@@ -861,14 +874,14 @@ export default function DigerUrunStokPage() {
                   onCustom={setProductGroupCustom}
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-xs font-black"
-                  placeholder="Örn. Kırtasiye"
+                  placeholder={tP("groupPh")}
                 />
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Alt kategori / ürün tipi</span>
-                  <input className={inputClass} value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="Örn. Tişört, Mum, Workshop" />
+                  <span className="mb-1 block text-xs font-black">{tP("subCategory")}</span>
+                  <input className={inputClass} value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder={tP("subCategoryPh")} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ölçü tipi</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.measureType")}</span>
                   <select
                     className={inputClass}
                     value={measureType}
@@ -878,92 +891,92 @@ export default function DigerUrunStokPage() {
                     }}
                   >
                     {MEASURE_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
+                      <option key={t} value={t}>{ss.option(t)}</option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Stok miktarı</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.stockQty")}</span>
                   <input className={inputClass} type="number" step="any" value={stockQty} onChange={(e) => setStockQty(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Birim</span>
+                  <span className="mb-1 block text-xs font-black">{tS("unit")}</span>
                   <select className={inputClass} value={inputUnit} onChange={(e) => setInputUnit(e.target.value as OtInputUnit)}>
                     {unitsForMeasure(measureType).map((u) => (
                       <option key={u} value={u}>
-                        {u}
+                        {ss.option(u)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Alış maliyeti (TL, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.purchaseCostTl")}</span>
                   <input className={inputClass} type="number" step="0.01" value={costTotal} onChange={(e) => setCostTotal(e.target.value)} />
                   <span className="mt-0.5 block text-xs text-slate-500">
-                    Litre/kg girseniz bile birim maliyet ml veya gram üzerinden hesaplanır.
+                    {tS("form.baseUnitHint")}
                   </span>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Satış fiyatı (TL, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.salePriceTl")}</span>
                   <input className={inputClass} type="number" step="0.01" value={salePriceTotal} onChange={(e) => setSalePriceTotal(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Kar oranı %</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.profitPct")}</span>
                   <input className={inputClass} type="number" value={profitPct} onChange={(e) => setProfitPct(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Varyasyon türü</span>
+                  <span className="mb-1 block text-xs font-black">{tP("variantType")}</span>
                   <select className={inputClass} value={variationKind} onChange={(e) => setVariationKind(e.target.value)}>
                     {VARIATION_KINDS.map((p) => (
-                      <option key={p}>{p}</option>
+                      <option key={p} value={p}>{ss.option(p)}</option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Varyasyon değeri</span>
+                  <span className="mb-1 block text-xs font-black">{tP("variantValue")}</span>
                   <input
                     className={inputClass}
-                    placeholder="M, Kırmızı, Set-A..."
+                    placeholder={tP("variantPh")}
                     value={variationDetail}
                     onChange={(e) => setVariationDetail(e.target.value)}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Barkod / ürün kodu (opsiyonel)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.barcode")}</span>
                   <input className={inputClass} value={barcode} onChange={(e) => setBarcode(e.target.value)} />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-xs font-black">Not</span>
+                  <span className="mb-1 block text-xs font-black">{tS("note")}</span>
                   <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
                 </label>
               </div>
               {stockUnitPreview ? (
                 <div className="mt-3 rounded-xl border-2 border-lime-200/90 bg-gradient-to-r from-lime-50/90 to-yellow-50/80 p-3">
-                  <p className="text-xs font-black uppercase tracking-wide text-lime-800">Birim maliyet özeti</p>
+                  <p className="text-xs font-black uppercase tracking-wide text-lime-800">{tS("form.unitSummary")}</p>
                   {stockUnitPreview.canonicalHint ? (
                     <p className="mt-1 text-xs font-semibold text-slate-700">{stockUnitPreview.canonicalHint}</p>
                   ) : null}
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {stockUnitPreview.costPer != null ? (
                       <div className="rounded-lg border border-lime-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-lime-700">Birim maliyet</p>
+                        <p className="text-xs font-black text-lime-700">{tS("form.unitCost")}</p>
                         <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.costPer, stockUnitPreview.base)}
                         </p>
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500 sm:col-span-2">Alış maliyeti ve stok girildiğinde birim maliyet hesaplanır.</p>
+                      <p className="text-xs text-slate-500 sm:col-span-2">{tS("form.unitHint")}</p>
                     )}
                     {stockUnitPreview.salePer != null ? (
                       <div className="rounded-lg border border-yellow-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-yellow-700">Birim satış</p>
+                        <p className="text-xs font-black text-yellow-700">{tS("form.unitSale")}</p>
                         <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.salePer, stockUnitPreview.base)}
                         </p>
                       </div>
                     ) : stockUnitPreview.suggestedSalePer != null ? (
                       <div className="rounded-lg border border-violet-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-violet-700">Kar %{profitPct} ile birim satış</p>
+                        <p className="text-xs font-black text-violet-700">{tS("form.profitUnitSale", { pct: String(profitPct) })}</p>
                         <p className="mt-0.5 text-base font-black text-slate-900">
                           {fmtUnitCost(stockUnitPreview.suggestedSalePer, stockUnitPreview.base)}
                         </p>
@@ -975,10 +988,10 @@ export default function DigerUrunStokPage() {
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm font-bold">
                   <input type="checkbox" checked={addDelta} onChange={(e) => setAddDelta(e.target.checked)} className="h-4 w-4" />
-                  Mevcut stoğa ekle / düş (işaretli)
+                  {tS("form.adjustStock")}
                 </label>
                 <label className="cursor-pointer">
-                  <span className={btnSecondary}> ({photos.length}) Foto</span>
+                  <span className={btnSecondary}>{tS("photoBtn", { count: String(photos.length) })}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -988,7 +1001,7 @@ export default function DigerUrunStokPage() {
                       const f = e.target.files;
                       if (f?.length) {
                         const { urls, error } = await filesToDataUrls(f);
-                        if (error) setMsg(error);
+                        if (error) setMsg(ss.photo(error));
                         else setPhotos(urls);
                       }
                       e.target.value = "";
@@ -1003,49 +1016,49 @@ export default function DigerUrunStokPage() {
                       existingCount: photos.length,
                       existingBytes: dataUrlsByteSize(photos),
                     });
-                    if (error) setMsg(error);
+                    if (error) setMsg(ss.photo(error));
                     else setPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
-                  📷 Çek
+                  {tS("capture")}
                 </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
-                  {editId ? "Güncelle" : "Ekle"}
+                  {editId ? tS("update") : tS("add")}
                 </button>
                 {editId ? (
                   <button type="button" className={btnSecondary} onClick={resetForm}>
-                    İptal
+                    {tS("cancel")}
                   </button>
                 ) : null}
-                <p className="ml-auto text-sm font-black text-lime-900">Stok değeri: {fmtMoney(stockValue)}</p>
+                <p className="ml-auto text-sm font-black text-lime-900">{tS("form.stockValue", { value: fmtMoney(stockValue) })}</p>
               </div>
             </section>
 
             <section className={panelClass}>
               <div className="mb-3 grid gap-3 md:grid-cols-2">
-                <input className={inputClass} placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input className={inputClass} placeholder={tS("searchDots")} value={search} onChange={(e) => setSearch(e.target.value)} />
                 <select className={inputClass} value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
-                  <option value="Urun (A->Z)">Ürün (A→Z)</option>
-                  <option value="Ürün (Z→A)">Ürün (Z→A)</option>
-                  <option value="Stok (Az→Çok)">Stok (Az→Çok)</option>
-                  <option value="Stok (Çok→Az)">Stok (Çok→Az)</option>
+                  <option value="Urun (A->Z)">{tS("sort.productAsc")}</option>
+                  <option value="Ürün (Z→A)">{tS("sort.productDesc")}</option>
+                  <option value="Stok (Az→Çok)">{tS("sort.stockAsc")}</option>
+                  <option value="Stok (Çok→Az)">{tS("sort.stockDesc")}</option>
                 </select>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1320px] text-sm">
                   <thead>
                     <tr className="text-xs font-black uppercase text-lime-800">
-                      <th className="p-1.5">Seç</th>
-                      <th>No</th>
-                      <th>Varyant</th>
-                      <th>Grup</th>
-                      <th>Alt Kategori</th>
-                      <th>Stok</th>
-                      <th>Birim Maliyet</th>
-                      <th>Birim Satış</th>
-                      <th>Varyasyon</th>
-                      <th>Barkod</th>
-                      <th>Foto</th>
+                      <th className="p-1.5">{tS("colSelect")}</th>
+                      <th>{tS("colNo")}</th>
+                      <th>{tS("colVariant")}</th>
+                      <th>{tS("colGroup")}</th>
+                      <th>{tP("colSubCategory")}</th>
+                      <th>{tS("colStock")}</th>
+                      <th>{tS("colUnitCost")}</th>
+                      <th>{tS("colUnitSale")}</th>
+                      <th>{tP("colVariant")}</th>
+                      <th>{tS("colBarcode")}</th>
+                      <th>{tS("colPhoto")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -1083,7 +1096,7 @@ export default function DigerUrunStokPage() {
                         </td>
                         <td className="p-2">
                           <button type="button" className="text-xs font-black text-violet-700" onClick={() => loadToForm(it)}>
-                            Düzenle
+                            {tS("edit")}
                           </button>
                         </td>
                       </tr>
@@ -1092,7 +1105,7 @@ export default function DigerUrunStokPage() {
                 </table>
               </div>
               <button type="button" className={`${btnSecondary} mt-3`} disabled={deleteBusy} onClick={() => void deleteSelected()}>
-                {deleteBusy ? "Siliniyor…" : "Seçilenleri Sil"}
+                {deleteBusy ? tS("deleting") : tS("deleteSelected")}
               </button>
             </section>
           </div>
@@ -1103,7 +1116,7 @@ export default function DigerUrunStokPage() {
             <section className={`${panelClass} space-y-4`}>
               <div className="grid gap-3 lg:grid-cols-2">
                 <select className={inputClass} value={pickId} onChange={(e) => setPickId(e.target.value)}>
-                  <option value="">— Ürün seç —</option>
+                  <option value="">{tS("pickProduct")}</option>
                   {inventory.map((it) => (
                     <option key={it.id} value={it.id}>
                       {formatVariantLabel(it)} — {formatStockDisplay(it)}
@@ -1112,42 +1125,42 @@ export default function DigerUrunStokPage() {
                 </select>
                 <input
                   className={inputClass}
-                  placeholder="Satış etiketi / ürün adı"
+                  placeholder={tS("sale.labelPlaceholder")}
                   value={saleLabel}
                   onChange={(e) => setSaleLabel(turkishUpper(e.target.value))}
                 />
               </div>
               {picked ? (
                 <div className="rounded-xl border border-lime-200 bg-lime-50/80 px-4 py-3">
-                  <p className="text-xs font-black text-lime-800">Kayıtlı birim maliyet</p>
+                  <p className="text-xs font-black text-lime-800">{tS("sale.savedUnitCost")}</p>
                   <p className="mt-0.5 text-base font-black text-slate-900">
                     {fmtUnitCost(picked.costPerBase, picked.baseUnit)}
                     <span className="mx-2 text-slate-400">&middot;</span>
-                    Satış: {fmtUnitCost(picked.salePerBase, picked.baseUnit)}
+                    {tS("sale.salePrice", { value: fmtUnitCost(picked.salePerBase, picked.baseUnit) })}
                   </p>
                   <p className="mt-0.5 text-xs font-semibold text-slate-600">
-                    Satışta miktar otomatik ml/gram/adet bazına çevrilir; stok aynı birimle düşer.
+                    {tS("sale.baseHint")}
                   </p>
                 </div>
               ) : null}
               {picked ? (
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="block">
-                    <span className="mb-1 block text-xs font-black">Satılacak miktar</span>
+                    <span className="mb-1 block text-xs font-black">{tS("sale.qtyToSell")}</span>
                     <input className={inputClass} type="number" step="any" value={saleQty} onChange={(e) => setSaleQty(e.target.value)} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-black">Birim</span>
+                    <span className="mb-1 block text-xs font-black">{tS("unit")}</span>
                     <select className={inputClass} value={saleUnit} onChange={(e) => setSaleUnit(e.target.value as OtInputUnit)}>
                       {unitsForMeasure(picked.measureType).map((u) => (
                         <option key={u} value={u}>
-                          {u}
+                          {ss.option(u)}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-black">Ek kar % (opsiyonel)</span>
+                    <span className="mb-1 block text-xs font-black">{tS("sale.extraProfit")}</span>
                     <input className={inputClass} value={checkoutProfitPct} onChange={(e) => setCheckoutProfitPct(e.target.value)} placeholder={String(picked.profitPct)} />
                   </label>
                 </div>
@@ -1156,16 +1169,16 @@ export default function DigerUrunStokPage() {
                 <div className="space-y-2">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-lime-200 bg-lime-50 p-3 text-center text-sm font-black">
-                      Maliyet: {fmtMoney(previewLine.lineCost)}
+                      {tS("costLabel", { value: fmtMoney(previewLine.lineCost) })}
                     </div>
                     <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-center text-sm font-black">
-                      Satış:{" "}
+                      {tS("saleLabel")}
                       {fmtMoney(
                         linePrice(picked, previewLine.saleBaseQty).lineSale,
                       )}
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
-                      İç stok düşümü: {fmtQty(previewLine.saleBaseQty, 2)} {picked.baseUnit}
+                      {tS("sale.internalDeduct", { qty: fmtQty(previewLine.saleBaseQty, 2), unit: picked.baseUnit })}
                     </div>
                   </div>
                   <p className="rounded-lg border border-lime-100 bg-white/90 px-3 py-2 text-center text-xs font-bold text-slate-800">
@@ -1182,7 +1195,7 @@ export default function DigerUrunStokPage() {
                 <p className="text-sm font-semibold text-red-700">{previewLine.error}</p>
               ) : null}
               <label className="cursor-pointer inline-block">
-                <span className={btnSecondary}>({salePhotos.length}) Ürün fotoğrafı</span>
+                <span className={btnSecondary}>{tS("productPhotoBtn", { count: String(salePhotos.length) })}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -1192,7 +1205,7 @@ export default function DigerUrunStokPage() {
                     const f = e.target.files;
                     if (f?.length) {
                       const { urls, error } = await filesToDataUrls(f);
-                      if (error) setMsg(error);
+                      if (error) setMsg(ss.photo(error));
                       else setSalePhotos(urls);
                     }
                     e.target.value = "";
@@ -1200,11 +1213,11 @@ export default function DigerUrunStokPage() {
                 />
               </label>
               <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
-                Sepete Ekle
+                {tS("addToBasket")}
               </button>
             </section>
             <section className={panelClass}>
-              <h2 className="mb-3 text-base font-black">Sepet</h2>
+              <h2 className="mb-3 text-base font-black">{tS("basket")}</h2>
               <div className="space-y-2">
                 {basket.map((rec, i) => (
                   <div key={i} className="rounded-xl border bg-lime-50/50 p-3">
@@ -1213,20 +1226,20 @@ export default function DigerUrunStokPage() {
                       {fmtMoney(rec.total_cost)} &rarr; {fmtMoney(rec.sale_price)}
                     </p>
                     <button type="button" className="mt-1 text-xs font-black text-red-600" onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}>
-                      Sil
+                      {tS("delete")}
                     </button>
                   </div>
                 ))}
               </div>
               <p className="mt-3 text-sm font-black">
-                Toplam satış: {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}
+                {tS("sale.basketTotal", { value: fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0)) })}
               </p>
               <div className="mt-4 flex flex-col gap-2">
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
-                  Sepeti Temizle
+                  {tS("clearBasket")}
                 </button>
                 <button type="button" className={btnPrimary} onClick={() => void commitSale()} disabled={isCommitting}>
-                  {isCommitting ? "Kaydediliyor..." : "Satışı Kaydet"}
+                  {isCommitting ? tS("savingDots") : tS("commitSale")}
                 </button>
               </div>
             </section>

@@ -1,0 +1,54 @@
+{
+  "stock": {
+    "hub": {
+      "titleA": "Products",
+      "titleB": "Stock",
+      "titleC": "Centre",
+      "subtitle": "Manage all your products, stock, sales and pricing from one centre.",
+      "modulesAria": "Products & Stock modules",
+      "cards": {
+        "tum-urunler": {
+          "title": "All Products",
+          "desc": "View natural stones, oils, soaps, creams, prayer beads and all other products in one list."
+        },
+        "dogaltas": {
+          "title": "Natural Stone Products/Stock",
+          "desc": "Bracelet, strand, necklace and raw stone stock; cost and sale price."
+        },
+        "yag": {
+          "title": "Oil Products/Stock",
+          "desc": "Essential oil, carrier oil and blended oil products."
+        },
+        "sabun-krem": {
+          "title": "Soap / Cream Products",
+          "desc": "Stock management for natural soaps, creams and care products."
+        },
+        "tespih-taki": {
+          "title": "Prayer Beads / Jewellery / Accessories",
+          "desc": "Stock of prayer beads, bracelets, necklaces and accessories."
+        },
+        "satis-fiyat": {
+          "title": "Sales & Pricing",
+          "desc": "Basket, exchange rate, cost, profit calculation and sale record."
+        },
+        "satis-gecmisi": {
+          "title": "Sales History",
+          "desc": "Sales reports, profit analysis and a purchasing decision-support centre."
+        },
+        "diger-urunler": {
+          "title": "Other Products",
+          "desc": "All special products that do not fit a category, other sales items and free-form product stock."
+        }
+      },
+      "critical": {
+        "none": "✓ No critical stock",
+        "some": "🔴 {count, select, 1 {1 critical product} other {{count} critical products}} — go to list →"
+      },
+      "selectOther": {
+        "other": "Other",
+        "placeholder": "Type here",
+        "aria": "{label} — {other} (type here)"
+      }
+    }
+  }
+}
