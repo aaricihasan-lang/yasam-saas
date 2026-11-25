@@ -18,8 +18,8 @@
           "masterNumber": "All digits are added in a single pass and the intermediate total is shown (e.g. 32/5).",
           "chips": {
             "pin": "PIN",
-            "anaKulvar": "Soul Number",
-            "yanKulvar": "Personality Number",
+            "anaKulvar": "Main Lane",
+            "yanKulvar": "Side Lane",
             "cakraOmurgasi": "Chakra Spine",
             "elementler": "Elements",
             "hayatYolu": "Life Path"
