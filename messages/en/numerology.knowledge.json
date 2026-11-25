@@ -3,8 +3,8 @@
     "knowledge": {
       "shared": {
         "analysisTypes": {
-          "ana-kulvar": "Soul Number",
-          "yan-kulvar": "Personality Number",
+          "ana-kulvar": "Main Lane",
+          "yan-kulvar": "Side Lane",
           "ifade-sayisi": "Expression Number",
           "hayat-yolu": "Life Path",
           "cakra-omurga": "Chakra Spine",
