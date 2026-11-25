@@ -54,10 +54,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { db, tenantId } = guard;
   const chakraId = (new URL(req.url).searchParams.get("chakraId") ?? "").trim();
   if (!chakraId) {
-    return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_CHAKRA_ID_REQUIRED", error: "chakraId gerekli." }, { status: 400 });
   }
   if (!isUuid(chakraId)) {
-    return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
   }
 
   // IDOR: chakra bu tenant'a mı ait?
@@ -69,10 +69,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     .maybeSingle();
   if (owner.error) {
     console.error("[chakra-blocks] ownership check:", owner.error.message);
-    return NextResponse.json({ ok: false, error: "Bloklar okunamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_BLOCKS_READ_FAILED", error: "Bloklar okunamadı." }, { status: 500 });
   }
   if (!owner.data) {
-    return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
   }
 
   // FAZ 2 — silme güvenliği için hafif child sayımı (?count=1): total/visible/evidence
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .eq("block_type", "source-evidence");
     if (total.error || evidence.error) {
       console.error("[chakra-blocks] count:", total.error?.message || evidence.error?.message);
-      return NextResponse.json({ ok: false, error: "Sayım yapılamadı." }, { status: 500 });
+      return NextResponse.json({ ok: false, code: "BIO_COUNT_FAILED", error: "Sayım yapılamadı." }, { status: 500 });
     }
     return NextResponse.json({ ok: true, ...chakraChildBreakdown(total.count ?? 0, evidence.count ?? 0) });
   }
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (error) {
     console.error("[chakra-blocks] read:", String((error as { message?: unknown })?.message ?? error));
-    return NextResponse.json({ ok: false, error: "Bloklar okunamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_BLOCKS_READ_FAILED", error: "Bloklar okunamadı." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, blocks: data ?? [] });
@@ -145,20 +145,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const chakraId = typeof body["chakraId"] === "string" ? (body["chakraId"] as string).trim() : "";
-  if (!chakraId) return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
-  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+  if (!chakraId) return NextResponse.json({ ok: false, code: "BIO_CHAKRA_ID_REQUIRED", error: "chakraId gerekli." }, { status: 400 });
+  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
 
   // IDOR: chakra tenant'a ait mi? (aksi halde 404, sızıntı yok)
   if (!(await assertChakraOwned(db, chakraId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
   }
 
   const v = validateChakraBlockInput(body, "create");
-  if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: v.status });
+  if (!v.ok) return NextResponse.json({ ok: false, code: "BIO_VALIDATION", error: v.error }, { status: v.status });
 
   // sort_order verilmediyse: section içinde max+10 (deterministik, tenant+chakra scoped)
   let sortOrder = v.fields.sort_order;
@@ -198,7 +198,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (error) {
     console.error("[chakra-blocks] create:", error.message);
     await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_created", subEntity: "chakra_block", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Blok oluşturulamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_BLOCK_CREATE_FAILED", error: "Blok oluşturulamadı." }, { status: 500 });
   }
   const newBlockId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "energy_body", action: "record_created", subEntity: "chakra_block", resourceId: newBlockId });
