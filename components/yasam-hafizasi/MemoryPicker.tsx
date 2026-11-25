@@ -12,10 +12,7 @@
  * client ID isim/serbest metinden TÜRETİLMEZ (yalnız /api/clients'tan gelen id).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
-import { YH_MODULE_LABELS } from "@/lib/yasam-hafizasi/ui/moduleLabels";
-import { CLIENT_MODULE_LABELS } from "@/lib/yasam-hafizasi/client/clientSources";
+import { useTranslations } from "next-intl";
 import { Search, X, Check, Trash2, AlertTriangle } from "lucide-react";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchYhSearch } from "@/lib/yasam-hafizasi/ui/searchApiClient";
@@ -77,25 +74,12 @@ const DISABLED_REASON_KEY: Record<string, string> = {
   demo: "demo",
 };
 
-/**
- * I18N — sunucu Türkçe kanonik modül etiketi gönderir (moduleLabel; filtre ve seçim anlık görüntüsü bu etiketle
- * çalışır, DEĞİŞMEZ). Yalnız GÖSTERİM: etiket → modül kimliği (lib'deki kanonik tablolardan) → memoryPicker.modules.
- */
-const MODULE_KEY_BY_LABEL: Record<string, string> = Object.fromEntries(
-  [...Object.entries(YH_MODULE_LABELS), ...Object.entries(CLIENT_MODULE_LABELS)].map(([key, label]) => [label, key]),
-);
-
 function selKey(scope: Scope, id: string): string {
   return `${scope}:${id}`;
 }
 
 export default function MemoryPicker({ open, onClose, targetKind, targetRef, fixedClient, onConfirmed }: MemoryPickerProps) {
   const t = useTranslations("memoryPicker");
-  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
-  const moduleName = (label: string) => {
-    const key = MODULE_KEY_BY_LABEL[label];
-    return isSourceLocale || !key || !t.has(`modules.${key}`) ? label : t(`modules.${key}`);
-  };
   const [scope, setScope] = useState<Scope>("professional");
   const [q, setQ] = useState("");
   const [submitted, setSubmitted] = useState("");
@@ -379,7 +363,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                       return (
                         <button key={f.key} type="button" onClick={() => setModuleFilter(active ? null : f.label)} aria-pressed={active}
                           className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-3 text-sm font-semibold ${active ? "border-violet-300 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-700"}`}>
-                          {moduleName(f.label)}<span className={`rounded-full px-1.5 text-xs ${active ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>{f.count}</span>
+                          {f.label}<span className={`rounded-full px-1.5 text-xs ${active ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>{f.count}</span>
                         </button>
                       );
                     })}
@@ -396,7 +380,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                           <input type="checkbox" checked={isSel} onChange={() => toggleSelect(r)} aria-label={t("aria.selectRecord")} className="mt-1 h-4 w-4 accent-violet-600" />
                           <button type="button" onClick={() => setDetail(r)} className="min-w-0 flex-1 text-left">
                             <div className="mb-1 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase text-violet-700">{moduleName(r.moduleLabel)}</span>
+                              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase text-violet-700">{r.moduleLabel}</span>
                               {r.scope === "professional" && r.isShared ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t("sharedBadge")}</span> : null}
                               {r.date ? <span className="text-[11px] text-slate-400">{formatDateAbsolute(r.date)}</span> : null}
                             </div>
@@ -420,7 +404,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
               <div className="flex flex-wrap gap-1.5">
                 {[...selected.entries()].map(([k, s]) => (
                   <span key={k} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">
-                    <span className="font-semibold">{moduleName(s.moduleLabel)}</span>
+                    <span className="font-semibold">{s.moduleLabel}</span>
                     <span className="max-w-[140px] truncate">· {s.title}</span>
                     <button type="button" onClick={() => removeSelected(k)} aria-label={t("aria.removeSelection")} className="text-slate-400 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" aria-hidden /></button>
                   </span>
@@ -449,7 +433,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
             <button type="button" aria-label={t("aria.close")} onClick={() => setDetail(null)} className="absolute inset-0 bg-slate-900/30" />
             <aside className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-black uppercase text-violet-700">{moduleName(detail.moduleLabel)}</span>
+                <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-black uppercase text-violet-700">{detail.moduleLabel}</span>
                 <button type="button" onClick={() => setDetail(null)} aria-label={t("aria.close")} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" aria-hidden /></button>
               </div>
               <div className="space-y-3 px-4 py-4">
