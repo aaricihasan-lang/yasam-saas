@@ -2207,6 +2207,20 @@ function run(): void {
       "a8[ad19]: düzenleme — görünen ad; ad yalnız DEĞİŞTİYSE gönderilir (çevrilmiş sistem adı DB'ye yazılmaz)");
   }
 
+  // ── I18N-0126 / I18N-0127 (A26, Owner §25) — ham severity kodu yerine etiket; TR boşluk kusuru ─────────────
+  {
+    const crud = readFileSync("app/kupa/components/CrudManager.tsx", "utf8");
+    const guv = readFileSync("app/kupa/guvenlik/page.tsx", "utf8");
+    const rel = readFileSync("app/kupa/protokoller/components/RelationSection.tsx", "utf8");
+    ok(/subtitleFormat \? subtitleFormat\(item\[subtitleKey\]\) : String\(item\[subtitleKey\]\)/.test(crud)
+      && /subtitleFormat=\{\(v\) => vocab\.severity\(typeof v === "string" \? v : null\)\}/.test(guv)
+      && /meta: s\.severity \? vocab\.severity\(s\.severity\) : undefined/.test(rel) && !/meta: s\.severity \?\? undefined/.test(rel),
+      "i18n-0126: güvenlik listesi alt satırı ve seçici meta'sı ham kod değil sözlük etiketi (formatlayıcısız CrudManager kullanımları aynen)");
+    const trCal2 = JSON.parse(readFileSync("messages/tr/cupping.calendar.json", "utf8")).cupping.calendar;
+    ok(trCal2.annual.empty.includes("</strong> veya <strong>") && !/<\/strong>veya/.test(trCal2.annual.empty),
+      "i18n-0127: TR 'Bu Ayı Düzenle veya' boşluk kusuru giderildi (Owner A26 onaylı TR metin düzeltmesi)");
+  }
+
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);
   if (failed > 0) {
     console.log("Başarısızlar:", fails);
