@@ -16,17 +16,32 @@ function clean(name: string): string {
 export const TR_MORE_RECORDS = (n: number): string => `ve ${n} kayıt daha`;
 
 /**
+ * I18N (QTM-DY-02 / QTM-DG-05) — ekran dili varsayılan "ve N kayıt daha" satırı. ConfirmProvider (ortak) mount
+ * olduğunda katalogdan (common.deleteConfirm.moreRecords) kaydeder; böylece `moreLine` geçmeyen mevcut çağıranlar
+ * (modül ekranları) da ekran dilinde gösterilir. Kayıt yoksa (test/sunucu) Türkçe yedek. TR katalog değeri
+ * TR_MORE_RECORDS ile birebir aynıdır (birim testi). Listelenecek ad sayısı ve yazılı onay kuralı bundan BAĞIMSIZDIR.
+ */
+let registeredMoreRecords: ((n: number) => string) | null = null;
+export function setDefaultMoreRecordsLine(fn: ((n: number) => string) | null): void {
+  registeredMoreRecords = fn;
+}
+export function defaultMoreRecordsLine(): (n: number) => string {
+  return registeredMoreRecords ?? TR_MORE_RECORDS;
+}
+
+/**
  * "• Ad" satırları + gerekirse "• ve N kayıt daha".
  * @param total Toplam silinecek kayıt (bazı adlar çözülemese de doğru sayı için).
- * @param moreLine Kalan kayıt satırı metni (dil bağımsızlık; verilmezse Türkçe).
+ * @param moreLine Kalan kayıt satırı metni (dil bağımsızlık; verilmezse kayıtlı ekran dili varsayılanı, o da yoksa Türkçe).
  */
-export function buildNameListLines(names: readonly string[], total?: number, moreLine: (n: number) => string = TR_MORE_RECORDS): string[] {
+export function buildNameListLines(names: readonly string[], total?: number, moreLine?: (n: number) => string): string[] {
+  const more = moreLine ?? defaultMoreRecordsLine();
   const list = names.map(clean).filter((n) => n.length > 0);
   const count = Math.max(total ?? list.length, list.length);
   const shown = list.slice(0, MAX_CONFIRM_NAMES);
   const lines = shown.map((n) => `• ${n}`);
   const remaining = count - shown.length;
-  if (remaining > 0) lines.push(`• ${moreLine(remaining)}`);
+  if (remaining > 0) lines.push(`• ${more(remaining)}`);
   return lines;
 }
 

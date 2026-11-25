@@ -31,6 +31,8 @@ import tr_commonDeleteConfirm from "@/messages/tr/common.deleteConfirm.json";
 import tr_commonDemo from "@/messages/tr/common.demo.json";
 import tr_common from "@/messages/tr/common.json";
 import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference.json";
+import tr_commonReader from "@/messages/tr/common.reader.json";
+import tr_commonSubmitLock from "@/messages/tr/common.submitLock.json";
 import tr_cuppingCalendar from "@/messages/tr/cupping.calendar.json";
 import tr_cupping from "@/messages/tr/cupping.json";
 import tr_cuppingLibrary from "@/messages/tr/cupping.library.json";
@@ -107,6 +109,8 @@ import en_commonDeleteConfirm from "@/messages/en/common.deleteConfirm.json";
 import en_commonDemo from "@/messages/en/common.demo.json";
 import en_common from "@/messages/en/common.json";
 import en_commonLanguagePreference from "@/messages/en/common.languagePreference.json";
+import en_commonReader from "@/messages/en/common.reader.json";
+import en_commonSubmitLock from "@/messages/en/common.submitLock.json";
 import en_cuppingCalendar from "@/messages/en/cupping.calendar.json";
 import en_cupping from "@/messages/en/cupping.json";
 import en_cuppingLibrary from "@/messages/en/cupping.library.json";
@@ -157,8 +161,8 @@ import en_trial from "@/messages/en/trial.json";
 import en_videoTranslate from "@/messages/en/videoTranslate.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
-  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -191,6 +195,8 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_commonDemo,
     tr_common,
     tr_commonLanguagePreference,
+    tr_commonReader,
+    tr_commonSubmitLock,
     tr_cuppingCalendar,
     tr_cupping,
     tr_cuppingLibrary,
@@ -269,6 +275,8 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_commonDemo,
     en_common,
     en_commonLanguagePreference,
+    en_commonReader,
+    en_commonSubmitLock,
     en_cuppingCalendar,
     en_cupping,
     en_cuppingLibrary,
