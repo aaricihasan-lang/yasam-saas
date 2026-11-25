@@ -593,6 +593,48 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
     const bad = await commitHdRestoreFile(asDb(db), ctxOk, { path: `${T1}/${C1}/bad.png`, upload_id: up2, parts: 1, size: 1, sha256: "0".repeat(64) });
     assert(!bad.ok && bad.status === 422 && !db.storage.objects.has(`hd-chart-images/${T1}/${C1}/bad.png`), "bozuk dosya kabul edildi");
   });
+  // R5 TANI (I18N-F1-R5 altyapı): HD dosyası bütünlük reddi (422) ayrıntılı kilitler — boyut-yalnız, SHA-yalnız (aynı boy),
+  // mevcut dosyanın korunması, geçici parçaların temizlenmesi, kullanıcı metninde iç ayrıntı (bucket/yol/hash) olmaması.
+  await t("R5: 422 — boyut uyuşmazlığı (SHA doğru), SHA uyuşmazlığı (boy doğru); dosya yazılmaz, parçalar silinir, mevcut dosya korunur", async () => {
+    const db = new FakeDb();
+    const good = Buffer.alloc(4096, 7);
+    const goodSha = createHash("sha256").update(good).digest("hex");
+    const evil = Buffer.alloc(4096, 8); // aynı boy, farklı içerik
+    const pNew = `${T1}/${C1}/s422.png`;
+    const pOld = `${T1}/${C1}/mevcut.png`;
+    db.tables.human_design_clients = [
+      { id: C1, tenant_id: T1, chart_image_url: pNew },
+      { id: "c-old", tenant_id: T1, chart_image_url: pOld },
+    ];
+    const original = Buffer.from("ORIJINAL-DOSYA");
+    db.storage.objects.set(`hd-chart-images/${pOld}`, original);
+    const tmpLeft = () => [...db.storage.objects.keys()].some((k) => k.includes(".restore-tmp"));
+    const push = async (path: string, body: Buffer) => {
+      const up = randomUUID();
+      const r = await storeHdRestorePart(asDb(db), ctxOk, { path, upload_id: up, index: 0, data_base64: body.toString("base64") });
+      assert(r.ok, "parça yazılamadı");
+      return up;
+    };
+    // (a) boyut yanlış, SHA doğru
+    const a = await commitHdRestoreFile(asDb(db), ctxOk, { path: pNew, upload_id: await push(pNew, good), parts: 1, size: good.length + 1, sha256: goodSha });
+    assert(!a.ok && a.status === 422, `boyut uyuşmazlığı 422 değil: ${JSON.stringify(a)}`);
+    assert(!db.storage.objects.has(`hd-chart-images/${pNew}`) && !tmpLeft(), "(a) dosya yazıldı ya da geçici parça kaldı");
+    // (b) boy doğru, içerik farklı (SHA tutmaz)
+    const b = await commitHdRestoreFile(asDb(db), ctxOk, { path: pNew, upload_id: await push(pNew, evil), parts: 1, size: evil.length, sha256: goodSha });
+    assert(!b.ok && b.status === 422, `SHA uyuşmazlığı 422 değil: ${JSON.stringify(b)}`);
+    assert(!db.storage.objects.has(`hd-chart-images/${pNew}`) && !tmpLeft(), "(b) dosya yazıldı ya da geçici parça kaldı");
+    // (c) mevcut dosyanın yoluna bozuk içerik → 422 ve mevcut dosya bayt-eşit kalır
+    const c = await commitHdRestoreFile(asDb(db), ctxOk, { path: pOld, upload_id: await push(pOld, evil), parts: 1, size: evil.length, sha256: goodSha });
+    assert(!c.ok && c.status === 422 && db.storage.objects.get(`hd-chart-images/${pOld}`)?.equals(original), "(c) mevcut dosya değişti");
+    // (d) kullanıcıya dönen metin iç ayrıntı sızdırmaz (bucket adı, yol, tenant, hash, stack)
+    for (const r of [a, b, c]) {
+      const msg = String(r.error ?? "");
+      assert(msg.length > 0 && !/hd-chart-images|restore-tmp|[0-9a-f]{64}|supabase|Error:|at \w+ \(/i.test(msg) && !msg.includes(T1), `iç ayrıntı sızıyor: ${msg}`);
+    }
+    // (e) kontrol: doğru boy + doğru SHA → restored (testin kendisi her şeyi reddetmiyor)
+    const ok2 = await commitHdRestoreFile(asDb(db), ctxOk, { path: pNew, upload_id: await push(pNew, good), parts: 1, size: good.length, sha256: goodSha });
+    assert(ok2.ok && ok2.result === "restored" && db.storage.objects.get(`hd-chart-images/${pNew}`)?.equals(good), `kontrol başarısız: ${JSON.stringify(ok2)}`);
+  });
   await t("lisanssız tenant → dosyalar atlanır, yazılamaz", async () => {
     const db = new FakeDb();
     const ctxNo = { ...ctxOk, modulePermissions: { human_design: false } };
