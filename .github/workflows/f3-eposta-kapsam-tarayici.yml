@@ -1,0 +1,111 @@
+# Giriş Güvenliği F3 — kullanıcı e-postası kapsamı GERÇEK TARAYICI kabulü (Chrome + Edge; 320 / 375 / 390 / 768 / 1280 px).
+# Ayrı ve yol filtreli iş akışı: yalnız Ayarlar e-posta kartları / kapsam kodu / e-posta durumu ekranı / testi değişince (ve elle).
+# Sır KULLANMAZ. Production'a / Supabase'e / Vercel'e / gerçek posta sunucusuna istek ATMAZ:
+#   - geçici embedded-postgres + PostgREST shim (yalnız 127.0.0.1), en güncel F2 migration zinciri (001300 dahil)
+#   - e-posta = sentetik sağlayıcı (koşucu üzerinde yerel dosya; kanıta KONMAZ); sentetik hesaplar
+#   - build yalnız yerel test önüne işaret eden SAHTE değerlerle (zz-…-not-a-secret)
+# Sonuç ayrımı: test FAIL → iş KIRMIZI; gerçek Edge ikilisi yoksa → "NOT TESTED (altyapı)" + iş KIRMIZI (sessiz geçiş yok).
+# Boş / eksik paket PASS VEREMEZ (F3_UI_MIN_PASS).
+name: F3 e-posta kapsamı tarayıcı testleri
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "components/settings/MyLoginMethodsPanel.tsx"
+      - "components/settings/AccountRecoverySection.tsx"
+      - "app/api/me/email-verification/**"
+      - "app/api/me/email-change/**"
+      - "app/admin/eposta-durumu/**"
+      - "app/api/admin/email-status/**"
+      - "lib/auth/emailSelfService.ts"
+      - "lib/auth/securityNotice.ts"
+      - "scripts/giris-guvenligi/f3-eposta-kapsam-ui.e2e.ts"
+      - ".github/workflows/f3-eposta-kapsam-tarayici.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f3-eposta-kapsam-tarayici-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  f3-eposta-kapsam-tarayici:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Playwright Chromium bağımlılıkları
+        run: npx playwright install --with-deps chromium
+
+      # Runner imajında Chrome / Edge hazır gelir; yoksa Playwright'ın kurucusu GERÇEK markalı ikiliyi kurar.
+      - name: Google Chrome + Microsoft Edge (gerçek ikililer)
+        run: |
+          [ -x /opt/google/chrome/chrome ] || npx playwright install chrome
+          [ -x /opt/microsoft/msedge/msedge ] || npx playwright install msedge || echo "::warning title=Edge::Microsoft Edge kurulamadı (test NOT TESTED raporlayacak)"
+          /opt/google/chrome/chrome --version
+          /opt/microsoft/msedge/msedge --version || true
+
+      # Tip denetimi zorunlu ana CI'da (ci.yml "typescript") yapılır; yalnız bu runner'ın geçici checkout'unda atlanır (bellek).
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: |
+          node scripts/campaign/ci-e2e-build-config.cjs
+          grep -n "ignoreBuildErrors" next.config.ts
+
+      - name: Yerel test önüne işaret eden build (webpack; sahte değerler)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54462
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+          SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx next build --webpack || (echo "::warning title=build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
+
+      - name: E-posta kapsamı kabulü (Chrome + Edge; 320 / 375 / 390 / 768 / 1280)
+        env:
+          F3_UI_REQUIRE_EDGE: "1"
+          F3_UI_MIN_PASS: "170"
+        run: |
+          mkdir -p "$RUNNER_TEMP/f3-ui"
+          set +e
+          npx tsx scripts/giris-guvenligi/f3-eposta-kapsam-ui.e2e.ts "$RUNNER_TEMP/f3-ui" 2>&1 | tee "$RUNNER_TEMP/f3-ui/gunluk.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "3" ]; then echo "::error title=F3 e-posta kapsamı::NOT TESTED (altyapı) — gerçek Edge ikilisi yok; gerçek FAIL DEĞİL"; fi
+          if [ "$code" = "1" ]; then echo "::error title=F3 e-posta kapsamı::FAIL — ayrıntı günlükte"; fi
+          {
+            echo "## F3 e-posta kapsamı — tarayıcı kabulü"
+            echo ""
+            echo '```'
+            grep -E "^(══|f3-eposta-kapsam-ui:|FAIL|NOT TESTED)|^\s+FAIL" "$RUNNER_TEMP/f3-ui/gunluk.txt" || true
+            echo '```'
+          } | tee "$RUNNER_TEMP/f3-ui/ozet.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+      - name: Bellek / disk
+        if: always()
+        run: free -m && df -h . | tail -1
+
+      - name: Kanıtlar (ekran görüntüleri + günlük + özet; sentetik veri)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f3-eposta-kapsam-tarayici-kanit
+          path: |
+            ${{ runner.temp }}/f3-ui/*.png
+            ${{ runner.temp }}/f3-ui/gunluk.txt
+            ${{ runner.temp }}/f3-ui/ozet.md
+          retention-days: 14
+          if-no-files-found: error
