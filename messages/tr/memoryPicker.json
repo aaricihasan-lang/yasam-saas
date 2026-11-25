@@ -76,25 +76,6 @@
       "notActive": "Yaşam Hafızası bu hesapta aktif değil.",
       "demoReadonly": "Demo hesabında bu işlem yapılamaz.",
       "generic": "Seçim kaydedilemedi. Lütfen tekrar deneyin."
-    },
-    "modules": {
-      "refleksoloji": "Refleksoloji",
-      "sifa_rehberi": "Şifa Rehberi",
-      "biyoenerji": "Biyoenerji",
-      "dogaltas": "Doğaltaş",
-      "aromaterapi": "Aromaterapi",
-      "kisisel_arsiv": "Kişisel Arşiv",
-      "numeroloji": "Numeroloji",
-      "yebs": "YEBS Canonical",
-      "kupa_hacamat": "Kupa & Hacamat",
-      "beslenme": "Beslenme",
-      "danisan_kombinasyon": "Kombinasyon",
-      "danisan_tas": "Danışan Taşı",
-      "danisan_seans": "Seans",
-      "danisan_odev": "Ödev",
-      "danisan_not": "Not",
-      "randevu": "Randevu",
-      "human_design": "Human Design"
     }
   }
 }

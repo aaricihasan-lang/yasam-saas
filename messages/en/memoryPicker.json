@@ -76,25 +76,6 @@
       "notActive": "Life Memory is not active on this account.",
       "demoReadonly": "This action is not available on demo accounts.",
       "generic": "Your selection could not be saved. Please try again."
-    },
-    "modules": {
-      "refleksoloji": "Reflexology",
-      "sifa_rehberi": "Natural Wellness Guide",
-      "biyoenerji": "Bioenergy",
-      "dogaltas": "Natural Stone",
-      "aromaterapi": "Aromatherapy",
-      "kisisel_arsiv": "Personal Archive",
-      "numeroloji": "Numerology",
-      "yebs": "YEBS Canonical",
-      "kupa_hacamat": "Cupping & Hijama",
-      "beslenme": "Nutrition",
-      "danisan_kombinasyon": "Combination",
-      "danisan_tas": "Client Stone",
-      "danisan_seans": "Session",
-      "danisan_odev": "Assignment",
-      "danisan_not": "Note",
-      "randevu": "Appointment",
-      "human_design": "Human Design"
     }
   }
 }
