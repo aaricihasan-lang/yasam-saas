@@ -2,7 +2,7 @@
  * I18N — Ayarlar › Sistem Yedeği / Geri Yükleme: katalog + gösterim harness'ı (DB / ağ YOK).
  * Çalıştırma: npx tsx scripts/settings-backup-i18n/backup-i18n.harness.ts
  *
- *  [K] Katalog: TR modül / tablo etiketleri lib/backup/registry ile BİREBİR (165 tablo + 17 modül); EN eksiksiz, Türkçe
+ *  [K] Katalog: TR modül / tablo etiketleri lib/backup/registry ile BİREBİR (166 tablo + 17 modül); EN eksiksiz, Türkçe
  *      karakter yok; TR ve EN anahtar ağacı aynı.
  *  [T] TR BİREBİR: next-intl createTranslator ile TR çıktısı, değişiklikten önceki şablon dizeleriyle karakter karakter
  *      aynı (binlik ayraç yok, kesme işaretleri, çoğul sarmalı).
@@ -65,9 +65,9 @@ const tEn = mk("en", EN);
 const exportable = BACKUP_REGISTRY.filter(isExportable);
 
 // ─── [K] Katalog ─────────────────────────────────────────────────────────────
-await check("K1 TR tablo etiketleri registry ile birebir (165)", () => {
+await check("K1 TR tablo etiketleri registry ile birebir (166)", () => {
   const tables = TR.settings.backup.tables as Tree;
-  assert.equal(exportable.length, 165);
+  assert.equal(exportable.length, 166);
   assert.equal(Object.keys(tables).length, exportable.length);
   for (const e of exportable) assert.equal(tables[e.table], e.label, e.table);
 });
