@@ -16,7 +16,7 @@ import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, VEDIC_YOGA_FAMILY_LABELS,
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
 import { BPHS_VARGA_RULES, checkVargaAgainstBphs, type VargaCheck } from "@/lib/astrology/verify/varga";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_SOURCE, isKpNode } from "@/lib/astrology/model/kp";
 import { KpNodeMethodLegend, KpNodeMethodTag } from "./KpPanels";
 import { kundliLegend, type KundliLocale } from "../_lib/kundliLocalize";
 import { TITLE, nakName, localizeKundliDom, type ChartStyle } from "../_lib/kundliData";
@@ -859,6 +859,8 @@ function DashaLevelView({
   depth: number;
 }) {
   const { t: tx, graha, u, level } = useDashaText();
+  // KP düğüm yöntemi adı KP kataloğundan (TR değeri lib KP_NODE_SIG_METHODS ile birebir; atlas-kp-i18n kilidi).
+  const tk = useTranslations("atlas.kp");
   const [now] = useState(() => Date.now());
   const current = currentDashaIndex(t, now);
   const [sel, setSel] = useState<number>(current >= 0 ? current : 0);
@@ -1000,7 +1002,7 @@ function DashaLevelView({
                   {isKpNode(p.lord) ? (
                     <>
                       {" "}
-                      <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.dasha} /> <span className="text-xs text-slate-600">({KP_NODE_SIG_METHODS[KP_NODE_SIG_SOURCE.dasha].label})</span>
+                      <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.dasha} /> <span className="text-xs text-slate-600">({tk(`nodeMethod.${KP_NODE_SIG_SOURCE.dasha}.label`)})</span>
                     </>
                   ) : null}
                 </dd>
