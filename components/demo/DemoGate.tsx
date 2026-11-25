@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 type DemoGateProps = {
   /** true olduğunda içerik blur/overlay ile korunur */
@@ -18,6 +19,8 @@ type DemoGateProps = {
  * isProtected=true  → children blur edilir, üstüne amber kilit kartı gösterilir.
  */
 export function DemoGate({ isProtected, children, message, className = "" }: DemoGateProps) {
+  // I18N (QTM-DG-09): kilit kartı başlığı ve varsayılan metin ekran dilinde (common.demo.gate; TR birebir).
+  const t = useTranslations("common.demo.gate");
   if (!isProtected) return <>{children}</>;
 
   return (
@@ -38,13 +41,13 @@ export function DemoGate({ isProtected, children, message, className = "" }: Dem
       <div className="absolute inset-0 flex items-center justify-center px-3">
         <div className="w-full max-w-[340px] rounded-2xl border border-amber-300/80 bg-amber-50/97 px-4 py-3 text-center shadow-md backdrop-blur-sm">
           <span className="text-lg leading-none">🔒</span>
-          <p className="mt-1 text-[13px] font-black text-amber-900">Demo Ön İzleme</p>
+          <p className="mt-1 text-[13px] font-black text-amber-900">{t("title")}</p>
           <p className="mt-1 text-[11px] leading-[1.55] text-amber-800">
             {message ?? (
               <>
-                Bu içerik demo hesabında sınırlı gösterilir.
+                {t("line1")}
                 <br />
-                Tam sürümde tüm detaylar açık olarak kullanılabilir.
+                {t("line2")}
               </>
             )}
           </p>
