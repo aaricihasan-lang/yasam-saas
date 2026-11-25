@@ -16,6 +16,8 @@ import PasswordInput from "@/components/ui/PasswordInput";
  *  · E-posta değişikliği: QR veya kurtarma koduyla açılmış oturum + parola + yeni adrese gelen kod.
  *  · Telefon değişimi: eski telefonla (QR) son 30 dk'da açılmış oturumdan; yeni telefon yine Owner onayıyla.
  *  · Owner: çevrimdışı kodla açılmış taze oturumda yeni telefon için eşleştirme kodu.
+ *  · F3: e-posta değişikliği formu yalnız sunucu bu hesap için açık dediğinde (emailChangeAvailable) gösterilir;
+ *    kapalıysa bilgi notu çıkar. Asıl denetim sunucudadır (/api/me/email-change 403 METHOD_NOT_IN_SCOPE).
  */
 type Status = {
   codesActive: number;
@@ -50,10 +52,13 @@ export default function AccountRecoverySection({
   userId,
   devices,
   onChanged,
+  emailChangeAvailable = null,
 }: {
   userId: string;
   devices: LiveDevice[];
   onChanged: () => void;
+  /** F3: null = henüz bilinmiyor (form gösterilir, sunucu yine denetler); false = bu hesapta kapalı. */
+  emailChangeAvailable?: boolean | null;
 }) {
   const t = useTranslations("auth.ui.recovery");
   const locale = useLocale() as ActiveLocale;
@@ -305,12 +310,17 @@ export default function AccountRecoverySection({
         <p className="mt-1 text-[11px] leading-snug text-slate-500">
           {t("emailIntro")}
         </p>
-        {!strongSession && st && (
+        {emailChangeAvailable === false && (
+          <p data-testid="email-change-unavailable" className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+            {t("emailChangeUnavailable")}
+          </p>
+        )}
+        {emailChangeAvailable !== false && !strongSession && st && (
           <p data-testid="email-change-needs-strong" className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
             {t("emailNeedsStrong")}
           </p>
         )}
-        {!emailReq ? (
+        {emailChangeAvailable === false ? null : !emailReq ? (
           <form className="mt-2 space-y-2" onSubmit={(e) => { e.preventDefault(); void startEmail(); }}>
             <input type="email" data-testid="email-change-new" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
               aria-label={t("newEmail")} placeholder={t("newEmail")} className={input} />
