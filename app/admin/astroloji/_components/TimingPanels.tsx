@@ -7,6 +7,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { hasViewWarning } from "@/lib/astrology/viewWarnings";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type {
@@ -854,11 +855,14 @@ export function TechniqueTechnical({
   interpretation = null,
   calendarTransit = null,
   deltaTBirths = [],
+  warningCodes,
 }: {
   technique: string;
   technical: unknown;
   timeUnknownMasked: boolean;
   warnings: string[];
+  /** I18N-0008: görünümün dil-bağımsız uyarı kodları (yoksa eski kayıt okuyucusu: Türkçe metin). */
+  warningCodes?: readonly string[] | null;
   names: [string, string];
   /** Normalize seçenekler (Aşama 4: hedef/referans yer etiketi). */
   options?: Record<string, unknown>;
@@ -998,7 +1002,7 @@ export function TechniqueTechnical({
         </ul>
       )}
       {technique !== "western.natal" && <Warnings warnings={warnings} />}
-      {technique === "western.natal" && warnings.filter((w) => w.includes("parça")).length > 0 && <Warnings warnings={warnings} />}
+      {technique === "western.natal" && hasViewWarning({ warnings, warningCodes }, "missing_parts") && <Warnings warnings={warnings} />}
       {polarNotice && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-bala-polar-notice">
           {polarNotice}

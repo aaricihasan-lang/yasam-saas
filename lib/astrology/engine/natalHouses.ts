@@ -104,6 +104,18 @@ export function localNatalViewWarnings(technical: unknown, masked: boolean): str
   return w;
 }
 
+/**
+ * I18N-0008 (Atl-A0, yalnız ek): localNatalViewWarnings ile AYNI koşulların dil-bağımsız kodları. Metin üretimi ve hesap
+ * DEĞİŞMEZ; ekran rozetleri bu kodlardan karar verir (lib/astrology/viewWarnings.ts).
+ */
+export function localNatalViewWarningCodes(technical: unknown, masked: boolean): ("high_latitude" | "near_cusp")[] {
+  if (!isLocalTechnical(technical) || masked) return [];
+  const c: ("high_latitude" | "near_cusp")[] = [];
+  if (technical.houseSource.warnings.includes("high_latitude")) c.push("high_latitude");
+  if (technical.houseSource.nearCusp.length > 0) c.push("near_cusp");
+  return c;
+}
+
 // Aşama 3: not metni istemciyle ortak saf modelde (lib/astrology/model/natalHouseSystems.ts; aynı metin).
 export { LOCAL_NATAL_INTERP_NOTE };
 
