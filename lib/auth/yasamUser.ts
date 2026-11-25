@@ -660,6 +660,11 @@ export async function syncYasamUserFromDb(
   return outcome.kind === "fresh" ? outcome.user : null;
 }
 
+/** S6: yerel kimlik bağlamı = kayıtlı kullanıcı kimliği + kimlik taşıyan oturum token'ı (cookie taşımasında null). */
+function localSyncContext(): string {
+  return `${readYasamUser()?.id ?? ""}::${readSessionToken() ?? ""}`;
+}
+
 /**
  * syncYasamUserFromDb ile aynı (TTL + dedupe + localStorage yazımı) ama sonucu üç değerli döner
  * (Final-A3). Route guard geçici hatayı açık red ile karıştırmamak için bunu kullanır.
@@ -686,11 +691,21 @@ export async function syncYasamUserFromDbOutcome(
     return syncInFlight;
   }
 
+  // S6 (I18N-F1-R5, TARAYICI kök neden): istek başlarken yerel kimlik bağlamı yakalanır. Yanıt dönene kadar
+  // hesap değiştiyse (başka kullanıcı kaydedildi / oturum token'ı değişti) ya da çıkış yapıldıysa önceki
+  // hesabın geç gelen profili localStorage'a YAZILMAZ (aksi hâlde kullanıcı A + oturum B karışımı oluşur ve
+  // sunucu "Oturum kimliği uyuşmuyor" 403 ile reddeder). Yalnız istemci koruması; sunucu yetki kontrolü aynı.
+  const contextAtStart = localSyncContext();
+
   const run = async (): Promise<YasamUserSyncOutcome> => {
     const outcome = await refreshYasamUserOutcome(current);
     // 401/403, geçici hata veya boş sonuç → TTL/anahtar güncellenmez; bir sonraki
     // çağrı yeniden dener, hatalı/oturumsuz durum cache'lenmez.
     if (outcome.kind !== "fresh") return outcome;
+    if (localSyncContext() !== contextAtStart || outcome.user.id !== current.id) {
+      // Bayat yanıt: yazılmaz, cache'lenmez; "unavailable" (açık red DEĞİL → çıkış/erişim reddi üretmez).
+      return { kind: "unavailable" };
+    }
     saveYasamUser(outcome.user);
     lastUserSyncAt = Date.now();
     lastSyncKey = key;

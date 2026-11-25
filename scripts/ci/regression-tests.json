@@ -673,6 +673,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/auth-s6/stale-profile-sync.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/final-hardening/admin-pending-ux.harness.ts",
    "tsx": true,
    "timeoutSec": 60
