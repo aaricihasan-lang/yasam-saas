@@ -878,7 +878,7 @@
         "historyHint": "Creation and update steps of this record (read-only).",
         "historyLoading": "Loading history…",
         "noHistory": "There is no change history for this record.",
-        "reasonPrefix": "Rationale: ",
+        "reasonPrefix": "Reason: ",
         "loading": "Loading…",
         "more": "Load more"
       },

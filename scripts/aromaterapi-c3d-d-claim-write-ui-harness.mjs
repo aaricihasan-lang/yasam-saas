@@ -44,7 +44,10 @@ check("R05 yeni loading + duzenle loading", has("app/aromaterapi/bilgi-kayitlari
 // I18N (2026-11-25): aksiyon metni aromatherapy.knowledge.list.newRecord anahtarına taşındı; anahtar + TR değer birebir.
 check("R06 listede Yeni Bilgi Kaydı aksiyonu", /bilgi-kayitlari\/yeni/.test(read(VIEW)) && /t\("newRecord"\)/.test(read(VIEW)) &&
   JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.list.newRecord === "Yeni Bilgi Kaydı");
-check("R07 detayda Düzenle aksiyonu", /\/duzenle/.test(read(DETAIL)) && /Düzenle/.test(read(DETAIL)));
+// I18N (2026-11-25): "Düzenle" / "Bilgi Kaydı" metinleri katalog anahtarlarına taşındı; yorum satırıyla geçmesin diye
+// anahtar çağrısı + TR değer birebir denetlenir (amaç korunur).
+const KN_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge;
+check("R07 detayda Düzenle aksiyonu", /\/duzenle/.test(read(DETAIL)) && /t\("edit"\)/.test(read(DETAIL)) && /Düzenle/.test(KN_TR.detail.edit));
 check("R08 detayda Sil/DELETE aksiyonu YOK",
   !/Sil<\/|onDelete|handleDelete|deleteKnowledge|deleteClaim|bulk.?delete/i.test(read(DETAIL)));
 check("R09 modal içine sıkıştırma yok (bağımsız route)",
@@ -53,7 +56,9 @@ check("R09 modal içine sıkıştırma yok (bağımsız route)",
 const userText = noComments(read(FORM)) + noComments(read(CREATE_PAGE)) + noComments(read(EDIT_PAGE));
 check("R10 kullanıcı dilinde serbest 'claim' yok",
   !/["'>][^"'<]*\bclaim\b(?!_)[^"'<]*["'<]/i.test(userText), "form/route metninde 'claim'");
-check("R11 'Bilgi Kaydı' terminolojisi", /Bilgi Kaydı|Bilgi Kayıtları/.test(read(FORM)));
+check("R11 'Bilgi Kaydı' terminolojisi",
+  /t\("newTitle"\)/.test(read(FORM)) && /t\("submitCreate"\)/.test(read(FORM)) &&
+  KN_TR.form.newTitle === "Yeni Bilgi Kaydı" && KN_TR.form.submitCreate === "Bilgi Kaydını Oluştur");
 
 // ============================================================
 console.log("\n[C3D-D-2] Create contract");

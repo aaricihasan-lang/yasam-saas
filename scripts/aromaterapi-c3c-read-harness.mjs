@@ -199,7 +199,10 @@ const bkUserText = BK_VIEW
 check("U menü/kullanıcı dilinde serbest 'claim' kelimesi yok (View)",
   !/["'>][^"'<]*\bclaim\b(?!_)[^"'<]*["'<]/i.test(bkUserText),
   "kullanıcı metninde 'claim' bulundu");
-check("U 'Bilgi Kayıtları' terimi kullanılıyor", /Bilgi Kayıtları|Bilgi Kaydı/.test(BK_VIEW));
+// I18N (2026-11-25): terim katalogda; yorumla geçmesin diye anahtar çağrısı + TR değer birebir denetlenir (amaç korunur).
+check("U 'Bilgi Kayıtları' terimi kullanılıyor",
+  /t\("newRecord"\)/.test(BK_VIEW) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.list.newRecord === "Yeni Bilgi Kaydı");
 
 // Preparat detay "Üretim ve Elde Ediliş" sözleşmesi (şema boşluğu boş-durum).
 const PREP_DETAIL = read("app/aromaterapi/katalog/preparatlar/[id]/page.tsx");

@@ -25,7 +25,8 @@ export function useEnumLabel(): EnumLabelFn {
   return useCallback<EnumLabelFn>((map, code) => {
     if (!code) return "—";
     const name = MAP_NAME.get(map);
-    if (name && t.has(`${name}.${code}`)) return t(`${name}.${code}`);
+    // Yalnız sözlüğün KENDİ anahtarı (prototip adlı kod — "constructor", "toString" vb. — katalog yoluna gitmez → ham kod).
+    if (name && Object.prototype.hasOwnProperty.call(map, code) && t.has(`${name}.${code}`)) return t(`${name}.${code}`);
     return code;
   }, [t]);
 }
