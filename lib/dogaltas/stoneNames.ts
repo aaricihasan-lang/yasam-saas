@@ -27,11 +27,23 @@ const isEn = (locale: LocaleLike): boolean => locale === "en";
 
 export type LibraryStoneNames = { name_tr: string; name_en?: string | null };
 
-/** Kartın ekran dilindeki birincil adı. TR: `name_tr` (birebir). EN: `name_en` (boşsa `name_tr`). Kaynak yazımı düzeltilmez. */
+/**
+ * EN GÖSTERİM katmanında kütüphane `name_en` yazım düzeltmeleri (Owner teknik standardı, I18N geniş geliştirme B1).
+ * Kaynak alan (DB `stone_library.name_en`) DEĞİŞMEZ; yalnız EN ekranda görünen ad düzeltilir. Anahtar: kırpılmış
+ * `name_en` ile BİREBİR (büyük/küçük harf dahil) eşleşme — benzer yazımlar / uzman kayıtları etkilenmez.
+ */
+const LIBRARY_EN_DISPLAY_FIXES: ReadonlyMap<string, string> = new Map([
+  ["Tigers Eye", "Tiger's Eye"], // i18n-ignore: kanonik taş adı verisi (sözlük `kaplan-gozu` → "Tiger's Eye")
+]);
+
+/**
+ * Kartın ekran dilindeki birincil adı. TR: `name_tr` (birebir). EN: `name_en` (boşsa `name_tr`); kaynak yazımı
+ * yalnız `LIBRARY_EN_DISPLAY_FIXES` listesindeki birebir eşleşmeler için gösterimde düzeltilir.
+ */
 export function libraryStoneName(item: LibraryStoneNames, locale: LocaleLike): string {
   if (isEn(locale)) {
     const en = item.name_en?.trim();
-    if (en) return en;
+    if (en) return LIBRARY_EN_DISPLAY_FIXES.get(en) ?? en;
   }
   return item.name_tr;
 }

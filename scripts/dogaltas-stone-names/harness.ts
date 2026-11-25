@@ -46,7 +46,13 @@ function ok(name: string, cond: boolean) {
   const card = { slug: "kaplan-gozu", name_tr: "Kaplan Gözü", name_en: "Tigers Eye" };
   ok("KÜTÜPHANE TR: name_tr birebir", libraryStoneName(card, "tr") === "Kaplan Gözü");
   ok("KÜTÜPHANE TR: alt satır name_en (bugünkü davranış)", libraryStoneSecondaryName(card, "tr") === "Tigers Eye");
-  ok("KÜTÜPHANE EN: name_en birincil, kaynak yazımı DÜZELTİLMEZ (Tigers Eye)", libraryStoneName(card, "en") === "Tigers Eye");
+  // B1 (Owner teknik standardı): "Tigers Eye" EN GÖSTERİMDE "Tiger's Eye"; kaynak nesne/alan değişmez, TR alt satır birebir.
+  ok("KÜTÜPHANE EN: name_en birincil, gösterimde Tiger's Eye", libraryStoneName(card, "en") === "Tiger's Eye");
+  ok("KÜTÜPHANE EN: kaynak name_en değişmedi (Tigers Eye)", card.name_en === "Tigers Eye");
+  ok("KÜTÜPHANE EN: boşluklu kaynak da düzeltilir", libraryStoneName({ name_tr: "Kaplan Gözü", name_en: "  Tigers Eye " }, "en") === "Tiger's Eye");
+  ok("KÜTÜPHANE EN: yalnız birebir eşleşme (benzer yazım aynen)", libraryStoneName({ name_tr: "X", name_en: "Tigers Eye Blue" }, "en") === "Tigers Eye Blue" && libraryStoneName({ name_tr: "X", name_en: "tigers eye" }, "en") === "tigers eye");
+  ok("KÜTÜPHANE EN: zaten doğru yazım aynen", libraryStoneName({ name_tr: "Kaplan Gözü", name_en: "Tiger's Eye" }, "en") === "Tiger's Eye");
+  ok("KÜTÜPHANE EN: EN sıralama düzeltilmiş adla", sortLibraryItemsForLocale([{ slug: "z", name_tr: "Z", name_en: "Topaz" }, card], "en")[0] === card);
   ok("KÜTÜPHANE EN: alt satır Türkçe ad", libraryStoneSecondaryName(card, "en") === "Kaplan Gözü");
   ok("KÜTÜPHANE EN: name_en boş → name_tr", libraryStoneName({ name_tr: "Ametist", name_en: "  " }, "en") === "Ametist" && libraryStoneName({ name_tr: "Ametist", name_en: null }, "en") === "Ametist");
   ok("KÜTÜPHANE TR: name_en boş/aynı → alt satır yok", libraryStoneSecondaryName({ name_tr: "Ametist", name_en: "" }, "tr") === null && libraryStoneSecondaryName({ name_tr: "Opal", name_en: "Opal" }, "tr") === null);
