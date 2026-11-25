@@ -124,9 +124,13 @@ function colExpr(name: string): { sql: string; key: string } {
 function parseSelect(raw: string | null): string {
   if (!raw || raw.trim() === "*" || raw.trim() === "") return "*";
   return raw.split(",").map((c) => c.trim()).filter(Boolean).map((c) => {
-    if (!c.includes("->")) return qi(c);
-    const e = colExpr(c); // anahtar colExpr regex'iyle doğrulandı ([A-Za-z0-9_])
-    return `${e.sql} AS "${e.key}"`;
+    // PostgREST takma adı `ad:ifade` (ör. `snap_ana:analysis_data->motor->>display`); `::` tür dönüşümü takma ad sayılmaz.
+    const al = /^([A-Za-z_][A-Za-z0-9_]*):(?!:)(.+)$/.exec(c);
+    const alias = al ? al[1] : null;
+    const expr = al ? al[2]! : c;
+    if (!expr.includes("->")) return alias ? `${qi(expr)} AS "${alias}"` : qi(expr);
+    const e = colExpr(expr); // anahtar colExpr regex'iyle doğrulandı ([A-Za-z0-9_])
+    return `${e.sql} AS "${alias ?? e.key}"`;
   }).join(", ");
 }
 function parseInList(v: string): string[] {
