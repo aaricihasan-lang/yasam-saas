@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,7 +11,6 @@ import { AromaterapiEmptyState } from "@/app/aromaterapi/_components/Aromaterapi
 import { ReadError } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { MethodRevisionForm } from "@/app/aromaterapi/katalog/_components/MethodRevisionForm";
 import { fetchMethodRevision, fetchMethodSeries } from "@/lib/aromaterapi/methodData";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import type { MethodRevisionDetail } from "@/lib/aromaterapi/readTypes";
 
@@ -22,6 +23,8 @@ export default function YeniRevizyonPage() {
   const preparationId = typeof params?.id === "string" ? params.id : "";
   const seriesId = typeof params?.seriesId === "string" ? params.seriesId : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("aromatherapy.catalog.methodForm.pages");
+  const readError = useAromaReadError();
 
   // loading TÜRETİLİR (effect içinde senkron setState YOK → cascading render/lint yok).
   const [state, setState] = useState<{
@@ -71,16 +74,16 @@ export default function YeniRevizyonPage() {
 
   return (
     <AromaterapiSectionShell
-      title="Yeni Revizyon"
-      subtitle="Mevcut yöntemin güncellenmiş bir sürümünü ekleyin (önceki revizyonlar değişmez)."
+      title={t("revTitle")}
+      subtitle={t("revSubtitle")}
       icon="🧪"
-      breadcrumbLeaf="Yeni Revizyon"
+      breadcrumbLeaf={t("revTitle")}
       actions={
         <Link
           href={`/aromaterapi/katalog/preparatlar/${preparationId}/yontemler/${seriesId}`}
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-3.5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
         >
-          ← Yönteme dön
+          {t("backMethod")}
         </Link>
       }
     >
@@ -90,19 +93,19 @@ export default function YeniRevizyonPage() {
         <AromaterapiEmptyState
           variant="empty"
           icon="🔎"
-          title="Yöntem bulunamadı"
-          message="Bu üretim yöntemi bulunamadı veya bu hesabın kütüphanesinde değil."
+          title={t("notFound")}
+          message={t("notFoundBody")}
           action={
             <Link
               href={`/aromaterapi/katalog/preparatlar/${preparationId}`}
               className="inline-flex min-h-[44px] items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800"
             >
-              Preparata dön
+              {t("prep")}
             </Link>
           }
         />
       ) : errorCode ? (
-        <ReadError message={messageForCode(errorCode)} onRetry={() => setTick((k) => k + 1)} />
+        <ReadError message={readError(errorCode)} onRetry={() => setTick((k) => k + 1)} />
       ) : base && expected !== null ? (
         <MethodRevisionForm
           seriesId={seriesId}

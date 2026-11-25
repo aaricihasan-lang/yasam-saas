@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
@@ -11,19 +12,20 @@ export default function YeniYontemPage() {
   const params = useParams<{ id: string }>();
   const preparationId = typeof params?.id === "string" ? params.id : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("aromatherapy.catalog.methodForm.pages");
 
   return (
     <AromaterapiSectionShell
-      title="Yeni Üretim Yöntemi"
-      subtitle="Bu preparatın nasıl elde edildiğini kaynağıyla birlikte tanımlayın."
+      title={t("newTitle")}
+      subtitle={t("newSubtitle")}
       icon="🧪"
-      breadcrumbLeaf="Yeni Yöntem"
+      breadcrumbLeaf={t("newLeaf")}
       actions={
         <Link
           href={preparationId ? `/aromaterapi/katalog/preparatlar/${preparationId}` : "/aromaterapi/katalog?tab=preparatlar"}
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-3.5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
         >
-          ← Preparata dön
+          {t("backPrep")}
         </Link>
       }
     >
