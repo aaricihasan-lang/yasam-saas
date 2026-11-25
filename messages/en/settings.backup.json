@@ -343,7 +343,7 @@
         "cosmic_calendar": "Cosmic Agenda — Hijama Rules",
         "beslenme": "Nutrition",
         "video_ceviri": "Video Training Records",
-        "general": "General (support messages, location preference)"
+        "general": "General (support messages, location and language preferences)"
       },
       "tables": {
         "clients": "Clients",
