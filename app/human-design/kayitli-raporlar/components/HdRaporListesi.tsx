@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -10,14 +11,14 @@ import {
   deleteReport,
   type HdReportWithClient,
 } from "../helpers/hdKayitliRaporlar";
-import { downloadProfessionalReport, HD_REPORT_REDACTED_MESSAGE } from "../helpers/hdProfessionalReport";
+import { downloadProfessionalReport } from "../helpers/hdProfessionalReport";
 import { HdRaporDetayModal } from "./HdRaporDetayModal";
 import { HdProfessionalSummaryModal } from "./HdProfessionalSummaryModal";
 
-function formatDate(val: string | null | undefined): string {
+function formatDate(val: string | null | undefined, dateLocale = "tr-TR"): string {
   if (!val) return "—";
   try {
-    return new Date(val).toLocaleDateString("tr-TR", {
+    return new Date(val).toLocaleDateString(dateLocale, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -30,6 +31,9 @@ function formatDate(val: string | null | undefined): string {
 export function HdRaporListesi() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.reports");
+  const tr = useTranslations("hd.records.report");
+  const dateLocale = useLocale() === "tr" ? "tr-TR" : "en-GB";
 
   const [rows, setRows] = useState<HdReportWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,8 +51,8 @@ export function HdRaporListesi() {
     setDownloadingId(row.id);
     const res = await downloadProfessionalReport(row.id);
     setDownloadingId(null);
-    if (!res.ok) showToast({ message: `İndirilemedi: ${res.error}`, type: "error" });
-    else if (res.systemReadingRedacted) showToast({ message: HD_REPORT_REDACTED_MESSAGE, type: "warning" });
+    if (!res.ok) showToast({ message: t("downloadFailed", { error: res.error }), type: "error" });
+    else if (res.systemReadingRedacted) showToast({ message: tr("redacted"), type: "warning" });
   }
 
   const loadRows = useCallback(async () => {
@@ -56,11 +60,11 @@ export function HdRaporListesi() {
     const { rows: data, error } = await listReportsWithClients();
     setLoading(false);
     if (error) {
-      showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
+      showToast({ message: t("loadFailed", { error }), type: "error" });
     } else {
       setRows(data);
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -94,10 +98,10 @@ export function HdRaporListesi() {
 
   async function handleDelete(row: HdReportWithClient) {
     const ok = await confirm({
-      title: "Raporu sil",
-      message: `"${row.title}" raporunu kalıcı olarak silmek istiyor musunuz?`,
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      title: t("deleteTitle"),
+      message: t("deleteMessage", { title: row.title }),
+      confirmText: t("delete"),
+      cancelText: t("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -107,9 +111,9 @@ export function HdRaporListesi() {
     setDeletingId(null);
 
     if (error) {
-      showToast({ message: `Silinemedi: ${error}`, type: "error" });
+      showToast({ message: t("deleteFailed", { error }), type: "error" });
     } else {
-      showToast({ message: "Rapor silindi.", type: "success" });
+      showToast({ message: t("deleted"), type: "success" });
       setRows((prev) => prev.filter((r) => r.id !== row.id));
     }
   }
@@ -120,7 +124,7 @@ export function HdRaporListesi() {
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Danışan adı veya rapor başlığı ara..."
+          placeholder={t("search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-10 w-full rounded-xl border border-indigo-200/90 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400"
@@ -130,17 +134,16 @@ export function HdRaporListesi() {
       {/* İçerik */}
       {loading ? (
         <div className="flex items-center justify-center py-20 text-sm text-slate-500">
-          Yükleniyor...
+          {t("loading")}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-indigo-200/80 bg-indigo-50/30 py-20 text-center">
           <p className="text-sm font-semibold text-slate-600">
-            {search ? "Arama sonucu bulunamadı." : "Henüz hazırlanmış Word raporu yok."}
+            {search ? t("noResults") : t("empty")}
           </p>
           {!search && (
             <p className="mt-1 max-w-md px-4 text-xs text-slate-500" data-hd-reports-empty-hint>
-              Hesaplanan analizler otomatik kaydedilir ve Human Design Hesaplama sayfasında listelenir. Bir analizde
-              “Word İndir” kullandığınızda hazırlanan Word raporu burada da görünür.
+              {t("emptyHint")}
             </p>
           )}
           {!search && (
@@ -148,7 +151,7 @@ export function HdRaporListesi() {
               href="/human-design/danisanlar"
               className="mt-3 inline-flex h-9 items-center rounded-xl border border-fuchsia-300/80 bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 text-sm font-black text-white no-underline shadow-sm transition hover:brightness-105"
             >
-              Human Design Hesaplama
+              {t("calcLink")}
             </Link>
           )}
         </div>
@@ -169,21 +172,21 @@ export function HdRaporListesi() {
                   </p>
                   {isCanonical && (
                     <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-700 ring-1 ring-teal-200/80">
-                      Profesyonel
+                      {t("professional")}
                     </span>
                   )}
                   {latestIdPerClient.has(row.id) && (
                     <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200/80">
-                      Son
+                      {t("latest")}
                     </span>
                   )}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
                   <span className="font-semibold text-indigo-700">
-                    {row.client?.name ?? (row.client_id ? "—" : "Danışan kaydı silinmiş")}
+                    {row.client?.name ?? (row.client_id ? "—" : t("clientDeleted"))}
                   </span>
                   <span>·</span>
-                  <span>{formatDate(row.created_at)}</span>
+                  <span>{formatDate(row.created_at, dateLocale)}</span>
                 </div>
               </div>
 
@@ -200,7 +203,7 @@ export function HdRaporListesi() {
                     onClick={() => setSummaryId(row.id)}
                     className="flex h-8 items-center rounded-lg border border-emerald-200 bg-white px-3.5 text-xs font-bold text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-50"
                   >
-                    Özet
+                    {t("summary")}
                   </button>
                   {!isAndroid ? (
                     <button
@@ -209,7 +212,7 @@ export function HdRaporListesi() {
                       onClick={() => handleDownload(row)}
                       className="no-android flex h-8 items-center rounded-lg border border-teal-300 bg-white px-3.5 text-xs font-bold text-teal-700 transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
                     >
-                      {downloadingId === row.id ? "İndiriliyor…" : "Word İndir"}
+                      {downloadingId === row.id ? t("downloading") : t("downloadWord")}
                     </button>
                   ) : null}
                   </>
@@ -220,13 +223,13 @@ export function HdRaporListesi() {
                       onClick={() => setDetayRow(row)}
                       className="flex h-8 items-center rounded-lg border border-indigo-200 bg-white px-3.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
                     >
-                      Detay
+                      {t("detail")}
                     </button>
                     <Link
                       href={`/human-design/rapor-olustur?reportId=${row.id}`}
                       className="flex h-8 items-center rounded-lg border border-violet-200 bg-white px-3.5 text-xs font-bold text-violet-700 no-underline transition hover:border-violet-400 hover:bg-violet-50"
                     >
-                      Düzenle
+                      {t("edit")}
                     </Link>
                   </>
                 )}
@@ -236,7 +239,7 @@ export function HdRaporListesi() {
                   onClick={() => handleDelete(row)}
                   className="flex h-8 items-center rounded-lg border border-rose-200 bg-white px-3.5 text-xs font-bold text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
                 >
-                  {deletingId === row.id ? "..." : "Sil"}
+                  {deletingId === row.id ? "..." : t("delete")}
                 </button>
               </div>
             </div>

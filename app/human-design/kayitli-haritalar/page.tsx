@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useHdLabels } from "../_i18n/useHdLabels";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -11,12 +13,6 @@ import {
   HUMAN_DESIGN_AUTHORITIES,
   HUMAN_DESIGN_PROFILES,
 } from "@/lib/human-design/constants";
-import {
-  hdTypeLabelFromCode,
-  hdAuthorityDisplayLabel,
-  hdProfileLabelFromCode,
-  hdDefinitionLabelFromCode,
-} from "@/lib/human-design/codeHelpers";
 import { HumanDesignShell } from "../components/HumanDesignShell";
 import {
   listChartsWithClients,
@@ -28,19 +24,20 @@ import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 
 // Hesaplanmış satır etiketleri: eski motor (RAW) ve RoxyAPI (uygulama kodu) kayıtları merkezi
 // normalizasyonla aynı Türkçe etikete iner; eşlenemeyen değer olduğu gibi gösterilir.
-function computedLabels(row: ComputedChartListRow): { type: string; authority: string; profile: string } {
+// I18N: etiketler useHdLabels'tan (TR'de lib yardımcıları AYNEN; diğer dillerde hd.terms).
+function computedLabels(row: ComputedChartListRow, L: ReturnType<typeof useHdLabels>): { type: string; authority: string; profile: string } {
   const c = toAppChartCodes(row);
   return {
-    type: c.type_code ? hdTypeLabelFromCode(c.type_code) : row.type_code || "—",
-    authority: c.authority_code ? hdAuthorityDisplayLabel(c.authority_code, c.type_code) : row.authority_code || "—",
-    profile: c.profile_code ? hdProfileLabelFromCode(c.profile_code).split(" — ")[0] : row.profile_code || "—",
+    type: c.type_code ? L.type(c.type_code) : row.type_code || "—",
+    authority: c.authority_code ? L.authority(c.authority_code, c.type_code) : row.authority_code || "—",
+    profile: c.profile_code ? L.profile(c.profile_code).split(" — ")[0] : row.profile_code || "—",
   };
 }
 
-function formatDate(val: string | null | undefined): string {
+function formatDate(val: string | null | undefined, dateLocale = "tr-TR"): string {
   if (!val) return "—";
   try {
-    return new Date(val).toLocaleDateString("tr-TR", {
+    return new Date(val).toLocaleDateString(dateLocale, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -53,6 +50,9 @@ function formatDate(val: string | null | undefined): string {
 export default function HdKayitliHaritalarPage() {
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("hd.records");
+  const L = useHdLabels();
+  const fmt = (v: string | null | undefined) => formatDate(v, L.dateLocale);
 
   const [rows, setRows] = useState<HdChartWithClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,11 +75,11 @@ export default function HdKayitliHaritalarPage() {
     const { rows: data, error } = await listChartsWithClients();
     setLoading(false);
     if (error) {
-      showToast({ message: `Yüklenemedi: ${error}`, type: "error" });
+      showToast({ message: t("loadFailed", { error }), type: "error" });
     } else {
       setRows(data);
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- mount'ta liste yükleme (mevcut davranış)
   useEffect(() => { loadRows(); }, [loadRows]);
@@ -115,7 +115,7 @@ export default function HdKayitliHaritalarPage() {
                               href={`/human-design/kayitli-haritalar/${row.id}`}
                               className={`${btn} flex items-center rounded-lg border border-indigo-200 bg-white text-xs font-bold text-indigo-700 no-underline transition hover:border-indigo-400 hover:bg-indigo-50`}
                             >
-                              Detay
+                              {t("openDetail")}
                             </Link>
                             {/* AŞAMA 3C: manuel "Düzenle" (harita-kaydi) ve eski "Rapor" (rapor-olustur) bağlantıları kaldırıldı — eski kayıt salt-okunur açılır.
                                 Owner kararı 2026-10-17: ayrı satır "Sil" YOK — Human Design kayıtları yalnız Human Design Analizlerim'de
@@ -142,15 +142,15 @@ export default function HdKayitliHaritalarPage() {
     <HumanDesignShell>
       <BfcacheRefreshHandler />
       {isDemo && (
-        <DemoModuleBanner className="mb-3" message="Human Design kayıtlı haritalar demo hesabında görüntülenebilir. Silme işlemi yapılamaz." />
+        <DemoModuleBanner className="mb-3" message={t("demoBanner")} />
       )}
       {/* Başlık */}
       <div className="mb-3 rounded-2xl border border-indigo-200/80 bg-white/90 px-5 py-4 shadow-[0_6px_24px_-8px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-xl">
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-          Human Design — Kayıtlı Haritalar
+          {t("title")}
         </h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
-          Kaydedilmiş Human Design haritalarını listele, detaylarına eriş ve rapor oluştur.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -161,14 +161,14 @@ export default function HdKayitliHaritalarPage() {
           onClick={() => setTab("manual")}
           className={`rounded-lg px-4 py-1.5 text-sm font-bold transition ${tab === "manual" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-indigo-50"}`}
         >
-          Manuel
+          {t("tabManual")}
         </button>
         <button
           type="button"
           onClick={() => setTab("computed")}
           className={`rounded-lg px-4 py-1.5 text-sm font-bold transition ${tab === "computed" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 hover:bg-indigo-50"}`}
         >
-          Hesaplanmış
+          {t("tabComputed")}
         </button>
       </div>
 
@@ -181,7 +181,7 @@ export default function HdKayitliHaritalarPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Danışan adı ara..."
+            placeholder={t("searchClient")}
             className="h-9 min-w-[160px] flex-1 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400"
           />
           <select
@@ -189,9 +189,9 @@ export default function HdKayitliHaritalarPage() {
             onChange={(e) => setTypeFilter(e.target.value)}
             className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
-            <option value="">Tüm Tipler</option>
-            {HUMAN_DESIGN_TYPES.map((t) => (
-              <option key={t.code} value={t.code}>{t.label}</option>
+            <option value="">{t("allTypes")}</option>
+            {HUMAN_DESIGN_TYPES.map((x) => (
+              <option key={x.code} value={x.code}>{L.isTr ? x.label : L.terms.label("type", x.code)}</option>
             ))}
           </select>
           <select
@@ -199,9 +199,9 @@ export default function HdKayitliHaritalarPage() {
             onChange={(e) => setAuthorityFilter(e.target.value)}
             className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
-            <option value="">Tüm Otoriteler</option>
+            <option value="">{t("allAuthorities")}</option>
             {HUMAN_DESIGN_AUTHORITIES.map((a) => (
-              <option key={a.code} value={a.code}>{a.label}</option>
+              <option key={a.code} value={a.code}>{L.isTr ? a.label : L.terms.label("authority", a.code)}</option>
             ))}
           </select>
           <select
@@ -209,9 +209,9 @@ export default function HdKayitliHaritalarPage() {
             onChange={(e) => setProfileFilter(e.target.value)}
             className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
           >
-            <option value="">Tüm Profiller</option>
+            <option value="">{t("allProfiles")}</option>
             {HUMAN_DESIGN_PROFILES.map((p) => (
-              <option key={p.code} value={p.code}>{p.label}</option>
+              <option key={p.code} value={p.code}>{L.isTr ? p.label : L.terms.label("profile", p.code)}</option>
             ))}
           </select>
           <button
@@ -219,7 +219,7 @@ export default function HdKayitliHaritalarPage() {
             onClick={loadRows}
             className="h-9 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
           >
-            Yenile
+            {t("refresh")}
           </button>
         </div>
 
@@ -227,24 +227,24 @@ export default function HdKayitliHaritalarPage() {
         <div className="bg-gradient-to-b from-white/95 to-indigo-50/25">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-sm text-slate-500">
-              Yükleniyor...
+              {t("loading")}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex items-center justify-center py-20 text-sm text-slate-500">
-              {rows.length === 0 ? "Henüz harita kaydı yok." : "Filtreye uyan kayıt bulunamadı."}
+              {rows.length === 0 ? t("emptyManual") : t("emptyFilter")}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-indigo-50/80">
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">Danışan</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">Tip</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">Otorite</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Profil</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 xl:table-cell">Tanım</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Kayıt Tarihi</th>
-                    <th className="hidden px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">İşlem</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">{t("colClient")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">{t("colType")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">{t("colAuthority")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">{t("colProfile")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 xl:table-cell">{t("colDefinition")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">{t("colCreated")}</th>
+                    <th className="hidden px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">{t("colAction")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-indigo-50/80">
@@ -261,7 +261,7 @@ export default function HdKayitliHaritalarPage() {
                           {/* mobile: show type badge */}
                           {row.type_code && (
                             <span className="mt-0.5 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 sm:hidden">
-                              {hdTypeLabelFromCode(row.type_code)}
+                              {L.type(row.type_code)}
                             </span>
                           )}
                           {/* P2-4: mobilde satır aksiyonları ad altında, sarmalı ve parmak dostu —
@@ -270,20 +270,20 @@ export default function HdKayitliHaritalarPage() {
                         </td>
                         <td className="hidden px-4 py-3 sm:table-cell">
                           <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">
-                            {hdTypeLabelFromCode(row.type_code)}
+                            {L.type(row.type_code)}
                           </span>
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">
-                          {hdAuthorityDisplayLabel(row.authority_code, row.type_code)}
+                          {L.authority(row.authority_code, row.type_code)}
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">
-                          {hdProfileLabelFromCode(row.profile_code)}
+                          {L.profile(row.profile_code)}
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-700 xl:table-cell">
-                          {hdDefinitionLabelFromCode(row.definition_code)}
+                          {L.definition(row.definition_code)}
                         </td>
                         <td className="hidden px-4 py-3 text-xs text-slate-500 lg:table-cell">
-                          {formatDate(row.created_at)}
+                          {fmt(row.created_at)}
                         </td>
                         <td className="hidden px-4 py-3 sm:table-cell">
                           <div className="flex items-center justify-end gap-1.5">{renderActions(row, clientId, false)}</div>
@@ -294,7 +294,7 @@ export default function HdKayitliHaritalarPage() {
                 </tbody>
               </table>
               <div className="border-t border-indigo-50/80 bg-slate-50/60 px-4 py-2 text-xs text-slate-500">
-                {filtered.length} / {rows.length} kayıt
+                {t("count", { shown: filtered.length, total: rows.length })}
               </div>
             </div>
           )}
@@ -310,7 +310,7 @@ export default function HdKayitliHaritalarPage() {
             type="text"
             value={computedSearch}
             onChange={(e) => setComputedSearch(e.target.value)}
-            placeholder="Yer, tip veya tarih ara..."
+            placeholder={t("searchComputed")}
             className="h-9 min-w-[160px] flex-1 rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400"
           />
           <button
@@ -318,7 +318,7 @@ export default function HdKayitliHaritalarPage() {
             onClick={loadComputed}
             className="h-9 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-bold text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50"
           >
-            Yenile
+            {t("refresh")}
           </button>
         </div>
         {computedMsg && (
@@ -329,42 +329,42 @@ export default function HdKayitliHaritalarPage() {
         )}
         <div className="bg-gradient-to-b from-white/95 to-indigo-50/25">
           {computedLoading ? (
-            <div className="flex items-center justify-center py-20 text-sm text-slate-500">Yükleniyor...</div>
+            <div className="flex items-center justify-center py-20 text-sm text-slate-500">{t("loading")}</div>
           ) : computedFiltered.length === 0 ? (
             <div className="flex items-center justify-center py-20 text-sm text-slate-500">
-              {computedRows.length === 0 ? "Henüz hesaplanmış harita kaydı yok." : "Aramaya uyan kayıt bulunamadı."}
+              {computedRows.length === 0 ? t("emptyComputed") : t("emptySearch")}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-indigo-50/80">
-                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">Kayıt</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">Tip</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">Otorite</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Profil</th>
-                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">Kayıt Tarihi</th>
-                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600">İşlem</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600">{t("colRecord")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">{t("colType")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">{t("colAuthority")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">{t("colProfile")}</th>
+                    <th className="hidden px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">{t("colCreated")}</th>
+                    <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-slate-600">{t("colAction")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-indigo-50/80">
                   {computedFiltered.map((row) => (
                     <tr key={row.id} className="bg-white transition-colors hover:bg-indigo-50/40">
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-900">{row.client_name || "Kişisel Kayıt"}</p>
+                        <p className="font-semibold text-slate-900">{row.client_name || t("personalRecord")}</p>
                         <p className="text-xs text-slate-500">
-                          {formatDate(row.birth_date)}{row.birth_place ? ` · ${row.birth_place}` : ""}
+                          {fmt(row.birth_date)}{row.birth_place ? ` · ${row.birth_place}` : ""}
                         </p>
                         {row.type_code && (
-                          <span className="mt-0.5 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 sm:hidden">{computedLabels(row).type}</span>
+                          <span className="mt-0.5 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800 sm:hidden">{computedLabels(row, L).type}</span>
                         )}
                       </td>
                       <td className="hidden px-4 py-3 sm:table-cell">
-                        <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">{computedLabels(row).type}</span>
+                        <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200/60">{computedLabels(row, L).type}</span>
                       </td>
-                      <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">{computedLabels(row).authority}</td>
-                      <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">{computedLabels(row).profile}</td>
-                      <td className="hidden px-4 py-3 text-xs text-slate-500 lg:table-cell">{formatDate(row.created_at)}</td>
+                      <td className="hidden px-4 py-3 text-xs text-slate-700 md:table-cell">{computedLabels(row, L).authority}</td>
+                      <td className="hidden px-4 py-3 text-xs text-slate-700 lg:table-cell">{computedLabels(row, L).profile}</td>
+                      <td className="hidden px-4 py-3 text-xs text-slate-500 lg:table-cell">{fmt(row.created_at)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
@@ -372,7 +372,7 @@ export default function HdKayitliHaritalarPage() {
                             onClick={() => setComputedDetailId(row.id)}
                             className="h-7 rounded-lg border border-indigo-200 bg-white px-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50"
                           >
-                            Detay
+                            {t("openDetail")}
                           </button>
                         </div>
                       </td>
@@ -381,7 +381,7 @@ export default function HdKayitliHaritalarPage() {
                 </tbody>
               </table>
               <div className="border-t border-indigo-50/80 bg-slate-50/60 px-4 py-2 text-xs text-slate-500">
-                {computedFiltered.length} / {computedRows.length} kayıt
+                {t("count", { shown: computedFiltered.length, total: computedRows.length })}
               </div>
             </div>
           )}
@@ -396,7 +396,7 @@ export default function HdKayitliHaritalarPage() {
           onDeleted={(deletedId) => {
             setComputedRows((prev) => prev.filter((r) => r.id !== deletedId));
             setComputedDetailId(null);
-            setComputedMsg("Kayıt silindi.");
+            setComputedMsg(t("deleted"));
           }}
         />
       )}

@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
 import { getComputedChart, type ComputedChartDetail } from "@/lib/human-design/api/chartsClient";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { useHdBodyScrollLock } from "../../components/useHdBodyScrollLock";
@@ -17,7 +18,7 @@ import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
 import { HdAddToEduArchiveButton } from "./HdAddToEduArchiveButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
-import { HdChartKnowledgeTabs, HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
+import { HdChartKnowledgeTabs, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
 import { useHdNameOverrides } from "../../bilgi-bankasi/helpers/useHdNameOverrides";
 import { computedChartAppCodes } from "@/lib/human-design/chart/computedChart";
 import { centerStateMap, classifyComputedChartCenters } from "@/lib/human-design/chart/centerStates";
@@ -48,10 +49,10 @@ type Props = {
   autoWord?: boolean;
 };
 
-function formatDate(val: string | null | undefined): string {
+function formatDate(val: string | null | undefined, dateLocale = "tr-TR"): string {
   if (!val) return "—";
   try {
-    return new Date(val).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return new Date(val).toLocaleDateString(dateLocale, { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return val;
   }
@@ -61,6 +62,9 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
   // Gösterilen analiz: açılışta verilen; profil bağlamında danışanın DİĞER kayıtlı analizleri seçilebilir
   // (yalnız kayıtlı satır okunur — Roxy çağrısı / yeni hesap YOK).
   const [id, setId] = useState(initialId);
+  const t = useTranslations("hd.records.modal");
+  const dateLocale = useLocale() === "tr" ? "tr-TR" : "en-GB";
+  const fmt = (v: string | null | undefined) => formatDate(v, dateLocale);
   const [siblings, setSiblings] = useState<Array<{ id: string; created_at: string; birth_time: string | null }>>([]);
   const [fullDelete, setFullDelete] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -182,25 +186,25 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
           <div className="min-w-0">
             <h2 id="hd-computed-detay-title" className="truncate text-base font-black leading-tight text-slate-900">
               <span className="mr-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Human Design</span>
-              {displayName || "Kişisel Kayıt"}
+              {displayName || t("personalRecord")}
             </h2>
             {renamedFrom ? (
               <p className="truncate text-[11px] font-semibold text-amber-700" data-hd-renamed>
-                Analizdeki ad: {renamedFrom}. Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir.
+                {t("renamed", { name: renamedFrom })}
               </p>
             ) : null}
             <p className="truncate text-xs text-slate-500">
-              {formatDate(row?.birth_date)}
+              {fmt(row?.birth_date)}
               {row?.birth_time ? ` • ${row.birth_time.slice(0, 5)}` : ""}
               {row?.birth_place ? ` • ${row.birth_place}` : ""}
               {row?.timezone ? ` (${row.timezone})` : ""}
             </p>
             {profile?.firstAnalysisAt ? (
-              <p className="truncate text-[11px] text-slate-500" data-hd-first-analysis>İlk analiz: {formatDate(profile.firstAnalysisAt)}</p>
+              <p className="truncate text-[11px] text-slate-500" data-hd-first-analysis>{t("firstAnalysis", { date: fmt(profile.firstAnalysisAt) })}</p>
             ) : null}
             {siblings.length > 1 ? (
               <label className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                <span>Analiz:</span>
+                <span>{t("analysis")}</span>
                 <select
                   value={id}
                   onChange={(e) => setId(e.target.value)}
@@ -209,9 +213,9 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                 >
                   {siblings.map((sb, i) => (
                     <option key={sb.id} value={sb.id}>
-                      {formatDate(sb.created_at)}
+                      {fmt(sb.created_at)}
                       {sb.birth_time ? ` • ${sb.birth_time.slice(0, 5)}` : ""}
-                      {i === 0 ? " (en güncel)" : ""}
+                      {i === 0 ? t("latest") : ""}
                     </option>
                   ))}
                 </select>
@@ -241,16 +245,16 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                 data-hd-delete-open
               >
                 <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                Sil
+                {t("delete")}
               </button>
             ) : null}
             <button
               type="button"
               onClick={onClose}
-              aria-label="Kapat"
+              aria-label={t("close")}
               className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Kapat <span aria-hidden="true">✕</span>
+              {t("close")} <span aria-hidden="true">✕</span>
             </button>
           </div>
         </div>
@@ -260,7 +264,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
           {/* hdwide: bilgi kolonu eklendiği için harita alanı genişler; alttaki bilgi panelleri 1600px'de kalır. */}
           <div className="mx-auto w-full max-w-[1600px] p-3 sm:p-4 lg:px-6 hdwide:max-w-[1880px]">
             {loading ? (
-                <p className="py-10 text-center text-sm text-slate-500">Yükleniyor...</p>
+                <p className="py-10 text-center text-sm text-slate-500">{t("loading")}</p>
               ) : loadError ? (
                 <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
                   {loadError}
@@ -284,7 +288,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                       ),
                       central: (
                         <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
-                          <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">{HD_ADMIN_SOURCE_LABELS.central}</p>
+                          <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">{t("centralSource")}</p>
                           <HdPersonalKnowledgePanel chartId={id} />
                         </div>
                       ),
@@ -294,13 +298,13 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                       <HdExpertKnowledgePanel chart={computedChartAppCodes(result)} centerStates={centerStateMap(classifyComputedChartCenters(result))} />
                     </div>
                     <div className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5">
-                      <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">Kişinin <span lang="en">Human Design</span> Bilgileri</p>
+                      <p className="mb-3 text-xs font-black uppercase tracking-widest text-indigo-700">{t.rich("personInfo", { en: (c) => <span lang="en">{c}</span> })}</p>
                       <HdPersonalKnowledgePanel chartId={id} />
                     </div>
                   </HdChartKnowledgeTabs>
                 </div>
               ) : (
-                <p className="py-10 text-center text-sm text-slate-500">Kayıt bulunamadı.</p>
+                <p className="py-10 text-center text-sm text-slate-500">{t("notFound")}</p>
               )}
           </div>
         </div>
@@ -308,7 +312,7 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
       {fullDelete && deleteTarget ? (
         <HdFullDeleteDialog
           target={deleteTarget}
-          name={profile?.name || displayName || "Bu danışan"}
+          name={profile?.name || displayName || t("thisClient")}
           onCancel={() => setFullDelete(false)}
           onDeleted={(r) => {
             setFullDelete(false);

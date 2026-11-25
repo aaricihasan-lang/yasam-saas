@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { privateArchiveVisible } from "./HdAddToEduArchiveButton";
 
 const noop = () => () => {};
@@ -15,6 +16,7 @@ const fromEducation = () => new URLSearchParams(window.location.search).get("egi
 export function HdEduAnalysisBanner({ chartId }: { chartId: string | null }) {
   const edu = useSyncExternalStore(noop, fromEducation, () => false);
   const [visible, setVisible] = useState(false);
+  const t = useTranslations("hd.records.edu");
   useEffect(() => {
     if (!edu) return;
     let live = true;
@@ -27,21 +29,21 @@ export function HdEduAnalysisBanner({ chartId }: { chartId: string | null }) {
       <GraduationCap className="h-5 w-5 shrink-0" aria-hidden />
       <p className="m-0 min-w-0 flex-1">
         {chartId
-          ? "Analiz kaydedildi. Bu haritayı danışanın belgeli izniyle özel eğitim arşivinize ekleyebilirsiniz."
+          ? t("saved")
           : <>
-              Eğitim Merkezi&apos;nden geldiniz: danışanı ve doğum bilgilerini girip “Danışanı Oluştur ve Analiz Et”e basın. Kayıttan sonra haritayı eğitim arşivinize ekleyebilirsiniz.{" "}
-              <b data-hd-edu-banner-real>Bu yol GERÇEK danışan kaydı oluşturur.</b> Kurgusal örnek için{" "}
-              <Link href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal" className="font-semibold underline" data-hd-edu-banner-fictional>Kurgusal Harita Oluştur</Link>{" "}
-              kullanın; kurgusal kişi danışan listenize eklenmez.
+              {t("fromEducation")}{" "}
+              <b data-hd-edu-banner-real>{t("realWarning")}</b> {t("fictionalBefore")}{" "}
+              <Link href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal" className="font-semibold underline" data-hd-edu-banner-fictional>{t("fictionalLink")}</Link>{" "}
+              {t("fictionalAfter")}
             </>}
       </p>
       {chartId ? (
         <Link href={`/human-design/egitim-merkezi/ozel/ekle?chart=${encodeURIComponent(chartId)}`} className="inline-flex h-10 items-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700" data-hd-edu-banner-add>
-          Eğitim Arşivime Ekle
+          {t("addToArchive")}
         </Link>
       ) : null}
       <Link href="/human-design/egitim-merkezi/ozel" className="inline-flex h-10 items-center rounded-xl border border-violet-200 bg-white px-4 text-sm font-semibold text-violet-700 hover:bg-violet-50" data-hd-edu-banner-back>
-        Vazgeç · Eğitim Merkezi&apos;ne dön
+        {t("back")}
       </Link>
     </section>
   );

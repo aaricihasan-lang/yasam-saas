@@ -4,6 +4,7 @@
 // YALNIZ sunucu erişim yoklaması (/api/hd/education/private/access) 200 dönerse görünür: owner'ın özel arşiv yetkisi verdiği
 // eğitmen (veya owner). Diğer herkes için düğme hiç çizilmez (özellik kapalıyken sunucu DB'ye gitmeden 404 döner).
 // Düğme yalnız ekleme akışını açar (kaynak harita seçili gelir); kayıt OLUŞTURMAZ. İzin / uygunluk akışta ve sunucuda denetlenir.
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
@@ -20,6 +21,7 @@ export function privateArchiveVisible(): Promise<boolean> {
 
 export function HdAddToEduArchiveButton({ chartId }: { chartId: string }) {
   const [show, setShow] = useState(false);
+  const t = useTranslations("hd.records.edu");
   useEffect(() => {
     let live = true;
     void privateArchiveVisible().then((v) => { if (live) setShow(v); });
@@ -32,7 +34,7 @@ export function HdAddToEduArchiveButton({ chartId }: { chartId: string }) {
       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-xs font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
       data-hd-edu-archive-add
     >
-      Eğitim Arşivime Ekle
+      {t("addToArchive")}
     </Link>
   );
 }

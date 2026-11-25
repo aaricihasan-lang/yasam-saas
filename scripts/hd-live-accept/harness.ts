@@ -85,7 +85,7 @@ async function main() {
 
   ok(/data-hd-word-download[\s\S]{0,400}inline-flex h-8[^"]*text-xs/.test(btn) && !/data-hd-word-download[\s\S]{0,400}bg-gradient/.test(btn) && /t\("prepare"\)/.test(btn) && /t\("download"\)/.test(btn) && ((r) => r.prepare === "Raporu Hazırla" && r.download === "Raporu İndir")(JSON.parse(src("messages/tr/hd.records.json")).hd.records.report) /* I18N R5: kısa etiketler katalogda */,
     "S20 rapor düğmesi küçük (h-8, text-xs), nötr; parlak gradyan yok; kısa etiket");
-  ok(/data-hd-actions/.test(modal) && !/h-9[^"]*uppercase/.test(modal.split("data-hd-actions")[1]?.split("{/* İçerik */}")[0] ?? "x") && /Kapat <span aria-hidden="true">✕<\/span>/.test(modal),
+  ok(/data-hd-actions/.test(modal) && !/h-9[^"]*uppercase/.test(modal.split("data-hd-actions")[1]?.split("{/* İçerik */}")[0] ?? "x") && /\{t\("close"\)\} <span aria-hidden="true">✕<\/span>/.test(modal) /* I18N R5: "Kapat" katalogda (hd.records.modal.close) */,
     "S21 işlem çubuğu: rapor, Sil, Kapat aynı küçük ölçek (büyük/büyük harf düğme yok)");
 
   // ══ Sunucu ═════════════════════════════════════════════════════════════════

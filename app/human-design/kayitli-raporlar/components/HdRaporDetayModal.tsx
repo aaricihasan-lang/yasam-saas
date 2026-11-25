@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import type { HdReportWithClient } from "../helpers/hdKayitliRaporlar";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
@@ -23,6 +24,7 @@ function formatDate(val: string | null | undefined): string {
 }
 
 export function HdRaporDetayModal({ row, onClose }: Props) {
+  const t = useTranslations("hd.reports.detailModal");
   const content = row.edited_content ?? row.generated_content ?? "";
   const clientName = row.client?.name ?? "—";
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,7 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6">
       <button
         type="button"
-        aria-label="Kapat"
+        aria-label={t("close")}
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-md"
       />
@@ -49,7 +51,7 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
         <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-indigo-100/80 bg-gradient-to-r from-fuchsia-50 to-violet-50/60 px-6 py-4">
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-fuchsia-500">
-              Rapor Detayı
+              {t("title")}
             </p>
             <h2 id="hd-rapor-detay-title" className="mt-0.5 text-lg font-black text-slate-900">{row.title}</h2>
             <p className="text-xs text-slate-500">
@@ -59,7 +61,7 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t("close")}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
             <span aria-hidden>✕</span>
@@ -73,7 +75,7 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
               {content}
             </pre>
           ) : (
-            <p className="text-sm text-slate-400">Rapor içeriği yok.</p>
+            <p className="text-sm text-slate-400">{t("empty")}</p>
           )}
         </div>
 
@@ -84,14 +86,14 @@ export function HdRaporDetayModal({ row, onClose }: Props) {
             onClick={onClose}
             className="h-9 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            Kapat
+            {t("close")}
           </button>
           <a
             href={`/human-design/rapor-olustur?reportId=${row.id}`}
             className="flex h-9 items-center rounded-xl border border-fuchsia-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-fuchsia-700 no-underline shadow-sm transition hover:border-fuchsia-400 hover:bg-fuchsia-50"
             onClick={onClose}
           >
-            Düzenle
+            {t("edit")}
           </a>
         </div>
       </div>
