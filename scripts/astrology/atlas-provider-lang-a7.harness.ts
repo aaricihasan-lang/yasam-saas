@@ -25,6 +25,7 @@ import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import * as Config from "@/lib/astrology/config";
 import { ASPECT_NATURE_BY_TYPE, mapNature, mapNatureFor } from "@/lib/astrology/providers/roxy/shared";
 import * as T from "@/lib/astrology/providers/roxy/timing";
+import * as V from "@/lib/astrology/providers/roxy/vedic";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import {
   HOUSE_REFERENCE_RE,
@@ -532,6 +533,42 @@ t("Local Space (gerçek): EN kalıbı 'from your birthplace' TR 'doğum yerinizd
     }
   }
   assert.equal(changed, 13);
+});
+
+t("ROXY B1: Panchanga tithi.rulingPlanet — gerçek TR 'Satürn' artık düşmüyor; TR = EN kanonik; bilinmeyen değer yine düşer", () => {
+  const a = rawOf("panchang-basic-p1-tr.json");
+  const b = rawOf("panchang-basic-p1-en.json");
+  const x = V.projectRoxyVedicPanchanga(structuredClone(a.response)) as { ok: true; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+  const y = V.projectRoxyVedicPanchanga(structuredClone(b.response)) as typeof x;
+  assert.equal(x.ok && y.ok, true);
+  assert.equal(x.technical.tithi.rulingPlanet, "saturn");
+  assert.ok(!x.droppedValues.includes("tithi.rulingPlanet"));
+  // BULGU (R5): panchanga teknik katmanı sağlayıcının YERELLEŞTİRİLMİŞ üç gösterim metnini saklar (tithi.element,
+  // nakshatra.deity, nakshatra.symbol) — hesap değil, açıklama. Bunlar dışındaki tüm alanlar TR = EN; bu üç alan kilitli.
+  const strip = (t: unknown) => {
+    const c = structuredClone(t) as { tithi: J; nakshatra: J };
+    delete c.tithi.element;
+    delete c.nakshatra.deity;
+    delete c.nakshatra.symbol;
+    return c;
+  };
+  assert.deepEqual(strip(y.technical), strip(x.technical), "panchanga teknik katman (3 yerelleştirilmiş metin hariç) TR = EN");
+  const xt = x.technical as unknown as { tithi: J; nakshatra: J };
+  const yt = y.technical as unknown as { tithi: J; nakshatra: J };
+  assert.deepEqual([xt.tithi.element, yt.tithi.element], ["Toprak", "Earth"]);
+  assert.notEqual(xt.nakshatra.deity, yt.nakshatra.deity);
+  const g = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang.json"), "utf8")) as { response: J }).response;
+  const names: [string, string | null][] = [["Güneş", "sun"], ["Ay", "moon"], ["Mars", "mars"], ["Merkür", "mercury"], ["Jüpiter", "jupiter"], ["Venüs", "venus"], ["Satürn", "saturn"], ["Rahu", "rahu"], ["Ketu", "ketu"], ["SATÜRN", "saturn"], ["saturn", "saturn"], ["Pluto", null]];
+  for (const [v, want] of names) {
+    const r = structuredClone(g) as J;
+    (r.tithi as J).rulingPlanet = v;
+    const p = V.projectRoxyVedicPanchanga(r) as { ok: true; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+    assert.equal(p.technical.tithi.rulingPlanet, want, v);
+    assert.equal(p.droppedValues.includes("tithi.rulingPlanet"), want === null, v);
+  }
+  // Mevcut golden (EN adlı "Rahu") çıktısı değişmedi.
+  const base = V.projectRoxyVedicPanchanga(structuredClone(g)) as { technical: { tithi: { rulingPlanet: string | null } } };
+  assert.equal(base.technical.tithi.rulingPlanet, "rahu");
 });
 
 console.log(`\natlas-provider-lang-a7: ${pass} PASS / ${fail} FAIL`);
