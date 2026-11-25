@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import CookieMigrationGate from "@/components/auth/CookieMigrationGate";
@@ -26,15 +26,19 @@ import "./mobile-360.css";
 // Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Geist, Geist Mono, Fraunces ve Jost:
 // önceki next/font/google global CSS'iyle aynı aileler, alt küme dosyaları ve yedek metrikler (app/_fonts/google).
 
-export const metadata: Metadata = {
-  title: "Yaşam Sistemi",
-  description: "Yaşam Sistemi Yönetim Paneli",
-  // <meta name="darkreader-lock">: Dark Reader vb. koyu mod eklentileri `color-scheme` bildirimine uymaz; görsel/gradyan
-  // zeminli kartları açık bırakıp yazıyı açık renge çevirerek metni okunmaz yapıyordu. Eklenti bu etikette kendini kapatır.
-  // Koyu görünüm Kişisel Dijital Ofis Gece / Otomatik modu ile sağlanır.
-  // İçerik boş olursa Next.js etiketi basmaz; eklenti yalnız etiketin varlığına bakar.
-  other: { "darkreader-lock": "true" },
-};
+// F0 #21: başlık/açıklama arayüz dilinden (yayın kapısı kapalıyken her zaman TR — bugünkü metinle birebir).
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("home.meta");
+  return {
+    title: t("title"),
+    description: t("description"),
+    // <meta name="darkreader-lock">: Dark Reader vb. koyu mod eklentileri `color-scheme` bildirimine uymaz; görsel/gradyan
+    // zeminli kartları açık bırakıp yazıyı açık renge çevirerek metni okunmaz yapıyordu. Eklenti bu etikette kendini kapatır.
+    // Koyu görünüm Kişisel Dijital Ofis Gece / Otomatik modu ile sağlanır.
+    // İçerik boş olursa Next.js etiketi basmaz; eklenti yalnız etiketin varlığına bakar.
+    other: { "darkreader-lock": "true" },
+  };
+}
 
 export const viewport: Viewport = {
   viewportFit: "cover",
