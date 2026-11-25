@@ -382,6 +382,11 @@ const GENERAL_TITLE_TR: Readonly<Partial<Record<SystemReadingGeneralKey, string>
 const GENERAL_TITLE_BI: Readonly<Partial<Record<SystemReadingGeneralKey, string>>> = { ...HD_TERM_BI };
 
 const fixText = (t: string | null) => normalizeProviderTrText(t);
+/**
+ * I18N-0012: sağlayıcı Türkçe terim düzeltmesi YALNIZ sağlayıcı metni Türkçe istendiyse (`providerLang === "tr"`,
+ * varsayılan — tüm mevcut kayıtlar) uygulanır; başka dildeki metin olduğu gibi kalır.
+ */
+const textFixerFor = (providerLang: string) => (providerLang === "tr" ? fixText : (t: string | null) => t);
 
 /**
  * SAF + idempotent. Hem yeni çıkarımda hem de DONMUŞ (eski) rapor snapshot'ı Word'e basılırken
@@ -392,8 +397,13 @@ const fixText = (t: string | null) => normalizeProviderTrText(t);
  *     (defined === false) merkezde tutulur; tanımlı ya da durumu bilinmeyen merkezde gösterilmez.
  *   • Tüm metinlerde "Şehit/Kâfir/Sapkın" → "Deneyimleyen/Çözüm Getiren".
  */
-export function harmonizeSystemReading(dto: SystemReadingDto, labels: SystemReadingLabels = {}, opts: { bilingual?: boolean } = {}): SystemReadingDto {
+export function harmonizeSystemReading(
+  dto: SystemReadingDto,
+  labels: SystemReadingLabels = {},
+  opts: { bilingual?: boolean; providerLang?: string } = {},
+): SystemReadingDto {
   const titles = opts.bilingual === false ? GENERAL_TITLE_TR : GENERAL_TITLE_BI;
+  const fixText = textFixerFor(opts.providerLang ?? "tr");
   return {
     general: dto.general.map((g) => {
       const appValue = g.key in labels ? labels[g.key as keyof SystemReadingLabels] : null;
@@ -460,8 +470,12 @@ export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
   };
 }
 
-/** provider_raw → güvenli DTO. Kullanılabilir içerik yoksa null (sistem yorumu "yok"). */
-export function extractSystemReading(raw: unknown): SystemReadingDto | null {
+/**
+ * provider_raw → güvenli DTO. Kullanılabilir içerik yoksa null (sistem yorumu "yok").
+ * `providerLang`: kayıtlı sağlayıcı metin dili (`input.lang`; yoksa "tr" — tüm mevcut kayıtlar). "tr" dışında Türkçe terim
+ * düzeltmesi ve "İngilizce kaldı" notu UYGULANMAZ (metin zaten istenen dilde; I18N-0012).
+ */
+export function extractSystemReading(raw: unknown, opts: { providerLang?: string } = {}): SystemReadingDto | null {
   if (!isObj(raw)) return null;
   const base: SystemReadingDto = {
     general: general(raw),
@@ -470,7 +484,12 @@ export function extractSystemReading(raw: unknown): SystemReadingDto | null {
     activations: activations(raw),
     sides: sides(raw),
   };
-  const dto: SystemReadingDto = harmonizeSystemReading({ ...base, languageNote: languageNoteOf(base) }, systemReadingLabelsFromRaw(raw));
+  const providerLang = opts.providerLang ?? "tr";
+  const dto: SystemReadingDto = harmonizeSystemReading(
+    { ...base, languageNote: providerLang === "tr" ? languageNoteOf(base) : null },
+    systemReadingLabelsFromRaw(raw),
+    { providerLang },
+  );
   const hasText =
     dto.general.some((g) => g.details.some((d) => d.label !== "Açı")) ||
     dto.centers.some((c) => c.theme || c.notSelfQuestion || c.biology) ||

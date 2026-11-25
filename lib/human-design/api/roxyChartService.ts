@@ -29,6 +29,7 @@ import { storedBirthUtcMatches, toRoxyUtcMoment } from "./hdBirthUtc";
 import {
   ROXY_ADAPTER_VERSION,
   ROXY_BODYGRAPH_ENDPOINT,
+  ROXY_CHART_IDENTITY_LANG,
   ROXY_POLICY,
   ROXY_PROVIDER_ID,
   ROXY_RATE_LIMITS,
@@ -98,6 +99,10 @@ export type RoxyInputIdentity = {
   latitude: number;
   longitude: number;
   nodeType: string;
+  /**
+   * I18N-0005: KİMLİK dili — her zaman `ROXY_CHART_IDENTITY_LANG` ("tr"); sağlayıcı/ekran dili DEĞİL. Alan, mevcut
+   * kayıtların hash'i birebir korunsun diye anahtarda aynı konumda kalır.
+   */
   lang: string;
   /**
    * HD-TZ: YALNIZ aynı girdinin kimliğinde eski IANA verisiyle hesaplanmış (bayat) kayıt varken verilir; yeni hesap doğum
@@ -209,8 +214,8 @@ async function findEquivalentChart(
       storedBirthUtcMatches(r.computed_result, utcIso) &&
       same(inp.latitude, i.latitude) &&
       same(inp.longitude, i.longitude) &&
-      inp.nodeType === i.nodeType &&
-      inp.lang === i.lang
+      // I18N-0005: kayıtlı `input.lang` (sağlayıcı metin dili) eşdeğerlik ölçütü DEĞİLDİR — sayısal harita dilden bağımsız.
+      inp.nodeType === i.nodeType
     ) {
       return { id: r.id, error: null };
     }
@@ -367,7 +372,8 @@ export async function computeRoxyChart(
     latitude: location.latitude,
     longitude: location.longitude,
     nodeType: policy.nodeType,
-    lang: policy.lang,
+    // I18N-0005: harita kimliği dilden bağımsız (sağlayıcı dili policy.lang yalnız çağrı + provenance için kullanılır).
+    lang: ROXY_CHART_IDENTITY_LANG,
   };
   // GUV-07: yeni kayıtların kimliği/hash'i sunucu sırrıyla anahtarlanır (sır yoksa eski biçim).
   const idSecret = deps.chartIdSecret !== undefined ? deps.chartIdSecret : readChartIdSecret();
@@ -414,7 +420,7 @@ export async function computeRoxyChart(
   const dup = await findCrossProfileRoxyDuplicates(
     ctx.db,
     ctx.tenantId,
-    { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang },
+    { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: ROXY_CHART_IDENTITY_LANG },
     ROXY_PROVIDER_ID,
   );
   if (dup.error) {
@@ -451,7 +457,7 @@ export async function computeRoxyChart(
     location.latitude.toFixed(6),
     location.longitude.toFixed(6),
     policy.nodeType,
-    policy.lang,
+    ROXY_CHART_IDENTITY_LANG,
   ]);
   const idClaim = await deps.rateLimit("hd-roxy-identity-inflight", identityKey, ROXY_RATE_LIMITS.inFlight.limit, ROXY_RATE_LIMITS.inFlight.windowSeconds);
   if (!idClaim.allowed) {
@@ -465,7 +471,7 @@ export async function computeRoxyChart(
       const again = await findCrossProfileRoxyDuplicates(
         ctx.db,
         ctx.tenantId,
-        { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang },
+        { clientId, name: client.name, date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: ROXY_CHART_IDENTITY_LANG },
         ROXY_PROVIDER_ID,
       );
       if (again.error) {
