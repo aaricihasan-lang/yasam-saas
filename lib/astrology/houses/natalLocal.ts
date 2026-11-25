@@ -256,6 +256,13 @@ export const HOUSE_REFERENCE_RE_EN = new RegExp(
     String.raw`\b(angular|succedent|cadent)\s+houses?\b`,
     String.raw`\b(the|and|or)\s+\d{1,2}(st|nd|rd|th)\b`,
     String.raw`\b(panaphara|panarapa|apoklima)s?\b`,
+    // QA-ATLAS-R5 P2-1 (gerçek EN yanıt kalıpları; TR karşılıkları TR ifadesine takılıyordu → EN az süzüyordu = güvensiz taraf):
+    //   "lives in the seventh" / "rests in the fourth" ↔ "yedinci evinizde"; "career house" ↔ "Kariyer evinizi";
+    //   "house position" ↔ "ev konumuna"; "six odd / even houses" ↔ "tek / çift sayılı ev".
+    String.raw`\bin\s+(the|your)\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))\b(?![\s-]+[a-z])`,
+    String.raw`\b(career|home|family|money|wealth|partnership|relationship|marriage|friendship|health|work|travel|children|love|values|communication|siblings|service|spirituality)\s+house\b`,
+    String.raw`\bhouse\s+(positions?|placements?)\b`,
+    String.raw`\b(odd|even)(-numbered)?\s+houses?\b`,
   ].join("|"),
   "i",
 );

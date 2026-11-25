@@ -571,5 +571,27 @@ t("ROXY B1: Panchanga tithi.rulingPlanet — gerçek TR 'Satürn' artık düşm�
   assert.equal(base.technical.tithi.rulingPlanet, "rahu");
 });
 
+t("QA-ATLAS-R5 P2-1: EN ev atfı ifadesi gerçek EN kalıplarını yakalar (TR karşılıkları TR ifadesine takılıyordu); yanlış pozitif yok", () => {
+  // Kaynak: ROXY ajanının gerçek EN yanıtları (roxy/ham/atlas, 25.11.2026) — natal career, lunar return purpose, Vedik yoga.
+  const hits = [
+    "Collaboration lifts you: the Moon, which commands your vocation, lives in the seventh, so shared projects and work done in pairs fit you well",
+    "The Sun, head of your career house, rests in the fourth, so your public work stays rooted in a private base, and you build your standing from the ground up",
+    "Pay attention to the Moon house position and aspects to other planets for emotional tone and priorities",
+    "Chakra Yoga, the wheel, places every graha in the six odd houses from the Lagna",
+    "All planets occupy six even houses.",
+  ];
+  for (const s of hits) assert.equal(textHasHouseReference(s, "en"), true, s);
+  // Aynı yanıtlardaki ev atfı OLMAYAN cümleler süzülmez (natal açı özeti; çıplak "house" / sıra sayısı + isim).
+  const clean = [
+    "Like the friend who still shows up in the third hard week, you care steadily, Saturn giving the Moon emotional staying power.",
+    "Solar return charts are used for annual forecasting.",
+    "You keep a warm household and a dream house in mind.",
+    "In the first place, you value loyalty.",
+  ];
+  for (const s of clean) assert.equal(textHasHouseReference(s, "en"), false, s);
+  // TR davranışı birebir (ifade değişmedi): aynı cümlelerin gerçek TR karşılıkları TR ifadesinde.
+  assert.equal(textHasHouseReference("Kariyer evinizi yöneten Güneş dördüncü evinizde", "tr"), true);
+});
+
 console.log(`\natlas-provider-lang-a7: ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) process.exit(1);
