@@ -81,7 +81,7 @@ function compare(label: string, name: string, g: Snap | undefined, c: Snap): voi
 // ── EN dil kontrolleri ───────────────────────────────────────────────────────
 const TR_LETTERS = /[çğıöşüÇĞİÖŞÜâîûÂÎÛ]/;
 const TR_ASCII_WORDS =
-  /\b(Sayfa|Takvim|Kaynak|Bilgiler|Hazirlayan|Ocak|Mart|Nisan|Haziran|Temmuz|Ekim|Kasim|Aralik|Pazartesi|Cuma|Pazar|Genel|Sonrasi|Oncesi|gun|daha|ilk|Not|Tarih|Rapor|Uzman|Bilgilendirme|Randevu|Randevular|Randevusu|Danisan|Kapsam|Toplam|Bekliyor|Tamamlandi|Iptal|Urun|Stok|Kategori|Tumu|Kritik|Tukenmis|Diger|Yag|Sabun|Krem|Tespih|Aksesuar|Seans|Odev|Analiz|Notlar|Burc|Kan|Mizac|Durum|Tur|Adet|adet|Ajanda|Haftalik|Aylik|Secili|Tek|Gorusme|Genel|Yolculuk|Yolculugu|Tutar|Odendi|Kayit)\b/;
+  /\b(Sayfa|Takvim|Kaynak|Bilgiler|Hazirlayan|Ocak|Mart|Nisan|Haziran|Temmuz|Ekim|Kasim|Aralik|Pazartesi|Cuma|Pazar|Genel|Sonrasi|Oncesi|gun|daha|ilk|Tarih|Rapor|Uzman|Bilgilendirme|Randevu|Randevular|Randevusu|Danisan|Kapsam|Toplam|Bekliyor|Tamamlandi|Iptal|Urun|Stok|Kategori|Tumu|Kritik|Tukenmis|Diger|Yag|Sabun|Krem|Tespih|Aksesuar|Seans|Odev|Analiz|Notlar|Burc|Kan|Mizac|Durum|Tur|Adet|adet|Ajanda|Haftalik|Aylik|Secili|Tek|Gorusme|Genel|Yolculuk|Yolculugu|Tutar|Odendi|Kayit)\b/;
 const USER_RE = /⟦[^⟧]*⟧/g;
 const NAMESPACES = ["reports.common", "reports.agenda", "reports.stock", "reports.clients"];
 const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp }[] = (() => {

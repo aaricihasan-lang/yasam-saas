@@ -422,7 +422,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     if (busy) return;
     setBusy("pdf");
     try {
-      const res = await fetch(`${anamnezBase(clientId)}/blank-form?aid=${encodeURIComponent(anamnesisId)}&locale=${locale}`, {
+      const res = await fetch(`${anamnezBase(clientId)}/blank-form?aid=${encodeURIComponent(anamnesisId)}`, {
         headers: anamnezAuthHeaders(),
         cache: "no-store",
       });
@@ -447,7 +447,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     if (busy || dirty || !rec) return;
     setBusy("filledPdf");
     try {
-      const res = await fetch(`${base}/pdf?rev=${rec.revision}&locale=${locale}`, {
+      const res = await fetch(`${base}/pdf?rev=${rec.revision}`, {
         headers: anamnezAuthHeaders(),
         cache: "no-store",
       });
@@ -457,7 +457,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
         toastError(code);
         return;
       }
-      await downloadFileResponse(res, `anamnez-${rec.assessment_date}.pdf`);
+      await downloadFileResponse(res, `${locale === "en" ? "intake" : "anamnez"}-${rec.assessment_date}.pdf`);
     } catch {
       toastError("generic");
     } finally {
