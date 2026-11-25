@@ -1,0 +1,15 @@
+{
+  "common": {
+    "reader": {
+      "close": "Close",
+      "fontSizeGroup": "Text size",
+      "fontSize": "Text Size",
+      "decreaseAria": "Decrease text size",
+      "decreaseTitle": "Smaller (A-)",
+      "resetAria": "Default text size ({px}px)",
+      "resetTitle": "Default ({px}px)",
+      "increaseAria": "Increase text size",
+      "increaseTitle": "Larger (A+)"
+    }
+  }
+}

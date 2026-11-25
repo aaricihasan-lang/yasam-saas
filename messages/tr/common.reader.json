@@ -1,0 +1,15 @@
+{
+  "common": {
+    "reader": {
+      "close": "Kapat",
+      "fontSizeGroup": "Yazı boyutu",
+      "fontSize": "Yazı Boyutu",
+      "decreaseAria": "Yazıyı küçült",
+      "decreaseTitle": "Küçült (A-)",
+      "resetAria": "Varsayılan yazı boyutu ({px}px)",
+      "resetTitle": "Varsayılan ({px}px)",
+      "increaseAria": "Yazıyı büyüt",
+      "increaseTitle": "Büyüt (A+)"
+    }
+  }
+}

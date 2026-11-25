@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useBulkDeleteTexts } from "@/hooks/useBulkDeleteTexts";
 import { setDefaultBulkDeleteTexts } from "@/lib/ui/bulkDeleteGuard";
+import { setDefaultMoreRecordsLine } from "@/lib/ui/deleteConfirmMessage";
 
 /**
  * Onay penceresi KATMANI. Uygulama modalları/lightbox'ları `z-[9999]`–`z-[10000]`
@@ -75,6 +76,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setDefaultBulkDeleteTexts(bulkTexts);
     return () => setDefaultBulkDeleteTexts(null);
   }, [bulkTexts]);
+  // I18N (QTM-DY-02 / QTM-DG-05): buildNameListLines'ı `moreLine` vermeden çağıran ekranlar da "ve N kayıt daha"
+  // satırını ekran dilinde gösterir (TR katalog değeri TR_MORE_RECORDS ile birebir).
+  const tDel = useTranslations("common.deleteConfirm");
+  useEffect(() => {
+    setDefaultMoreRecordsLine((n) => tDel("moreRecords", { count: n }));
+    return () => setDefaultMoreRecordsLine(null);
+  }, [tDel]);
   const dialogUid = useId();
   const titleId = `${dialogUid}-confirm-title`;
   const messageId = `${dialogUid}-confirm-message`;
