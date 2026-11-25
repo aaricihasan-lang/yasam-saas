@@ -16,7 +16,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, type RoxyServerConfig } from "../config";
+import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, astroProviderLangFor, type RoxyServerConfig } from "../config";
 import { quotaCheck } from "../../security/testQuotaExemption";
 import { hasTechniqueEntitlement, resolveInterpretationVisibility, type AstrologyEntitlements } from "../access/entitlements";
 import type { RoxyCallResult } from "../providers/roxy/client";
@@ -60,6 +60,11 @@ export type EngineCtx = {
   tenantId: string;
   userId: string;
   entitlements: AstrologyEntitlements;
+  /**
+   * I18N-F1-R5 / A7: ekran dili (yalnız sağlayıcı ANLATI dili seçimi için). Verilmezse "tr". Hesap kimliği / önbellek anahtarı
+   * bundan ETKİLENMEZ (ASTRO_CHART_IDENTITY_LANG); bayrak (ASTRO_PROVIDER_LANG_EN) kapalıyken sağlayıcı dili her dilde "tr".
+   */
+  locale?: string;
 };
 
 export type EngineDeps = {
@@ -72,6 +77,8 @@ export type EngineDeps = {
   now?: () => Date;
   /** 9A-P2-02: süre bütçesi için monoton saat (ms). Test sahte saat verebilir. */
   clock?: () => number;
+  /** I18N-F1-R5 / A7: sağlayıcı dili bayrağı ortamı (test). Verilmezse process.env; bayrak varsayılan KAPALI. */
+  env?: Record<string, string | undefined>;
 };
 
 export type ServiceResponse = { status: number; body: Record<string, unknown> };
@@ -599,7 +606,10 @@ async function executeUnit(
     return { ok: false, status: 429, code: "RATE_LIMITED", error: "Günlük yeni hesaplama sınırına ulaşıldı.", providerAttempts: 0, retryAfterSec: tenantRl.retryAfterSec };
   }
 
-  const call = await deps.callProvider(deps.config, unit.endpoint, unit.body, unit.query ? { lang: unit.lang, query: unit.query } : { lang: unit.lang });
+  // I18N-F1-R5 / A7: sağlayıcı ANLATI dili (bayrak kapalıyken her zaman "tr" = unit.lang → istek ve kayıt birebir eskisi).
+  // Kimlik (unit.inputHash) bu dilden bağımsızdır: aynı doğum verisi + yöntem her ekran dilinde AYNI satırı bulur (yeniden ücret yok).
+  const callLang = astroProviderLangFor(ctx.locale ?? "tr", deps.env ?? process.env);
+  const call = await deps.callProvider(deps.config, unit.endpoint, unit.body, unit.query ? { lang: callLang, query: unit.query } : { lang: callLang });
   if (!call.ok) {
     log("[astro] provider call failed", { ...tag, kind: call.kind, status: call.status, attempts: call.attempts });
     // FINAL: YALNIZ yerel geliştirme — sağlayıcı adresi yerel makine ve ortam production DEĞİLSE, sahte Roxy'nin "golden
@@ -642,7 +652,7 @@ async function executeUnit(
     providerApiVersion: unit.providerApiVersion,
     adapterVersion: unit.adapterVersion,
     endpoint: unit.endpoint,
-    input: unit.query ? { ...unit.body, lang: unit.lang, query: unit.query } : { ...unit.body, lang: unit.lang },
+    input: unit.query ? { ...unit.body, lang: callLang, query: unit.query } : { ...unit.body, lang: callLang },
     inputHash: unit.inputHash,
     raw: call.raw,
     technical: proj.technical,
@@ -670,7 +680,7 @@ async function executeUnit(
 
   // GA-P2-05: sonuç önbelleğe yazıldı → yorum burada yazılamazsa bir daha üretilmez (sonraki çalıştırmalar önbellekten gelir).
   // Geçici hatada yorum yazımı da yeniden denenir; 23505 = zaten yazılmış (başarı).
-  const writeInterp = () => insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  const writeInterp = () => insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, callLang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
   let interpIns = await writeInterp();
   for (let attempt = 1; interpIns.error && !isUniqueViolation(interpIns.error) && isRetryableDbError(interpIns.error) && attempt <= DB_WRITE_RETRIES; attempt++) {
     log("[astro] interpretation write retry", { ...tag, attempt, code: interpIns.error.code ?? "unknown" });

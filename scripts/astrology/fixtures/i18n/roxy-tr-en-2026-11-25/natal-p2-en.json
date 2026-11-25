@@ -1,0 +1,1273 @@
+{
+ "endpoint": "/astrology/natal-chart",
+ "lang": "en",
+ "query": null,
+ "body": {
+  "date": "1985-12-21",
+  "time": "03:15:00",
+  "latitude": 69.6492,
+  "longitude": 18.9553,
+  "timezone": 1,
+  "nodeType": "true",
+  "houseSystem": "whole-sign"
+ },
+ "response": {
+  "birthDetails": {
+   "date": "1985-12-21",
+   "time": "03:15:00",
+   "latitude": 69.6492,
+   "longitude": 18.9553,
+   "timezone": 1,
+   "nodeType": "true"
+  },
+  "planets": [
+   {
+    "name": "Sun",
+    "longitude": 269.15665722594173,
+    "latitude": -0.00004466231288584108,
+    "sign": "Sagittarius",
+    "degree": 29.15665722594173,
+    "speed": 1.0182164967857261,
+    "isRetrograde": false,
+    "house": 3,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Your spirit grows with every big question and long road, and freedom to explore is what keeps you burning. Your voice is the instrument here, and talking, writing and learning bring your identity into focus.",
+     "detailed": "A free afternoon sends you after a lecture, a trail or a cuisine you have never tried. Hope fuels you, and candor is your favorite thing to give, even when it lands a bit hard. Commitment feels like a fence, and you bolt just when staying would teach you most, though a fence you chose feels different. Wisdom gathered on the road and in books makes you a natural teacher, generous with every lesson learned. A message drafted, a question asked aloud or a talk you give lets you hear who you are. The people next door and the faces on your daily route matter more to your story than you expect. A paragraph rewritten until it finally sounds like you is a small, recognizable victory.",
+     "keywords": [
+      "optimism",
+      "candor",
+      "adventure",
+      "freedom"
+     ]
+    }
+   },
+   {
+    "name": "Moon",
+    "longitude": 21.403839740940366,
+    "latitude": -1.476420742699641,
+    "sign": "Aries",
+    "degree": 21.403839740940366,
+    "speed": 11.894730283083618,
+    "isRetrograde": false,
+    "house": 7,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Feelings arrive fast and hot for you, and you tend to settle them by doing something rather than sitting still. Close one-to-one bonds bring emotional comfort and teach you which kind of closeness steadies you.",
+     "detailed": "You need room to move when a feeling hits: a run, a loud song, a door closed for ten minutes. Your heart keeps no ledger of grudges, and yesterday's argument is gone by the time you wake. Waiting for comfort feels unbearable, so you sometimes push people off mid-hug, and saying \"give me five minutes\" keeps them close. What soothes you most is someone who lets you storm, then shows up with a grin once it passes. The building stretch of a lunar cycle held your birth, giving your moods a builder streak that clears what has stalled, and a pause before any blunt verdict keeps it constructive. Companionship is an emotional need here, not a luxury, and you care for others with real tenderness. Looking after the people you pair up with, in work or in life, comes naturally, and being cared for back feels like home. A message asking how your day went, from someone who means it, settles you immediately. Rooms, meals and friendships become soft places to land when Venus lends the Moon its warmth, comfort and affection arriving together.",
+     "keywords": [
+      "impulse",
+      "independence",
+      "candor",
+      "temper"
+     ]
+    }
+   },
+   {
+    "name": "Mercury",
+    "longitude": 248.20118180279235,
+    "latitude": 1.7350538385481475,
+    "sign": "Sagittarius",
+    "degree": 8.201181802792348,
+    "speed": 1.2038711441536805,
+    "isRetrograde": false,
+    "house": 3,
+    "dignity": "detriment",
+    "interpretation": {
+     "summary": "Philosophy, travel stories and grand theories fill your head, and you love arguing about all three. Words travel through your life all day long, in messages, notes, chats and short trips across town.",
+     "detailed": "You start explaining a weekend plan and end up debating what freedom really means. Vision drives you, and your enthusiasm leaves people inspired to try something bigger. Big promises spill out in the excitement of a plan, and naming one firm date makes your word as reliable as your ideas. Your enthusiasm for ideas makes even a dry subject sound like a trip worth taking. Mercury meets resistance in Sagittarius, so clear thinking is something you practice, and the practice makes it reliable. Doubt and voice sit across from each other where Mercury faces Chiron, and every time you speak through the doubt, the distance between them shrinks. Ask a question back before offering your verdict, and listen to the whole answer.",
+     "keywords": [
+      "vision",
+      "candor",
+      "optimism",
+      "philosophy"
+     ]
+    }
+   },
+   {
+    "name": "Venus",
+    "longitude": 262.0810988720248,
+    "latitude": 0.10353372704229086,
+    "sign": "Sagittarius",
+    "degree": 22.081098872024825,
+    "speed": 1.2583093640402012,
+    "isRetrograde": false,
+    "house": 3,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Optimism and candor shape your affection, and your best bonds feel like an open road. Pleasant talk and neighborly kindness sweeten your daily round, and your gentle words travel far.",
+     "detailed": "Planning a day with someone you like, you pick the museum, the market or the trail nobody has tried yet. Candor is a form of affection for you, so you say what you think and trust the friendship to hold. Routine dulls your interest, and you promise more freedom than closeness, until you notice that a chosen tie can travel too. Your affection is big, bright and outward-looking, like a window thrown open on a summer morning. Your affections carry a spark of the unexpected with Uranus beside Venus, so offbeat people catch your eye and you need room to stay yourself in any bond.",
+     "keywords": [
+      "adventure",
+      "honesty",
+      "freedom",
+      "humor"
+     ]
+    }
+   },
+   {
+    "name": "Mars",
+    "longitude": 213.88383646282813,
+    "latitude": 1.079821021848009,
+    "sign": "Scorpio",
+    "degree": 3.8838364628281283,
+    "speed": 0.6150818368789288,
+    "isRetrograde": false,
+    "house": 2,
+    "dignity": "domicile",
+    "interpretation": {
+     "summary": "Intense and single-minded, you hunt a target with concentrated will and rarely let go after deciding. Income and belongings spur your efforts, and the security of having earned what you hold is worth a battle.",
+     "detailed": "You study the rules of a game for a week before you play, then play without a wasted move. Secrecy suits your plans, and you keep your intentions private until the moment to move arrives. Jealousy of a rival can eat at your focus, and putting that heat back into your own goal reclaims it. Few things are as resourceful as your will when it has fixed on something it truly wants. Going after what you want runs with the grain, since Mars in Scorpio has few obstacles of its own to clear. Haggling over a price, you hold your ground cheerfully and enjoy winning a better deal almost as much as the item. Your sense of worth rises with every skill you master, and you trust ability more than luck. Owning tools, gear or materials you chose yourself gives you the independence you work for. Compassion fuels your effort, with Neptune lending Mars intuition, so you act on hunches and stand up for causes you believe in.",
+     "keywords": [
+      "willpower",
+      "intensity",
+      "strategy",
+      "resilience"
+     ]
+    }
+   },
+   {
+    "name": "Jupiter",
+    "longitude": 316.0033618127805,
+    "latitude": -0.8050786561768507,
+    "sign": "Aquarius",
+    "degree": 16.003361812780497,
+    "speed": 0.19909638921069472,
+    "isRetrograde": false,
+    "house": 5,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Optimism for tomorrow drives you, with invention, teamwork and an independent streak as your tools. Making things and having fun open you up, and your warmth runs freest when you are enjoying yourself.",
+     "detailed": "Your friends span ages, countries and opinions, and you like it that way. Personal freedom and equality matter more to you than tradition, and you defend both. Independence grows stubborn when your own theory of progress crowds out every other, until a dissenting friend gets a fair hearing. Fairness and invention are how you share your good fortune. A new creative hobby rarely stays private with you, and soon you are showing friends how it is done. Creative risks feel worth taking here, and a project made purely for joy often becomes work you are proud to show. Your camera roll is mostly parties, painting projects and other people laughing. Luck tends to arrive sideways with Jupiter and Uranus in easy contact, and you are usually curious enough to try the unplanned route it offers.",
+     "keywords": [
+      "progress",
+      "tolerance",
+      "invention",
+      "humanitarianism"
+     ]
+    }
+   },
+   {
+    "name": "Saturn",
+    "longitude": 243.97927603646121,
+    "latitude": 1.7991940244487132,
+    "sign": "Sagittarius",
+    "degree": 3.979276036461215,
+    "speed": 0.1115500164572012,
+    "isRetrograde": false,
+    "house": 3,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Belief, for you, has to be tested until it holds, and your discipline grows from a philosophy you have earned. Speaking, writing and study are skills you earn gradually, gaining authority through practice and care.",
+     "detailed": "Your bookshelf holds the counterarguments too, and you read them before settling on a view. Cynicism lurks nearby, a habit of dismissing meaning before it gets a fair hearing, while curiosity about why others believe keeps it honest. Conviction reached the hard way tends to outlast every fashion in ideas.",
+     "keywords": [
+      "conviction",
+      "scrutiny",
+      "principle",
+      "cynicism"
+     ]
+    }
+   },
+   {
+    "name": "Uranus",
+    "longitude": 258.852853740351,
+    "latitude": -0.0558019794599506,
+    "sign": "Sagittarius",
+    "degree": 18.85285374035101,
+    "speed": 0.06032792856140645,
+    "isRetrograde": false,
+    "house": 3,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Everyday talk and learning are where your mind breaks pattern, sparking ideas that jolt people awake.",
+     "detailed": "Placed in Sagittarius for years at a time, Uranus sets the shared climate of an age group, and yours is no exception. Your peers question inherited faiths and lessons, trusting lived experience over the textbook. The grand outline excites you more than the footwork, so a few practical steps go missing until you write them down. Emotional independence feels warm rather than cold as Uranus freshens the Moon, so you give and keep freedom with a light, generous hand.",
+     "keywords": [
+      "free thought",
+      "vision",
+      "optimism",
+      "exploration"
+     ]
+    }
+   },
+   {
+    "name": "Neptune",
+    "longitude": 273.1739879163699,
+    "latitude": 1.0638447319847781,
+    "sign": "Capricorn",
+    "degree": 3.1739879163699243,
+    "speed": 0.03777239675002875,
+    "isRetrograde": false,
+    "house": 4,
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Your dream of a perfect refuge lives here, and family memory blurs gently into myth.",
+     "detailed": "You create atmosphere easily, with candles, music and a door open to anyone in need. Roots can feel uncertain when every retelling changes them, and writing down what you know for sure anchors the rest. A dream house sketched in a notebook, room by room, holds both the longing and the drift. Authority worth trusting stays a live hope for this cohort, the kind that earns respect by delivering.",
+     "keywords": [
+      "realism",
+      "order",
+      "disillusion"
+     ]
+    }
+   },
+   {
+    "name": "Pluto",
+    "longitude": 216.63622726900005,
+    "latitude": 16.273710572199825,
+    "sign": "Scorpio",
+    "degree": 6.636227269000045,
+    "speed": 0.02786272129533529,
+    "isRetrograde": false,
+    "house": 2,
+    "dignity": "domicile",
+    "interpretation": {
+     "summary": "You build resources with fierce instinct and strategy, seeing value where others shrug.",
+     "detailed": "Your contemporaries learn what power costs by going to emotional extremes, and each trip back leaves them more perceptive. Admitting a need feels like handing over a weapon, and each time you do it anyway, something old in you gets remade. Pluto guards what it already holds while the North Node points somewhere less known, a negotiation in which each release buys a little more room to grow.",
+     "keywords": [
+      "depth",
+      "intensity",
+      "perception",
+      "rebirth"
+     ]
+    }
+   },
+   {
+    "name": "North Node",
+    "longitude": 38.025279064570725,
+    "latitude": 0,
+    "sign": "Taurus",
+    "degree": 8.025279064570725,
+    "speed": 0.01913124965980728,
+    "isRetrograde": false,
+    "house": 8,
+    "interpretation": {
+     "summary": "Real intimacy is the work, the kind where trust, feeling and resources are shared and both people change.",
+     "detailed": "Letting someone else hold a share of your treasures, a secret, a key or a plan, stretches you in a good way. Intimacy asks more of you than independence ever did, and each step builds a bond that changes you. Shared ventures and deep bonds become a strength bigger than anything you would build by yourself. What you read and who you talk with need regular retuning, since Mercury and the North Node keep nudging your curiosity onto a new heading.",
+     "keywords": [
+      "self-worth",
+      "patience",
+      "steadiness",
+      "simplicity"
+     ]
+    }
+   },
+   {
+    "name": "South Node",
+    "longitude": 218.02527906457073,
+    "latitude": 0,
+    "sign": "Scorpio",
+    "degree": 8.025279064570725,
+    "speed": 0.01913124965980728,
+    "isRetrograde": false,
+    "house": 2,
+    "interpretation": {
+     "summary": "Personal values and a sure grasp of worth form the familiar base, and standing on your own is rarely in question.",
+     "detailed": "",
+     "keywords": [
+      "depth",
+      "perception",
+      "strategy",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "name": "Chiron",
+    "longitude": 70.99129216308567,
+    "latitude": -5.08454286887977,
+    "sign": "Gemini",
+    "degree": 10.991292163085674,
+    "speed": -0.05468745699198507,
+    "isRetrograde": true,
+    "house": 9,
+    "interpretation": {
+     "summary": "Big questions about meaning press on you, and you guide others toward beliefs they can actually live by.",
+     "detailed": "A late-night talk about why anything matters is your natural habitat, and people leave it with a clearer compass. Hesitating at the edge of a big trip or a new subject makes you good at nudging others onward with tact. Plain, honest talk about what people believe is how you help them, and how you steady yourself. You second-guess your own words, and that doubt makes you one of the most patient listeners around. Dread of a clumsy sentence keeps your listening sharp, so you hear what someone means before they finish.",
+     "keywords": [
+      "explaining",
+      "wit",
+      "listening",
+      "self-doubt"
+     ]
+    }
+   },
+   {
+    "name": "Black Moon Lilith",
+    "longitude": 52.411936557745264,
+    "latitude": 1.4228623556948996,
+    "sign": "Taurus",
+    "degree": 22.411936557745264,
+    "speed": 0.11083349195067171,
+    "isRetrograde": false,
+    "house": 8,
+    "interpretation": {
+     "summary": "Comfort and sensual delight are rights you will not hand back, and your appetite for fine living is honest. You face depth, power and intimacy head-on, and nobody gets to shame you for your intensity.",
+     "detailed": "Texture, scent and sound matter enormously to you, and the world you build around the senses answers to nobody. Gripping tightly to what feels safe is the reflex under strain, and loosening the grip slowly shows you nothing precious slips away. Satisfaction, for you, is a skill as much as an appetite, and you practice it without asking anyone's leave. Your inner life runs deep and private, and you decide exactly who gets access to it. Control over what you share, and with whom, is a right you defend without apology. You change when you decide to, and every reinvention is one you claim. Polish and raw instinct rarely match between Venus and Lilith, so you keep learning to be lovely without trimming away your edges.",
+     "keywords": [
+      "pleasure",
+      "savoring",
+      "appetite",
+      "sensuality"
+     ]
+    }
+   }
+  ],
+  "houses": [
+   {
+    "number": 1,
+    "longitude": 180,
+    "sign": "Libra",
+    "degree": 0
+   },
+   {
+    "number": 2,
+    "longitude": 210,
+    "sign": "Scorpio",
+    "degree": 0
+   },
+   {
+    "number": 3,
+    "longitude": 240,
+    "sign": "Sagittarius",
+    "degree": 0
+   },
+   {
+    "number": 4,
+    "longitude": 270,
+    "sign": "Capricorn",
+    "degree": 0
+   },
+   {
+    "number": 5,
+    "longitude": 300,
+    "sign": "Aquarius",
+    "degree": 0
+   },
+   {
+    "number": 6,
+    "longitude": 330,
+    "sign": "Pisces",
+    "degree": 0
+   },
+   {
+    "number": 7,
+    "longitude": 0,
+    "sign": "Aries",
+    "degree": 0
+   },
+   {
+    "number": 8,
+    "longitude": 30,
+    "sign": "Taurus",
+    "degree": 0
+   },
+   {
+    "number": 9,
+    "longitude": 60,
+    "sign": "Gemini",
+    "degree": 0
+   },
+   {
+    "number": 10,
+    "longitude": 90,
+    "sign": "Cancer",
+    "degree": 0
+   },
+   {
+    "number": 11,
+    "longitude": 120,
+    "sign": "Leo",
+    "degree": 0
+   },
+   {
+    "number": 12,
+    "longitude": 150,
+    "sign": "Virgo",
+    "degree": 0
+   }
+  ],
+  "houseSystem": "whole-sign",
+  "aspects": [
+   {
+    "planet1": "North Node",
+    "planet2": "South Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0,
+    "isApplying": false,
+    "strength": 100,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Your North Node in Taurus points toward less familiar ground, while the South Node in Scorpio marks what you already know by heart.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Uranus",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.03098272247711975,
+    "isApplying": false,
+    "strength": 98.45086387614401,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "A low-level friction links Mars and Uranus, nagging rather than dramatic, and noticing it early keeps small irritations from piling up.",
+     "keywords": [
+      "friction",
+      "irritation",
+      "agitation",
+      "minor tension"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Saturn",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.09543957363308664,
+    "isApplying": true,
+    "strength": 96.81868087889711,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "A quiet connection joins Mars and Saturn, a little awkward at first, and some practice lets each lend the other something useful.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "North Node",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.17590273822162317,
+    "isApplying": false,
+    "strength": 94.13657539261257,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "What you read and who you talk with need regular retuning, since Mercury and the North Node keep nudging your curiosity onto a new heading.",
+     "keywords": [
+      "adjustment",
+      "tension",
+      "adaptation",
+      "redirection"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "South Node",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.17590273822162317,
+    "isApplying": false,
+    "strength": 94.13657539261257,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Mercury semi-sextile the South Node is the same contact as Mercury quincunx the North Node.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Venus",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 0.6772591310844689,
+    "isApplying": true,
+    "strength": 91.53426086144414,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Rooms, meals and friendships become soft places to land when Venus lends the Moon its warmth, comfort and affection arriving together.",
+     "keywords": [
+      "harmony",
+      "flow",
+      "talent",
+      "support",
+      "acceptance"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Black Moon Lilith",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.33083768572043937,
+    "isApplying": true,
+    "strength": 88.97207714265201,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Polish and raw instinct rarely match between Venus and Lilith, so you keep learning to be lovely without trimming away your edges.",
+     "keywords": [
+      "adjustment",
+      "tension",
+      "adaptation",
+      "redirection"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Neptune",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 0.709848546458204,
+    "isApplying": false,
+    "strength": 88.16919089236328,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Compassion fuels your effort, with Neptune lending Mars intuition, so you act on hunches and stand up for causes you believe in.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "North Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 1.3890517955706798,
+    "isApplying": true,
+    "strength": 82.6368525553665,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Pluto guards what it already holds while the North Node points somewhere less known, a negotiation in which each release buys a little more room to grow.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "South Node",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 1.3890517955706798,
+    "isApplying": true,
+    "strength": 82.6368525553665,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Across the nodal axis, Pluto conjunct the South Node reads as Pluto opposite the North Node.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Pluto",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.44487160302477946,
+    "isApplying": false,
+    "strength": 77.75641984876103,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "You may feel a faint, persistent tension where Venus meets Pluto, an inner itch that keeps you tinkering rather than settling.",
+     "keywords": [
+      "friction",
+      "irritation",
+      "agitation",
+      "minor tension"
+     ]
+    }
+   },
+   {
+    "planet1": "Saturn",
+    "planet2": "Neptune",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.8052881200912907,
+    "isApplying": false,
+    "strength": 73.15706266362365,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "You make small, steady adjustments so Saturn and Neptune can cooperate, and the effort stays modest rather than demanding.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Uranus",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 2.550986000589347,
+    "isApplying": false,
+    "strength": 68.11267499263316,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Emotional independence feels warm rather than cold as Uranus freshens the Moon, so you give and keep freedom with a light, generous hand.",
+     "keywords": [
+      "harmony",
+      "flow",
+      "talent",
+      "support",
+      "acceptance"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Black Moon Lilith",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 1.0080968168048976,
+    "isApplying": true,
+    "strength": 66.39677277317008,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "You make small, steady adjustments so the Moon and Lilith can cooperate, and the effort stays modest rather than demanding.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Pluto",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 2.752390806171917,
+    "isApplying": true,
+    "strength": 65.59511492285104,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Pluto beside Mars gives your will a relentless, all-in quality, so you pursue a goal with everything you have and seldom stop short of the end.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 2.7901103602933404,
+    "isApplying": true,
+    "strength": 65.12362049633325,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Doubt and voice sit across from each other where Mercury faces Chiron, and every time you speak through the doubt, the distance between them shrinks.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Uranus",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 3.228245131673816,
+    "isApplying": false,
+    "strength": 59.6469358540773,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Your affections carry a spark of the unexpected with Uranus beside Venus, so offbeat people catch your eye and you need room to stay yourself in any bond.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "North Node",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.9441801925459004,
+    "isApplying": true,
+    "strength": 52.79099037270498,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Small outside snags tend to catch where Venus and the North Node connect, and each one nudges you toward a better adjustment.",
+     "keywords": [
+      "frustration",
+      "adjustment",
+      "external tension",
+      "redirection"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "South Node",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.9441801925459004,
+    "isApplying": true,
+    "strength": 52.79099037270498,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Venus semi-square the South Node is the same contact as Venus sesquiquadrate the North Node.",
+     "keywords": [
+      "friction",
+      "irritation",
+      "agitation",
+      "minor tension"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Uranus",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.8494919275705115,
+    "isApplying": true,
+    "strength": 52.50846787382481,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Luck tends to arrive sideways with Jupiter and Uranus in easy contact, and you are usually curious enough to try the unplanned route it offers.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Neptune",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 4.017330690428196,
+    "isApplying": true,
+    "strength": 49.78336636964755,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Neptune softens the outline of the Sun, so you can shape-shift to suit a room, and choosing your own contours takes conscious effort.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "North Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 4.141442601742597,
+    "isApplying": true,
+    "strength": 48.23196747821754,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Familiar reflexes of force pull against the North Node, so Mars falls back on old tactics while growth asks for a different kind of courage.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "South Node",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 4.141442601742597,
+    "isApplying": true,
+    "strength": 48.23196747821754,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Across the nodal axis, Mars conjunct the South Node reads as Mars opposite the North Node.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Pluto",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 1.564954533792303,
+    "isApplying": false,
+    "strength": 47.8348488735899,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Between Mercury and Pluto runs a slight, workable link, two neighbors with little in common who learn to make room for each other.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Saturn",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 4.221905766331133,
+    "isApplying": false,
+    "strength": 47.226177920860835,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Thought and structure fuse where Saturn joins Mercury, so you weigh each word before concluding and trust an idea only once it holds up.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "Pluto",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.462239352630121,
+    "isApplying": true,
+    "strength": 42.296010789497984,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Your era leaves its own mark in Neptune with Pluto, slow pairings shared by millions born near your birth, and they read as the setting your life plays out in.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "North Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 4.851291148200801,
+    "isApplying": true,
+    "strength": 39.35886064748999,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "A hunch, a song or a kind gesture often shows you the next step before logic does, Neptune and the North Node working in concert.",
+     "keywords": [
+      "harmony",
+      "flow",
+      "talent",
+      "support",
+      "acceptance"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Chiron",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 5.0120696496948085,
+    "isApplying": false,
+    "strength": 37.349129378814894,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Tested optimism is the mark of Jupiter in easy touch with Chiron, so you can encourage someone without pretending their pain away.",
+     "keywords": [
+      "harmony",
+      "flow",
+      "talent",
+      "support",
+      "acceptance"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Mars",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.7271792368864,
+    "isApplying": true,
+    "strength": 21.21367938522667,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Mars backs the Sun with ready effort, so deciding on a goal and starting on it tend to happen in the same breath.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "South Node",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.851291148200801,
+    "isApplying": true,
+    "strength": 19.14514752998665,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Neptune sextile the South Node is the same contact as Neptune trine the North Node.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Saturn",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 7.012016126624474,
+    "isApplying": true,
+    "strength": 12.34979841719408,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Saturn insists on control while Chiron keeps an old hurt open, a pull between composure and vulnerability that eases once the inner critic is answered rather than obeyed.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Venus",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 7.075558353916904,
+    "isApplying": true,
+    "strength": 11.555520576038703,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "Charm and identity share one address with Venus beside the Sun, so pleasing people and being yourself can feel like a single gesture.",
+     "keywords": [
+      "blend",
+      "intensity",
+      "focus",
+      "unity",
+      "emphasis"
+     ]
+    }
+   },
+   {
+    "planet1": "Saturn",
+    "planet2": "Pluto",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 2.6569512325388303,
+    "isApplying": true,
+    "strength": 11.434958915372329,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "You make small, steady adjustments so Saturn and Pluto can cooperate, and the effort stays modest rather than demanding.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Mercury",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 1.7973420618519924,
+    "isApplying": true,
+    "strength": 10.13289690740038,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Small outside snags tend to catch where the Moon and Mercury connect, and each one nudges you toward a better adjustment.",
+     "keywords": [
+      "frustration",
+      "adjustment",
+      "external tension",
+      "redirection"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Jupiter",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 5.400477928159887,
+    "isApplying": false,
+    "strength": 9.992034530668548,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Hunches tend to be worth following and forgiveness comes readily, with Jupiter widening the Moon's trust in people and in how things work out.",
+     "keywords": [
+      "ease",
+      "natural",
+      "relationship",
+      "talent"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Black Moon Lilith",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 6.408574744964767,
+    "isApplying": true,
+    "strength": 8.448932214789039,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Nerve to think for yourself grows between Jupiter and Lilith, and needing to win every argument eases once a belief feels secure enough to leave undefended.",
+     "keywords": [
+      "difficult",
+      "obstacle",
+      "stress",
+      "tension"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Jupiter",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 1.8467045868387686,
+    "isApplying": true,
+    "strength": 7.66477065806157,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "A low-level friction links the Sun and Jupiter, nagging rather than dramatic, and noticing it early keeps small irritations from piling up.",
+     "keywords": [
+      "friction",
+      "irritation",
+      "agitation",
+      "minor tension"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Moon",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 7.752817485001373,
+    "isApplying": true,
+    "strength": 3.0897814374828414,
+    "interpretation": "harmonious",
+    "aspectInterpretation": {
+     "summary": "Daily habits feed long aims, the Moon keeping you rested and settled for whatever the Sun has chosen to build, so effort rarely runs on empty.",
+     "keywords": [
+      "harmony",
+      "flow",
+      "talent",
+      "support",
+      "acceptance"
+     ]
+    }
+   },
+   {
+    "planet1": "Uranus",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 7.86156157726532,
+    "isApplying": false,
+    "strength": 1.7304802841834999,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Chiron holds an ache that asks for closeness while Uranus wants distance from it, a tension you learn from by noticing which pull is protecting you.",
+     "keywords": [
+      "polarity",
+      "tension",
+      "balance",
+      "relationship",
+      "compromise"
+     ]
+    }
+   },
+   {
+    "planet1": "North Node",
+    "planet2": "Chiron",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 2.9660130985149493,
+    "isApplying": true,
+    "strength": 1.1328967161683523,
+    "interpretation": "neutral",
+    "aspectInterpretation": {
+     "summary": "A quiet connection joins the North Node and Chiron, a little awkward at first, and some practice lets each lend the other something useful.",
+     "keywords": [
+      "growth",
+      "subtle",
+      "adjustment",
+      "awareness"
+     ]
+    }
+   },
+   {
+    "planet1": "South Node",
+    "planet2": "Chiron",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 2.9660130985149635,
+    "isApplying": true,
+    "strength": 1.132896716167886,
+    "interpretation": "challenging",
+    "aspectInterpretation": {
+     "summary": "Across the nodal axis, Chiron quincunx the South Node reads as Chiron semi-sextile the North Node.",
+     "keywords": [
+      "adjustment",
+      "tension",
+      "adaptation",
+      "redirection"
+     ]
+    }
+   }
+  ],
+  "ascendant": {
+   "longitude": 205.8461000154527,
+   "sign": "Libra",
+   "degree": 25.84610001545269,
+   "interpretation": {
+    "summary": "Courteous, well put together and tuned to fairness, you greet the world as if good manners were a form of art.",
+    "detailed": "You notice the lighting, the music and whether everyone in the room has someone to talk to, and you adjust all three without any fuss. Polish shows in the details, a well-chosen color, an easy smile, a thank-you that sounds meant, and you seem lovely to be around. Anything new feels easier with company, so you look for an ally, a friend or a fellow learner before you take the very first step into it. Keeping the peace slides into deferring to whoever speaks loudest, and saying your own view plainly, kindly, keeps the charm honest and you in the picture. People tend to relax around you, sensing that nobody will be embarrassed or left out while you are there to keep things gracious and kind."
+   }
+  },
+  "midheaven": {
+   "longitude": 139.89569775660078,
+   "sign": "Leo",
+   "degree": 19.895697756600782,
+   "interpretation": {
+    "summary": "Your own signature on a body of public work is the goal, something people recognize as yours at a glance.",
+    "detailed": "A stage of some kind draws you, whether a page, a platform, a microphone or a gallery wall, because expressing yourself in public feels like the whole point. Others read you as magnetic and commanding, someone whose confidence warms a room rather than chilling it, and people gravitate toward you without being asked. Persistence matters to you as much as flair, and the achievement you prize is a creative effort sustained over years, not one bright evening. Pride bristles when credit goes elsewhere, and your standing rises fastest when you champion the talent around you as loudly as you would your own. People look to you when an occasion needs a warm center, and the confidence you bring has a way of spreading to everyone standing nearby."
+   }
+  },
+  "partOfFortune": {
+   "sign": "Cancer",
+   "degree": 3.5989175004540357,
+   "longitude": 93.59891750045404,
+   "sect": "night",
+   "house": 10
+  },
+  "vertex": {
+   "longitude": 62.416436125269925,
+   "sign": "Gemini",
+   "degree": 2.416436125269925,
+   "house": 9
+  },
+  "interpretation": {
+   "opening": "You tend to refuel where you aim, with the freedom to feel at full heat feeding a love of wide horizons rather than competing with it. Your Libra rising gives your Sun a friendly way in, so the manner you wear opens doors your core already wants to walk through.\n\nA great share of your attention goes to your everyday thinking, conversations and neighborhood, where the Sun, Mercury, Venus, Saturn and Uranus sit together, so that area of life carries extra weight for you. Much of what you set out to do routes through your third house, because Venus rules your Libra rising, working there from Sagittarius. Courage comes cheaply to you in small things, like speaking up, ordering the unfamiliar dish, or taking the dare everyone else talks themselves out of. Flexibility carries you through a crowded day, juggling several threads at once and adjusting each one as fresh information turns up.\n\nCuriosity runs local and distant at once in you, and between the restless optimism of an explorer and the urge to explain everything, you keep trading the conversation at hand for the meaning beyond it, then trading back. Ideas gain weight once tested against ordinary days, and ordinary days gain depth when read for their larger meaning. Things move once you call on Mars, a partner for the Sun rather than a wall to push against.",
+   "love": "Friends, allies and sweethearts all count in your love life, since you measure closeness by who stands beside you on level ground. Courage in another person catches your eye, and the ones you keep near push you to act on your own wishes rather than smoothing them over. Your partnership ruler, Mars, lands among money, belongings and self-worth, which is why you trust a connection that feels solid, generous and worth keeping. Banter is your favorite game: with Uranus, head of your fifth house, in your third, wit, writing, puzzles and quick outings around town carry much of your delight. With the Moon in your seventh house, much of your growth happens through other people, in the ties you pick and in the ones that test you.",
+   "career": "Reputation, for you, grows from repeated effort, and you keep asking what all those ordinary hours should finally amount to. Collaboration lifts you: the Moon, which commands your vocation, lives in the seventh, so shared projects and work done in pairs fit you well. Leo crowning your chart wants something made with heart and stood behind, and you are proud to sign your name to the result. Your daily rhythm is fluid, and a few simple anchors, a set start or a short list, keep a creative, intuitive way of working on course.",
+   "home": "You need a private base to come back to, a place or a state of mind where the day falls away and you can simply rest. Ruling your fourth and sitting in your third, Saturn fills the place you live with talk, books and messages, and the nearby streets matter as much as the rooms. Your fourth house holds Neptune, so much of your chart does its quietest work in private, far from any audience. Rooms you can rearrange on a whim suit you, with gear kept by the door and the freedom to leave or return at any hour without explaining.",
+   "closing": "Two forces carry your life, a thirst for the bigger picture on one hand and a restless mind full of questions on the other, and you are the one who keeps them talking. Count on Mars, a working ally to the Sun and the first part of you worth putting to use. Your everyday curiosity and your search for truth feed each other, so you carry street sense and a wide view at once. You tend to leave every room more balanced than it was."
+  },
+  "patterns": [
+   {
+    "kind": "STELLIUM",
+    "name": "Stellium",
+    "planets": [
+     "Saturn",
+     "Mercury",
+     "Uranus",
+     "Venus",
+     "Sun"
+    ],
+    "tightness": 100,
+    "interpretationKey": "aspectPattern.stelliumSameSign",
+    "interpretationVars": {
+     "count": "5",
+     "sign": "Sagittarius",
+     "planets": "Saturn, Mercury, Uranus, Venus, and Sun"
+    },
+    "interpretation": "With 5 planets gathered in Sagittarius (Saturn, Mercury, Uranus, Venus, and Sun), the Sagittarius way of doing things colors most of your choices and much of where your effort goes."
+   }
+  ],
+  "aspectsInterpretation": {
+   "summary": "Your aspects lean toward ease, so talent tends to arrive without a fight, and growth lies in choosing to put it to work.",
+   "dominant": "harmonious",
+   "harmonious": 11,
+   "challenging": 10,
+   "neutral": 7
+  },
+  "summary": {
+   "dominantElement": "Fire",
+   "dominantModality": "Mutable",
+   "retrogradePlanets": [
+    "Chiron"
+   ],
+   "elementDistribution": {
+    "Fire": 6,
+    "Earth": 1,
+    "Air": 1,
+    "Water": 2
+   },
+   "modalityDistribution": {
+    "Cardinal": 2,
+    "Fixed": 3,
+    "Mutable": 5
+   }
+  }
+ }
+}

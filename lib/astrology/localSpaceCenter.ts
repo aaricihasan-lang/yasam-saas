@@ -46,8 +46,8 @@ export function localSpaceCenter(technical: unknown, options: unknown, birth: { 
 
 // "doğum yerinizden" / "doğum yerinden" (cümle başı büyük harf dahil). Yalnız bu yer atfı değişir.
 const BIRTHPLACE_FROM = /([Dd])oğum yeri(?:niz)?den/g;
-// I18N A7 / DA-1: İngilizce sağlayıcı kalıbı ("from your birthplace" vb.) — gerçek EN golden ile DOĞRULANMADI (ROXY ajanı
-// eşitlik kanıtı bekliyor); kalıp bulunamazsa metin AYNEN kalır ve merkez notu yine gösterilir.
+// I18N A7 / DA-1: İngilizce sağlayıcı kalıbı "from your birthplace" — R5 ROXY gerçek EN yanıtıyla doğrulandı (13/13 metin,
+// TR "doğum yerinizden" ile aynı yerlerde; atlas-provider-lang-a7 [G]). Kalıp bulunamazsa metin AYNEN kalır.
 const BIRTHPLACE_FROM_EN = /\b([Ff])rom your (?:birthplace|birth place|place of birth|birth location)\b/g;
 
 /**

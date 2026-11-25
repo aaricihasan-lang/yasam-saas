@@ -35,8 +35,9 @@ export const ASTRO_CHART_IDENTITY_LANG = "tr" as const;
 
 /**
  * A7 bayrağı: İngilizce sağlayıcı anlatısı (Roxy lang=en). VARSAYILAN KAPALI — yalnız sunucu env `ASTRO_PROVIDER_LANG_EN`
- * tam "true" ise açık. Açılması Owner kararı + ROXY eşitlik kanıtı + yorum katmanı dil ayrımı (migration) sonrasıdır;
- * bu sürümde HİÇBİR çalışma yolu bu bayrağı okumaz (yalnız altyapı).
+ * tam "true" ise açık. Açılması Owner kararı + yorum katmanı dil ayrımı (migration TASLAĞI) sonrasıdır. engine/service.ts
+ * sağlayıcı çağrısında okur (EngineCtx.locale); route'lar henüz locale GEÇİRMEZ → bayrak açık olsa bile üretimde dil "tr"
+ * (uçtan uca test: scripts/astrology/atlas-provider-lang-a7-service.harness.ts).
  */
 export function isAstroProviderEnEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.ASTRO_PROVIDER_LANG_EN === "true";

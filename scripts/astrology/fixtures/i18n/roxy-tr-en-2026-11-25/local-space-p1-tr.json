@@ -1,0 +1,884 @@
+{
+ "endpoint": "/astrology/local-space",
+ "lang": "tr",
+ "query": {
+  "include": "north-node,chiron,lilith"
+ },
+ "body": {
+  "date": "1990-04-01",
+  "time": "14:30:00",
+  "timezone": 3,
+  "latitude": 41.0082,
+  "longitude": 28.9784
+ },
+ "response": {
+  "birthDetails": {
+   "date": "1990-04-01",
+   "time": "14:30:00",
+   "latitude": 41.0082,
+   "longitude": 28.9784,
+   "timezone": 3
+  },
+  "bodies": [
+   {
+    "planet": "Sun",
+    "planetLocalized": "Güneş",
+    "symbol": "☉",
+    "azimuth": 212.25621053240823,
+    "altitude": 49.16508694200532,
+    "compassDirection": "SSW",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 27.946169139573808,
+       "longitude": 19.98227754994025
+      },
+      {
+       "latitude": 14.428959156211626,
+       "longitude": 12.983934665917559
+      },
+      {
+       "latitude": 0.7297301349761309,
+       "longitude": 6.804568821087514
+      },
+      {
+       "latitude": -12.97792539101598,
+       "longitude": 0.6633935459857412
+      },
+      {
+       "latitude": -26.524641809487356,
+       "longitude": -6.202964157937799
+      },
+      {
+       "latitude": -39.654440948855296,
+       "longitude": -14.90622377926286
+      },
+      {
+       "latitude": -51.83548266647383,
+       "longitude": -27.56270121135867
+      },
+      {
+       "latitude": -61.732081622492196,
+       "longitude": -48.42919423717035
+      },
+      {
+       "latitude": -66.23762483051321,
+       "longitude": -81.53764358007675
+      },
+      {
+       "latitude": -62.540280058879844,
+       "longitude": -115.66242455834657
+      },
+      {
+       "latitude": -53.032387105531306,
+       "longitude": -137.74217696588875
+      },
+      {
+       "latitude": -41.00820000000001,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Güneş hattınız, doğum yerinizden güneybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Öz farkındalık ve ego konularını öne çıkarır."
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "symbol": "☽",
+    "azimuth": 87.36350256617045,
+    "altitude": 40.83948087781167,
+    "compassDirection": "E",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 40.000385384117784,
+       "longitude": 48.7035529888102
+      },
+      {
+       "latitude": 35.84632343710919,
+       "longitude": 67.01620182851468
+      },
+      {
+       "latitude": 29.243687756568324,
+       "longitude": 83.02877452780342
+      },
+      {
+       "latitude": 20.986307128982354,
+       "longitude": 96.88498551596808
+      },
+      {
+       "latitude": 11.733369025658547,
+       "longitude": 109.20801728614083
+      },
+      {
+       "latitude": 1.989239868512852,
+       "longitude": 120.70907822496872
+      },
+      {
+       "latitude": -7.833769847637979,
+       "longitude": 132.07409823617024
+      },
+      {
+       "latitude": -17.338850955199206,
+       "longitude": 143.9806023338465
+      },
+      {
+       "latitude": -26.06785039565481,
+       "longitude": 157.1326594179959
+      },
+      {
+       "latitude": -33.42887581972812,
+       "longitude": 172.21753664817993
+      },
+      {
+       "latitude": -38.669315218584885,
+       "longitude": -170.35977848297398
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02160000000003
+      }
+     ]
+    },
+    "interpretation": "Ay hattınız, doğum yerinizden doğu yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde İç duygusal yaşam konularını öne çıkarır."
+   },
+   {
+    "planet": "Mercury",
+    "planetLocalized": "Merkür",
+    "symbol": "☿",
+    "azimuth": 195.78747219509663,
+    "altitude": 58.491576761991794,
+    "compassDirection": "SSW",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 26.478842649028334,
+       "longitude": 24.466316151648698
+      },
+      {
+       "latitude": 11.840181111985167,
+       "longitude": 20.988868967139865
+      },
+      {
+       "latitude": -2.8364522895262825,
+       "longitude": 17.872768140971402
+      },
+      {
+       "latitude": -17.504491638743904,
+       "longitude": 14.674799085220116
+      },
+      {
+       "latitude": -32.112150744971196,
+       "longitude": 10.903057568732379
+      },
+      {
+       "latitude": -46.56457295250817,
+       "longitude": 5.667708608613111
+      },
+      {
+       "latitude": -60.60250437606631,
+       "longitude": -3.3912347480121525
+      },
+      {
+       "latitude": -73.12643350941234,
+       "longitude": -25.288949791375103
+      },
+      {
+       "latitude": -77.80803804883105,
+       "longitude": -85.38395887791768
+      },
+      {
+       "latitude": -68.6434368393798,
+       "longitude": -129.08706239649496
+      },
+      {
+       "latitude": -55.26036659608575,
+       "longitude": -143.92334343777293
+      },
+      {
+       "latitude": -41.00820000000001,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Merkür hattınız, doğum yerinizden güney yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde İletişim konularını öne çıkarır."
+   },
+   {
+    "planet": "Venus",
+    "planetLocalized": "Venüs",
+    "symbol": "♀",
+    "azimuth": 243.62054433261653,
+    "altitude": 10.676621755658758,
+    "compassDirection": "WSW",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 33.16351027606686,
+       "longitude": 12.898000559658044
+      },
+      {
+       "latitude": 23.616579025535092,
+       "longitude": -0.28865172935411465
+      },
+      {
+       "latitude": 13.114450567146143,
+       "longitude": -11.596448288053693
+      },
+      {
+       "latitude": 2.1615415232667288,
+       "longitude": -21.953698121505568
+      },
+      {
+       "latitude": -8.860727375530269,
+       "longitude": -32.16105415645609
+      },
+      {
+       "latitude": -19.5899483176597,
+       "longitude": -42.99510900083635
+      },
+      {
+       "latitude": -29.58341876222749,
+       "longitude": -55.32630525339471
+      },
+      {
+       "latitude": -38.2030309119622,
+       "longitude": -70.16138301723788
+      },
+      {
+       "latitude": -44.512380869762595,
+       "longitude": -88.3558256827676
+      },
+      {
+       "latitude": -47.38335933358034,
+       "longitude": -109.60263427226249
+      },
+      {
+       "latitude": -46.10297901619155,
+       "longitude": -131.4848887674641
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Venüs hattınız, doğum yerinizden güneybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Aşk, güzellik ve para konularını öne çıkarır."
+   },
+   {
+    "planet": "Mars",
+    "planetLocalized": "Mars",
+    "symbol": "♂",
+    "azimuth": 245.75183570783173,
+    "altitude": 1.0419074650616076,
+    "compassDirection": "WSW",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 33.61415720545481,
+       "longitude": 12.517056618405945
+      },
+      {
+       "latitude": 24.412361529229294,
+       "longitude": -1.0645009233107885
+      },
+      {
+       "latitude": 14.17230085132286,
+       "longitude": -12.70095687266155
+      },
+      {
+       "latitude": 3.422083640078689,
+       "longitude": -23.303562701238548
+      },
+      {
+       "latitude": -7.442103886446049,
+       "longitude": -33.668164667326664
+      },
+      {
+       "latitude": -18.05397802012187,
+       "longitude": -44.556217636189274
+      },
+      {
+       "latitude": -27.98116885778871,
+       "longitude": -56.80123989293884
+      },
+      {
+       "latitude": -36.617918120675164,
+       "longitude": -71.35194710971757
+      },
+      {
+       "latitude": -43.088062574531094,
+       "longitude": -89.03801891723572
+      },
+      {
+       "latitude": -46.3204543201821,
+       "longitude": -109.7133801405788
+      },
+      {
+       "latitude": -45.56294455830644,
+       "longitude": -131.32369679155653
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Mars hattınız, doğum yerinizden güneybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Atılganlık ve saldırganlık konularını öne çıkarır."
+   },
+   {
+    "planet": "Jupiter",
+    "planetLocalized": "Jüpiter",
+    "symbol": "♃",
+    "azimuth": 88.6976648112802,
+    "altitude": 35.89199944854564,
+    "compassDirection": "E",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 39.661277245856894,
+       "longitude": 48.61878743591717
+      },
+      {
+       "latitude": 35.228085827659854,
+       "longitude": 66.70832467391915
+      },
+      {
+       "latitude": 28.431498309524542,
+       "longitude": 82.48090606937615
+      },
+      {
+       "latitude": 20.055894358952276,
+       "longitude": 96.1534951082765
+      },
+      {
+       "latitude": 10.74247980010685,
+       "longitude": 108.36795320399688
+      },
+      {
+       "latitude": 0.9827261135783942,
+       "longitude": 119.83303322884467
+      },
+      {
+       "latitude": -8.816009800972743,
+       "longitude": 131.23096579352557
+      },
+      {
+       "latitude": -18.25401436382485,
+       "longitude": 143.2398423831023
+      },
+      {
+       "latitude": -26.86260681536389,
+       "longitude": 156.56488361480638
+      },
+      {
+       "latitude": -34.03379757087808,
+       "longitude": 171.8794562665273
+      },
+      {
+       "latitude": -39.00363455936893,
+       "longitude": -170.47067855877413
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02160000000003
+      }
+     ]
+    },
+    "interpretation": "Jüpiter hattınız, doğum yerinizden doğu yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Şans ve fırsat konularını öne çıkarır."
+   },
+   {
+    "planet": "Saturn",
+    "planetLocalized": "Satürn",
+    "symbol": "♄",
+    "azimuth": 256.6758546623146,
+    "altitude": -17.081621611949746,
+    "compassDirection": "WSW",
+    "aboveHorizon": false,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 36.07174465910681,
+       "longitude": 10.823319647608969
+      },
+      {
+       "latitude": 28.77053894517932,
+       "longitude": -4.736502711860908
+      },
+      {
+       "latitude": 19.938311473934593,
+       "longitude": -18.071327494469188
+      },
+      {
+       "latitude": 10.222676488248476,
+       "longitude": -29.92603757723765
+      },
+      {
+       "latitude": 0.10575181010818145,
+       "longitude": -41.06081355004346
+      },
+      {
+       "latitude": -10.015151683989306,
+       "longitude": -52.18830234487325
+      },
+      {
+       "latitude": -19.74358469635789,
+       "longitude": -64.02051138457279
+      },
+      {
+       "latitude": -28.60006038561717,
+       "longitude": -77.31663015376154
+      },
+      {
+       "latitude": -35.94101770009969,
+       "longitude": -92.82411918393677
+      },
+      {
+       "latitude": -40.93569812854324,
+       "longitude": -110.92747991363018
+      },
+      {
+       "latitude": -42.75146666066172,
+       "longitude": -130.9630524035349
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Satürn hattınız, doğum yerinizden batı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Sorumluluk, zaman ve rutin konularını öne çıkarır."
+   },
+   {
+    "planet": "Uranus",
+    "planetLocalized": "Uranüs",
+    "symbol": "♅",
+    "azimuth": 264.203373201757,
+    "altitude": -30.326750489025574,
+    "compassDirection": "W",
+    "aboveHorizon": false,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 37.885314463465,
+       "longitude": 9.936648951370444
+      },
+      {
+       "latitude": 32.01559617578376,
+       "longitude": -6.942955668554987
+      },
+      {
+       "latitude": 24.210387635810527,
+       "longitude": -21.495351497781257
+      },
+      {
+       "latitude": 15.193509103460709,
+       "longitude": -34.24934146696802
+      },
+      {
+       "latitude": 5.521024494405463,
+       "longitude": -45.920042288925515
+      },
+      {
+       "latitude": -4.371005874109408,
+       "longitude": -57.21064419613566
+      },
+      {
+       "latitude": -14.090018520546728,
+       "longitude": -68.80151774617343
+      },
+      {
+       "latitude": -23.20905605888754,
+       "longitude": -81.39180296451116
+      },
+      {
+       "latitude": -31.18961243187451,
+       "longitude": -95.70026749214645
+      },
+      {
+       "latitude": -37.327098207870485,
+       "longitude": -112.29771811162357
+      },
+      {
+       "latitude": -40.80861663453603,
+       "longitude": -131.13259432915578
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Uranüs hattınız, doğum yerinizden batı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Bireysellik ve devrim konularını öne çıkarır."
+   },
+   {
+    "planet": "Neptune",
+    "planetLocalized": "Neptün",
+    "symbol": "♆",
+    "azimuth": 262.45839666508084,
+    "altitude": -25.442806333932058,
+    "compassDirection": "W",
+    "aboveHorizon": false,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 37.457671756789836,
+       "longitude": 10.120077572928494
+      },
+      {
+       "latitude": 31.24758027414337,
+       "longitude": -6.456786080894517
+      },
+      {
+       "latitude": 23.200383806728567,
+       "longitude": -20.72128975892008
+      },
+      {
+       "latitude": 14.023040913524161,
+       "longitude": -33.26152789494449
+      },
+      {
+       "latitude": 4.253126477787939,
+       "longitude": -44.805385553731014
+      },
+      {
+       "latitude": -5.683911412898541,
+       "longitude": -56.0567347276949
+      },
+      {
+       "latitude": -15.39631691465324,
+       "longitude": -67.70007725228982
+      },
+      {
+       "latitude": -24.447228756577115,
+       "longitude": -80.44467591276168
+      },
+      {
+       "latitude": -32.27694955653894,
+       "longitude": -95.0145462448026
+      },
+      {
+       "latitude": -38.15401592322219,
+       "longitude": -111.94590151452638
+      },
+      {
+       "latitude": -41.257346388337204,
+       "longitude": -131.0650049188987
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Neptün hattınız, doğum yerinizden batı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Rüyalar, şifa ve sezgi konularını öne çıkarır."
+   },
+   {
+    "planet": "Pluto",
+    "planetLocalized": "Plüton",
+    "symbol": "♇",
+    "azimuth": 332.47677024978435,
+    "altitude": -47.3629736901931,
+    "compassDirection": "NNW",
+    "aboveHorizon": false,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 53.80513351281703,
+       "longitude": 17.293287768259233
+      },
+      {
+       "latitude": 64.53695877915168,
+       "longitude": -3.5300587094889124
+      },
+      {
+       "latitude": 69.58386060899262,
+       "longitude": -40.52854888191905
+      },
+      {
+       "latitude": 65.18084611592015,
+       "longitude": -78.58074965999526
+      },
+      {
+       "latitude": 54.70982527936112,
+       "longitude": -100.43090954437827
+      },
+      {
+       "latitude": 42.00619520854236,
+       "longitude": -112.5674279662627
+      },
+      {
+       "latitude": 28.46224889468051,
+       "longitude": -120.5087874447085
+      },
+      {
+       "latitude": 14.564526431076438,
+       "longitude": -126.59766960143668
+      },
+      {
+       "latitude": 0.5284720152140916,
+       "longitude": -131.948528671624
+      },
+      {
+       "latitude": -13.512166824030405,
+       "longitude": -137.27479848854978
+      },
+      {
+       "latitude": -27.42609867420976,
+       "longitude": -143.27759643536297
+      },
+      {
+       "latitude": -41.00819999999999,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Plüton hattınız, doğum yerinizden kuzeybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Cinsellik, ölüm ve dönüşüm konularını öne çıkarır."
+   },
+   {
+    "planet": "North Node",
+    "planetLocalized": "Kuzey Düğümü",
+    "symbol": "☊",
+    "azimuth": 247.1234822553235,
+    "altitude": 0.9539152946481753,
+    "compassDirection": "WSW",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 33.909522859937795,
+       "longitude": 12.280168543427408
+      },
+      {
+       "latitude": 24.934396499402045,
+       "longitude": -1.5539550812226253
+      },
+      {
+       "latitude": 14.865299872592267,
+       "longitude": -13.401901569151505
+      },
+      {
+       "latitude": 4.245571159927492,
+       "longitude": -24.161593216629285
+      },
+      {
+       "latitude": -6.518832664858834,
+       "longitude": -34.6255075211854
+      },
+      {
+       "latitude": -17.058868868559372,
+       "longitude": -45.54637435881091
+      },
+      {
+       "latitude": -26.94833269519483,
+       "longitude": -57.73650743821554
+      },
+      {
+       "latitude": -35.60089204512634,
+       "longitude": -72.11167982523409
+      },
+      {
+       "latitude": -42.17620237251224,
+       "longitude": -89.48718646901892
+      },
+      {
+       "latitude": -45.63782129956226,
+       "longitude": -109.80827972298204
+      },
+      {
+       "latitude": -45.213302610096385,
+       "longitude": -131.23620218101325
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Kuzey Düğümü hattınız, doğum yerinizden güneybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Yaşam amacı ve kader konularını öne çıkarır."
+   },
+   {
+    "planet": "Chiron",
+    "planetLocalized": "Chiron",
+    "symbol": "⚷",
+    "azimuth": 90.1850614561977,
+    "altitude": 25.469621609634935,
+    "compassDirection": "E",
+    "aboveHorizon": true,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 39.284969735769145,
+       "longitude": 48.51366905415682
+      },
+      {
+       "latitude": 34.54397849458331,
+       "longitude": 66.35277209586786
+      },
+      {
+       "latitude": 27.53282376150187,
+       "longitude": 81.86218632047644
+      },
+      {
+       "latitude": 19.024516589136308,
+       "longitude": 95.33463408322825
+      },
+      {
+       "latitude": 9.640997393501422,
+       "longitude": 107.43071816783538
+      },
+      {
+       "latitude": -0.13965017193401116,
+       "longitude": 118.85696853270849
+      },
+      {
+       "latitude": -9.914757563295622,
+       "longitude": 130.2927582009978
+      },
+      {
+       "latitude": -19.28057074171265,
+       "longitude": 142.41804780141103
+      },
+      {
+       "latitude": -27.755769160403784,
+       "longitude": 155.93986947962628
+      },
+      {
+       "latitude": -34.71369351382312,
+       "longitude": 171.5143558539446
+      },
+      {
+       "latitude": -39.3784269423203,
+       "longitude": -170.58406106166433
+      },
+      {
+       "latitude": -41.0082,
+       "longitude": -151.02160000000003
+      }
+     ]
+    },
+    "interpretation": "Chiron hattınız, doğum yerinizden doğu yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde Şifa ve iç yaralar konularını öne çıkarır."
+   },
+   {
+    "planet": "Black Moon Lilith",
+    "planetLocalized": "Kara Ay Lilith",
+    "symbol": "⚸",
+    "azimuth": 329.9113019590626,
+    "altitude": -68.40528668744314,
+    "compassDirection": "NNW",
+    "aboveHorizon": false,
+    "line": {
+     "points": [
+      {
+       "latitude": 41.0082,
+       "longitude": 28.978399999999965
+      },
+      {
+       "latitude": 53.398299852502156,
+       "longitude": 16.409046917191063
+      },
+      {
+       "latitude": 63.47287900858596,
+       "longitude": -5.1644744681777865
+      },
+      {
+       "latitude": 67.76997051779281,
+       "longitude": -40.57942019409609
+      },
+      {
+       "latitude": 63.32134974651099,
+       "longitude": -75.78008054652867
+      },
+      {
+       "latitude": 53.17901213518677,
+       "longitude": -97.11910891126769
+      },
+      {
+       "latitude": 40.76298818292602,
+       "longitude": -109.57607934190884
+      },
+      {
+       "latitude": 27.442282540606257,
+       "longitude": -117.95202115810952
+      },
+      {
+       "latitude": 13.731468842956748,
+       "longitude": -124.47359384734841
+      },
+      {
+       "latitude": -0.13108669663373607,
+       "longitude": -130.25868044243975
+      },
+      {
+       "latitude": -13.99230548149251,
+       "longitude": -136.05029192970818
+      },
+      {
+       "latitude": -27.698417176713317,
+       "longitude": -142.59455076747793
+      },
+      {
+       "latitude": -41.00819999999999,
+       "longitude": -151.02159999999998
+      }
+     ]
+    },
+    "interpretation": "Kara Ay Lilith hattınız, doğum yerinizden kuzeybatı yönünü gösterir. Bu yöne doğru yolculuk etmek ya da bu yöne dönmek, günlük deneyiminizde İlkel içgüdü ve geri kazanılan benlik konularını öne çıkarır."
+   }
+  ],
+  "summary": "41.0082 enlem, 28.9784 boylam noktasından görülen 13 gök cisminin yerel uzay yön haritası. Doğum anında bunların 8 tanesi ufkun üzerinde yer alır."
+ }
+}
