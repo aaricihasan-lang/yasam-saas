@@ -61,6 +61,44 @@
           "empty": "No content has been entered for this mineral record yet.",
           "footer": "Mineral Report · {name}"
         }
+      },
+      "combo": {
+        "unnamed": "Untitled",
+        "scope": {
+          "single": "Single Combination — {title}",
+          "selected": "Selected Combinations ({count})",
+          "filtered": "Filtered Combinations ({count})",
+          "all": "All Combinations ({count})"
+        },
+        "coverTitle": "STONE COMBINATIONS",
+        "generatedOn": "Date Generated: {date}",
+        "stat": {
+          "totalTitles": "Total Titles",
+          "totalVariants": "Total Variants",
+          "category": "Category",
+          "categoryCount": "Number of Categories",
+          "scope": "Scope",
+          "generated": "Generated"
+        },
+        "variantCount": "{count, plural, one {{shown} variant} other {{shown} variants}}",
+        "listTitle": "Combination List",
+        "listMeta": "{titles, plural, one {{titlesShown} title} other {{titlesShown} titles}} · {variants, plural, one {{variantsShown} variant} other {{variantsShown} variants}}",
+        "cardNo": "COMBINATION #{no}",
+        "field": {
+          "category": "Category",
+          "source": "Source",
+          "note": "Note {n}"
+        },
+        "variant": "Variant {n}/{total}",
+        "single": "Combination",
+        "header": "Yaşam Sistemi · Stone Combinations",
+        "footer": "Stone Combinations Report · Yaşam Sistemi",
+        "file": {
+          "prefix": "combination",
+          "selected": "selected",
+          "filtered": "filtered",
+          "all": "all"
+        }
       }
     }
   }

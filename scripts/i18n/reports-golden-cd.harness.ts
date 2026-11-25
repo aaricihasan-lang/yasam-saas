@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P13,P16,P19,P38,P39,P40").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P13,P14,P16,P19,P38,P39,P40").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;

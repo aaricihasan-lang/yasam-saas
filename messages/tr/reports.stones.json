@@ -61,6 +61,44 @@
           "empty": "Bu mineral kaydında henüz içerik girilmemiş.",
           "footer": "Mineral Raporu · {name}"
         }
+      },
+      "combo": {
+        "unnamed": "İsimsiz",
+        "scope": {
+          "single": "Tek Kombinasyon — {title}",
+          "selected": "Seçili Kombinasyonlar ({count})",
+          "filtered": "Filtrelenmiş Kombinasyonlar ({count})",
+          "all": "Tüm Kombinasyonlar ({count})"
+        },
+        "coverTitle": "TAŞ KOMBİNASYONLARI",
+        "generatedOn": "Oluşturulma Tarihi: {date}",
+        "stat": {
+          "totalTitles": "Toplam Başlık",
+          "totalVariants": "Toplam Variant",
+          "category": "Kategori",
+          "categoryCount": "Kategori Sayısı",
+          "scope": "Kapsam",
+          "generated": "Oluşturulma"
+        },
+        "variantCount": "{count, plural, other {{shown} variant}}",
+        "listTitle": "Kombinasyon Listesi",
+        "listMeta": "{titles, plural, other {{titlesShown} başlık}} · {variants, plural, other {{variantsShown} variant}}",
+        "cardNo": "KOMBİNASYON #{no}",
+        "field": {
+          "category": "Kategori",
+          "source": "Kaynak",
+          "note": "Not {n}"
+        },
+        "variant": "Variant {n}/{total}",
+        "single": "Kombinasyon",
+        "header": "Yaşam Sistemi · Taş Kombinasyonları",
+        "footer": "Taş Kombinasyonları Raporu · Yaşam Sistemi",
+        "file": {
+          "prefix": "kombinasyon",
+          "selected": "secili",
+          "filtered": "filtreli",
+          "all": "tumu"
+        }
       }
     }
   }
