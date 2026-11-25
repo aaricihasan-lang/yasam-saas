@@ -16,6 +16,7 @@ import {
   type BilgiBankaListeSatir,
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 import { KULVAR_SECTION_TEMPLATE, isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
 import { EMPTY_KULVAR_BODIES, bodiesFromRecord, sectionsFromBodies, type KulvarBodies } from "../helpers/kulvarFormLogic";
 import { useKulvarSources } from "../helpers/useKulvarSources";
@@ -158,6 +159,8 @@ export function KayitDetayModal({
   const tApi = useTranslations("common.apiErrors");
   // I18N: TR'de satır etiketi / sunucu metni birebir; EN'de katalog.
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const turGoster = (key: string, fallback: string): string =>
     isSourceLocale ? fallback : t.has(`shared.analysisTypes.${key}`) ? t(`shared.analysisTypes.${key}`) : fallback;
   const [editMode, setEditMode] = useState(false);
@@ -229,7 +232,7 @@ export function KayitDetayModal({
         <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
           <option value="">{t("form.selectPlaceholder")}</option>
           {CHAKRA_VALUE_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>{kbView(opt)}</option>
           ))}
         </select>
       );
@@ -239,7 +242,7 @@ export function KayitDetayModal({
         <select id="detay-deger" value={form.deger} onChange={(e) => setForm((p) => ({ ...p, deger: e.target.value }))} className={modalSelectClass}>
           <option value="">{t("form.selectPlaceholder")}</option>
           {ELEMENT_DEGER_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
+            <option key={opt} value={opt}>{kbView(opt)}</option>
           ))}
         </select>
       );

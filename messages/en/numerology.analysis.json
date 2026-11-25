@@ -200,7 +200,8 @@
         "tapFullscreen": "Tap the report to view it full screen",
         "fullscreenTitle": "Full-screen view of the numerological life map",
         "close": "Close",
-        "closeFullscreenAria": "Close full screen"
+        "closeFullscreenAria": "Close full screen",
+        "pngFileName": "numerology-report.png"
       },
       "deleteConfirm": {
         "oneTitle": "Delete analysis",

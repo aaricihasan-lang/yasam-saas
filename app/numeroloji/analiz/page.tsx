@@ -203,7 +203,7 @@ export default function NumerolojiAnalizPage() {
 
     const el = gorselRaporRef.current;
     try {
-      if (el) await gorselRaporuPngYakalaVeIndir(el);
+      if (el) await gorselRaporuPngYakalaVeIndir(el, ta("pngFileName"));
     } catch (err) {
       console.error(err);
       setError(isSourceLocale && err instanceof Error ? err.message : ta("pngFailed"));

@@ -11,6 +11,7 @@ import {
   stonesToTextarea,
 } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 
 // NKB-V2: kompakt düzen (Bilgi Bankası ekranını gereksiz uzatmaz; mobilde taşma yok).
 // 2026-10-20 premium görünüm (owner GÖRSEL PASS — numeroloji-bilgi-bankasi): yalnız sınıf; alanlar/mantık aynen.
@@ -58,6 +59,8 @@ export function BilgiDogaltasAta() {
   const { showToast } = useToast();
   const t = useTranslations("numerology.knowledge");
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [oneriAciklamasi, setOneriAciklamasi] = useState("");
@@ -221,7 +224,7 @@ export function BilgiDogaltasAta() {
               <option value="">{t("stoneAssign.selectPlaceholder")}</option>
               {CHAKRA_VALUE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -235,7 +238,7 @@ export function BilgiDogaltasAta() {
               <option value="">{t("stoneAssign.selectPlaceholder")}</option>
               {ELEMENT_DEGER_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>

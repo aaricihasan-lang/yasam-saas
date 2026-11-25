@@ -200,7 +200,8 @@
         "tapFullscreen": "Tam ekran görüntülemek için rapora dokunun",
         "fullscreenTitle": "Numerolojik yaşam haritası tam ekran görünümü",
         "close": "Kapat",
-        "closeFullscreenAria": "Tam ekranı kapat"
+        "closeFullscreenAria": "Tam ekranı kapat",
+        "pngFileName": "numeroloji-raporu.png"
       },
       "deleteConfirm": {
         "oneTitle": "Analizi sil",

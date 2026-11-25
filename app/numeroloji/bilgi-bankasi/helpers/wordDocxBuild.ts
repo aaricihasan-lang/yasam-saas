@@ -50,9 +50,9 @@ import {
 } from "@/app/numeroloji/utils/chronoCutoff";
 import { computeDevelopment } from "@/lib/numeroloji/development";
 import {
-  WORD_TAB_LABELS,
   WORD_TAB_ORDER,
   personSourceNotesForRecords,
+  wordFileName,
   type MatchedNoteRef,
   type PersonSourceNoteGroup,
   type WordPersonSections,
@@ -60,11 +60,13 @@ import {
 } from "./wordPersonSections";
 import { buildKnowledgeLookupPlan, pickNotesForType, type KnowledgeNote } from "./knowledgeLookup";
 import { noteHeading, resolveNoteSectionsForView } from "./noteLogic";
+import { KULVAR_SECTION_TEMPLATE } from "./knowledgeSections";
+import { kbValueDisplay } from "./kbValueDisplay";
 import type { SourceEntryRow } from "./sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
-import { matchStock, stockLabel, STOCK_HINT_WORD, type StockIndex } from "./stoneStockLogic";
+import { matchStock, stockLabel, STOCK_HINT_WORD, type StockIndex, type StockInfo } from "./stoneStockLogic";
 import { LEGACY_METHOD_NOTE, extractMotorFromAnalysisJson, extractSummaryFromAnalysisData, resolveRecordMotor } from "../../utils/analysisJson";
-import { isPreBirth, preBirthActiveYearText, preBirthEvreText, preBirthNote } from "../../utils/preBirth";
+import { isPreBirth, preBirthActiveYearText, preBirthActiveYearTextEn, preBirthEvreText, preBirthEvreTextEn, preBirthNote, preBirthNoteEn } from "../../utils/preBirth";
 import { formatDateLoose, formatInstantDateTime, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { buildWellnessNoteSection } from "@/lib/docx/reportHelpers";
@@ -75,9 +77,77 @@ import {
   type ExpertBranding,
   type ExpertBrandingVariant,
 } from "@/lib/docx/expertBranding";
+import { getOutputTranslator, SOURCE_OUTPUT_LOCALE, type OutputLocale } from "@/lib/i18n/output";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 
 /** F3A: uzman rapor markalaması (null/yok → çıktı bugünküyle birebir). Veri kaynağı F1/F2 ile bağlanacak. */
 export type NumerolojiBrandingOptions = { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant };
+
+/**
+ * I18N-F1-R5 (P35): çıktı dili. Yok / kaynak dil → bugünkü Türkçe çıktı BAYT-EŞİT (golden:
+ * scripts/numeroloji/report-golden). Dil yalnız görünen metni seçer; hesap/snapshot/gizleme kararına GİRMEZ.
+ * #855 birleşince route'ta `resolveOutputLocale(req)` → `resolveReportLocale(req, hesap)` tek satır geçişi.
+ */
+export type NumerolojiWordOptions = NumerolojiBrandingOptions & { output?: OutputLocale | null };
+
+type Vars = Record<string, string | number>;
+type WordText = {
+  out: OutputLocale;
+  isSource: boolean;
+  /** reports.numerology.* (ICU değerleri DAİMA metin geçirilir → yıl/sayı gruplanmaz). */
+  w: (key: string, vars?: Vars) => string;
+  /** numerology.tabs.timing.preBirth (ekranla aynı katalog). */
+  pre: (key: string, values?: Record<string, string>) => string;
+  /** Bilgi Bankası kanonik değer (eşleşme anahtarı) → görünen etiket; değer DEĞİŞMEZ. */
+  kb: (value: string) => string;
+};
+type RawT = (k: string, v?: Record<string, string>) => string;
+const strVars = (v?: Vars): Record<string, string> | undefined => (v ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, String(x)])) : undefined);
+const TEXT_CACHE = new Map<string, WordText>();
+function wordText(out: OutputLocale | null | undefined): WordText {
+  const o = out ?? SOURCE_OUTPUT_LOCALE;
+  const hit = TEXT_CACHE.get(o.locale);
+  if (hit) return hit;
+  const t = getOutputTranslator(o, "reports.numerology") as unknown as RawT;
+  const pb = getOutputTranslator(o, "numerology.tabs.timing.preBirth") as unknown as RawT;
+  const vd = getOutputTranslator(o, "numerology.knowledge.valueDisplay") as unknown as RawT;
+  const isSource = o.locale === DEFAULT_LOCALE;
+  const wt: WordText = {
+    out: o,
+    isSource,
+    w: (k, v) => t(k, strVars(v)),
+    pre: (k, v) => pb(k, v),
+    kb: (value) => (isSource ? value : kbValueDisplay(value, vd)),
+  };
+  TEXT_CACHE.set(o.locale, wt);
+  return wt;
+}
+/** Etkin metin katmanı — dışa açık kurucular senkron bölümde ayarlar ve geri alır (await yok → istekler karışmaz). */
+let X: WordText | null = null;
+const L = (): WordText => X ?? wordText(null);
+function withWordText<T>(out: OutputLocale | null | undefined, fn: () => T): T {
+  const prev = X;
+  X = wordText(out);
+  try { return fn(); } finally { X = prev; }
+}
+const up = (s: string) => s.toLocaleUpperCase(L().out.intlTag);
+const ANALIZ_KEY: Record<string, string> = {
+  "ana-kulvar": "anaKulvar", "yan-kulvar": "yanKulvar", "ifade-sayisi": "ifadeSayisi",
+  "hayat-yolu": "hayatYolu", "cakra-omurga": "cakraOmurga", element: "element", diger: "diger",
+};
+const ELEMENT_KEY: Record<string, string> = { Hava: "hava", Su: "su", "Ateş": "ates", Toprak: "toprak", "Eter / Nötr": "notr" };
+/** Kanonik element adı (motor anahtarı) → görünen ad; birleşik "Ateş/Su" parça parça. */
+const elName = (e: string): string =>
+  L().isSource ? e : ELEMENT_KEY[e] ? L().w(`word.el.${ELEMENT_KEY[e]}`) : e.split("/").map((x) => (ELEMENT_KEY[x] ? L().w(`word.el.${ELEMENT_KEY[x]}`) : x)).join("/");
+/** Sekme etiketi (ekran sekme adlarıyla birebir; TR = WORD_TAB_LABELS). */
+export const wordTabLabel = (k: WordTabKey, output?: OutputLocale | null): string => wordText(output).w(`word.tabs.${k}`);
+const SECTION_KEY_BY_LABEL = new Map<string, string>(KULVAR_SECTION_TEMPLATE.map((t) => [t.label, t.key]));
+/** Bölüm etiketi: kontrol akışı TR şablon etiketiyle kalır; yalnız görünen metin dile göre. */
+const sectionLabelView = (label: string): string => {
+  if (L().isSource) return label;
+  const key = SECTION_KEY_BY_LABEL.get(label);
+  return key ? L().w(`word.notes.sections.${key}`) : label;
+};
 
 type Block = Paragraph | Table;
 
@@ -102,11 +172,7 @@ const S_H3 = 20;
 const S_SMALL = 18;
 const S_BIG = 34;
 
-const ANALIZ_LABELS: Record<string, string> = {
-  "ana-kulvar": "Ana Kulvar", "yan-kulvar": "Yan Kulvar", "ifade-sayisi": "İfade Sayısı",
-  "hayat-yolu": "Hayat Yolu", "cakra-omurga": "Çakra Omurga", element: "Element", diger: "Diğer",
-};
-const analizLabel = (k: string): string => ANALIZ_LABELS[k] ?? k;
+const analizLabel = (k: string): string => (ANALIZ_KEY[k] ? L().w(`analysisTypes.${ANALIZ_KEY[k]}`) : k);
 
 // ── Küçük yardımcılar ──────────────────────────────────────────────────────────
 function tr(text: string, o: { bold?: boolean; color?: string; size?: number } = {}): TextRun {
@@ -155,7 +221,7 @@ function subHeading(text: string, pageBreakBefore = false): Paragraph {
 // ── Kapak ──────────────────────────────────────────────────────────────────────
 function personInfoCard(adSoyad: string, birth: string, analiz: string, created: string): Table {
   const rowsData: [string, string][] = [
-    ["Danışan", adSoyad || "—"], ["Doğum Tarihi", birth || "—"], ["Analiz Tarihi", analiz || "—"], ["Rapor Tarihi", created || "—"],
+    [L().w("word.cover.client"), adSoyad || "—"], [L().w("word.cover.birthDate"), birth || "—"], [L().w("word.cover.analysisDate"), analiz || "—"], [L().w("word.cover.reportDate"), created || "—"],
   ];
   return new Table({
     width: { size: 82, type: WidthType.PERCENTAGE },
@@ -174,9 +240,9 @@ function personInfoCard(adSoyad: string, birth: string, analiz: string, created:
 function coverPage(reportType: string, selectedLabels: string[], adSoyad: string, birth: string, analiz: string, created: string, pageBreakBefore: boolean, brand: NumerolojiBrandingOptions = {}): Block[] {
   const out: Block[] = [];
   // Üst mor bant
-  out.push(new Paragraph({ pageBreakBefore, spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [tr("YAŞAM SİSTEMİ", { bold: true, color: WHITE, size: S_H3 })] }));
-  out.push(new Paragraph({ spacing: { before: 40, after: 500 }, alignment: AlignmentType.CENTER, children: [tr("Bütüncül Yaşam Analizi Platformu", { color: SECONDARY, size: S_SMALL })] }));
-  out.push(new Paragraph({ spacing: { before: 800, after: 120 }, alignment: AlignmentType.CENTER, children: [tr("NUMEROLOJİ ANALİZ RAPORU", { bold: true, color: INDIGO, size: S_H1 })] }));
+  out.push(new Paragraph({ pageBreakBefore, spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [tr(L().w("word.cover.brand"), { bold: true, color: WHITE, size: S_H3 })] }));
+  out.push(new Paragraph({ spacing: { before: 40, after: 500 }, alignment: AlignmentType.CENTER, children: [tr(L().w("word.cover.platform"), { color: SECONDARY, size: S_SMALL })] }));
+  out.push(new Paragraph({ spacing: { before: 800, after: 120 }, alignment: AlignmentType.CENTER, children: [tr(L().w("word.cover.title"), { bold: true, color: INDIGO, size: S_H1 })] }));
   // İnce lila ayraç
   out.push(new Paragraph({ spacing: { after: 240 }, alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: MOR } }, children: [] }));
   out.push(new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [tr(reportType, { bold: true, color: MOR, size: S_H2 })] }));
@@ -189,8 +255,8 @@ function coverPage(reportType: string, selectedLabels: string[], adSoyad: string
   // boşluğu daraltılır → kapak tek sayfada kalır.
   const expertBlock = expertCoverBlock(brand.branding, { variant: brand.brandingVariant, accent: MOR, ruleColor: "EDE9FE", before: 360 });
   out.push(...expertBlock);
-  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 500 : 900, after: 20 }, alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
-  out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [tr("Bütünsel farkındalık, kişisel dönüşüm", { color: SECONDARY, size: 16 })] }));
+  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 500 : 900, after: 20 }, alignment: AlignmentType.CENTER, children: [tr(L().w("word.cover.brandFooter"), { bold: true, color: MOR, size: S_SMALL })] }));
+  out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [tr(L().w("word.cover.motto"), { color: SECONDARY, size: 16 })] }));
   return out;
 }
 
@@ -207,7 +273,7 @@ function valueCards(items: { label: string; value: string }[]): Table {
         margins: { top: 120, bottom: 120, left: 60, right: 60 },
         width: { size: Math.floor(100 / items.length), type: WidthType.PERCENTAGE },
         children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [tr(it.label.toLocaleUpperCase("tr-TR"), { bold: true, color: SECONDARY, size: 15 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [tr(up(it.label), { bold: true, color: SECONDARY, size: 15 })] }),
           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(it.value, { bold: true, color: INDIGO, size: S_BIG })] }),
         ],
       })),
@@ -246,11 +312,11 @@ function pinPyramid(pin: unknown): Block[] {
 function chakraSpine(motor: NonNullable<Motor>): Block[] {
   const c = motor.cakraOmurgasi as { harfler?: Record<number, number>; sayilar?: Record<number, number> };
   const out: Block[] = [];
-  out.push(p("Sol sütun sayı desteğini, sağ sütun isim/harf desteğini gösterir.", { color: SECONDARY, size: S_SMALL, after: 80 }));
+  out.push(p(L().w("word.spine.lead"), { color: SECONDARY, size: S_SMALL, after: 80 }));
   const headerRow = new TableRow({ tableHeader: true, cantSplit: true, children: [
-    new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30, left: 90, right: 90 }, children: [new Paragraph({ alignment: AlignmentType.END, spacing: { after: 0 }, children: [tr("Sol Destek", { bold: true, color: INDIGO, size: S_SMALL })] })] }),
-    new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr("Çakra", { bold: true, color: INDIGO, size: S_SMALL })] })] }),
-    new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30, left: 90, right: 90 }, children: [new Paragraph({ spacing: { after: 0 }, children: [tr("Sağ Destek", { bold: true, color: INDIGO, size: S_SMALL })] })] }),
+    new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30, left: 90, right: 90 }, children: [new Paragraph({ alignment: AlignmentType.END, spacing: { after: 0 }, children: [tr(L().w("word.spine.left"), { bold: true, color: INDIGO, size: S_SMALL })] })] }),
+    new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30 }, children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(L().w("word.spine.chakra"), { bold: true, color: INDIGO, size: S_SMALL })] })] }),
+    new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, margins: { top: 30, bottom: 30, left: 90, right: 90 }, children: [new Paragraph({ spacing: { after: 0 }, children: [tr(L().w("word.spine.right"), { bold: true, color: INDIGO, size: S_SMALL })] })] }),
   ] });
   const rows = [headerRow];
   for (let n = 10; n >= 1; n -= 1) {
@@ -278,23 +344,23 @@ function elementCards(motor: NonNullable<Motor>): Block[] {
     rows: [new TableRow({ cantSplit: true, children: order.map((e) => {
       const cnt = el?.counts?.[e] ?? 0;
       return new TableCell({ verticalAlign: VerticalAlign.CENTER, shading: { type: ShadingType.CLEAR, fill: dominant === e ? LILA : GRAY, color: "auto" }, margins: { top: 110, bottom: 110, left: 40, right: 40 }, width: { size: 25, type: WidthType.PERCENTAGE }, children: [
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 30 }, children: [tr(e.toLocaleUpperCase("tr-TR"), { bold: true, color: dominant === e ? MOR : SECONDARY, size: 16 })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 30 }, children: [tr(up(elName(e)), { bold: true, color: dominant === e ? MOR : SECONDARY, size: 16 })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [tr(xRepeat(cnt), { bold: true, color: MOR })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(String(cnt), { bold: true, color: INDIGO, size: S_H2 })] }),
       ] });
     }) })],
   }));
   if (dominant) {
-    out.push(new Paragraph({ spacing: { before: 120, after: 20 }, alignment: AlignmentType.CENTER, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: [tr(`  BASKIN ELEMENT: ${dominant.toLocaleUpperCase("tr-TR")}  `, { bold: true, color: WHITE, size: S_H3 })] }));
+    out.push(new Paragraph({ spacing: { before: 120, after: 20 }, alignment: AlignmentType.CENTER, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: [tr(L().w("word.dominant", { el: up(elName(dominant)) }), { bold: true, color: WHITE, size: S_H3 })] }));
   }
-  if (typeof el?.neutralCount === "number" && el.neutralCount > 0) out.push(p(`Eter / Nötr: ${el.neutralCount}`, { color: SECONDARY, size: S_SMALL, after: 40 }));
+  if (typeof el?.neutralCount === "number" && el.neutralCount > 0) out.push(p(L().w("word.neutral", { n: el.neutralCount }), { color: SECONDARY, size: S_SMALL, after: 40 }));
   // PIN → element dağılımı (kompakt)
   const pin = motor.pinKodu as Record<string, unknown> | null;
   if (pin) {
     const parts: string[] = [];
     for (const k of ["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9"]) {
       const d = Number(pin[k]);
-      if (Number.isFinite(d) && DIGIT_ELEMENT[d]) parts.push(`${d} → ${DIGIT_ELEMENT[d]}`);
+      if (Number.isFinite(d) && DIGIT_ELEMENT[d]) parts.push(`${d} → ${elName(DIGIT_ELEMENT[d]!)}`);
     }
     if (parts.length) out.push(p(parts.join("   ·   "), { color: SECONDARY, size: S_SMALL }));
   }
@@ -320,19 +386,20 @@ function timelineCard(title: string, lines: string[]): Table {
 function degisimBlocks(birthDate: string, currentYear: number): Block[] {
   const out: Block[] = [];
   const y = cutoffDegisimYearOnly(birthDate, currentYear, 5);
-  if (y.length) { out.push(subHeading("Doğum yılına göre")); for (const r of y) out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki Dönemi: ${r.effectStartYear}–${r.effectEndYearDisplay}`])); }
+  const w = L().w;
+  if (y.length) { out.push(subHeading(w("word.change.byYear"))); for (const r of y) out.push(timelineCard(w("word.change.title", { i: r.index }), [w("word.change.year", { year: r.changeYear }), w("word.change.chakra", { n: r.chakra }), w("word.change.effectPeriod", { start: r.effectStartYear, end: r.effectEndYearDisplay })])); }
   const f = cutoffDegisimFullDate(birthDate, currentYear, 5);
   if (f.length) {
-    out.push(subHeading("Gün ve ay dâhil"));
-    for (const r of f) { const md = String(r.effectMonth).padStart(2, "0"); const dd = String(r.effectDay).padStart(2, "0"); out.push(timelineCard(`${r.index}. Değişim`, [`Yıl: ${r.changeYear}`, `Çakra: ${r.chakra}. çakra`, `Etki: ${r.effectStartYear}.${md}.${dd} – ${r.effectEndYearDisplay}.${md}.${dd}`])); }
+    out.push(subHeading(w("word.change.withDay")));
+    for (const r of f) { const md = String(r.effectMonth).padStart(2, "0"); const dd = String(r.effectDay).padStart(2, "0"); out.push(timelineCard(w("word.change.title", { i: r.index }), [w("word.change.year", { year: r.changeYear }), w("word.change.chakra", { n: r.chakra }), w("word.change.effect", { start: `${r.effectStartYear}.${md}.${dd}`, end: `${r.effectEndYearDisplay}.${md}.${dd}` })])); }
   }
   return out;
 }
 function zirveRowTable(rows: { index: number; age: number; topic: number; display?: string }[]): Block {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, rows: [new TableRow({ cantSplit: true, children: rows.map((pk) => new TableCell({ shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" }, margins: { top: 90, bottom: 90, left: 40, right: 40 }, verticalAlign: VerticalAlign.CENTER, children: [
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [tr(`${pk.index}. Zirve`, { bold: true, color: MOR, size: S_SMALL })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 10 }, children: [tr(`${pk.age} yaş`, { bold: true, color: INDIGO, size: S_H3 })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(pk.display && pk.display.includes("/") ? `${pk.display} (${pk.topic}. çakra)` : String(pk.topic), { color: BODY, size: S_SMALL })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [tr(L().w("word.peak.title", { i: pk.index }), { bold: true, color: MOR, size: S_SMALL })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 10 }, children: [tr(L().w("word.peak.age", { age: pk.age }), { bold: true, color: INDIGO, size: S_H3 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(pk.display && pk.display.includes("/") ? L().w("word.peak.topic", { display: pk.display, topic: pk.topic }) : String(pk.topic), { color: BODY, size: S_SMALL })] }),
   ] })) })] });
 }
 /** Zirve yaşları: iki metot (UI ile aynı zirveYasGorunumu helper'ı); eski snapshot kayıtlı tek liste. */
@@ -342,7 +409,9 @@ function zirveCards(motor: NonNullable<Motor>, birthYear: number | null, current
   if (g.format === "kayitli") return g.peaks.length ? [zirveRowTable(g.peaks)] : [];
   if (!g.metot1.length && !g.metot2.length) return [];
   const out: Block[] = [];
-  for (const [label, rows] of [[ZIRVE_METOT1_LABEL, g.metot1], [ZIRVE_METOT2_LABEL, g.metot2]] as const) {
+  const m1 = L().isSource ? ZIRVE_METOT1_LABEL : L().w("word.peak.method1");
+  const m2 = L().isSource ? ZIRVE_METOT2_LABEL : L().w("word.peak.method2");
+  for (const [label, rows] of [[m1, g.metot1], [m2, g.metot2]] as const) {
     out.push(p(label, { color: MOR, size: S_SMALL, before: 60, after: 30 }));
     out.push(rows.length ? zirveRowTable(rows) : p("—", { color: SECONDARY, size: S_SMALL }));
   }
@@ -354,23 +423,23 @@ function mucadeleBlocks(motor: NonNullable<Motor>, birthYear: number | null, cur
   if (!c) return [];
   const cards: { title: string; mid: string; topic: number }[] =
     c.format === "onceki"
-      ? c.points.map((pt) => ({ title: `${pt.index}. Mücadele`, mid: `${pt.age} yaş`, topic: pt.topic }))
+      ? c.points.map((pt) => ({ title: L().w("word.challenge.title", { i: pt.index }), mid: L().w("word.challenge.age", { age: pt.age }), topic: pt.topic }))
       : [
           ...c.periods.map((pd) => ({
-            title: `${pd.index}. Mücadele`,
-            mid: pd.index === 1 ? `${pd.cutoffAge} yaşına kadar` : `sonraki 27 yıl · geçiş sınırı ${pd.cutoffAge}`,
+            title: L().w("word.challenge.title", { i: pd.index }),
+            mid: pd.index === 1 ? L().w("word.challenge.until", { age: pd.cutoffAge }) : L().w("word.challenge.next", { age: pd.cutoffAge }),
             topic: pd.topic,
           })),
-          ...(c.ana ? [{ title: "Ana Mücadele", mid: `${c.ana.startAge} sonrası`, topic: c.ana.topic }] : []),
+          ...(c.ana ? [{ title: L().w("word.challenge.main"), mid: L().w("word.challenge.after", { age: c.ana.startAge }), topic: c.ana.topic }] : []),
         ];
   if (!cards.length) return [];
-  const out: Block[] = [subHeading("Mücadele Yılları")];
+  const out: Block[] = [subHeading(L().w("word.h.challenges"))];
   out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, rows: [new TableRow({ cantSplit: true, children: cards.map((it) => new TableCell({ shading: { type: ShadingType.CLEAR, fill: GRAY, color: "auto" }, margins: { top: 80, bottom: 80, left: 40, right: 40 }, children: [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 16 }, children: [tr(it.title, { bold: true, color: MOR, size: S_SMALL })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 10 }, children: [tr(it.mid, { bold: true, color: INDIGO, size: S_SMALL })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(`konu ${mucadeleKonuText(it.topic)}`, { color: BODY, size: S_SMALL })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [tr(L().isSource ? `konu ${mucadeleKonuText(it.topic)}` : L().w("word.challenge.topic", { topic: it.topic === 0 ? L().w("word.challenge.topicZero") : L().w("word.challenge.topicChakra", { n: it.topic }) }), { color: BODY, size: S_SMALL })] }),
   ] })) })] }));
-  if (c.format === "onceki") out.push(p(MUCADELE_ONCEKI_METOD_NOTU, { color: SECONDARY, size: S_SMALL, before: 40 }));
+  if (c.format === "onceki") out.push(p(L().isSource ? MUCADELE_ONCEKI_METOD_NOTU : L().w("word.challenge.prevNote"), { color: SECONDARY, size: S_SMALL, before: 40 }));
   return out;
 }
 function harflerTable(motor: NonNullable<Motor>, currentYear: number): Block | null {
@@ -378,10 +447,11 @@ function harflerTable(motor: NonNullable<Motor>, currentYear: number): Block | n
   if (!Array.isArray(hy) || !hy.length) return null;
   const cut = cutoffHarfSegments(hy, currentYear);
   if (!cut.length) return null;
-  return dataTable(["Sıra", "Harf", "Çakra", "Yaş Aralığı", "Yıl Aralığı"], cut.map((s, i) => {
+  const w = L().w;
+  return dataTable([w("word.letters.no"), w("word.letters.letter"), w("word.letters.chakra"), w("word.letters.ages"), w("word.letters.years")], cut.map((s, i) => {
     const yearEnd = harfDisplayYearEnd(s);
     const yil = s.yearStart != null && yearEnd != null ? `${s.yearStart}–${yearEnd}` : "—";
-    return [String(i + 1), s.letter, `${s.chakra}. çakra`, `${s.ageStart}–${harfDisplayAgeEnd(s)}`, yil];
+    return [String(i + 1), s.letter, w("word.letters.chakraCell", { n: s.chakra }), `${s.ageStart}–${harfDisplayAgeEnd(s)}`, yil];
   }), [12, 14, 20, 27, 27]);
 }
 
@@ -398,7 +468,7 @@ function conceptDef(text: string): Paragraph {
 }
 /** Sol-mor vurgulu "Etiket: Değer" + (varsa) yorum kartı. */
 function timingItemCard(label: string, value: string, interpretation?: string): Table {
-  const lines = [`Değer: ${value}`];
+  const lines = [L().w("word.timing.value", { value })];
   if (interpretation && interpretation.trim()) lines.push(interpretation.trim());
   return timelineCard(label, lines);
 }
@@ -419,56 +489,57 @@ function timingBlocks(firstName: string, lastName: string, birthDate: string, re
   const preBirth = isPreBirth(cyc) && bp !== null;
 
   const out: Block[] = [];
+  const { w, isSource, pre } = L();
   // Referans tarih — rapor yıllar sonra açıldığında bağlam netliği için AÇIKÇA yazılır.
-  out.push(p(`Zamanlama Referans Tarihi: ${fmtCalendar(ref)}`, { bold: true, color: INDIGO, size: S_SMALL, after: 140 }));
-  if (preBirth && bp) out.push(p(preBirthNote(bp, ref), { color: SECONDARY, size: S_SMALL, after: 140 }));
+  out.push(p(w("word.timing.refDate", { date: fmtCalendar(ref) }), { bold: true, color: INDIGO, size: S_SMALL, after: 140 }));
+  if (preBirth && bp) out.push(p(isSource ? preBirthNote(bp, ref) : preBirthNoteEn(pre, bp, ref), { color: SECONDARY, size: S_SMALL, after: 140 }));
 
-  out.push(subHeading("Evrensel Zamanlama"));
-  out.push(timingItemCard("Evrensel Yıl", u.universalYear.display, u.universalYear.interpretation));
-  out.push(timingItemCard("Evrensel Ay", u.universalMonth.display, u.universalMonth.interpretation));
-  out.push(timingItemCard("Evrensel Gün", u.universalDay.display, u.universalDay.interpretation));
+  out.push(subHeading(w("word.timing.universal")));
+  out.push(timingItemCard(w("word.timing.universalYear"), u.universalYear.display, u.universalYear.interpretation));
+  out.push(timingItemCard(w("word.timing.universalMonth"), u.universalMonth.display, u.universalMonth.interpretation));
+  out.push(timingItemCard(w("word.timing.universalDay"), u.universalDay.display, u.universalDay.interpretation));
 
-  out.push(subHeading("Kişisel Zamanlama"));
-  out.push(conceptDef("Nominal Kişisel Yıl: seçilen takvim yılının kişisel yıl hesabıdır; o tarihte fiilen aktif olan kişisel yıl farklı olabilir."));
-  out.push(timingItemCard(`Nominal Kişisel Yıl (${ref.year})`, py.nominal.display, py.nominal.interpretation));
-  out.push(conceptDef("Aktif Kişisel Yıl: referans tarihte içinde bulunduğunuz, doğum gününüzde başlayıp bir sonraki doğum gününe kadar süren kişisel yıl dönemidir."));
+  out.push(subHeading(w("word.timing.personal")));
+  out.push(conceptDef(w("word.timing.nominalDef")));
+  out.push(timingItemCard(w("word.timing.nominal", { year: ref.year }), py.nominal.display, py.nominal.interpretation));
+  out.push(conceptDef(w("word.timing.activeDef")));
   out.push(
     preBirth && bp
-      ? timelineCard("Aktif Kişisel Yıl", [preBirthActiveYearText(bp)])
-      : timelineCard("Aktif Kişisel Yıl", [
-          `Değer: ${py.active.display}`,
-          `Aktif Dönem: ${fmtCalendar(py.active.periodStart)} – ${fmtCalendar(py.active.periodEnd)}`,
+      ? timelineCard(w("word.timing.active"), [isSource ? preBirthActiveYearText(bp) : preBirthActiveYearTextEn(pre, bp)])
+      : timelineCard(w("word.timing.active"), [
+          w("word.timing.value", { value: py.active.display }),
+          w("word.timing.activePeriod", { start: fmtCalendar(py.active.periodStart), end: fmtCalendar(py.active.periodEnd) }),
           ...(py.active.interpretation ? [py.active.interpretation] : []),
         ]),
   );
-  out.push(timingItemCard("Kişisel Ay", per.personalMonth.display, per.personalMonth.interpretation));
-  out.push(timingItemCard("Kişisel Gün", per.personalDay.display, per.personalDay.interpretation));
+  out.push(timingItemCard(w("word.timing.personalMonth"), per.personalMonth.display, per.personalMonth.interpretation));
+  out.push(timingItemCard(w("word.timing.personalDay"), per.personalDay.display, per.personalDay.interpretation));
 
-  out.push(subHeading("Yaşam Evresi"));
-  out.push(conceptDef("Evre: yaşamın dokuz yıllık büyük gelişim dönemlerinden bulunduğunuz dönemi gösterir. Döngü: bu evrenin içinde kaçıncı yılda olduğunuzu gösterir (Evre ile aynı şey değildir)."));
+  out.push(subHeading(w("word.timing.phase")));
+  out.push(conceptDef(w("word.timing.phaseDef")));
   if (preBirth) {
-    out.push(p(preBirthEvreText(cyc.timeline[0]?.energy), { color: SECONDARY, size: S_SMALL }));
+    out.push(p(isSource ? preBirthEvreText(cyc.timeline[0]?.energy) : preBirthEvreTextEn(pre, cyc.timeline[0]?.energy), { color: SECONDARY, size: S_SMALL }));
   } else if (cyc.evre) {
     out.push(
-      timelineCard(`Evre ${cyc.evre.index} · Yaş ${cyc.age}`, [
-        `Evre Enerjisi: ${cyc.evre.energy}`,
+      timelineCard(w("word.timing.evreTitle", { i: cyc.evre.index, age: cyc.age }), [
+        w("word.timing.evreEnergy", { energy: cyc.evre.energy }),
         ...(cyc.evre.interpretation ? [cyc.evre.interpretation] : []),
       ]),
     );
     if (cyc.dongu) {
-      out.push(timingItemCard(`Döngü ${cyc.dongu.index}`, String(cyc.dongu.index), cyc.dongu.interpretation));
+      out.push(timingItemCard(w("word.timing.dongu", { i: cyc.dongu.index }), String(cyc.dongu.index), cyc.dongu.interpretation));
     }
   } else {
-    out.push(p(`Yaş ${cyc.age}. Bu yaş için yaşam evresi döngü aralığı tanımlı değildir.`, { color: SECONDARY, size: S_SMALL }));
+    out.push(p(w("word.timing.noPhase", { age: cyc.age }), { color: SECONDARY, size: S_SMALL }));
   }
 
-  out.push(subHeading("Bireysel Gelişim"));
-  out.push(timingItemCard("Güncel Yıl Çakrası", dev.yearChakra.display, dev.yearChakra.interpretation));
-  out.push(timingItemCard("Olgunluk", dev.maturity.display, dev.maturity.interpretation));
-  out.push(timingItemCard(`Doğum Günü Enerjisi (Ayın ${dev.birthDayEnergy.display}. günü)`, dev.birthDayEnergy.display, dev.birthDayEnergy.interpretation));
-  out.push(timingItemCard("Kişilik Enerjisi", dev.personalityEnergy.display, dev.personalityEnergy.interpretation));
-  out.push(timingItemCard("Hayat Dersi", dev.lifeLesson.display, dev.lifeLesson.interpretation));
-  out.push(timingItemCard("Kader Sayısı", dev.destiny.display, dev.destiny.interpretation));
+  out.push(subHeading(w("word.timing.development")));
+  out.push(timingItemCard(w("word.timing.yearChakra"), dev.yearChakra.display, dev.yearChakra.interpretation));
+  out.push(timingItemCard(w("word.timing.maturity"), dev.maturity.display, dev.maturity.interpretation));
+  out.push(timingItemCard(w("word.timing.birthDayEnergy", { d: dev.birthDayEnergy.display }), dev.birthDayEnergy.display, dev.birthDayEnergy.interpretation));
+  out.push(timingItemCard(w("word.timing.personality"), dev.personalityEnergy.display, dev.personalityEnergy.interpretation));
+  out.push(timingItemCard(w("word.timing.lifeLesson"), dev.lifeLesson.display, dev.lifeLesson.interpretation));
+  out.push(timingItemCard(w("word.timing.destiny"), dev.destiny.display, dev.destiny.interpretation));
 
   return out;
 }
@@ -480,20 +551,24 @@ function potentialBlock(label: string, body: string, fill: string): Paragraph {
 const POT_FILL: Record<string, string> = { "Yapıcı Potansiyeller": GREEN_BG, "Olumsuz Potansiyeller": AMBER_BG, "Yıkıcı Potansiyeller": RED_BG };
 
 function commentCards(matchedNotes: KnowledgeNote[], shared: WordSharedData): Block[] {
-  const groups: PersonSourceNoteGroup[] = personSourceNotesForRecords(matchedNotes.map((n) => ({ id: n.id, analysisType: n.analysisType, value: n.value } as MatchedNoteRef)), shared.entries, shared.sourceLabelById);
+  const { w, isSource } = L();
+  const noteLabels = isSource ? undefined : { own: w("word.notes.expertOwn"), unknown: w("word.notes.unknownSource") };
+  const generalSuffixTr = wordText(SOURCE_OUTPUT_LOCALE).w("word.notes.generalSuffix");
+  const suffixView = (sfx: string | undefined): string => (!sfx ? "" : isSource ? sfx : sfx === generalSuffixTr ? w("word.notes.generalSuffix") : sfx);
+  const groups: PersonSourceNoteGroup[] = personSourceNotesForRecords(matchedNotes.map((n) => ({ id: n.id, analysisType: n.analysisType, value: n.value } as MatchedNoteRef)), shared.entries, shared.sourceLabelById, noteLabels);
   const groupById = new Map(groups.map((g) => [g.ref.id, g]));
   const out: Block[] = [];
   for (const note of matchedNotes) {
     const secs = resolveNoteSectionsForView(note).map((s) => ({ label: s.label, body: (s.body || "").trim() })).filter((s) => s.body !== "");
     const grp = groupById.get(note.id);
     if (secs.length === 0 && (!grp || grp.notes.length === 0)) continue;
-    out.push(new Paragraph({ keepNext: true, spacing: { before: 160, after: 60 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: [tr(`  ${noteHeading(note.analysisType, note.value)}${note.headingSuffix ?? ""}`, { bold: true, color: WHITE, size: S_H3 })] }));
+    out.push(new Paragraph({ keepNext: true, spacing: { before: 160, after: 60 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: [tr(`  ${isSource ? noteHeading(note.analysisType, note.value) : `${analizLabel(note.analysisType)} — ${L().kb(note.value)}`}${suffixView(note.headingSuffix)}`, { bold: true, color: WHITE, size: S_H3 })] }));
     for (const s of secs) {
       if (!s.label || s.label === "Genel Açıklama") out.push(p(s.body, { justify: true }));
-      else if (POT_FILL[s.label]) out.push(potentialBlock(s.label, s.body, POT_FILL[s.label]!));
-      else { out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 20 }, children: [tr(s.label, { bold: true, color: INDIGO, size: S_SMALL })] })); out.push(p(s.body, { justify: true })); }
+      else if (POT_FILL[s.label]) out.push(potentialBlock(sectionLabelView(s.label), s.body, POT_FILL[s.label]!));
+      else { out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 20 }, children: [tr(sectionLabelView(s.label), { bold: true, color: INDIGO, size: S_SMALL })] })); out.push(p(s.body, { justify: true })); }
     }
-    if (grp) for (const nt of grp.notes) out.push(new Paragraph({ spacing: { before: 40, after: 60, line: 264 }, shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" }, border: { left: { style: BorderStyle.SINGLE, size: 16, color: MOR, space: 6 } }, children: [tr(`Kaynak Notu${nt.label ? ` — ${nt.label}` : ""}: `, { bold: true, color: INDIGO, size: S_SMALL }), tr(nt.body.trim(), {})] }));
+    if (grp) for (const nt of grp.notes) out.push(new Paragraph({ spacing: { before: 40, after: 60, line: 264 }, shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" }, border: { left: { style: BorderStyle.SINGLE, size: 16, color: MOR, space: 6 } }, children: [tr(`${w("word.notes.sourceNote")}${nt.label ? ` — ${nt.label}` : ""}: `, { bold: true, color: INDIGO, size: S_SMALL }), tr(nt.body.trim(), {})] }));
   }
   return out;
 }
@@ -524,7 +599,7 @@ function stoneColumns(stones: string[], stockIndex: StockIndex, contextTitle: st
       shading: { type: ShadingType.CLEAR, fill: LILA, color: "auto" },
       borders: NO_BORDERS,
       margins: { top: 30, bottom: 30, left: 60, right: 60 },
-      children: [new Paragraph({ spacing: { after: 0 }, children: [tr(`${contextTitle}  ·  Önerilen Taşlar — Devam`, { bold: true, color: MOR, size: S_SMALL })] })],
+      children: [new Paragraph({ spacing: { after: 0 }, children: [tr(L().w("word.stones.continued", { ctx: contextTitle }), { bold: true, color: MOR, size: S_SMALL })] })],
     })],
   }));
   for (let i = 0; i < stones.length; i += cols) {
@@ -535,7 +610,7 @@ function stoneColumns(stones: string[], stockIndex: StockIndex, contextTitle: st
       const info = matchStock(s, stockIndex);
       // Stoktaki taş: açık yeşil hücre + ✓ + "Stokta[· N adet]". Yoksa nötr madde işareti.
       const runs = info.stocked
-        ? [tr("✓ ", { bold: true, color: GREEN_TXT }), tr(s, { bold: true }), tr(`  — ${stockLabel(info)}`, { bold: true, color: GREEN_TXT, size: S_SMALL })]
+        ? [tr("✓ ", { bold: true, color: GREEN_TXT }), tr(s, { bold: true }), tr(`  — ${stockText(info)}`, { bold: true, color: GREEN_TXT, size: S_SMALL })]
         : [tr(`•  ${s}`, {})];
       return new TableCell({
         shading: info.stocked ? { type: ShadingType.CLEAR, fill: GREEN_BG, color: "auto" } : undefined,
@@ -547,16 +622,22 @@ function stoneColumns(stones: string[], stockIndex: StockIndex, contextTitle: st
   }
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NO_BORDERS, rows });
 }
+function stockText(info: StockInfo): string {
+  if (L().isSource) return stockLabel(info);
+  if (!info.stocked) return "";
+  return info.adet > 0 ? L().w("word.stones.inStockCount", { n: info.adet }) : L().w("word.stones.inStock");
+}
 function stoneStatusLabel(value: string): string | null {
+  // Karar KANONİK değerin TR büyük harfinden (dilden bağımsız); yalnız rozet metni dile göre.
   const v = value.toLocaleUpperCase("tr-TR");
-  if (v.includes("FAZLA")) return "FAZLA DESTEK";
-  if (v.includes("AZ")) return "AZ DESTEK";
+  if (v.includes("FAZLA")) return L().w("word.stones.excess");
+  if (v.includes("AZ")) return L().w("word.stones.low");
   return null;
 }
 function tasBlocks(motor: Motor, shared: WordSharedData, stockIndex: StockIndex): Block[] {
   const out: Block[] = [];
   if (!motor) return out;
-  out.push(p(STOCK_HINT_WORD, { color: SECONDARY, size: S_SMALL, after: 100 }));
+  out.push(p(L().isSource ? STOCK_HINT_WORD : L().w("word.stones.hint"), { color: SECONDARY, size: S_SMALL, after: 100 }));
   const seen = new Set<string>();
   let any = false;
   for (const plan of buildKnowledgeLookupPlan(motor)) {
@@ -574,14 +655,14 @@ function tasBlocks(motor: Motor, shared: WordSharedData, stockIndex: StockIndex)
       any = true;
       matchedInPlan = true;
       const badge = stoneStatusLabel(st.value);
-      const titleRuns: TextRun[] = [tr(`  ${analizLabel(st.analysis_type)} — ${st.value}`, { bold: true, color: WHITE, size: S_H3 })];
+      const titleRuns: TextRun[] = [tr(`  ${analizLabel(st.analysis_type)} — ${L().kb(st.value)}`, { bold: true, color: WHITE, size: S_H3 })];
       if (badge) titleRuns.push(tr(`    [ ${badge} ]`, { bold: true, color: LILA, size: S_SMALL }));
       // Kart başlığı + ilk açıklama paragrafı aynı sayfada (keepNext); tek satır/başlık artık kalmaz.
       out.push(new Paragraph({ keepNext: true, spacing: { before: 150, after: 60 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, children: titleRuns }));
       if (st.reason?.trim()) out.push(new Paragraph({ keepNext: stones.length > 0, spacing: { after: 100, line: 264 }, alignment: AlignmentType.JUSTIFIED, children: [tr(st.reason.trim())] }));
       if (stones.length > 0) {
-        out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 30 }, children: [tr("Önerilen Taşlar", { bold: true, color: INDIGO, size: S_SMALL })] }));
-        const contextTitle = `${analizLabel(st.analysis_type)} — ${st.value}`;
+        out.push(new Paragraph({ keepNext: true, spacing: { before: 40, after: 30 }, children: [tr(L().w("word.stones.recommended"), { bold: true, color: INDIGO, size: S_SMALL })] }));
+        const contextTitle = `${analizLabel(st.analysis_type)} — ${L().kb(st.value)}`;
         out.push(stoneColumns(stones, stockIndex, contextTitle, stones.length >= 6 ? 3 : 2));
       }
     }
@@ -602,8 +683,26 @@ export function buildPersonSections(
   now: Date = new Date(),
   /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi (route; istemci değeri DEĞİL). Varsayılan KAPALI. */
   futureYears: boolean = false,
-  brand: NumerolojiBrandingOptions = {},
+  brand: NumerolojiWordOptions = {},
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
+  return withWordText(brand.output, () => personSectionsImpl(row, sections, shared, reportType, selectedLabels, personIndex, stockIndex, refCalendar, now, futureYears, brand));
+}
+
+function personSectionsImpl(
+  row: WordRecordRow,
+  sections: WordPersonSections,
+  shared: WordSharedData,
+  reportType: string,
+  selectedLabels: string[],
+  personIndex: number,
+  stockIndex: StockIndex,
+  refCalendar: CalendarDate | null,
+  now: Date,
+  futureYears: boolean,
+  brand: NumerolojiWordOptions,
+): { children: Block[]; emptyTabs: WordTabKey[] } {
+  const { w, isSource, out: lang } = L();
+  const dateOpts = isSource ? {} : { locale: lang.intlTag };
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
   // MODEL C (UI ile aynı politika): Word, kaydın KAYDEDİLDİĞİ GÜNKÜ snapshot'ını ve kayıtlı özet
@@ -625,13 +724,13 @@ export function buildPersonSections(
   const adSoyad = `${row.name} ${row.surname}`.trim() || "—";
   // FA-02: analiz anı (created_at timestamptz) Europe/Istanbul; rapor tarihi yerel gün;
   // doğum tarihi TEXT (ISO veya GG.AA.YYYY) → kaydırmasız gösterim (anlaşılamazsa ham metin).
-  const analiz = formatInstantDateTime(row.created_at, { fallback: "—" });
-  const created = reportGeneratedLabel(undefined, now);
-  const birthLabel = formatDateLoose(row.birth_date, { fallback: row.birth_date || "—" });
+  const analiz = formatInstantDateTime(row.created_at, { fallback: "—", ...dateOpts });
+  const created = reportGeneratedLabel(isSource ? undefined : dateOpts, now);
+  const birthLabel = formatDateLoose(row.birth_date, { fallback: row.birth_date || "—", ...dateOpts });
 
   // Kapak (kişi başına bir kez)
   children.push(...coverPage(reportType, selectedLabels, adSoyad, birthLabel, analiz, created, personIndex > 0, brand));
-  if (resolved.legacy) children.push(p(LEGACY_METHOD_NOTE, { color: SECONDARY, size: S_SMALL, after: 120 }));
+  if (resolved.legacy) children.push(p(isSource ? LEGACY_METHOD_NOTE : w("word.legacyNote"), { color: SECONDARY, size: S_SMALL, after: 120 }));
 
   const matched: KnowledgeNote[] = [];
   if (motor && (sections.summary || sections.detailed)) {
@@ -639,15 +738,15 @@ export function buildPersonSections(
     for (const plan of buildKnowledgeLookupPlan(motor)) for (const nt of pickNotesForType(shared.knowledgeRows, plan.analysisType, plan.values, seen, plan)) matched.push(nt);
   }
   const temelItems = (m: NonNullable<Motor>) => [
-    { label: "Ana Kulvar", value: noSpread(m.anaKulvar) },
-    { label: "Yan Kulvar", value: noSpread(m.yanKulvar) },
-    { label: "İfade Sayısı", value: noSpread(m.ifadeSayisi) },
-    { label: "Hayat Yolu / DM", value: noSpread(m.hayatYolu) },
+    { label: w("word.core.anaKulvar"), value: noSpread(m.anaKulvar) },
+    { label: w("word.core.yanKulvar"), value: noSpread(m.yanKulvar) },
+    { label: w("word.core.ifadeSayisi"), value: noSpread(m.ifadeSayisi) },
+    { label: w("word.core.hayatYolu"), value: noSpread(m.hayatYolu) },
   ];
 
   const add = (tab: WordTabKey, blocks: Block[]) => {
     if (blocks.length === 0) { emptyTabs.push(tab); return; }
-    children.push(sectionHeading(WORD_TAB_LABELS[tab], true));
+    children.push(sectionHeading(w(`word.tabs.${tab}`), true));
     children.push(...blocks);
   };
 
@@ -657,53 +756,54 @@ export function buildPersonSections(
 
     if (tab === "summary") {
       if (motor) {
-        blocks.push(subHeading("Numerolojik Profil Özeti"));
+        blocks.push(subHeading(w("word.h.profileSummary")));
         blocks.push(valueCards(temelItems(motor)));
-        blocks.push(subHeading("PIN Kodu"));
+        blocks.push(subHeading(w("word.h.pin")));
         blocks.push(...pinPyramid(motor.pinKodu));
       }
-      if (matched.length) { blocks.push(subHeading("Ana Yorumlar")); blocks.push(...commentCards(matched, shared)); }
+      if (matched.length) { blocks.push(subHeading(w("word.h.mainComments"))); blocks.push(...commentCards(matched, shared)); }
       else if (summary && !motor) blocks.push(p(summary, { justify: true }));
       // Kayıtlı summary metni de varsa (yorum yoksa) ekle — kesme yok.
-      if (!matched.length && summary && motor) { blocks.push(subHeading("Sonuç Özeti")); for (const b of summary.split(/\n{2,}/)) { const t = b.trim(); if (t) blocks.push(p(t, { justify: true })); } }
+      if (!matched.length && summary && motor) { blocks.push(subHeading(w("word.h.resultSummary"))); for (const b of summary.split(/\n{2,}/)) { const t = b.trim(); if (t) blocks.push(p(t, { justify: true })); } }
     } else if (tab === "plain") {
       if (motor) {
-        blocks.push(subHeading("Temel Numeroloji Değerleri"));
+        blocks.push(subHeading(w("word.h.coreValues")));
         blocks.push(valueCards(temelItems(motor)));
-        blocks.push(subHeading("PIN Kodu"));
+        blocks.push(subHeading(w("word.h.pin")));
         blocks.push(...pinPyramid(motor.pinKodu));
-        blocks.push(subHeading("Çakra Omurgası"));
+        blocks.push(subHeading(w("word.h.spine")));
         blocks.push(...chakraSpine(motor));
-        blocks.push(subHeading("Elementler"));
+        blocks.push(subHeading(w("word.h.elements")));
         blocks.push(...elementCards(motor));
-        const chronoNote = () => p(chronoNoteText(futureYears), { size: S_SMALL, color: BODY, before: 40 });
+        // Not metni dile göre; hangi notun basılacağı (yetki) ve kesim kararı dilden bağımsız.
+        const chronoNote = () => p(isSource ? chronoNoteText(futureYears) : w(futureYears ? "word.chrono.full" : "word.chrono.cutoff"), { size: S_SMALL, color: BODY, before: 40 });
         const deg = chronoOpen ? degisimBlocks(row.birth_date, chronoCutoffYear) : [];
-        if (deg.length) { blocks.push(subHeading("Değişim — Dönüşüm")); blocks.push(...deg); blocks.push(chronoNote()); }
-        const z = zirveCards(motor, chronoBirthYear, chronoCutoffYear); if (z.length) { blocks.push(subHeading("Zirve Yılları")); blocks.push(...z); blocks.push(chronoNote()); }
+        if (deg.length) { blocks.push(subHeading(w("word.h.change"))); blocks.push(...deg); blocks.push(chronoNote()); }
+        const z = zirveCards(motor, chronoBirthYear, chronoCutoffYear); if (z.length) { blocks.push(subHeading(w("word.h.peaks"))); blocks.push(...z); blocks.push(chronoNote()); }
         // AŞAMA 1 P3: mucadeleBlocks kendi "Mücadele Yılları" alt başlığını üretir; burada tekrar eklenmez.
         const muc = mucadeleBlocks(motor, chronoBirthYear, chronoCutoffYear); if (muc.length) { blocks.push(...muc); blocks.push(chronoNote()); }
-        const harf = chronoOpen ? harflerTable(motor, chronoCutoffYear) : null; if (harf) { blocks.push(subHeading("Harflerin Yankılanışı", true)); blocks.push(harf); blocks.push(chronoNote()); }
+        const harf = chronoOpen ? harflerTable(motor, chronoCutoffYear) : null; if (harf) { blocks.push(subHeading(w("word.h.letters"), true)); blocks.push(harf); blocks.push(chronoNote()); }
       }
     } else if (tab === "detailed") {
       // Hesap Özetsiz de seçiliyse hesap bölümlerini TEKRAR ETME → doğrudan yorumlara geç.
       if (!sections.plain && motor) {
-        blocks.push(subHeading("Kısa Numerolojik Profil"));
+        blocks.push(subHeading(w("word.h.shortProfile")));
         blocks.push(valueCards(temelItems(motor)));
-        blocks.push(subHeading("PIN Kodu"));
+        blocks.push(subHeading(w("word.h.pin")));
         blocks.push(...pinPyramid(motor.pinKodu));
-        blocks.push(subHeading("Çakra Omurgası"));
+        blocks.push(subHeading(w("word.h.spine")));
         blocks.push(...chakraSpine(motor));
-        blocks.push(subHeading("Elementler"));
+        blocks.push(subHeading(w("word.h.elements")));
         blocks.push(...elementCards(motor));
       }
       const yorum = commentCards(matched, shared);
-      if (yorum.length) { blocks.push(subHeading("Numerolojik Yorumlar ve Bilgi Bankası Açıklamaları")); blocks.push(...yorum); }
+      if (yorum.length) { blocks.push(subHeading(w("word.h.comments"))); blocks.push(...yorum); }
     } else if (tab === "zamanlama") {
       // Referans tarih route'ta doğrulanır; yoksa (savunma) bölüm boş kalır.
       if (refCalendar) blocks = timingBlocks(row.name, row.surname, row.birth_date, refCalendar);
     } else if (tab === "tas") {
       blocks = tasBlocks(motor, shared, stockIndex);
-      if (blocks.length) blocks.unshift(subHeading("Kişiye Özel Taş Destekleri"));
+      if (blocks.length) blocks.unshift(subHeading(w("word.h.stones")));
     }
 
     add(tab, blocks);
@@ -721,11 +821,25 @@ export function buildNumerolojiWordChildren(
   now: Date = new Date(),
   /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi. Varsayılan KAPALI (fail-closed). */
   futureYears: boolean = false,
-  brand: NumerolojiBrandingOptions = {},
+  brand: NumerolojiWordOptions = {},
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
+  return withWordText(brand.output, () => wordChildrenImpl(rows, sections, shared, stockIndex, refCalendar, now, futureYears, brand));
+}
+
+function wordChildrenImpl(
+  rows: WordRecordRow[],
+  sections: WordPersonSections,
+  shared: WordSharedData,
+  stockIndex: StockIndex,
+  refCalendar: CalendarDate | null,
+  now: Date,
+  futureYears: boolean,
+  brand: NumerolojiWordOptions,
+): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
+  const { w } = L();
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
-  const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
-  const selectedLabels = selected.map((k) => WORD_TAB_LABELS[k]);
+  const reportType = selected.length === 1 ? w(`word.tabs.${selected[0]!}`) : w("word.selectedSections");
+  const selectedLabels = selected.map((k) => w(`word.tabs.${k}`));
   const all: Block[] = [];
   const emptyTabSet = new Set<WordTabKey>();
   let anyContent = false;
@@ -741,8 +855,31 @@ export function buildNumerolojiWordChildren(
   return { children: all, emptyTabs: Array.from(emptyTabSet), anyContent };
 }
 
+/**
+ * I18N-F1-R5: Word dosya adı (çıktı dili). Kaynak dilde route'un ürettiği TR adı AYNEN döner (bugünkü ad birebir);
+ * diğer dillerde sistem parçaları katalogdan, kişi adı parçası güvenli ASCII (kullanıcı içeriği, çevrilmez).
+ */
+export function numerologyWordFileName(
+  output: OutputLocale | null | undefined,
+  sourceName: string,
+  ctx: { rows: { name: string; surname: string }[]; selectedTabs: WordTabKey[]; isSingle: boolean },
+): string {
+  const lt = wordText(output);
+  if (lt.isSource) return sourceName;
+  const parts = {
+    prefix: lt.w("word.file.prefix"),
+    selected: lt.w("word.file.selected"),
+    fallback: lt.w("word.file.fallbackName"),
+    tabFile: Object.fromEntries(WORD_TAB_ORDER.map((k) => [k, lt.w(`word.tabsFile.${k}`)])) as Record<WordTabKey, string>,
+  };
+  const first = ctx.rows[0]!;
+  return ctx.isSingle
+    ? wordFileName(`${first.name} ${first.surname}`, ctx.selectedTabs, parts)
+    : `${parts.prefix}_${ctx.rows.length}_${lt.w("word.file.records")}_${ctx.selectedTabs.length === 1 ? parts.tabFile[ctx.selectedTabs[0]!] : parts.selected}.docx`;
+}
+
 function runningHeader(adSoyad: string): Header {
-  return new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "EDE9FE" } }, children: [tr(`Yaşam Sistemi  ·  Numeroloji Analiz Raporu  ·  ${adSoyad}`, { color: SECONDARY, size: 16 })] })] });
+  return new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "EDE9FE" } }, children: [tr(L().w("word.header", { name: adSoyad }), { color: SECONDARY, size: 16 })] })] });
 }
 function footer(brand: NumerolojiBrandingOptions = {}): Footer {
   // F3A: markalama açıksa küçük kurum satırı; yoksa öğe YOK (footer birebir).
@@ -751,27 +888,35 @@ function footer(brand: NumerolojiBrandingOptions = {}): Footer {
     // FA-16: kısa bilgilendirme notu (sade, küçük punto; uyarı kutusu değil).
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [new TextRun({ text: wellnessNote("numeroloji").short, font: FONT, size: 14, italics: true, color: SECONDARY })] }),
     ...(brandLine ? [brandLine] : []),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }), tr(" / ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY })] })] });
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [tr(L().w("word.footerPage"), { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }), tr(" / ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY })] })] });
 }
 
 /**
  * docx child listesini gerçek .docx buffer'ına paketler (A4, ~1.9cm kenar, üst/alt bilgi).
  * FA-16: belge sonuna sade "Bilgilendirme" notu (+ varsa "Hazırlayan: <uzman>") eklenir.
  */
-export async function packNumerolojiDocx(children: Block[], adSoyad = "", opts?: { expertName?: string | null } & NumerolojiBrandingOptions): Promise<Buffer> {
-  // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
-  const signature = expertSignatureBlock(opts?.branding, { variant: opts?.brandingVariant, accent: MOR, fallbackName: opts?.expertName, contentWidth: 11906 - 2 * 1080, fill: LILA });
-  children = signature.length
-    ? [...children, ...buildWellnessNoteSection("numeroloji", null), ...signature]
-    : [...children, ...buildWellnessNoteSection("numeroloji", opts?.expertName)];
-  const doc = new Document({
-    styles: { default: { document: { run: { font: FONT, size: S_BODY, color: BODY } } } },
-    sections: [{
-      properties: { page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 }, size: { width: 11906, height: 16838 } } },
-      headers: { default: runningHeader(adSoyad) },
-      footers: { default: footer(opts) },
-      children,
-    }],
+export async function packNumerolojiDocx(children: Block[], adSoyad = "", opts?: { expertName?: string | null } & NumerolojiWordOptions): Promise<Buffer> {
+  // Belge senkron kurulur (metin katmanı yalnız bu bölümde etkin); paketleme sonra.
+  const doc = withWordText(opts?.output, () => {
+    // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
+    // Not (#855): ortak motorlar (bilgilendirme notu / imza / alt bilgi notu) bu dalda yalnız TR; #855
+    // birleşince `common: output.common` geçirilir.
+    const signature = expertSignatureBlock(opts?.branding, { variant: opts?.brandingVariant, accent: MOR, fallbackName: opts?.expertName, contentWidth: 11906 - 2 * 1080, fill: LILA });
+    const all = signature.length
+      ? [...children, ...buildWellnessNoteSection("numeroloji", null), ...signature]
+      : [...children, ...buildWellnessNoteSection("numeroloji", opts?.expertName)];
+    const { isSource, out } = L();
+    // Belge dili: TR'de dil işareti EKLENMEZ (golden bayt-eşit); diğer dillerde w:lang = documentLang.
+    const run = isSource ? { font: FONT, size: S_BODY, color: BODY } : { font: FONT, size: S_BODY, color: BODY, language: { value: out.documentLang } };
+    return new Document({
+      styles: { default: { document: { run } } },
+      sections: [{
+        properties: { page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 }, size: { width: 11906, height: 16838 } } },
+        headers: { default: runningHeader(adSoyad) },
+        footers: { default: footer(opts) },
+        children: all,
+      }],
+    });
   });
   return Packer.toBuffer(doc);
 }

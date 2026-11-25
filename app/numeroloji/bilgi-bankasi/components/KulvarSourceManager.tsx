@@ -250,6 +250,13 @@ export function KulvarSourceManager({
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const msgLinkDuplicate = isSourceLocale ? MSG_LINK_DUPLICATE : ts("linkDuplicate");
   const msgSourceInUse = isSourceLocale ? MSG_SOURCE_IN_USE : ts("sourceInUse");
+  // I18N-F1-R5: form doğrulama hatası — TR'de yardımcı metni AYNEN; EN'de dil-bağımsız koddan.
+  const formError = (e: { error: string; code?: string; field?: string }): string =>
+    isSourceLocale || !e.code
+      ? isSourceLocale ? e.error : ts("formErrors.SOURCE_INVALID")
+      : e.field
+        ? ts("formErrors.withField", { field: ts(`formErrors.fields.${e.field}`), error: ts(`formErrors.${e.code}`) })
+        : ts(`formErrors.${e.code}`);
   const sectionLabel = (key: RecordSourceRow["section_key"]): string =>
     isSourceLocale ? sectionKeyLabel(key) : t(`shared.sectionLabels.${key ?? "all"}`);
   const pageText = (link: RecordSourceRow): string => {
@@ -305,7 +312,7 @@ export function KulvarSourceManager({
   async function handleAttach() {
     const built = buildLinkInputFromForm(linkForm, { recordAnalysisType });
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const ok = await run(() => createRecordSource(recordId, built.value), msgLinkDuplicate);
@@ -331,7 +338,7 @@ export function KulvarSourceManager({
   async function handleSaveLinkEdit(linkId: string) {
     const built = buildLinkInputFromForm(editLinkForm, { recordAnalysisType });
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const { source_id: _omit, ...meta } = built.value;
@@ -346,7 +353,7 @@ export function KulvarSourceManager({
   async function handleCreateSource() {
     const built = buildSourceInputFromForm(sourceForm);
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const ok = await run(() => createSource(built.value).then((r) => ({ error: r.error, demo: r.demo })));
@@ -359,7 +366,7 @@ export function KulvarSourceManager({
   async function handleSaveSourceEdit(sourceId: string) {
     const built = buildSourceInputFromForm(editSourceForm);
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const ok = await run(() => updateSourceById(sourceId, built.value));

@@ -3,8 +3,8 @@
     "knowledge": {
       "shared": {
         "analysisTypes": {
-          "ana-kulvar": "Soul Number",
-          "yan-kulvar": "Personality Number",
+          "ana-kulvar": "Main Lane",
+          "yan-kulvar": "Side Lane",
           "ifade-sayisi": "Expression Number",
           "hayat-yolu": "Life Path",
           "cakra-omurga": "Chakra Spine",
@@ -204,7 +204,24 @@
         "noSources": "No sources yet.",
         "deleteSource": "Delete source completely",
         "newSource": "New Source",
-        "createSource": "Create Source"
+        "createSource": "Create Source",
+        "formErrors": {
+          "PUB_YEAR_INT": "The publication year must be a whole number.",
+          "LABEL_REQUIRED": "The source name cannot be empty.",
+          "SOURCE_INVALID": "The source details are not valid.",
+          "SOURCE_REQUIRED": "Select a source.",
+          "SECTION_INVALID": "Invalid section selection.",
+          "SECTION_KULVAR_ONLY": "A section-level source link can only be used on Main/Side Lane records.",
+          "INT_NONNEG": "Enter only 0 or a positive whole number.",
+          "INT_INVALID": "Invalid number.",
+          "PAGE_RANGE": "The start page cannot be greater than the end page.",
+          "withField": "{field}: {error}",
+          "fields": {
+            "page_start": "Start page",
+            "page_end": "End page",
+            "display_order": "Order"
+          }
+        }
       },
       "sourceNotes": {
         "expertOwnNote": "Practitioner's Own Note",
@@ -310,6 +327,20 @@
         "LINK_DUPLICATE": "This source is already linked to this record (same section).",
         "SOURCE_IN_USE": "This source is linked to one or more knowledge records. Remove the links first.",
         "NOTHING_TO_UPDATE": "There is nothing to update."
+      },
+      "valueDisplay": {
+        "chakra": "Chakra {n} | {level} support",
+        "element": "{el} | {level} support",
+        "level": {
+          "low": "Low",
+          "excess": "Excess"
+        },
+        "el": {
+          "hava": "Air",
+          "su": "Water",
+          "ates": "Fire",
+          "toprak": "Earth"
+        }
       }
     }
   }
