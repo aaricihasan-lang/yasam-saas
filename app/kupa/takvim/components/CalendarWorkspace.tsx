@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useCalendarNames } from "../lib/useCalendarNames";
+import { useSystemNames } from "../lib/useSystemNames";
+import { defaultPlanNameForSave } from "../lib/systemNames";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
@@ -150,6 +152,7 @@ export function CalendarWorkspace() {
   const { confirm } = useConfirm();
   const t = useTranslations("cupping.calendar.ws");
   const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
   const errText = useKupaErrorText();
   const names = useCalendarNames();
 
@@ -477,8 +480,9 @@ export function CalendarWorkspace() {
           revertDraftToSaved();
         }
       } else {
-        // Varsayılan plan ADI kullanıcının düzenleyebileceği veridir (karşılaştırılmaz; yıl eşleşmesi `year` ile) → ekran dilinde.
-        const res = await createCalendarPlan({ name: t("defaultPlanName", { year: String(year) }), year, reuse_year: true });
+        // I18N-F1-R3: varsayılan plan ADI DB'ye HER ZAMAN Türkçe sabit yazılır (i18n öncesiyle birebir; Word çıktısına
+        // basılır). Gösterimde sistem adı ekran dilinde üretilir (useSystemNames) — kullanıcının yazdığı ad aynen kalır.
+        const res = await createCalendarPlan({ name: defaultPlanNameForSave(year), year, reuse_year: true });
         if (!res.plan) {
           // Demo hesabı (persist=0): sahte takvim/gün gösterilmez.
           showToast({ message: t("demoNoSave"), type: "info" });
@@ -665,7 +669,7 @@ export function CalendarWorkspace() {
     if (!(await confirmDiscardIfDirty())) return;
     const ok = await confirm({
       title: t("deleteTitle"),
-      message: t("deleteMessage", { name: p.name }),
+      message: t("deleteMessage", { name: sysNames.planName(p) }),
       confirmText: t("deleteTitle"),
       cancelText: tc("cancel"),
       tone: "danger",
@@ -988,7 +992,7 @@ export function CalendarWorkspace() {
             <div className={`${edgeCard}`}>
               <AnnualCalendarOverview
                 year={plan.year}
-                title={plan.name}
+                title={sysNames.planName(plan)}
                 description={plan.description}
                 selected={draft}
                 saved={savedSet}

@@ -35,7 +35,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Not id gerekli.");
+  if (!id) return cuppingError(400, "Not id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -48,18 +48,18 @@ export async function PATCH(
   //   dizi-olmayan değer = "bağlara DOKUNMA" (RPC sözleşmesi: p_point_ids NULL → değişmez).
   const hasPoints = Array.isArray(parsed.data.point_ids);
   if (Object.keys(fields).length === 0 && !hasPoints) {
-    return cuppingError(400, "Güncellenecek alan yok.");
+    return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
   }
   // Erken/ucuz doğrulamalar (RPC de aynı kuralları uygular — savunma derinliği).
   if (Object.prototype.hasOwnProperty.call(fields, "note") && !String(fields.note ?? "").trim()) {
-    return cuppingError(400, "Not metni boş olamaz.");
+    return cuppingError(400, "Not metni boş olamaz.", "CUP_NOTE_TEXT_REQUIRED");
   }
   // HAC-UX-2/3 — RPC bypass yolunda string uzunluk denetimi (genel api.ts chokepoint devrede değil).
   const invalid = validateWritable(CUPPING_TABLES.topicNotes, fields);
   if (invalid) return invalid;
   const pointIds = hasPoints ? parsePointIds(parsed.data.point_ids) : null;
   if (pointIds && pointIds.length > MAX_POINTS) {
-    return cuppingError(400, "Çok fazla bölge seçildi.");
+    return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
   }
 
   // TEK transaction: sahiplik + alan update + point-tenant doğrulaması + ilişki replace.
@@ -74,12 +74,12 @@ export async function PATCH(
   if (error) {
     // SQLSTATE → sabit güvenli mesaj (ham DB hatası SIZMAZ).
     const code = (error as { code?: string }).code ?? "";
-    if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.");
-    if (code === "45002") return cuppingError(400, "Not metni boş olamaz.");
-    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
-    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.");
+    if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.", "CUP_NOT_FOUND");
+    if (code === "45002") return cuppingError(400, "Not metni boş olamaz.", "CUP_NOTE_TEXT_REQUIRED");
+    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.", "CUP_POINT_NOT_OWNED");
+    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "topic_note", errorClass: "server" });
-    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
   }
 
   await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "topic_note", resourceId: id });
@@ -93,7 +93,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Not id gerekli.");
+  if (!id) return cuppingError(400, "Not id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   // note_points FK ON DELETE CASCADE ile birlikte silinir.

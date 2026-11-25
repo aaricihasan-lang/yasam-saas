@@ -48,10 +48,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   const sourceId = typeof fields.source_id === "string" ? fields.source_id : "";
 
   if (!(await assertOwnedRef(db, CUPPING_TABLES.protocols, tenantId, protocolId))) {
-    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.", "CUP_PROTOCOL_NOT_OWNED");
   }
   if (!(await assertOwnedRef(db, CUPPING_TABLES.sources, tenantId, sourceId))) {
-    return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.");
+    return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.", "CUP_SOURCE_NOT_OWNED");
   }
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocolSources, tenantId, fields);

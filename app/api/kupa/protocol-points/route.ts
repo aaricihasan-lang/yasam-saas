@@ -51,15 +51,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const pointId = typeof fields.point_id === "string" ? fields.point_id : "";
 
   if (!(await assertOwnedRef(db, CUPPING_TABLES.protocols, tenantId, protocolId))) {
-    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.", "CUP_PROTOCOL_NOT_OWNED");
   }
   if (!(await assertOwnedRef(db, CUPPING_TABLES.points, tenantId, pointId))) {
-    return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
+    return cuppingError(400, "Seçilen bölge bu hesaba ait değil.", "CUP_POINT_NOT_OWNED");
   }
   // Duplicate (aynı protokolde aynı bölge) → net 409 (kör 500 yerine).
   if (await assertCompositeRef(db, CUPPING_TABLES.protocolPoints, { tenant_id: tenantId, protocol_id: protocolId, point_id: pointId })) {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
-    return cuppingError(409, "Bu bölge protokole zaten eklenmiş.");
+    return cuppingError(409, "Bu bölge protokole zaten eklenmiş.", "CUP_POINT_ALREADY_ADDED");
   }
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocolPoints, tenantId, fields);

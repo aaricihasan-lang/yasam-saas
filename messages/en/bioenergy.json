@@ -207,7 +207,8 @@
       "searchSummaryQuoted": "\"{query}\" · {count, plural, one {{count} match} other {{count} matches}}",
       "all": "All",
       "searchSummaryCurly": "“{query}” · {count, plural, one {{count} match} other {{count} matches}}",
-      "uncategorised": "Uncategorised"
+      "uncategorised": "Uncategorised",
+      "noPreview": "No preview."
     },
     "subconscious": {
       "demoTitle": "Demo Mode — Subconscious Causes",
@@ -326,7 +327,8 @@
       "codePlaceholder": "Type the code here",
       "badgeAll": "DELETE ALL",
       "badgeBulk": "BULK DELETE",
-      "step": "Step {stage}/3"
+      "step": "Step {stage}/3",
+      "phraseHint": "Upper/lower case and the Turkish ı/i difference do not matter; the number and words must be typed exactly as shown."
     },
     "modal": {
       "close": "Close",
@@ -569,6 +571,39 @@
       "formSubtitleCreate": "Fill in the required fields and save; the panel closes and the list refreshes.",
       "deleteConfirm": "Are you sure you want to delete this session record?",
       "resourceLabel": "Bioenergy Sessions"
+    },
+    "errors": {
+      "codes": {
+        "BIO_INVALID_RESOURCE": "Invalid section.",
+        "BIO_INVALID_BODY": "Invalid request body.",
+        "BIO_ID_REQUIRED": "A record ID is required.",
+        "BIO_NOT_FOUND": "Record not found.",
+        "BIO_NOT_OWNED": "This record does not belong to this account.",
+        "BIO_NOT_FOUND_OR_FORBIDDEN": "Record not found, or you do not have permission.",
+        "BIO_CHAKRA_ID_REQUIRED": "A chakra ID is required.",
+        "BIO_BLOCKS_READ_FAILED": "The blocks could not be loaded.",
+        "BIO_COUNT_FAILED": "The count could not be calculated.",
+        "BIO_BLOCK_CREATE_FAILED": "The block could not be created.",
+        "BIO_NO_FIELDS": "There are no fields to update.",
+        "BIO_BLOCK_UPDATE_FAILED": "The block could not be updated.",
+        "BIO_BLOCK_DELETE_FAILED": "The block could not be deleted.",
+        "BIO_OPERATION_FAILED": "The action failed.",
+        "BIO_DELETE_TARGET_REQUIRED": "No records were specified for deletion.",
+        "BIO_DELETE_CONFIRM_INVALID": "The deletion confirmation could not be verified. Please refresh the page and try again.",
+        "BIO_DELETE_COUNT_MISMATCH": "The confirmed number of records does not match the current total; no records were deleted. Please refresh the list and try again.",
+        "BIO_DELETE_TOO_MANY": "Too many records were selected for a single deletion.",
+        "BIO_VALIDATION": "The information entered is not valid.",
+        "BIO_DB_ERROR": "An error occurred while processing the request. Please try again.",
+        "BIO_NETWORK": "Could not reach the server. Please check your internet connection and try again.",
+        "BIO_TIMEOUT": "The request timed out. Please try again.",
+        "BIO_BLOCKS_MOVE_PARTIAL": "Some blocks could not be moved."
+      },
+      "report": {
+        "failed": "The Word report could not be created.",
+        "failedWithDetail": "The Word report could not be created: {detail}",
+        "rateLimited": "Too many requests. Please try again shortly.",
+        "network": "The Word report could not be downloaded: the server could not be reached. Check your connection and try again."
+      }
     }
   }
 }

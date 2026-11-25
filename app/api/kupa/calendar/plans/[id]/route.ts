@@ -32,7 +32,7 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Plan id gerekli.");
+  if (!id) return cuppingError(400, "Plan id gerekli.", "CUP_ID_REQUIRED");
 
   const plan = await getEntity(guard.db, CUPPING_TABLES.calendarPlans, guard.tenantId, id);
   if (!plan.ok) return plan.response;
@@ -54,7 +54,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Plan id gerekli.");
+  if (!id) return cuppingError(400, "Plan id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -62,9 +62,9 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, CALENDAR_PLAN_WRITABLE);
-  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.");
+  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
   if (Object.prototype.hasOwnProperty.call(fields, "name") && !String(fields.name ?? "").trim()) {
-    return cuppingError(400, "Plan adı boş olamaz.");
+    return cuppingError(400, "Plan adı boş olamaz.", "CUP_NAME_REQUIRED");
   }
 
   // Sahiplik (yıl-invariant kontrolü mevcut yılı gerektirir).
@@ -73,7 +73,7 @@ export async function PATCH(
 
   if (Object.prototype.hasOwnProperty.call(fields, "year")) {
     const year = validYear(fields.year);
-    if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`);
+    if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, "CUP_YEAR_OUT_OF_RANGE");
     fields.year = year;
     // Yıl değişimi seçili günleri geçersiz kılacaksa REDDET (sessiz taşıma/silme YOK).
     if (year !== (current.data as { year: number }).year) {
@@ -86,6 +86,7 @@ export async function PATCH(
         return cuppingError(
           409,
           "Bu planda seçili günler var; yıl değiştirilemez. Önce günleri kaldırın.",
+          "CUP_PLAN_HAS_DAYS",
         );
       }
     }
@@ -94,7 +95,7 @@ export async function PATCH(
   if (Object.prototype.hasOwnProperty.call(fields, "advice_template_id")) {
     if (fields.advice_template_id != null && String(fields.advice_template_id).trim() !== "") {
       const owned = await assertOwnedRef(db, CUPPING_TABLES.adviceTemplates, tenantId, fields.advice_template_id);
-      if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.");
+      if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.", "CUP_TEMPLATE_NOT_OWNED");
     } else {
       fields.advice_template_id = null;
     }
@@ -117,7 +118,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Plan id gerekli.");
+  if (!id) return cuppingError(400, "Plan id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   // Plan silinince seçili günler DB ON DELETE CASCADE ile birlikte silinir.

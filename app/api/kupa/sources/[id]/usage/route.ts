@@ -40,11 +40,11 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Kaynak id gerekli.");
+  if (!id) return cuppingError(400, "Kaynak id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId } = guard;
 
   if (!(await assertOwnedRef(db, CUPPING_TABLES.sources, tenantId, id))) {
-    return cuppingError(404, "Kaynak bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(404, "Kaynak bu hesaba ait değil veya bulunamadı.", "CUP_SOURCE_NOT_FOUND");
   }
 
   const entities = Object.keys(CITATION_SPECS) as CitationEntity[];
@@ -54,7 +54,7 @@ export async function GET(
     countWhere(db, CUPPING_TABLES.protocolEntries, tenantId, id),
   ]);
   if (citationCounts.some((c) => c === null) || protocolSources === null || protocolEntries === null) {
-    return cuppingError(500, DB_FAIL);
+    return cuppingError(500, DB_FAIL, "CUP_READ_FAILED");
   }
 
   const citations = Object.fromEntries(entities.map((e, i) => [e, citationCounts[i] as number])) as Record<CitationEntity, number>;

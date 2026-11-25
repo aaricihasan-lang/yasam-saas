@@ -10,6 +10,7 @@ import { ArrowRight, Flower2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
 import { useChakraLabels } from "../useChakraLabels";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
@@ -120,20 +121,6 @@ function slugifySourceUid(value: string) {
   return slug || String(Date.now());
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 const loadMoreBtnClass =
   "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
@@ -149,6 +136,7 @@ export default function Cakralar() {
   const tl = useTranslations("bioenergy.list");
   const CL = useChakraLabels();
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const lastGoodRowsRef = useRef<ChakraListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<ChakraListItem[]>([]);

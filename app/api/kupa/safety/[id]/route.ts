@@ -18,7 +18,7 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "CUP_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   const res = await getEntity(guard.db, CUPPING_TABLES.safety, guard.tenantId, id);
   if (!res.ok) return res.response;
   return NextResponse.json({ ok: true, note: res.data });
@@ -31,17 +31,17 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "CUP_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
   const fields = pickWritable(parsed.data, SAFETY_WRITABLE);
   if (fields.severity !== undefined && !SEVERITIES.has(String(fields.severity))) {
-    return NextResponse.json({ ok: false, error: "Geçersiz önem düzeyi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_SEVERITY_INVALID", error: "Geçersiz önem düzeyi." }, { status: 400 });
   }
   if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
   const res = await updateEntity(db, CUPPING_TABLES.safety, tenantId, id, fields);
   if (!res.ok) {
@@ -60,7 +60,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "CUP_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.safety, tenantId, id);

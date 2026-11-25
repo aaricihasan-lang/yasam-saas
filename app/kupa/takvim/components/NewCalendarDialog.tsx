@@ -7,6 +7,7 @@ import { calendarYearOptions, defaultMonthFor, pickPlanForYear } from "@/lib/cup
 import type { CuppingCalendarPlan } from "@/app/kupa/lib/api";
 import { useTranslations } from "next-intl";
 import { useCalendarNames } from "../lib/useCalendarNames";
+import { useSystemNames } from "../lib/useSystemNames";
 
 /**
  * WT6 — "Yeni Takvim": YIL + AY seçimi → doğrudan o ayın DÜZENLEME ekranı.
@@ -33,6 +34,7 @@ export function NewCalendarDialog({
   const now = useMemo(() => new Date(), []);
   const t = useTranslations("cupping.calendar");
   const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
   const names = useCalendarNames();
   const years = useMemo(() => calendarYearOptions(plans, now.getFullYear()), [plans, now]);
   const active = plans.find((p) => p.id === activePlanId) ?? null;
@@ -106,7 +108,7 @@ export function NewCalendarDialog({
           className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs leading-relaxed text-amber-900"
         >
           {existing
-            ? t("newDialog.existing", { year: String(year), name: existing.name, month: names.months[month - 1] })
+            ? t("newDialog.existing", { year: String(year), name: sysNames.planName(existing), month: names.months[month - 1] })
             : t("newDialog.missing", { year: String(year), month: names.months[month - 1] })}
         </p>
         <div className="flex justify-end gap-2">

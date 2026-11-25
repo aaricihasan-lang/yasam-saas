@@ -11,6 +11,7 @@ import { KupaConfirmDialog } from "../../components/ConfirmDialog";
 import {
   deleteTechnique,
   getTechnique,
+  isKupaNotFound,
   listTechniqueProtocols,
   type CuppingTechnique,
   type CuppingTechniqueProtocolRef,
@@ -78,8 +79,9 @@ export function TechniqueReadView({ id }: { id: string }) {
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : tr("read.loadError");
-        // i18n-ignore: sunucunun 404 güvenli mesajıyla karşılaştırma (kontrol akışı; çevrilmez)
-        if (/bulunamadı|ait değil/i.test(msg)) setNotFound(true);
+        // I18N-F1-R3: 404 tespiti metne değil dil-bağımsız koda bağlı. GET /api/kupa/techniques/[id]'de
+        // eski /bulunamadı|ait değil/ deseniyle eşleşen TEK yanıt getEntity NOT_FOUND'dur (= CUP_NOT_FOUND).
+        if (isKupaNotFound(e)) setNotFound(true);
         else setLoadError(msg);
       }
     })();

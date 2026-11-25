@@ -2,7 +2,7 @@
  * BİYOENERJİ FAZ 2 — Çakra visible block CRUD istemci yardımcıları.
  * /api/biyoenerji/chakra-blocks (+ /[id], /reorder). authHeaders (verifyUser binding).
  */
-import { authHeaders, bioFetch } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioErrorText, bioFetch, rememberBioErrorCode } from "@/lib/biyoenerji/secureApi";
 
 const BASE = "/api/biyoenerji/chakra-blocks";
 
@@ -24,7 +24,7 @@ export async function createChakraBlock(
 ): Promise<{ id: string | null; demo?: boolean; error: string | null }> {
   const res = await bioFetch(BASE, { method: "POST", headers: authHeaders(), body: JSON.stringify(input) });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { id: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { id: null, error: bioErrorText(j, res.status) };
   return { id: (j.id as string | undefined) ?? null, demo: j.demo === true, error: null };
 }
 
@@ -42,14 +42,14 @@ export async function updateChakraBlock(
 ): Promise<{ error: string | null }> {
   const res = await bioFetch(`${BASE}/${id}`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify(fields) });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { error: bioErrorText(j, res.status) };
   return { error: null };
 }
 
 export async function deleteChakraBlock(id: string): Promise<{ error: string | null }> {
   const res = await bioFetch(`${BASE}/${id}`, { method: "DELETE", headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { error: bioErrorText(j, res.status) };
   return { error: null };
 }
 
@@ -64,8 +64,12 @@ export async function reorderChakraBlocks(
     body: JSON.stringify({ chakraId, items }),
   });
   const j = await readJson(res);
-  if (!res.ok) return { updated: 0, failed: [], error: String(j.error ?? `HTTP ${res.status}`) };
-  return { updated: Number(j.updated ?? 0), failed: (j.failed as string[]) ?? [], error: j.ok === true ? null : "Bazı bloklar taşınamadı." };
+  if (!res.ok) return { updated: 0, failed: [], error: bioErrorText(j, res.status) };
+  if (j.ok === true) return { updated: Number(j.updated ?? 0), failed: (j.failed as string[]) ?? [], error: null };
+  // I18N-F1-R3: kısmi taşıma metni AYNEN; EN gösterim için dil-bağımsız kod kaydı.
+  const partial = "Bazı bloklar taşınamadı.";
+  rememberBioErrorCode(partial, "BIO_BLOCKS_MOVE_PARTIAL");
+  return { updated: Number(j.updated ?? 0), failed: (j.failed as string[]) ?? [], error: partial };
 }
 
 /** Silme güvenliği için tek çakranın child block sayıları. */
@@ -74,7 +78,7 @@ export async function fetchChakraBlockCounts(
 ): Promise<{ total: number; visible: number; evidence: number; error: string | null }> {
   const res = await bioFetch(`${BASE}?chakraId=${encodeURIComponent(chakraId)}&count=1`, { headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { total: 0, visible: 0, evidence: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { total: 0, visible: 0, evidence: 0, error: bioErrorText(j, res.status) };
   return { total: Number(j.total ?? 0), visible: Number(j.visible ?? 0), evidence: Number(j.evidence ?? 0), error: null };
 }
 
@@ -84,7 +88,7 @@ export async function fetchChakraBlockCountsBulk(
 ): Promise<{ parents: number; total: number; visible: number; evidence: number; error: string | null }> {
   const res = await bioFetch(`${BASE}/count`, { method: "POST", headers: authHeaders(), body: JSON.stringify(arg) });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { parents: 0, total: 0, visible: 0, evidence: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { parents: 0, total: 0, visible: 0, evidence: 0, error: bioErrorText(j, res.status) };
   return {
     parents: Number(j.parents ?? 0), total: Number(j.total ?? 0),
     visible: Number(j.visible ?? 0), evidence: Number(j.evidence ?? 0), error: null,

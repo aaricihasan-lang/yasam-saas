@@ -7,6 +7,8 @@ import { FileText, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { useBioReportError } from "../useBioReportError";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -35,7 +37,6 @@ import {
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
 import { changedFields } from "@/lib/biyoenerji/changedFields";
-import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -63,20 +64,6 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function useMobileViewport() {
   const [isMobile, setIsMobile] = useState(false);
@@ -116,6 +103,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const td = useTranslations("bioenergy.detail");
   const tl = useTranslations("bioenergy.list");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
+  const reportErr = useBioReportError();
   const { isDemo } = useDemoGuard();
   const router = useRouter();
   const lastGoodRecordRef = useRef<SymbolLanguageListItem | null>(null);
@@ -184,16 +173,16 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) {
-        setInfoError(await bioReportErrorMessage(res));
+        setInfoError(await reportErr.fromResponse(res));
         return;
       }
       await downloadFileResponse(res, `sembol-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch {
-      setInfoError(BIO_REPORT_NETWORK_ERROR);
+      setInfoError(reportErr.network());
     } finally {
       setWordBusy(false);
     }
-  }, [record, wordBusy]);
+  }, [record, wordBusy, reportErr]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;

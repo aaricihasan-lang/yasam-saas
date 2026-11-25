@@ -8,6 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useTranslations } from "next-intl";
 import { useChakraLabels } from "../useChakraLabels";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { useBioReportError } from "../useBioReportError";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSessionTenantId, getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -53,7 +55,6 @@ import {
   BIO_NETWORK_ERROR,
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
-import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -100,20 +101,6 @@ function trimOrEmpty(v: string) {
   return v.trim();
 }
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function useMobileViewport() {
   const [isMobile, setIsMobile] = useState(false);
@@ -251,6 +238,8 @@ export default function CakralarDetail({ id }: { id: string }) {
   const td = useTranslations("bioenergy.detail");
   const tl = useTranslations("bioenergy.list");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
+  const reportErr = useBioReportError();
   const router = useRouter();
   const { isDemo } = useDemoGuard();
   const tb = useTranslations("bioenergy");
@@ -335,7 +324,7 @@ export default function CakralarDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", chakraId: record.id }),
       });
       if (!res.ok) {
-        setInfoError(await bioReportErrorMessage(res));
+        setInfoError(await reportErr.fromResponse(res));
         return;
       }
       const safe = (record.name || "cakra").toLowerCase()
@@ -344,11 +333,11 @@ export default function CakralarDetail({ id }: { id: string }) {
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
       await downloadFileResponse(res, `biyoenerji-cakra-${safe}-${reportFileDate()}.docx`);
     } catch {
-      setInfoError(BIO_REPORT_NETWORK_ERROR);
+      setInfoError(reportErr.network());
     } finally {
       setWordBusy(false);
     }
-  }, [record, wordBusy]);
+  }, [record, wordBusy, reportErr]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;

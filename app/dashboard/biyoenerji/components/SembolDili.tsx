@@ -11,6 +11,8 @@ import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css"
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { hasPreviewText } from "../previewText";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -97,26 +99,13 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 export default function SembolDili() {
   const { isDemo } = useDemoGuard();
   const t = useTranslations("bioenergy.symbols");
   const tl = useTranslations("bioenergy.list");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const lastGoodRowsRef = useRef<SymbolLanguageListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SymbolLanguageListItem[]>([]);
@@ -595,7 +584,8 @@ export default function SembolDili() {
           <div className={`${styles.grid} ${styles.grid4}`}>
             {rows.map((row) => {
               const detailHref = symbolLanguageDetailHref(row.id);
-              const preview = previewSymbolLanguageText(row.meaning, row.source);
+              // I18N-F1-R3: tüm parçalar boşsa lib'in "Önizleme yok." yedeği yerine ekran dilinde aynı metin (TR birebir).
+              const preview = hasPreviewText(row.meaning, row.source) ? previewSymbolLanguageText(row.meaning, row.source) : tl("noPreview");
               const hasCategory = Boolean(row.category?.trim());
               const rawTitle = symbolDisplayName(row);
               // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)

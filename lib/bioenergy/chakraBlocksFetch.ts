@@ -1,4 +1,4 @@
-import { authHeaders } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, rememberBioErrorCode } from "@/lib/biyoenerji/secureApi";
 import type { ChakraContentBlock } from "./chakraWorkspace";
 
 /**
@@ -17,8 +17,11 @@ export async function fetchChakraBlocks(
       { headers: authHeaders() },
     );
     if (!res.ok) return { blocks: [], error: `HTTP ${res.status}` };
-    const json = (await res.json()) as { ok?: boolean; blocks?: unknown; error?: string };
-    if (!json?.ok) return { blocks: [], error: json?.error ?? "unknown" };
+    const json = (await res.json()) as { ok?: boolean; blocks?: unknown; error?: string; code?: unknown };
+    if (!json?.ok) {
+      rememberBioErrorCode(json?.error, json?.code);
+      return { blocks: [], error: json?.error ?? "unknown" };
+    }
     return {
       blocks: Array.isArray(json.blocks) ? (json.blocks as ChakraContentBlock[]) : [],
       error: null,

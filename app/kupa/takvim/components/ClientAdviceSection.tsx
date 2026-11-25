@@ -16,6 +16,8 @@ import {
   type CuppingClientAdvice,
 } from "@/app/kupa/lib/api";
 import { openFormDirty } from "@/app/kupa/lib/formDirty";
+import { useSystemNames } from "../lib/useSystemNames";
+import { CLIENT_ADVICE_DEFAULT_TITLE_TR } from "../lib/systemNames";
 
 /**
  * FAZ 5 / AŞAMA 3 — "Danışana Özel Hazırla" (ENTEGRE, katlanır alt bölüm; ana modül DEĞİL).
@@ -48,6 +50,7 @@ export function ClientAdviceSection({
   const { confirm } = useConfirm();
   const tca = useTranslations("cupping.calendar");
   const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
   const errText = useKupaErrorText();
   const [open, setOpen] = useState(false);
   const [client, setClient] = useState<PickerClient | null>(null);
@@ -137,8 +140,9 @@ export function ClientAdviceSection({
       await createClientAdvice({
         client_id: client.id,
         source_template_id: sourceTemplateId || null, // boşsa: boş bilgilendirme
-        // Boş kaydın varsayılan BAŞLIĞI kullanıcının düzenleyebileceği veridir (karşılaştırılmaz) → ekran dilinde.
-        ...(sourceTemplateId ? {} : { title: tca("clientAdvice.defaultTitle") }),
+        // I18N-F1-R3: boş kaydın varsayılan BAŞLIĞI DB'ye HER ZAMAN Türkçe sabit yazılır (i18n öncesiyle birebir);
+        // gösterimde sistem başlığı ekran dilinde üretilir (useSystemNames) — kullanıcının yazdığı başlık aynen kalır.
+        ...(sourceTemplateId ? {} : { title: CLIENT_ADVICE_DEFAULT_TITLE_TR }),
       });
       await refresh();
       setSourceTemplateId("");
@@ -265,7 +269,7 @@ export function ClientAdviceSection({
                       ) : (
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-slate-800">{a.title}</p>
+                            <p className="truncate text-sm font-bold text-slate-800">{sysNames.adviceTitle(a.title)}</p>
                             <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{a.before_text || a.after_text || a.general_note || "—"}</p>
                             {a.source_template_id ? (
                               <p className="mt-1 text-[11px] text-slate-400">{tca("clientAdvice.independent")}</p>

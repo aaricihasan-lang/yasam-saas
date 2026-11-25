@@ -8,6 +8,7 @@ import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -74,19 +75,6 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 /** BIO-14 — yan panel listenin altına yığıldığında (Tailwind xl altı) paneli görünür alana getir. */
 function scrollPanelIntoViewIfStacked(el: HTMLElement | null) {
@@ -105,6 +93,7 @@ export default function BiyoenerjiSeanslari() {
   const td = useTranslations("bioenergy.detail");
   const te = useTranslations("bioenergy.energyBodies");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySession[]>([]);
   const [loading, setLoading] = useState(true);
