@@ -25,7 +25,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { ArrowRight, ChevronDown, ChevronsLeft, LayoutGrid, Loader2, Settings, Shield, UserRound } from "lucide-react";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import type { HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
@@ -197,7 +197,6 @@ export default function SideMenu({
   footSlot,
 }: SideMenuProps) {
   const t = useTranslations("home.premium");
-  const locale = useLocale();
   const modulesListId = useId();
   const modulesToggleRef = useRef<HTMLButtonElement>(null);
 
@@ -396,14 +395,14 @@ export default function SideMenu({
           // Zil kendi düğmesini, okunmamış rozetini ve panelini çizer; zilin gizlendiği adreslerde satır da gizlenir (CSS :has).
           <div className={styles.bellRow}>
             <span className={styles.bellSlot}>{bell}</span>
-            <span className={styles.menuLabel}>{locale === "en" ? "Notifications" : "Bildirimler"}</span>
+            <span className={styles.menuLabel}>{t("menuNotifications")}</span>
           </div>
         ) : null}
         {ownerBell ? (
           // Owner bildirim zili ayrı satırda ("Yönetim"); owner değilse düğme çizilmez ve satır CSS :has ile gizlenir.
           <div className={styles.bellRow} data-owner-bell-row>
             <span className={styles.bellSlot}>{ownerBell}</span>
-            <span className={styles.menuLabel}>{locale === "en" ? "Admin" : "Yönetim"}</span>
+            <span className={styles.menuLabel}>{t("menuOwnerNotifications")}</span>
           </div>
         ) : null}
         {/* footSlot yoksa (iç sayfalar) birebir eski hâli; varsa yalnız süsler gizli, logo katmanı erişilebilir kalır. */}

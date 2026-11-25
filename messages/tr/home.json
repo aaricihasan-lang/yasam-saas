@@ -1,5 +1,9 @@
 {
   "home": {
+    "meta": {
+      "title": "Yaşam Sistemi",
+      "description": "Yaşam Sistemi Yönetim Paneli"
+    },
     "common": {
       "moduleGo": "Modüle Git",
       "seeSampleScreens": "Örnek Ekranları Gör",
@@ -595,6 +599,8 @@
       "menuClients": "Danışanlar",
       "menuSettings": "Ayarlar",
       "menuAdmin": "Admin Paneli",
+      "menuNotifications": "Bildirimler",
+      "menuOwnerNotifications": "Yönetim",
       "menuOpen": "Menüyü aç",
       "menuCollapse": "Menüyü daralt",
       "menuExpand": "Menüyü genişlet",
