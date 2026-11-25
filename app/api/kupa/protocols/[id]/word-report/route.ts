@@ -12,6 +12,8 @@ import {
   type ProtocolWordInput,
   type ProtocolWordSource,
 } from "@/lib/cupping/protocolWord";
+import { protocolSafetyExtra, protocolSourceTypeLabel } from "@/lib/cupping/reportText";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -30,27 +32,9 @@ export const runtime = "nodejs";
  *   - Ham DB hatası sızmaz (cupping api sabit güvenli mesaj).
  */
 
-const SEVERITY_LABEL: Record<string, string> = {
-  info: "Bilgi",
-  warning: "Uyarı",
-  contraindication: "Kontrendikasyon",
-};
-// KUP-02: kontrendikasyon sınıfı — ekranlardaki etiketlerle birebir (app/kupa/teknikler/lib/labels.ts
-// CONTRA_CLASS_LABEL). "none" / boş → rapora yazılmaz.
-const CONTRA_CLASS_LABEL: Record<string, string> = {
-  absolute: "Mutlak",
-  relative: "Göreceli",
-};
-const SOURCE_TYPE_LABEL: Record<string, string> = {
-  historical_primary: "Tarihsel Birincil",
-  historical_secondary: "Tarihsel İkincil",
-  book_monograph: "Kitap / Monografi",
-  academic_article: "Akademik Makale",
-  systematic_review: "Sistematik Derleme",
-  clinical_study: "Klinik Çalışma",
-  official_guidance: "Resmî Rehber",
-  expert_educational: "Uzman / Eğitim",
-};
+// I18N (çıktı dili sözleşmesi): önem / kontrendikasyon sınıfı / kaynak türü ETİKETLERİ kanonik koddan, rapor dilinde
+// lib/cupping/reportText.ts (katalog reports.cupping.protocol.*) ile üretilir; TR değerleri eski sabitlerle birebir.
+// KUP-02: kontrendikasyon sınıfı "none" / boş → rapora yazılmaz (davranış aynı).
 
 /** Junction satırlarını (sort_order sıralı) + master IN sorgusuyla birleştirip sıralı ad/notlar döndürür. */
 async function joinMasters(
@@ -95,6 +79,8 @@ export async function GET(
   const { id } = await params;
   if (!id) return cuppingError(400, "Protokol id gerekli.");
   const { db, tenantId } = guard;
+  // I18N: rapor dili route girişinde TEK kez çözülür (yayın kapısı > hesap tercihi > çerez > tr; istemci ?locale= okunmaz).
+  const output = await resolveReportLocale(req, { db, tenantId, userId: guard.userId });
 
   // 1) Protokol — tenant-scoped (başka tenant → 404).
   const protoRes = await getEntity(db, CUPPING_TABLES.protocols, tenantId, id);
@@ -147,14 +133,12 @@ export async function GET(
     .map((r) => {
       const m = sj.master.get(String(r.safety_id));
       if (!m) return null;
-      const sev = SEVERITY_LABEL[String(m.severity ?? "")] ?? null;
-      const contra = CONTRA_CLASS_LABEL[String(m.contraindication_class ?? "")] ?? null;
       // KUP-02: uzmanın güvenlik kaydına yazdığı metin (content) ve kontrendikasyon sınıfı rapora
       // AYNEN taşınır; yeni tıbbi metin üretilmez.
       return {
         name: String(m.title ?? ""),
         note: (r.protocol_note as string) ?? null,
-        extra: [sev, contra].filter(Boolean).join(" · ") || null,
+        extra: protocolSafetyExtra(m.severity, m.contraindication_class, output),
         detail: typeof m.content === "string" ? m.content : null,
       };
     })
@@ -166,7 +150,7 @@ export async function GET(
       if (!m) return null;
       return {
         name: String(m.source_name ?? ""),
-        type_label: SOURCE_TYPE_LABEL[String(m.source_type ?? "")] ?? null,
+        type_label: protocolSourceTypeLabel(m.source_type, output),
         locator: (r.locator as string) ?? null,
         note: (r.note as string) ?? null,
       };
@@ -189,7 +173,7 @@ export async function GET(
   try {
     // F3B: uzman markalaması — sahip ve ad YALNIZ oturumdan (guard); anahtar kapalı / profil yok → null (birebir).
     const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
-    buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources, branding });
+    buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources, branding, output });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
@@ -197,7 +181,7 @@ export async function GET(
   // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
   await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "protocol", resourceId: id });
 
-  const filename = protocolWordFilename(protocol);
+  const filename = protocolWordFilename(protocol, output);
   const asciiName = filename.replace(/[^\x20-\x7E]/g, "_");
   return new Response(new Uint8Array(buffer), {
     headers: {

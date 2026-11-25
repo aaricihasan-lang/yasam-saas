@@ -1,0 +1,146 @@
+{
+  "reports": {
+    "cupping": {
+      "usageNote": "This content is part of a working and information record created by the practitioner.",
+      "protocol": {
+        "documentTitle": "Hijama Protocol",
+        "footerLabel": "Hijama Protocol",
+        "sections": {
+          "points": "Areas / Points",
+          "techniques": "Techniques",
+          "flow": "Application Flow",
+          "safety": "Safety / Precautions",
+          "preparation": "Preparation",
+          "aftercare": "Aftercare",
+          "followUp": "Follow-up / Next Session",
+          "entries": "Information",
+          "sources": "Sources"
+        },
+        "sourcesTable": {
+          "source": "Source",
+          "type": "Type",
+          "pageNote": "Page / Note"
+        },
+        "entrySource": "Source: {source}",
+        "severity": {
+          "info": "Information",
+          "warning": "Warning",
+          "contraindication": "Contraindication"
+        },
+        "contraClass": {
+          "absolute": "Absolute",
+          "relative": "Relative"
+        },
+        "sourceType": {
+          "historical_primary": "Historical Primary",
+          "historical_secondary": "Historical Secondary",
+          "book_monograph": "Book / Monograph",
+          "academic_article": "Academic Article",
+          "systematic_review": "Systematic Review",
+          "clinical_study": "Clinical Study",
+          "official_guidance": "Official Guidance",
+          "expert_educational": "Expert / Educational"
+        },
+        "filename": {
+          "prefix": "Cupping-Protocol",
+          "fallback": "Protocol"
+        }
+      },
+      "calendar": {
+        "title": "HIJAMA CALENDAR",
+        "footerLabel": "Hijama Calendar",
+        "documentTitle": "Hijama Calendar",
+        "annualSubtitle": "{year} Annual Calendar",
+        "dayDate": "{day} {month} {year}",
+        "hijriUnavailable": "Hijri date could not be calculated",
+        "noSelectedDays": "No days have been selected in this calendar yet.",
+        "monthEmpty": "No days are selected for this month.",
+        "selectedDays": "SELECTED DAYS AND DESCRIPTIONS",
+        "selectedDaysContinued": "SELECTED DAYS AND DESCRIPTIONS (continued)",
+        "detailNotes": "DETAILED NOTES",
+        "detailNotesHint": "Only days with a detailed note are listed.",
+        "detailNoteLabel": "Detailed note:",
+        "colorLabel": "Colour: {color}",
+        "noColor": "No colour",
+        "advice": {
+          "heading": "INFORMATION NOTES",
+          "before": "Before",
+          "after": "After",
+          "general": "General"
+        },
+        "overflow": {
+          "moreDays": "{count, plural, one {# more day} other {# more days}}",
+          "detailNotes": "detailed notes",
+          "advice": "information notes",
+          "preparedBy": "practitioner details",
+          "withDays": "{shown, plural, one {# day is} other {# days are}} shown on the first page · {parts} continue on the following pages.",
+          "withoutDays": "{parts} continue on the following pages."
+        },
+        "months": {
+          "1": "January",
+          "2": "February",
+          "3": "March",
+          "4": "April",
+          "5": "May",
+          "6": "June",
+          "7": "July",
+          "8": "August",
+          "9": "September",
+          "10": "October",
+          "11": "November",
+          "12": "December"
+        },
+        "weekdays": {
+          "1": { "long": "Monday", "short": "Mon" },
+          "2": { "long": "Tuesday", "short": "Tue" },
+          "3": { "long": "Wednesday", "short": "Wed" },
+          "4": { "long": "Thursday", "short": "Thu" },
+          "5": { "long": "Friday", "short": "Fri" },
+          "6": { "long": "Saturday", "short": "Sat" },
+          "7": { "long": "Sunday", "short": "Sun" }
+        },
+        "hijriMonths": {
+          "1": "Muharram",
+          "2": "Safar",
+          "3": "Rabi' al-Awwal",
+          "4": "Rabi' al-Thani",
+          "5": "Jumada al-Ula",
+          "6": "Jumada al-Akhirah",
+          "7": "Rajab",
+          "8": "Sha'ban",
+          "9": "Ramadan",
+          "10": "Shawwal",
+          "11": "Dhu al-Qa'dah",
+          "12": "Dhu al-Hijjah"
+        },
+        "colors": {
+          "blue": "Blue",
+          "green": "Green",
+          "yellow": "Yellow",
+          "red": "Red",
+          "purple": "Purple",
+          "orange": "Orange",
+          "pink": "Pink"
+        },
+        "filename": {
+          "prefix": "Hijama-Calendar",
+          "annual": "Annual",
+          "months": {
+            "1": "January",
+            "2": "February",
+            "3": "March",
+            "4": "April",
+            "5": "May",
+            "6": "June",
+            "7": "July",
+            "8": "August",
+            "9": "September",
+            "10": "October",
+            "11": "November",
+            "12": "December"
+          }
+        }
+      }
+    }
+  }
+}

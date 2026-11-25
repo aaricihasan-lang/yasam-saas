@@ -1,0 +1,167 @@
+{
+  "reports": {
+    "cupping": {
+      "usageNote": "Bu içerik, uzman tarafından oluşturulan çalışma ve bilgilendirme kaydının bir parçasıdır.",
+      "protocol": {
+        "documentTitle": "Hacamat Protokolü",
+        "footerLabel": "Hacamat Protokolü",
+        "sections": {
+          "points": "Bölgeler / Noktalar",
+          "techniques": "Teknikler",
+          "flow": "Uygulama Akışı",
+          "safety": "Güvenlik / Dikkat",
+          "preparation": "Hazırlık",
+          "aftercare": "Uygulama Sonrası",
+          "followUp": "Takip / Sonraki Seans",
+          "entries": "Bilgiler",
+          "sources": "Kaynaklar"
+        },
+        "sourcesTable": {
+          "source": "Kaynak",
+          "type": "Tür",
+          "pageNote": "Sayfa / Not"
+        },
+        "entrySource": "Kaynak: {source}",
+        "severity": {
+          "info": "Bilgi",
+          "warning": "Uyarı",
+          "contraindication": "Kontrendikasyon"
+        },
+        "contraClass": {
+          "absolute": "Mutlak",
+          "relative": "Göreceli"
+        },
+        "sourceType": {
+          "historical_primary": "Tarihsel Birincil",
+          "historical_secondary": "Tarihsel İkincil",
+          "book_monograph": "Kitap / Monografi",
+          "academic_article": "Akademik Makale",
+          "systematic_review": "Sistematik Derleme",
+          "clinical_study": "Klinik Çalışma",
+          "official_guidance": "Resmî Rehber",
+          "expert_educational": "Uzman / Eğitim"
+        },
+        "filename": {
+          "prefix": "Kupa-Protokolu",
+          "fallback": "Protokol"
+        }
+      },
+      "calendar": {
+        "title": "HACAMAT TAKVİMİ",
+        "footerLabel": "Hacamat Takvimi",
+        "documentTitle": "Hacamat Takvimi",
+        "annualSubtitle": "{year} Yıllık Takvim",
+        "dayDate": "{day} {month} {year}",
+        "hijriUnavailable": "Hicrî tarih hesaplanamadı",
+        "noSelectedDays": "Bu takvimde henüz seçili gün yok.",
+        "monthEmpty": "Bu ay için seçili gün bulunmuyor.",
+        "selectedDays": "SEÇİLİ GÜNLER VE AÇIKLAMALARI",
+        "selectedDaysContinued": "SEÇİLİ GÜNLER VE AÇIKLAMALARI (devam)",
+        "detailNotes": "DETAY NOTLARI",
+        "detailNotesHint": "Yalnız detay notu bulunan günler listelenir.",
+        "detailNoteLabel": "Detay notu:",
+        "colorLabel": "Renk: {color}",
+        "noColor": "Renk yok",
+        "advice": {
+          "heading": "BİLGİLENDİRME NOTLARI",
+          "before": "Öncesi",
+          "after": "Sonrası",
+          "general": "Genel"
+        },
+        "overflow": {
+          "moreDays": "{count} gün daha",
+          "detailNotes": "detay notları",
+          "advice": "bilgilendirme",
+          "preparedBy": "hazırlayan bilgisi",
+          "withDays": "İlk sayfada {shown} gün gösteriliyor · {parts} sonraki sayfalardadır.",
+          "withoutDays": "{parts} sonraki sayfalardadır."
+        },
+        "months": {
+          "1": "Ocak",
+          "2": "Şubat",
+          "3": "Mart",
+          "4": "Nisan",
+          "5": "Mayıs",
+          "6": "Haziran",
+          "7": "Temmuz",
+          "8": "Ağustos",
+          "9": "Eylül",
+          "10": "Ekim",
+          "11": "Kasım",
+          "12": "Aralık"
+        },
+        "weekdays": {
+          "1": {
+            "long": "Pazartesi",
+            "short": "Pzt"
+          },
+          "2": {
+            "long": "Salı",
+            "short": "Sal"
+          },
+          "3": {
+            "long": "Çarşamba",
+            "short": "Çar"
+          },
+          "4": {
+            "long": "Perşembe",
+            "short": "Per"
+          },
+          "5": {
+            "long": "Cuma",
+            "short": "Cum"
+          },
+          "6": {
+            "long": "Cumartesi",
+            "short": "Cmt"
+          },
+          "7": {
+            "long": "Pazar",
+            "short": "Paz"
+          }
+        },
+        "hijriMonths": {
+          "1": "Muharrem",
+          "2": "Safer",
+          "3": "Rebiülevvel",
+          "4": "Rebiülahir",
+          "5": "Cemaziyelevvel",
+          "6": "Cemaziyelahir",
+          "7": "Recep",
+          "8": "Şaban",
+          "9": "Ramazan",
+          "10": "Şevval",
+          "11": "Zilkade",
+          "12": "Zilhicce"
+        },
+        "colors": {
+          "blue": "Mavi",
+          "green": "Yeşil",
+          "yellow": "Sarı",
+          "red": "Kırmızı",
+          "purple": "Mor",
+          "orange": "Turuncu",
+          "pink": "Pembe"
+        },
+        "filename": {
+          "prefix": "Hacamat-Takvimi",
+          "annual": "Yillik",
+          "months": {
+            "1": "Ocak",
+            "2": "Subat",
+            "3": "Mart",
+            "4": "Nisan",
+            "5": "Mayis",
+            "6": "Haziran",
+            "7": "Temmuz",
+            "8": "Agustos",
+            "9": "Eylul",
+            "10": "Ekim",
+            "11": "Kasim",
+            "12": "Aralik"
+          }
+        }
+      }
+    }
+  }
+}
