@@ -78,7 +78,9 @@ console.log("\n── C) Göster/gizle bileşeni sözleşmesi ──");
 const comp = read("components/ui/PasswordInput.tsx");
 ok(/type=\{visible \? "text" : "password"\}/.test(comp) && /useState\(false\)/.test(comp), "varsayılan gizli; göz → text, tekrar → password");
 ok(/<button\s+type="button"/.test(comp), "buton type=\"button\" (submit tetiklemez)");
-ok(/"Parolayı gizle"/.test(comp) && /"Parolayı göster"/.test(comp) && /aria-label=\{label\}/.test(comp), "aria-label: Parolayı göster / Parolayı gizle");
+// I18N-F1-R5 (A12): etiket katalogdan (auth.ui.passwordInput); TR değerleri birebir aynı kalmalı.
+const pwTr = (JSON.parse(read("messages/tr/auth.ui.json")) as { auth: { ui: { passwordInput: Record<string, string> } } }).auth.ui.passwordInput;
+ok(/visible \? t\("hide"\) : t\("show"\)/.test(comp) && pwTr.hide === "Parolayı gizle" && pwTr.show === "Parolayı göster" && /aria-label=\{label\}/.test(comp), "aria-label: Parolayı göster / Parolayı gizle");
 ok(/aria-pressed=\{visible\}/.test(comp) && /aria-controls=\{inputId\}/.test(comp), "aria-pressed + aria-controls");
 ok(/h-10 w-10/.test(comp) && /pr-12/.test(comp), "≥40px dokunma alanı; input sağ boşluğu metni korur");
 ok(!/console\.|fetch\(|localStorage|sessionStorage|clipboard|gtag|dataLayer|track/i.test(comp.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")), "toggle yalnız yerel UI: log/istek/depolama/pano/analitik YOK");
