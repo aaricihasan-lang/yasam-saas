@@ -1,5 +1,9 @@
 {
   "home": {
+    "meta": {
+      "title": "Yaşam Sistemi",
+      "description": "Yaşam Sistemi Management Panel"
+    },
     "common": {
       "moduleGo": "Go to Module",
       "seeSampleScreens": "See Sample Screens",
@@ -595,6 +599,8 @@
       "menuClients": "Clients",
       "menuSettings": "Settings",
       "menuAdmin": "Admin Panel",
+      "menuNotifications": "Notifications",
+      "menuOwnerNotifications": "Admin",
       "menuOpen": "Open menu",
       "menuCollapse": "Collapse menu",
       "menuExpand": "Expand menu",

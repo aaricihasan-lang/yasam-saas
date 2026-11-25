@@ -35,20 +35,22 @@ export function apiErrorCode(payload: ApiErrorPayload): string | null {
  */
 export function localizeApiError(t: ErrorTranslator, locale: string, payload: ApiErrorPayload, fallback?: string): string {
   const code = apiErrorCode(payload);
-  if (code && t.has(`codes.${code}`)) return t(`codes.${code}`);
   const serverText = payload && typeof payload === "object" && typeof payload.error === "string" ? payload.error.trim() : "";
+  // Kaynak dilde (tr) sunucunun metni BİREBİR gösterilir — kod eşlemesi olsa bile (katalog metni sunucu metninden
+  // farklı olabilir; ör. DEMO_READONLY). Kod eşlemesi yalnız diğer dillerde ya da sunucu metni yoksa devreye girer.
   if (locale === DEFAULT_LOCALE && serverText) return serverText;
+  if (code && t.has(`codes.${code}`)) return t(`codes.${code}`);
   return fallback ?? t("generic");
 }
 
 /**
  * Bugünkü `t("toast.x") + ": " + json.error` kalıbının dil-güvenli karşılığı: önek her zaman ekran dilinde;
- * sunucu ayrıntısı yalnız kaynak dilde (tr) ya da kod eşlemesi varsa eklenir.
+ * sunucu ayrıntısı kaynak dilde (tr) birebir; diğer dillerde yalnız kod eşlemesi varsa eklenir.
  */
 export function withServerDetail(t: ErrorTranslator, locale: string, prefix: string, payload: ApiErrorPayload): string {
   const code = apiErrorCode(payload);
-  if (code && t.has(`codes.${code}`)) return `${prefix}: ${t(`codes.${code}`)}`;
   const serverText = payload && typeof payload === "object" && typeof payload.error === "string" ? payload.error.trim() : "";
   if (locale === DEFAULT_LOCALE && serverText) return `${prefix}: ${serverText}`;
+  if (code && t.has(`codes.${code}`)) return `${prefix}: ${t(`codes.${code}`)}`;
   return prefix;
 }

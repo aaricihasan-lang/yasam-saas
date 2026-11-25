@@ -39,7 +39,8 @@ const layout = read("app/layout.tsx");
 const viewport = layout.match(/export const viewport: Viewport = \{([\s\S]*?)\};/)?.[1] ?? "";
 ok(/colorScheme:\s*"only light"/.test(viewport), "<meta name=\"color-scheme\" content=\"only light\"> ilk HTML'de (CSS'ten önce, titreme yok)");
 ok(/viewportFit:\s*"cover"/.test(viewport), "viewportFit: cover korunuyor");
-const metadata = layout.match(/export const metadata: Metadata = \{([\s\S]*?)\n\};/)?.[1] ?? "";
+// I18N F0 #21: kök metadata artık dile duyarlı `generateMetadata` (başlık/açıklama katalogdan); darkreader-lock aynı nesnede kalmalı.
+const metadata = (layout.match(/export const metadata: Metadata = \{([\s\S]*?)\n\};/) ?? layout.match(/export async function generateMetadata\(\): Promise<Metadata> \{([\s\S]*?)\n\}/))?.[1] ?? "";
 ok(/other:\s*\{\s*"darkreader-lock":\s*"true"\s*\}/.test(metadata), "<meta name=\"darkreader-lock\"> (Dark Reader eklentisi metni okunmaz yapmasın)");
 
 console.log("── C) Kişisel Dijital Ofis Gece/Otomatik davranışı korunuyor ──");
