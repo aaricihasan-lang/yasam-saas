@@ -2,6 +2,8 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
@@ -191,10 +193,11 @@ function stoneDetailHref(id: string, queryString: string) {
   return queryString ? `${base}?${queryString}` : base;
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "-";
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(resolveLocale(locale)), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -321,7 +324,7 @@ const StoneCard = memo(function StoneCard({
         </div>
         <span className={dp.date}>
           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-          {formatDate(stone.updated_at)}
+          {formatDate(stone.updated_at, locale)}
         </span>
       </div>
       <Link

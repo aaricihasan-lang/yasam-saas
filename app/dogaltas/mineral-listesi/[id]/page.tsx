@@ -12,7 +12,9 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -162,9 +164,10 @@ function mineralToEditForm(m: MineralRecord): MineralEditForm {
   };
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: ActiveLocale) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -370,6 +373,7 @@ function ListSectionCard({
 }
 
 function MineralDetailPageContent() {
+  const locale = resolveLocale(useLocale());
   const t = useTranslations("stones.minerals.detail");
   const se = useDogaltasServerError();
   const tEdit = useTranslations("stones.minerals.edit");
@@ -701,7 +705,7 @@ function MineralDetailPageContent() {
             </div>
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {formatDate(mineral.created_at)}
+              {formatDate(mineral.created_at, locale)}
               {" · "}
               {hasHighlight
                 ? renderHighlightedText(mineral.source_id, highlightQuery)
