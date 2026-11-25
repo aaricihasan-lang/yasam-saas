@@ -83,6 +83,32 @@ export function mapNature(v: unknown): AspectNature | null {
   if (en) return en;
   return typeof v === "string" ? NATURE_TR[v.trim().toLocaleLowerCase("tr-TR")] ?? null : null;
 }
+/**
+ * I18N A7 / DA-1: açı niteliğinin DİL-BAĞIMSIZ (yapısal) karşılığı. Kayıtlı tüm gerçek sağlayıcı yanıtlarında (Natal, Transit,
+ * Progresyon, Solar Arc, Solar/Lunar Return, Sinastri, Composite golden'ları; TR yerelleştirilmiş `nature` dahil) nitelik açı
+ * türünün saf fonksiyonudur — `atlas-provider-lang-a7.harness.ts` bu tabloyu her golden açıyla kilitler.
+ */
+export const ASPECT_NATURE_BY_TYPE: Readonly<Record<AspectType, AspectNature>> = Object.freeze({
+  conjunction: "neutral",
+  semi_sextile: "neutral",
+  trine: "harmonious",
+  sextile: "harmonious",
+  opposition: "challenging",
+  square: "challenging",
+  semi_square: "challenging",
+  sesquiquadrate: "challenging",
+  quincunx: "challenging",
+});
+/**
+ * Açı niteliği (dil-bağımsız karar): önce sağlayıcı değeri (kanonik İngilizce enum ya da bilinen TR yerelleştirmesi — bugünkü
+ * davranış AYNEN). Sağlayıcı bir değer GÖNDERİP bu değer tanınmıyorsa (ör. başka yanıt dilinde yerelleştirilmiş nitelik) alan
+ * sessizce düşmez; açı türünden yapısal karşılık kullanılır. Değer hiç yoksa null (uydurulmaz) — eski davranış.
+ */
+export function mapNatureFor(v: unknown, type: AspectType): AspectNature | null {
+  const known = mapNature(v);
+  if (known) return known;
+  return typeof v === "string" && v.trim() !== "" ? ASPECT_NATURE_BY_TYPE[type] : null;
+}
 export function mapDignity(v: unknown): Dignity | null {
   return mapEnum<Dignity>(v, DIGNITIES);
 }
@@ -169,7 +195,7 @@ export function projectChartAspects(v: unknown, dropped: string[], errors: strin
       errors.push(`${ctx}.aspects[]: sayısal alan`);
       continue;
     }
-    out.push({ a: p1, b: p2, type, exactAngle, orb, applying: o.isApplying, strength, nature: mapNature(o.interpretation ?? o.nature) });
+    out.push({ a: p1, b: p2, type, exactAngle, orb, applying: o.isApplying, strength, nature: mapNatureFor(o.interpretation ?? o.nature, type) });
   }
   return out;
 }

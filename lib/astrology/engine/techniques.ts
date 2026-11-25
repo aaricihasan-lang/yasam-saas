@@ -8,7 +8,7 @@
 // synastry, composite. Seçenekler parseOptions'ta NORMALİZE edilir (ör. "şimdi" → UTC saat başı) ve
 // normalize hali önbellek anahtarına girer → aynı girdi aynı anahtar, farklı tarih/yıl farklı anahtar.
 
-import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
+import { ASTRO_CHART_IDENTITY_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
 import {
   buildNatalRequestBody,
   projectRoxyNatal,
@@ -338,7 +338,7 @@ function unit(technique: TechniqueId, meta: { endpoint: string; adapter: string 
     providerApiVersion: ROXY_API_VERSION,
     adapterVersion: meta.adapter,
     endpoint: meta.endpoint,
-    lang: ASTRO_PROVIDER_LANG,
+    lang: ASTRO_CHART_IDENTITY_LANG,
     body,
     ...(extra.query ? { query: extra.query } : {}),
   };
