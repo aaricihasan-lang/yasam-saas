@@ -148,13 +148,22 @@
       "cancel": "İptal Et",
       "delete": "Sil"
     },
-    "apiCodes": {
-      "APPOINTMENT_IN_FUTURE": "Henüz gerçekleşmemiş bir randevu tamamlandı olarak işaretlenemez.",
-      "COMPLETED_IN_FUTURE": "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.",
-      "INVALID_STATUS": "Geçersiz randevu durumu.",
-      "INVALID_DATE": "Geçersiz randevu tarihi.",
-      "INVALID_FIELD": "Geçersiz alan değeri.",
-      "NO_FIELDS": "Güncellenecek alan yok."
+    "errors": {
+      "codes": {
+        "APPOINTMENT_IN_FUTURE": "Henüz gerçekleşmemiş bir randevu tamamlandı olarak işaretlenemez.",
+        "COMPLETED_IN_FUTURE": "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.",
+        "INVALID_STATUS": "Geçersiz randevu durumu.",
+        "INVALID_DATE": "Geçersiz randevu tarihi.",
+        "INVALID_FIELD": "Geçersiz alan değeri.",
+        "NO_FIELDS": "Güncellenecek alan yok.",
+        "INVALID_BODY": "Geçersiz istek gövdesi.",
+        "CLIENT_NOT_OWNED": "Danışan bu hesaba ait değil.",
+        "APPOINTMENT_ID_REQUIRED": "appointment_id gerekli.",
+        "APPOINTMENT_NOT_FOUND": "Randevu bu hesaba ait değil.",
+        "BODY_TOO_LARGE": "İstek gövdesi çok büyük.",
+        "INVALID_APPOINTMENT": "Geçersiz randevu.",
+        "INVALID_NOTIFICATION_STATE": "Geçersiz bildirim durumu."
+      }
     }
   }
 }

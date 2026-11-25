@@ -13,7 +13,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate as fmtDate, formatDateTime as fmtDateTime, formatTime as fmtTime } from "@/lib/i18n/format";
-import type { ActiveLocale } from "@/lib/i18n/locales";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { localizeTrialError } from "@/lib/trial/trialErrors";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -149,12 +150,16 @@ function AjandaPageInner() {
   const locale = useLocale() as ActiveLocale;
   /**
    * Sunucu hata metni: kaynak dilde (tr) bugünkü gibi sunucunun Türkçe metni (BİREBİR); diğer dillerde dil-bağımsız
-   * `code` → agenda.apiCodes.<KOD>, eşlenmeyen kodda çağıranın (çevrilmiş) genel metni — karışık dil yok.
+   * `code` → agenda.errors.codes.<KOD> (deneme kodları → trial.errors.codes.<KOD>), eşlenmeyen kodda çağıranın
+   * (çevrilmiş) genel metni — karışık dil yok.
    */
-  const serverText = (body: { code?: string; error?: string } | null | undefined, trText: string | null | undefined, fallback: string): string => {
+  const tTrial = useTranslations("trial.errors");
+  const serverText = (body: { code?: string; trialCode?: string; error?: string } | null | undefined, trText: string | null | undefined, fallback: string): string => {
     if (locale === "tr") return trText || fallback;
+    const trialText = localizeTrialError(tTrial, locale, body);
+    if (trialText) return trialText;
     const code = body?.code;
-    return code && t.has(`apiCodes.${code}`) ? t(`apiCodes.${code}`) : fallback;
+    return code && t.has(`errors.codes.${code}`) ? t(`errors.codes.${code}`) : fallback;
   };
   const { confirm } = useConfirm();
   const { showToast } = useToast();

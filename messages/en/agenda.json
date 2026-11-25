@@ -148,13 +148,22 @@
       "cancel": "Cancel",
       "delete": "Delete"
     },
-    "apiCodes": {
-      "APPOINTMENT_IN_FUTURE": "An appointment that has not yet taken place cannot be marked as completed.",
-      "COMPLETED_IN_FUTURE": "A completed appointment cannot be moved to a future date.",
-      "INVALID_STATUS": "Invalid appointment status.",
-      "INVALID_DATE": "Invalid appointment date.",
-      "INVALID_FIELD": "Invalid field value.",
-      "NO_FIELDS": "There are no fields to update."
+    "errors": {
+      "codes": {
+        "APPOINTMENT_IN_FUTURE": "An appointment that has not yet taken place cannot be marked as completed.",
+        "COMPLETED_IN_FUTURE": "A completed appointment cannot be moved to a future date.",
+        "INVALID_STATUS": "Invalid appointment status.",
+        "INVALID_DATE": "Invalid appointment date.",
+        "INVALID_FIELD": "Invalid field value.",
+        "NO_FIELDS": "There are no fields to update.",
+        "INVALID_BODY": "Invalid request body.",
+        "CLIENT_NOT_OWNED": "This client does not belong to this account.",
+        "APPOINTMENT_ID_REQUIRED": "An appointment ID is required.",
+        "APPOINTMENT_NOT_FOUND": "This appointment was not found in this account.",
+        "BODY_TOO_LARGE": "The request body is too large.",
+        "INVALID_APPOINTMENT": "Invalid appointment.",
+        "INVALID_NOTIFICATION_STATE": "Invalid notification state."
+      }
     }
   }
 }

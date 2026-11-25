@@ -37,7 +37,7 @@ export async function PATCH(
 
   const { id: appointmentId } = await params;
   if (!appointmentId) {
-    return NextResponse.json({ ok: false, error: "appointment_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "APPOINTMENT_ID_REQUIRED", error: "appointment_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -48,7 +48,7 @@ export async function PATCH(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const { data: existing, error: readErr } = await db
@@ -63,7 +63,7 @@ export async function PATCH(
   }
   if (!existing) {
     return NextResponse.json(
-      { ok: false, error: "Randevu bu hesaba ait değil." },
+      { ok: false, code: "APPOINTMENT_NOT_FOUND", error: "Randevu bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -118,7 +118,7 @@ export async function PATCH(
       );
     }
     return NextResponse.json(
-      { ok: false, error: "Randevu bu hesaba ait değil." },
+      { ok: false, code: "APPOINTMENT_NOT_FOUND", error: "Randevu bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -144,7 +144,7 @@ export async function DELETE(
 
   const { id: appointmentId } = await params;
   if (!appointmentId) {
-    return NextResponse.json({ ok: false, error: "appointment_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "APPOINTMENT_ID_REQUIRED", error: "appointment_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
