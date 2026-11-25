@@ -30,6 +30,8 @@ import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { DIST_METHODS, DIST_METHOD_LABELS, DIST_METHOD_NOTES, PROVIDER_TIE_RULE_NOTE, distributive, dominantHeadline, tieSentence } from "@/lib/astrology/view/natalDistribution";
 import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION } from "@/lib/astrology/view/natalLabelLayout";
 import { KEY_ASC_UNKNOWN_NOTE, KEY_MOON_UNKNOWN_NOTE, KEY_SUN_ASSUMED_NOTE, natalKeyPlacements } from "@/lib/astrology/view/natalKeyPlacements";
+import NatalChartControls from "@/app/admin/astroloji/_components/NatalChartControls";
+import { DEFAULT_ASPECT_FILTER, NATAL_LABEL_PREF_LABELS, NATAL_OPTIONAL_POINT_LABELS, NATAL_WHEEL_MODE_LABELS, type NatalWheelPrefs } from "@/lib/astrology/view/natalWheelDisplay";
 import { AVAILABLE_TECHNIQUES, COMING_SOON_AVAILABLE_AS, COMING_SOON_ITEM_CODES, COMING_SOON_SECTION_CODES, visibleComingSoonSections } from "@/app/admin/astroloji/_lib/comingSoon";
 
 const ROOT = join(__dirname, "..", "..");
@@ -181,6 +183,76 @@ t("EN: metin + öznitelik Türkçe harfsiz; ham anahtar yok (tüm vakalar)", () 
     const attrs = [...h.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
     assert.ok(!TR_LETTERS.test(attrs), `${c.name} öznitelik: ${attrs.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
     assert.ok(!/atlas\.natalPanel\.|terms\./.test(h), `${c.name}: ham anahtar`);
+  }
+});
+
+// ─── [C] Natal çark denetimi (araç çubuğu) ──────────────────────────────────────────────────────────────────────────
+const GOLD_C = join(__dirname, "fixtures", "i18n", "natal-chart-controls-tr-taban.json");
+const ALLP = { nodes: true, chiron: true, lilith: true, vertex: true, fortune: true };
+const basePrefs: NatalWheelPrefs = { mode: "pro", labels: "auto", points: { basic: { ...ALLP }, pro: { ...ALLP } }, filter: { ...DEFAULT_ASPECT_FILTER } };
+const prefVariants: { name: string; prefs: NatalWheelPrefs; tu?: boolean }[] = [
+  { name: "varsayilan", prefs: basePrefs },
+  { name: "temel", prefs: { ...basePrefs, mode: "basic", labels: "simple" } },
+  { name: "odak-gunes", prefs: { ...basePrefs, labels: "detailed", filter: { ...DEFAULT_ASPECT_FILTER, harmonious: false, focus: "sun" } } },
+  { name: "nokta-kapali", prefs: { ...basePrefs, points: { basic: { ...ALLP }, pro: { ...ALLP, chiron: false, vertex: false } } } },
+  { name: "saatsiz", prefs: basePrefs, tu: true },
+];
+const controlCases: NCase[] = natalAll.slice(0, 6).flatMap((c) =>
+  prefVariants.map((v) => ({ name: `${c.id}|${v.name}`, el: () => createElement(NatalChartControls, { technical: c.technical, prefs: v.prefs, onChange: noopPrefs, timeUnknown: v.tu ?? false }) })),
+);
+function noopPrefs(): void {}
+if (process.argv.includes("--write-golden-controls")) {
+  const cases: Record<string, string> = {};
+  for (const c of controlCases) cases[c.name] = natalSha(renderToStaticMarkup(c.el(), "tr"));
+  writeFileSync(GOLD_C, JSON.stringify({ source: "atlas-a-r5-i18n --write-golden-controls — NatalChartControls çeviri ÖNCESİ (work/i18n-mod-g-atlas 4157080e1); değer = sha256(SSR HTML, ayırıcılar hariç)", cases }, null, 1) + "\n");
+  console.log(`kontrol tabanı yazıldı: ${Object.keys(cases).length} vaka`);
+  process.exit(0);
+}
+console.log("\n[C] Natal çark denetimi: TR birebir, menü metinleri kilitli, EN Türkçe harfsiz");
+const goldC = (JSON.parse(readFileSync(GOLD_C, "utf8")) as { cases: Record<string, string> }).cases;
+t(`TR araç çubuğu çeviri öncesiyle aynı (${controlCases.length} vaka: 6 harita × 5 tercih/saat varyantı)`, () => {
+  const bad = controlCases.filter((c) => natalSha(renderToStaticMarkup(c.el(), "tr")) !== goldC[c.name]).map((c) => c.name);
+  assert.deepEqual(bad, []);
+});
+t("lib etiketleri + açılır menü metinleri = TR katalog (menüler SSR'de kapalı olduğundan metin kilidi; kaynak: çeviri öncesi bileşen)", () => {
+  const c = translator("tr", "atlas.natalControls");
+  for (const [k, v] of Object.entries(NATAL_WHEEL_MODE_LABELS)) assert.equal(c(`mode.${k}`), v);
+  for (const [k, v] of Object.entries(NATAL_LABEL_PREF_LABELS)) assert.equal(c(`labelPref.${k}`), v);
+  for (const [k, v] of Object.entries(NATAL_OPTIONAL_POINT_LABELS)) assert.equal(c(`point.${k}`), v);
+  const OLD: Record<string, string> = {
+    pointsGroupAria: "Haritada gösterilecek noktalar",
+    pointMissingNote: "Bu haritada yok (doğum saati bilinmiyor)",
+    labelsTitle: "Çark etiketleri",
+    "labelHint.simple": "Gezegen · derece · dakika",
+    "labelHint.detailed": "Gezegen · derece · burç · dakika; ev başlangıçları",
+    drawOnly: "Yalnız çizim değişir; hesap ve kayıt değişmez.",
+    groupTitle: "Açı grubu",
+    minorBasicNote: "Temel görünümde çizilmez — Profesyonel'e geçin",
+    majorNote: "Kavuşum, sekstil, kare, üçgen, karşıt",
+    minorNote: "Yarım sekstil, yarım kare, seskikare, kuinkunks",
+    major: "Başlıca açılar",
+    minor: "Küçük açılar",
+    natureAria: "Açı niteliği",
+    natureTitle: "Nitelik",
+    focusLabel: "Gövde odağı",
+    focusTitle: "Yalnız seçilen gezegenin / noktanın açı çizgilerini göster",
+    focusAll: "Tüm gövdeler",
+    selectAll: "Tümünü seç",
+    clear: "Temizle",
+  };
+  for (const [k, v] of Object.entries(OLD)) assert.equal(c(k), v, k);
+  assert.equal(c("labelHint.auto", { current: c("currentDetailed") }), "Temel: sade · Profesyonel: ayrıntılı (şu an ayrıntılı)");
+  assert.equal(c("labelHint.auto", { current: c("currentSimple") }), "Temel: sade · Profesyonel: ayrıntılı (şu an sade)");
+  assert.equal(c("filterTitle", { on: "4", total: "5", focus: c("filterFocusOnly", { body: "Güneş" }) }), "Çarkta çizilen açılar: 4/5 seçenek seçili · yalnız Güneş");
+});
+t("EN araç çubuğu: metin + öznitelik Türkçe harfsiz; ham anahtar yok", () => {
+  for (const c of controlCases) {
+    const h = renderToStaticMarkup(c.el(), "en");
+    const vis = h.replace(/<!-- -->/g, "").replace(/<[^>]*>/g, " ");
+    assert.ok(!TR_LETTERS.test(vis), `${c.name}: ${vis.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
+    const attrs = [...h.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
+    assert.ok(!TR_LETTERS.test(attrs), `${c.name} öznitelik: ${attrs.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
+    assert.ok(!/atlas\.natalControls\./.test(h), `${c.name}: ham anahtar`);
   }
 });
 
