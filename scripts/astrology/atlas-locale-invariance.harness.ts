@@ -221,6 +221,10 @@ async function main() {
   const okA = Object.entries(A.okCount).filter(([, v]) => v).map(([k]) => k);
   console.log(`  bilgi: başarılı normalizer projeksiyonu ${okA.length}/${Object.keys(A.okCount).length}: ${okA.join(", ")}`);
   console.log(`  bilgi: yerelde hesaplanamayan (ör. DE440 veri dosyası yok) çağrı sayısı ${JSON.stringify(B.unavailable)} — iki dilde aynı hata da eşitlik kapsamında`);
+  if (process.env.ATLAS_REQUIRE_DE440 === "1") {
+    const missing = Object.values(A.unavailable).reduce((t, n) => t + n, 0) + Object.values(B.unavailable).reduce((t, n) => t + n, 0);
+    ok(missing === 0, "ATLAS_REQUIRE_DE440=1: tüm efemeris/olay/tutulma/horary çağrıları iki dilde GERÇEKTEN hesaplandı (hata eşitliği kabul edilmez)", { A: A.unavailable, B: B.unavailable });
+  }
   ok(okA.length >= 12, "normalizer kapsamı (≥12 teknik gerçek yanıtla projekte edildi)", A.okCount);
   ok(JSON.stringify(A.okCount) === JSON.stringify(B.okCount), "projeksiyon başarı durumu iki dilde aynı");
 
