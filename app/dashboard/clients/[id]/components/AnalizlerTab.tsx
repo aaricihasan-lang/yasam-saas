@@ -404,7 +404,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         placed++;
       }
 
-      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.pdf`);
+      pdf.save(`${safeFileName(clientName || t("fileNameFallback"))}-${safeFileName(activeTitleDisplay)}.pdf`);
       showToast({ title: t("toast.successTitle"), message: t("toast.pdfDownloaded"), type: "success" });
       reportUsageExport("clients", "analysis");
     } catch (error) {
@@ -573,7 +573,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") || "";
       const match = cd.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.docx`;
+      const filename = match?.[1] || `${safeFileName(clientName || t("fileNameFallback"))}-${safeFileName(activeTitleDisplay)}.docx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

@@ -4,6 +4,7 @@
       "loading": "Loading...",
       "refresh": "Refresh",
       "cancel": "Cancel",
+      "fileNameFallback": "client",
       "analysisType": {
         "chakra": "Chakra Analysis",
         "planet": "Chakra–Planetary Analysis",

@@ -4,6 +4,7 @@
       "loading": "Yükleniyor...",
       "refresh": "Yenile",
       "cancel": "Vazgeç",
+      "fileNameFallback": "danisan",
       "analysisType": {
         "chakra": "Çakra Analizi",
         "planet": "Çakra-Gezegen Analizi",
