@@ -9,6 +9,7 @@
  */
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
@@ -28,23 +29,24 @@ function calcState(): Calc {
 }
 
 export function NewAnalysisButton({ className }: { className?: string }) {
+  const t = useTranslations("hd.education");
   // Sunucu çiziminde "checking"; istemcide oturumdaki kullanıcıdan (hidrasyon uyumsuzluğu yok).
   const s = useSyncExternalStore(noop, calcState, () => "checking" as Calc);
   if (s === "ok") {
     return (
       <Link className={className ?? `${base.btn} ${base.save} ${oz.touch}`} href={NEW_ANALYSIS_HREF} data-edu-new-analysis>
-        Yeni Human Design Analizi
+        {t("newAnalysis.button")}
       </Link>
     );
   }
   return (
     <span className={oz.newAnalysisOff} data-edu-new-analysis-off={s}>
-      <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} disabled aria-describedby="edu-new-analysis-why">Yeni Human Design Analizi</button>
+      <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} disabled aria-describedby="edu-new-analysis-why">{t("newAnalysis.button")}</button>
       {s === "checking" ? null : (
         <small id="edu-new-analysis-why">
           {s === "demo"
-            ? "Demo hesabında yeni Human Design hesaplaması yapılamaz."
-            : "Yeni Human Design hesaplaması için Human Design modül izniniz yok. Bu izni yalnız platform yöneticisi verebilir; mevcut kayıtlı haritalarınızı eklemeye devam edebilirsiniz."}
+            ? t("newAnalysis.demo")
+            : t("newAnalysis.noPermission")}
         </small>
       )}
     </span>
