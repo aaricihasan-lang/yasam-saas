@@ -199,28 +199,39 @@ const bkUserText = BK_VIEW
 check("U menü/kullanıcı dilinde serbest 'claim' kelimesi yok (View)",
   !/["'>][^"'<]*\bclaim\b(?!_)[^"'<]*["'<]/i.test(bkUserText),
   "kullanıcı metninde 'claim' bulundu");
-check("U 'Bilgi Kayıtları' terimi kullanılıyor", /Bilgi Kayıtları|Bilgi Kaydı/.test(BK_VIEW));
+// I18N (2026-11-25): terim katalogda; yorumla geçmesin diye anahtar çağrısı + TR değer birebir denetlenir (amaç korunur).
+check("U 'Bilgi Kayıtları' terimi kullanılıyor",
+  /t\("newRecord"\)/.test(BK_VIEW) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.list.newRecord === "Yeni Bilgi Kaydı");
 
 // Preparat detay "Üretim ve Elde Ediliş" sözleşmesi (şema boşluğu boş-durum).
 const PREP_DETAIL = read("app/aromaterapi/katalog/preparatlar/[id]/page.tsx");
+// I18N (2026-11-25): bölüm başlığı aromatherapy.catalog.prep.methods anahtarına taşındı; anahtar + TR değer birebir.
 check("U preparat detay 'Üretim ve Elde Ediliş' bölümü var",
-  /Üretim ve Elde Ediliş/.test(PREP_DETAIL));
+  /t\("methods"\)/.test(PREP_DETAIL) &&
+  /^Üretim ve Elde Ediliş/.test(JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.catalog.prep.methods));
 check("U preparat detay sahte yöntem üretmez (şema boşluğu boş-durum)",
   /SchemaGapNote|henüz.*girilmemiş/i.test(PREP_DETAIL));
 
 // Pasaj katmanları ayrı gösterilir.
 const PASSAGE_UI = read("app/aromaterapi/_components/read/PassageAccordionItem.tsx");
+// I18N (2026-11-25): katman başlıkları/boş notları aromatherapy.shared.passage anahtarlarına taşındı;
+// her katman ayrı anahtarla çağrılır + TR değerler birebir doğrulanır (amaç korunur).
+const PASSAGE_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.shared.passage;
 check("U pasaj katmanları ayrı (özgün/sadık çeviri/açıklama/yorum)",
-  /Özgün Kaynak Metni/.test(PASSAGE_UI) &&
-  /Sadık Çeviriler/.test(PASSAGE_UI) &&
-  /Editoryal Açıklamalar/.test(PASSAGE_UI) &&
-  /Editoryal Yorum/.test(PASSAGE_UI));
+  /tp\("original"\)/.test(PASSAGE_UI) && PASSAGE_TR.original === "Özgün Kaynak Metni" &&
+  /tp\("translations"\)/.test(PASSAGE_UI) && PASSAGE_TR.translations === "Sadık Çeviriler" &&
+  /tp\("explanations"\)/.test(PASSAGE_UI) && PASSAGE_TR.explanations === "Editoryal Açıklamalar" &&
+  /tp\("interpretations"\)/.test(PASSAGE_UI) && /^Editoryal Yorum/.test(PASSAGE_TR.interpretations));
 check("U sadık çeviri editoryalle fallback ETMEZ (boşsa dürüst not)",
-  /çeviri girilmemiş/.test(PASSAGE_UI));
+  /tp\("translationsEmpty"\)/.test(PASSAGE_UI) && /çeviri girilmemiş/.test(PASSAGE_TR.translationsEmpty));
 
 // Bilgi Kaydı detay "Değişiklik Geçmişi".
 const BK_DETAIL = read("app/aromaterapi/bilgi-kayitlari/[id]/page.tsx");
-check("U bilgi kaydı detayında Değişiklik Geçmişi var", /Değişiklik Geçmişi/.test(BK_DETAIL));
+// I18N (2026-11-25): bölüm başlığı aromatherapy.knowledge.detail.secHistory anahtarına taşındı; anahtar + TR değer birebir.
+check("U bilgi kaydı detayında Değişiklik Geçmişi var",
+  /t\("secHistory"\)/.test(BK_DETAIL) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.detail.secHistory === "Değişiklik Geçmişi");
 check("U detay create/update/delete butonu yok (C3D)",
   !/Yeni Bilgi Kaydı|Düzenle|Sil<\/button>|onDelete|handleDelete/.test(BK_DETAIL));
 

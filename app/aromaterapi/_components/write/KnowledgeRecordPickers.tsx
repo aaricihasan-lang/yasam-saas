@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useCallback } from "react";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import { fetchPreparationList } from "@/lib/aromaterapi/catalogData";
@@ -11,7 +13,7 @@ import type {
   PreparationListItem,
   SourceListItem,
 } from "@/lib/aromaterapi/readTypes";
-import { PASSAGE_KIND_TR, PREPARATION_TYPE_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { PASSAGE_KIND_TR, PREPARATION_TYPE_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { truncate } from "@/lib/aromaterapi/readFormat";
 
 /** Aromaterapi V2 — C3D-D özel seçiciler (mevcut C3C read API üzerinden). */
@@ -23,15 +25,17 @@ export function PreparationPicker(props: {
   disabled?: boolean;
   required?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
+  const enumLabel = useEnumLabel();
   const toItem = useCallback((r: PreparationListItem): PickerItem => ({
     id: r.id,
-    label: tr.label(PREPARATION_TYPE_TR, r.preparation_type),
+    label: enumLabel(PREPARATION_TYPE_TR, r.preparation_type),
     sublabel: [r.taxon_canonical_name, r.plant_part].filter(Boolean).join(" · "),
-  }), []);
+  }), [enumLabel]);
   return (
     <EntitySearchPicker<PreparationListItem>
-      label="Preparat"
-      placeholder="Preparat türü, bitki kısmı ara…"
+      label={tp("preparation")}
+      placeholder={tp("preparationPh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -49,17 +53,19 @@ export function SourcePicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
+  const enumLabel = useEnumLabel();
   const toItem = useCallback((r: SourceListItem): PickerItem => ({
     id: r.id,
     label: r.title,
-    sublabel: [tr.label(SOURCE_TYPE_TR, r.source_type), r.authors, r.publication_year ? String(r.publication_year) : null]
+    sublabel: [enumLabel(SOURCE_TYPE_TR, r.source_type), r.authors, r.publication_year ? String(r.publication_year) : null]
       .filter(Boolean)
       .join(" · "),
-  }), []);
+  }), [enumLabel]);
   return (
     <EntitySearchPicker<SourceListItem>
-      label="Kaynak"
-      placeholder="Kaynak başlığı, yazar ara…"
+      label={tp("source")}
+      placeholder={tp("sourcePh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -78,6 +84,8 @@ export function PassagePicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
+  const enumLabel = useEnumLabel();
   const { sourceId } = props;
   const search = useCallback(
     (params: URLSearchParams, signal: AbortSignal) => fetchSourcePassageList(sourceId, params, signal),
@@ -86,13 +94,13 @@ export function PassagePicker(props: {
   const toItem = useCallback((r: PassageListItem): PickerItem => ({
     id: r.id,
     label: r.locator_label,
-    sublabel: `${tr.label(PASSAGE_KIND_TR, r.passage_kind)} · ${r.original_lang}`,
+    sublabel: `${enumLabel(PASSAGE_KIND_TR, r.passage_kind)} · ${r.original_lang}`,
     data: r,
-  }), []);
+  }), [enumLabel]);
   return (
     <EntitySearchPicker<PassageListItem>
-      label="Pasaj"
-      placeholder="Pasaj konumu ara…"
+      label={tp("passage")}
+      placeholder={tp("passagePh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -110,6 +118,7 @@ export function RelatedRecordPicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
   const toItem = useCallback((r: KnowledgeRecordListItem): PickerItem => ({
     id: r.id,
     label: truncate(r.conclusion, 90),
@@ -117,8 +126,8 @@ export function RelatedRecordPicker(props: {
   }), []);
   return (
     <EntitySearchPicker<KnowledgeRecordListItem>
-      label="İlişkili Bilgi Kaydı"
-      placeholder="Sonuç metni ara…"
+      label={tp("related")}
+      placeholder={tp("relatedPh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}

@@ -1,5 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DetailScreen } from "@/app/aromaterapi/_components/read/DetailScreen";
@@ -11,9 +16,8 @@ import {
 import { PassageAccordionItem } from "@/app/aromaterapi/_components/read/PassageAccordionItem";
 import { useAromaterapiDetail } from "@/app/aromaterapi/_components/read/useAromaterapiDetail";
 import { fetchSource, fetchSourcePassageList } from "@/lib/aromaterapi/sourceData";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import type { PassageListItem, SourceDetail } from "@/lib/aromaterapi/readTypes";
-import { SOURCE_STATUS_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { SOURCE_STATUS_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { KaynakDetailActions } from "@/app/aromaterapi/kaynaklar/_components/KaynakDetailActions";
 
@@ -21,6 +25,7 @@ const PASSAGE_PAGE = 25;
 
 /** Kaynak detay — künye + pasajlar (katman açılımı) + bağlı bilgi kaydı özeti + Düzenle/Arşivle/Sil. */
 export default function KaynakDetayPage() {
+  const enumLabel = useEnumLabel();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const fetcher = useCallback((signal: AbortSignal) => fetchSource(id, signal), [id]);
@@ -29,15 +34,17 @@ export default function KaynakDetayPage() {
     id,
   );
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("aromatherapy.sources.detail");
+  const locale = useLocale() as ActiveLocale;
 
   return (
     <DetailScreen
-      title={data?.title ?? "Kaynak Detayı"}
-      subtitle={data ? tr.label(SOURCE_TYPE_TR, data.source_type) : undefined}
+      title={data?.title ?? t("fallbackTitle")}
+      subtitle={data ? enumLabel(SOURCE_TYPE_TR, data.source_type) : undefined}
       icon="📜"
-      breadcrumbLeaf="Kaynak Detayı"
+      breadcrumbLeaf={t("fallbackTitle")}
       backHref="/aromaterapi/kaynaklar"
-      backLabel="Kaynaklara dön"
+      backLabel={t("back")}
       wordExportUrl={id ? `/api/aromaterapi/sources/${id}/word-report` : undefined}
       extraActions={data ? <KaynakDetailActions data={data} isDemo={isDemo} onChanged={retry} /> : undefined}
       loading={loading}
@@ -47,22 +54,22 @@ export default function KaynakDetayPage() {
     >
       {data ? (
         <div className="space-y-4">
-          <DetailSection title="Künye">
+          <DetailSection title={t("citation")}>
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              <DetailField label="Başlık" value={data.title} />
-              <DetailField label="Tür" value={tr.label(SOURCE_TYPE_TR, data.source_type)} />
-              {data.authors ? <DetailField label="Yazar(lar)" value={data.authors} /> : null}
-              {data.organization ? <DetailField label="Kurum" value={data.organization} /> : null}
+              <DetailField label={t("title")} value={data.title} />
+              <DetailField label={t("type")} value={enumLabel(SOURCE_TYPE_TR, data.source_type)} />
+              {data.authors ? <DetailField label={t("authors")} value={data.authors} /> : null}
+              {data.organization ? <DetailField label={t("organization")} value={data.organization} /> : null}
               {data.publication_year ? (
-                <DetailField label="Yayın Yılı" value={data.publication_year} />
+                <DetailField label={t("year")} value={data.publication_year} />
               ) : null}
-              {data.doi ? <DetailField label="DOI" value={data.doi} /> : null}
-              {data.pmid ? <DetailField label="PMID" value={data.pmid} /> : null}
-              {data.isbn ? <DetailField label="ISBN" value={data.isbn} /> : null}
-              {data.document_no ? <DetailField label="Belge No" value={data.document_no} /> : null}
+              {data.doi ? <DetailField label={t("doi")} value={data.doi} /> : null}
+              {data.pmid ? <DetailField label={t("pmid")} value={data.pmid} /> : null}
+              {data.isbn ? <DetailField label={t("isbn")} value={data.isbn} /> : null}
+              {data.document_no ? <DetailField label={t("documentNo")} value={data.document_no} /> : null}
               {data.url ? (
                 <DetailField
-                  label="URL"
+                  label={t("url")}
                   value={
                     <a
                       href={data.url}
@@ -76,13 +83,13 @@ export default function KaynakDetayPage() {
                 />
               ) : null}
               <DetailField
-                label="Durum"
-                value={<MetaChip tone="amber">{tr.label(SOURCE_STATUS_TR, data.status)}</MetaChip>}
+                label={t("status")}
+                value={<MetaChip tone="amber">{enumLabel(SOURCE_STATUS_TR, data.status)}</MetaChip>}
               />
             </dl>
             {data.notes ? (
               <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-3">
-                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Not</p>
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{t("note")}</p>
                 <p className="mt-1 whitespace-pre-wrap break-words text-[13.5px] font-medium leading-relaxed text-slate-700">
                   {data.notes}
                 </p>
@@ -91,24 +98,24 @@ export default function KaynakDetayPage() {
           </DetailSection>
 
           <DetailSection
-            title="Pasajlar"
-            hint="Her pasaj açıldığında özgün metin, sadık çeviri ve editoryal katmanlar ayrı gösterilir."
+            title={t("passages")}
+            hint={t("passagesHint")}
           >
             <SourcePassagesPanel sourceId={data.id} total={data.passage_count} />
           </DetailSection>
 
-          <DetailSection title="Bağlı Bilgi Kayıtları">
+          <DetailSection title={t("linkedKnowledge")}>
             {data.knowledge_record_count > 0 ? (
               <p className="text-[13.5px] font-semibold text-slate-600">
-                Bu kaynağa dayanan{" "}
-                <span className="font-black text-emerald-700">
-                  {data.knowledge_record_count.toLocaleString("tr-TR")}
-                </span>{" "}
-                bilgi kaydı bulunuyor.
+                {t.rich("knowledgeCount", {
+                  n: data.knowledge_record_count,
+                  count: formatNumber(data.knowledge_record_count, undefined, locale),
+                  b: (c) => <span className="font-black text-emerald-700">{c}</span>,
+                })}
               </p>
             ) : (
               <p className="py-2 text-center text-[13px] font-semibold text-slate-400">
-                Bu kaynağa dayanan bilgi kaydı bulunmuyor.
+                {t("noKnowledge")}
               </p>
             )}
           </DetailSection>
@@ -128,6 +135,8 @@ function SourcePassagesPanel({ sourceId, total }: { sourceId: string; total: num
   // loading türetilir: istenen sayfa henüz yüklenmediyse. Effect'te senkron
   // setState YOK (tüm setState async .then içinde).
   const loading = fetchedPage < page;
+  const t = useTranslations("aromatherapy.sources.detail");
+  const readError = useAromaReadError();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -159,19 +168,19 @@ function SourcePassagesPanel({ sourceId, total }: { sourceId: string; total: num
   }, [sourceId, page]);
 
   if (loading && rows.length === 0) {
-    return <p className="py-4 text-center text-[13px] font-semibold text-slate-400">Pasajlar yükleniyor…</p>;
+    return <p className="py-4 text-center text-[13px] font-semibold text-slate-400">{t("passagesLoading")}</p>;
   }
   if (errorCode && rows.length === 0) {
     return (
       <p role="alert" className="py-4 text-center text-[13px] font-bold text-rose-600">
-        {messageForCode(errorCode)}
+        {readError(errorCode)}
       </p>
     );
   }
   if (rows.length === 0) {
     return (
       <p className="py-4 text-center text-[13px] font-semibold text-slate-400">
-        Bu kaynağa bağlı pasaj kaydı bulunmuyor.
+        {t("noPassages")}
       </p>
     );
   }
@@ -190,7 +199,7 @@ function SourcePassagesPanel({ sourceId, total }: { sourceId: string; total: num
             disabled={loading}
             className="inline-flex min-h-[44px] items-center rounded-xl border border-violet-200 bg-white px-4 text-[13px] font-black text-violet-700 shadow-sm transition hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/60 disabled:opacity-50"
           >
-            {loading ? "Yükleniyor…" : "Daha fazla pasaj"}
+            {loading ? t("loading") : t("morePassages")}
           </button>
         </div>
       ) : null}

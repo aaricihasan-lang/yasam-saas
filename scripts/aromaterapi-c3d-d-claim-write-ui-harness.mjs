@@ -41,8 +41,13 @@ check("R02 yeni route create mode", /mode="create"/.test(read(CREATE_PAGE)));
 check("R03 duzenle route var", has(EDIT_PAGE));
 check("R04 duzenle route edit mode", /mode="edit"/.test(read(EDIT_PAGE)));
 check("R05 yeni loading + duzenle loading", has("app/aromaterapi/bilgi-kayitlari/yeni/loading.tsx") && has("app/aromaterapi/bilgi-kayitlari/[id]/duzenle/loading.tsx"));
-check("R06 listede Yeni Bilgi Kaydı aksiyonu", /bilgi-kayitlari\/yeni/.test(read(VIEW)) && /Yeni Bilgi Kaydı/.test(read(VIEW)));
-check("R07 detayda Düzenle aksiyonu", /\/duzenle/.test(read(DETAIL)) && /Düzenle/.test(read(DETAIL)));
+// I18N (2026-11-25): aksiyon metni aromatherapy.knowledge.list.newRecord anahtarına taşındı; anahtar + TR değer birebir.
+check("R06 listede Yeni Bilgi Kaydı aksiyonu", /bilgi-kayitlari\/yeni/.test(read(VIEW)) && /t\("newRecord"\)/.test(read(VIEW)) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.list.newRecord === "Yeni Bilgi Kaydı");
+// I18N (2026-11-25): "Düzenle" / "Bilgi Kaydı" metinleri katalog anahtarlarına taşındı; yorum satırıyla geçmesin diye
+// anahtar çağrısı + TR değer birebir denetlenir (amaç korunur).
+const KN_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge;
+check("R07 detayda Düzenle aksiyonu", /\/duzenle/.test(read(DETAIL)) && /t\("edit"\)/.test(read(DETAIL)) && /Düzenle/.test(KN_TR.detail.edit));
 check("R08 detayda Sil/DELETE aksiyonu YOK",
   !/Sil<\/|onDelete|handleDelete|deleteKnowledge|deleteClaim|bulk.?delete/i.test(read(DETAIL)));
 check("R09 modal içine sıkıştırma yok (bağımsız route)",
@@ -51,7 +56,9 @@ check("R09 modal içine sıkıştırma yok (bağımsız route)",
 const userText = noComments(read(FORM)) + noComments(read(CREATE_PAGE)) + noComments(read(EDIT_PAGE));
 check("R10 kullanıcı dilinde serbest 'claim' yok",
   !/["'>][^"'<]*\bclaim\b(?!_)[^"'<]*["'<]/i.test(userText), "form/route metninde 'claim'");
-check("R11 'Bilgi Kaydı' terminolojisi", /Bilgi Kaydı|Bilgi Kayıtları/.test(read(FORM)));
+check("R11 'Bilgi Kaydı' terminolojisi",
+  /t\("newTitle"\)/.test(read(FORM)) && /t\("submitCreate"\)/.test(read(FORM)) &&
+  KN_TR.form.newTitle === "Yeni Bilgi Kaydı" && KN_TR.form.submitCreate === "Bilgi Kaydını Oluştur");
 
 // ============================================================
 console.log("\n[C3D-D-2] Create contract");
@@ -72,14 +79,16 @@ console.log("\n[C3D-D-3] Update contract + concurrency");
 // ============================================================
 check("U01 PATCH /api/aromaterapi/claims/[id]", /fetch\(`\/api\/aromaterapi\/claims\/\$\{id\}`/.test(W) && /method:\s*"PATCH"/.test(W));
 check("U02 GET ile hydrate (edit)", /fetchKnowledgeRecord/.test(read(EDIT_PAGE)) && /useAromaterapiDetail/.test(read(EDIT_PAGE)));
-check("U03 out-of-tenant/eksik 404 ekranı", /notFound/.test(read(EDIT_PAGE)) && /bulunamadı/i.test(read(EDIT_PAGE)));
-check("U04 update reason ZORUNLU", /mode === "edit"[\s\S]{0,120}reason/.test(H) && /Gerekçe zorunludur/.test(H));
+// I18N (2026-11-25): kullanıcı metinleri aromatherapy.knowledge.form.* anahtarlarına taşındı; anahtar + TR değer birebir (amaç korunur).
+const KF_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.form;
+check("U03 out-of-tenant/eksik 404 ekranı", /notFound/.test(read(EDIT_PAGE)) && /t\("notFound"\)/.test(read(EDIT_PAGE)) && /bulunamadı/i.test(KF_TR.pages.notFound));
+check("U04 update reason ZORUNLU", /mode === "edit"[\s\S]{0,120}reason/.test(H) && /tv\("reasonRequired"\)/.test(H) && /Gerekçe zorunludur/.test(KF_TR.validation.reasonRequired));
 check("U05 expected_updated_at gönderilir", /expected_updated_at:\s*initial\?\.updated_at/.test(H));
 check("U06 scalar patch changed-only", /scalarPatch/.test(H) && /initialCore/.test(H));
 check("U07 no-op submit engeli", /AROMA_NOOP/.test(H) && /hasChanges/.test(H));
 check("U08 409 STALE conflict UX (sessiz overwrite yok)",
   /stale/.test(W) && /AROMA_STALE_CLAIM/.test(W) && /conflict=\{form\.result\?\.stale/.test(read(FORM)));
-check("U09 preparation edit'te değişmez (salt-okunur)", /değiştirilemez/.test(read(FORM)));
+check("U09 preparation edit'te değişmez (salt-okunur)", /t\("immutable"\)/.test(read(FORM)) && /değiştirilemez/.test(KF_TR.immutable));
 
 // ============================================================
 console.log("\n[C3D-D-4] Child preserve/clear/replace semantiği");

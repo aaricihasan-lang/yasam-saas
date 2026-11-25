@@ -163,8 +163,12 @@ check("H01 render/blends.ts 'Hedef' etiketi", /Hedef/.test(RB));
 check("H02 render/blends.ts 'Yağların toplamı' etiketi", /Yağların toplamı/.test(RB));
 const PRINT = read("app/aromaterapi/karisim-olusturucu/_components/BlendRecetePrint.tsx");
 check("H03 BlendRecetePrint mevcut", PRINT.length > 0);
-check("H04 print 'Hedef' etiketi", /Hedef/.test(PRINT));
-check("H05 print 'Yağların toplamı' + sumDrops", /Yağların toplamı/.test(PRINT) && /sumDrops/.test(PRINT));
+// I18N (2026-11-25): reçete metinleri aromatherapy.blend.print.* katalog anahtarlarına taşındı. Niyet aynı —
+// bileşen anahtarı kullanır VE TR katalog değeri birebir eski metindir.
+const BLEND_PRINT_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.blend.print;
+check("H04 print 'Hedef' etiketi", /tp\("target"\)/.test(PRINT) && BLEND_PRINT_TR.target === "Hedef damla");
+check("H05 print 'Yağların toplamı' + sumDrops",
+  /tp\("oilsSum"\)/.test(PRINT) && BLEND_PRINT_TR.oilsSum === "Yağların toplamı" && /sumDrops/.test(PRINT));
 
 // ============================================================
 console.log(`\n──────────── ARO PRESALE FAZ 1 HARNESS: ${pass} PASS / ${fail} FAIL ────────────`);

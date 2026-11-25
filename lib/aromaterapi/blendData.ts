@@ -135,6 +135,10 @@ export type BlendSafetyWarning = {
   kind: "photosensitive" | "photosensitive_unknown" | "contraindication" | "safety_note";
   label: string;
   detail: string;
+  /** I18N: taşıyıcı yağ uyarısı mı (oil_name "Taşıyıcı: …" Türkçe ön eki taşır; ekran dili için ham ad ayrı). */
+  carrier?: boolean;
+  /** I18N: ön eksiz yağ adı (ekran dilinde ön ek üretmek için). */
+  source_name?: string;
 };
 
 export type BlendSafetyResult = {
@@ -202,8 +206,12 @@ export function collectSafetyWarnings(
 
   if (carrier && carrier.oil_name.trim()) {
     const cName = `Taşıyıcı: ${carrier.oil_name.trim()}`;
+    const before = warnings.length;
     pushPhoto(cName, carrier.photosensitivity_status);
     pushText(cName, carrier.contraindications, carrier.safety_notes);
+    for (let i = before; i < warnings.length; i++) {
+      warnings[i] = { ...warnings[i], carrier: true, source_name: carrier.oil_name.trim() };
+    }
   }
 
   const hasWarnings = warnings.length > 0;
@@ -250,13 +258,28 @@ export function makeBlendItem(
 // Doğrulama
 // -------------------------------------------------------
 
+/** I18N: dil-bağımsız doğrulama kodu (ekran metni aromatherapy.blend.validation.<kod>). */
+export type BlendInputErrorCode = "nameRequired" | "bottleInvalid" | "dilutionInvalid" | "itemsRequired";
+
+export function blendInputErrorCode(input: BlendInput): BlendInputErrorCode | null {
+  if (!input.name.trim()) return "nameRequired";
+  if (!(input.bottle_ml > 0)) return "bottleInvalid";
+  if (!(input.dilution_percent > 0)) return "dilutionInvalid";
+  if (!input.items || input.items.length === 0) return "itemsRequired";
+  return null;
+}
+
+const BLEND_INPUT_ERROR_TR: Record<BlendInputErrorCode, string> = {
+  nameRequired: "Karışım adı zorunludur.",
+  bottleInvalid: "Şişe hacmi 0'dan büyük olmalıdır.",
+  dilutionInvalid: "Seyreltme oranı 0'dan büyük olmalıdır.",
+  itemsRequired: "En az bir uçucu yağ eklemelisiniz.",
+};
+
 /** Kaydetme öncesi minimal doğrulama. Hata varsa mesaj döner, yoksa null. */
 export function validateBlendInput(input: BlendInput): string | null {
-  if (!input.name.trim()) return "Karışım adı zorunludur.";
-  if (!(input.bottle_ml > 0)) return "Şişe hacmi 0'dan büyük olmalıdır.";
-  if (!(input.dilution_percent > 0)) return "Seyreltme oranı 0'dan büyük olmalıdır.";
-  if (!input.items || input.items.length === 0) return "En az bir uçucu yağ eklemelisiniz.";
-  return null;
+  const code = blendInputErrorCode(input);
+  return code ? BLEND_INPUT_ERROR_TR[code] : null;
 }
 
 // -------------------------------------------------------

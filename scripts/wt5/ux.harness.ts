@@ -195,7 +195,9 @@ async function main() {
   {
     ok(!existsSync(join(ROOT, "app/aromaterapi/_components/AromaterapiModuleNav.tsx")), "Aromaterapi tekrar eden üst modül şeridi kaldırıldı");
     const oil = read("app/aromaterapi/yaglar/[id]/page.tsx");
-    const nav = oil.match(/<nav aria-label="Yağ bilgi sekmeleri"[^>]*className="([^"]+)"/);
+    // I18N (2026-11-25): aria-label katalog anahtarına taşındı (aromatherapy.oilDetail.tabsAria; TR "Yağ bilgi sekmeleri" birebir).
+    const nav = oil.match(/<nav aria-label=\{td\("tabsAria"\)\}[^>]*className="([^"]+)"/);
+    ok((JSON.parse(read("messages/tr/aromatherapy.json")) as { aromatherapy: { oilDetail: { tabsAria: string } } }).aromatherapy.oilDetail.tabsAria === "Yağ bilgi sekmeleri", "yağ sekmeleri aria-label TR metni birebir");
     ok(Boolean(nav) && /\bflex-wrap\b/.test(nav![1]) && !/(^|\s)overflow-x-auto/.test(nav![1]) && /lg:flex-col/.test(nav![1]), "yağ sekmeleri mobilde sarar (yatay kaydırma yok), webde dikey kenar çubuğu");
     const drawer = read("app/dogaltas/components/StoneDetailDrawer.tsx");
     ok(/max-h-\[calc\(100dvh-7rem\)\]/.test(drawer) && /sm:h-full/.test(drawer) && /onClick=\{onBackdropClick\}/.test(drawer), "taş detay drawer: mobilde üstte VE altta dokunulabilir karartılmış alan + backdrop kapatır (WT8)");

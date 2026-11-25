@@ -1,5 +1,10 @@
 "use client";
 
+import { useSourceWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useLocale, useTranslations } from "next-intl";
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -13,9 +18,9 @@ import {
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { fetchSourceList, fetchSource } from "@/lib/aromaterapi/sourceData";
-import { updateSource, sourceMessageForCode } from "@/lib/aromaterapi/sourceWrite";
+import { updateSource } from "@/lib/aromaterapi/sourceWrite";
 import type { SourceListItem } from "@/lib/aromaterapi/readTypes";
-import { SOURCE_STATUS_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { SOURCE_STATUS_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { KaynakForm } from "@/app/aromaterapi/kaynaklar/_components/KaynakForm";
 
@@ -28,18 +33,22 @@ import { KaynakForm } from "@/app/aromaterapi/kaynaklar/_components/KaynakForm";
 
 const SOURCE_FILTER_KEYS = ["source_type", "status", "year"] as const;
 
-const SOURCE_TYPE_OPTIONS = Object.entries(SOURCE_TYPE_TR).map(([value, label]) => ({ value, label }));
-const SOURCE_STATUS_OPTIONS = Object.entries(SOURCE_STATUS_TR).map(([value, label]) => ({ value, label }));
+// I18N: seçenek etiketleri bileşende useEnumOptions ile (kanonik değer listesi burada).
+const SOURCE_TYPE_VALUES = Object.keys(SOURCE_TYPE_TR);
+const SOURCE_STATUS_VALUES = Object.keys(SOURCE_STATUS_TR);
 
 type EditorState = { mode: "create" } | { mode: "edit"; id: string } | null;
 
 export function KaynaklarView() {
+  const enumOptionsI18n = useEnumOptions();
   const s = useAromaterapiListQuery<SourceListItem>({
     fetcher: fetchSourceList,
     filterKeys: SOURCE_FILTER_KEYS,
   });
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
   const { showToast } = useToast();
+  const ts = useTranslations("aromatherapy.sources");
+  const sourceError = useSourceWriteError();
   const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/sources/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
 
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -50,7 +59,7 @@ export function KaynaklarView() {
 
   function handleSaved(created: boolean) {
     setEditor(null);
-    showToast({ title: "Başarılı", message: created ? "Kaynak eklendi." : "Kaynak güncellendi.", type: "success" });
+    showToast({ title: ts("successTitle"), message: created ? ts("added") : ts("updated"), type: "success" });
     s.retry();
   }
 
@@ -67,7 +76,7 @@ export function KaynaklarView() {
     const det = await fetchSource(archiveTarget.id);
     if (!det.ok || !det.data) {
       setArchiving(false);
-      showToast({ title: "Hata", message: sourceMessageForCode(det.errorCode), type: "error" });
+      showToast({ title: ts("errorTitle"), message: sourceError(det.errorCode), type: "error" });
       return;
     }
     const d = det.data;
@@ -90,10 +99,10 @@ export function KaynaklarView() {
     setArchiving(false);
     if (res.ok) {
       closeArchive();
-      showToast({ title: "Arşivlendi", message: "Kaynak arşive alındı.", type: "success" });
+      showToast({ title: ts("archivedTitle"), message: ts("archived"), type: "success" });
       s.retry();
     } else {
-      showToast({ title: "Hata", message: sourceMessageForCode(res.errorCode), type: "error" });
+      showToast({ title: ts("errorTitle"), message: sourceError(res.errorCode), type: "error" });
     }
   }
 
@@ -122,8 +131,8 @@ export function KaynaklarView() {
         hasActiveQuery={hasActive}
         onPage={s.goToPage}
         onRetry={s.retry}
-        emptyTitle="Henüz kaynak yok"
-        emptyMessage="Kendi kaynak künyelerinizi eklemek için “+ Yeni Kaynak”a dokunun."
+        emptyTitle={ts("emptyTitle")}
+        emptyMessage={ts("emptyMessage")}
         gridClassName="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
         action={
           isDemo ? null : (
@@ -132,7 +141,7 @@ export function KaynaklarView() {
               onClick={() => setEditor({ mode: "create" })}
               className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 px-4 text-[13px] font-black text-white shadow-md transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/60"
             >
-              + Yeni Kaynak
+              {ts("newSource")}
             </button>
           )
         }
@@ -140,31 +149,31 @@ export function KaynaklarView() {
           <ReadSearchBar
             value={s.qInput}
             onChange={s.setQInput}
-            placeholder="Başlık, yazar, DOI, ISBN ara…"
+            placeholder={ts("search")}
           />
         }
         filters={
           <>
             <ReadFilterSelect
-              label="Kaynak türü"
+              label={ts("type")}
               value={s.filters.source_type ?? ""}
-              options={SOURCE_TYPE_OPTIONS}
+              options={enumOptionsI18n(SOURCE_TYPE_VALUES, SOURCE_TYPE_TR)}
               onChange={(v) => s.setFilter("source_type", v)}
             />
             <ReadFilterSelect
-              label="Durum"
+              label={ts("status")}
               value={s.filters.status ?? ""}
-              options={SOURCE_STATUS_OPTIONS}
+              options={enumOptionsI18n(SOURCE_STATUS_VALUES, SOURCE_STATUS_TR)}
               onChange={(v) => s.setFilter("status", v)}
             />
             <YearFilter value={s.filters.year ?? ""} onChange={(v) => s.setFilter("year", v)} />
             <ReadFilterSelect
-              label="Sırala"
+              label={ts("sort")}
               value={s.sort}
-              allLabel="Başlığa göre (A–Z)"
+              allLabel={ts("sortTitle")}
               options={[
-                { value: "year", label: "Yayın yılı (yeni)" },
-                { value: "updated", label: "Son güncelleme" },
+                { value: "year", label: ts("sortYear") },
+                { value: "updated", label: ts("sortUpdated") },
               ]}
               onChange={s.setSort}
             />
@@ -187,28 +196,27 @@ export function KaynaklarView() {
       <AromaterapiConfirmDialog
         open={archiveTarget !== null}
         tone="danger"
-        title="Bu kaynağı arşive almak istiyor musunuz?"
+        title={ts("archiveTitle")}
         description={
           <>
-            <strong>{archiveTarget?.title}</strong> kaynağı arşive alınacak (durum: Arşivlenmiş). Atıflı
-            kaynaklar silinmez; arşiv listelerde durum filtresiyle görünmeye devam eder.
+            {ts.rich("archiveBody", { name: archiveTarget?.title ?? "", strong: (c) => <strong>{c}</strong> })}
           </>
         }
-        confirmLabel={archiving ? "Arşivleniyor…" : "Evet, Arşivle"}
-        cancelLabel="Vazgeç"
+        confirmLabel={archiving ? ts("archiving") : ts("archiveConfirm")}
+        cancelLabel={ts("cancel")}
         confirmDisabled={archiving || archiveReason.trim() === ""}
         onConfirm={() => void handleArchive()}
         onCancel={closeArchive}
       >
         <label className="block text-[12px] font-black uppercase tracking-wide text-slate-500">
-          Gerekçe <span className="text-rose-500">*</span>
+          {ts("reason")} <span className="text-rose-500">*</span>
         </label>
         <textarea
           value={archiveReason}
           onChange={(e) => setArchiveReason(e.target.value)}
           rows={2}
           maxLength={2000}
-          placeholder="Arşivleme nedenini kısaca yazın…"
+          placeholder={ts("reasonPlaceholder")}
           className="mt-1 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-[14px] font-medium text-slate-800 shadow-sm outline-none focus-visible:border-rose-300 focus-visible:ring-2 focus-visible:ring-rose-300/50"
         />
       </AromaterapiConfirmDialog>
@@ -217,11 +225,12 @@ export function KaynaklarView() {
 }
 
 function YearFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ts = useTranslations("aromatherapy.sources");
   const id = useId();
   return (
     <div className="flex min-w-[120px] flex-col gap-1">
       <label htmlFor={id} className="text-[11px] font-black uppercase tracking-wide text-slate-400">
-        Yıl
+        {ts("year")}
       </label>
       <input
         id={id}
@@ -231,7 +240,7 @@ function YearFilter({ value, onChange }: { value: string; onChange: (v: string) 
         max={2100}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="örn. 2019"
+        placeholder={ts("yearPlaceholder")}
         className="min-h-[44px] rounded-xl border border-slate-200 bg-white/90 px-3 text-[13px] font-bold text-slate-700 shadow-sm outline-none transition focus-visible:border-violet-300 focus-visible:ring-2 focus-visible:ring-violet-300/50"
       />
     </div>
@@ -249,6 +258,9 @@ function SourceRow({
   onEdit: () => void;
   onArchive: () => void;
 }) {
+  const enumLabel = useEnumLabel();
+  const ts = useTranslations("aromatherapy.sources");
+  const locale = useLocale() as ActiveLocale;
   const meta = [row.authors, row.organization, row.publication_year ? String(row.publication_year) : null]
     .filter(Boolean)
     .join(" · ");
@@ -267,9 +279,9 @@ function SourceRow({
         ) : null}
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <MetaChip tone="violet">{tr.label(SOURCE_TYPE_TR, row.source_type)}</MetaChip>
-        <MetaChip tone="slate">{row.passage_count.toLocaleString("tr-TR")} pasaj</MetaChip>
-        <MetaChip tone="amber">{tr.label(SOURCE_STATUS_TR, row.status)}</MetaChip>
+        <MetaChip tone="violet">{enumLabel(SOURCE_TYPE_TR, row.source_type)}</MetaChip>
+        <MetaChip tone="slate">{ts("passages", { n: row.passage_count, count: formatNumber(row.passage_count, undefined, locale) })}</MetaChip>
+        <MetaChip tone="amber">{enumLabel(SOURCE_STATUS_TR, row.status)}</MetaChip>
       </div>
       {!isDemo ? (
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
@@ -278,7 +290,7 @@ function SourceRow({
             onClick={onEdit}
             className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-black text-slate-600 shadow-sm transition hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
           >
-            Düzenle
+            {ts("edit")}
           </button>
           {!isArchived ? (
             <button
@@ -286,7 +298,7 @@ function SourceRow({
               onClick={onArchive}
               className="inline-flex min-h-[36px] items-center rounded-lg border border-amber-200 bg-white px-3 text-[12px] font-black text-amber-700 shadow-sm transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
             >
-              Arşivle
+              {ts("archive")}
             </button>
           ) : null}
         </div>

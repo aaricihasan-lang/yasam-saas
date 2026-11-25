@@ -34,10 +34,18 @@ export function suggestCopyName(original: string, existingNames: readonly string
   return base;
 }
 
+/** I18N: dil-bağımsız kopya adı hata kodu (ekran metni aromatherapy.blend.validation.copyName*). */
+export function copyNameErrorCode(name: string, existingNames: readonly string[]): "copyNameEmpty" | "copyNameTaken" | null {
+  const key = nameKey(name);
+  if (!key) return "copyNameEmpty";
+  if (existingNames.some((n) => nameKey(n) === key)) return "copyNameTaken";
+  return null;
+}
+
 /** Kullanıcının girdiği kopya adı geçerli mi? Hata metni veya null. */
 export function validateCopyName(name: string, existingNames: readonly string[]): string | null {
-  const key = nameKey(name);
-  if (!key) return "Yeni kaydın adını yazın.";
-  if (existingNames.some((n) => nameKey(n) === key)) return "Bu adla bir kayıt zaten var. Farklı bir ad yazın.";
+  const code = copyNameErrorCode(name, existingNames);
+  if (code === "copyNameEmpty") return "Yeni kaydın adını yazın.";
+  if (code === "copyNameTaken") return "Bu adla bir kayıt zaten var. Farklı bir ad yazın.";
   return null;
 }

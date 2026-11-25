@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { KnowledgeRecordDetail } from "@/lib/aromaterapi/readTypes";
 import {
@@ -195,43 +196,45 @@ export function useKnowledgeRecordForm(opts: {
     });
   }, []);
 
+  const tValidation = useTranslations("aromatherapy.knowledge.form.validation");
   // ---- Doğrulama ----
   const fieldErrors = useMemo(() => {
     const e: Record<string, string> = {};
-    if (!core.preparation_id) e.preparation_id = "Preparat seçin.";
-    if (!core.claim_type) e.claim_type = "Bilgi türü seçin.";
-    if (!core.conclusion.trim()) e.conclusion = "Sonuç zorunludur.";
-    if (!core.conclusion_provenance) e.conclusion_provenance = "Sonuç kaynağı seçin.";
-    if (!core.evidence_layer) e.evidence_layer = "Kanıt katmanı seçin.";
-    if (!core.rationale_status) e.rationale_status = "Gerekçe durumu seçin.";
+    const tv = tValidation;
+    if (!core.preparation_id) e.preparation_id = tv("prep");
+    if (!core.claim_type) e.claim_type = tv("claimType");
+    if (!core.conclusion.trim()) e.conclusion = tv("conclusion");
+    if (!core.conclusion_provenance) e.conclusion_provenance = tv("conclusionSource");
+    if (!core.evidence_layer) e.evidence_layer = tv("evidenceLayer");
+    if (!core.rationale_status) e.rationale_status = tv("rationaleStatus");
     if (safetyTopicRequired(core.claim_type)) {
-      if (!core.safety_topic.trim()) e.safety_topic = "Güvenlik konusu zorunludur.";
-      else if (!SAFETY_TOPIC_RE.test(core.safety_topic.trim())) e.safety_topic = "Yalnız küçük harf/rakam/alt çizgi, harfle başlar.";
-      if (!core.outcome_type) e.outcome_type = "Güvenlik sonucu türü zorunludur.";
+      if (!core.safety_topic.trim()) e.safety_topic = tv("safetyTopic");
+      else if (!SAFETY_TOPIC_RE.test(core.safety_topic.trim())) e.safety_topic = tv("slugFormat");
+      if (!core.outcome_type) e.outcome_type = tv("outcomeType");
     }
     if (core.preparation_context.trim() && !PREPARATION_CONTEXT_RE.test(core.preparation_context.trim())) {
-      e.preparation_context = "Yalnız küçük harf/rakam/alt çizgi, harfle başlar.";
+      e.preparation_context = tv("slugFormat");
     }
     if (rationaleRequired(core.rationale_status) && !core.rationale.trim()) {
-      e.rationale = "Kaynaktan gerekçe zorunludur.";
+      e.rationale = tv("rationale");
     }
     // Child satır-içi doğrulama
-    if (routes.some((r) => !r.route_code)) e.routes = "Her rota için bir değer seçin.";
-    if (populations.some((p) => !p.population_code)) e.populations = "Her popülasyon için bir değer seçin.";
-    if (populations.some((p) => ageInvalid(p))) e.populations = "Yaş değerleri 0–120 aralığında ve min < max olmalı.";
-    if (sources.some((s) => !s.source_id || !s.source_role)) e.sources = "Her kaynak için kaynak ve rol seçin.";
-    if (passages.some((p) => !p.passage_id || !p.evidence_relation)) e.passages = "Her pasaj için pasaj ve kanıt ilişkisi seçin.";
+    if (routes.some((r) => !r.route_code)) e.routes = tv("routes");
+    if (populations.some((p) => !p.population_code)) e.populations = tv("populations");
+    if (populations.some((p) => ageInvalid(p))) e.populations = tv("ages");
+    if (sources.some((s) => !s.source_id || !s.source_role)) e.sources = tv("sources");
+    if (passages.some((p) => !p.passage_id || !p.evidence_relation)) e.passages = tv("passages");
     if (relations.some((r) => !r.other_claim_id || !r.relation_type || !r.explanation_tr.trim())) {
-      e.relations = "Her ilişki için kayıt, tür ve açıklama gerekir.";
+      e.relations = tv("relations");
     }
     if (mode === "edit") {
       const t = reason.trim();
-      if (t === "" || t.length > REASON_MAX_LEN) e.reason = "Gerekçe zorunludur (1–2000 karakter).";
+      if (t === "" || t.length > REASON_MAX_LEN) e.reason = tv("reasonRequired");
     } else if (reason.length > REASON_MAX_LEN) {
-      e.reason = "Gerekçe en fazla 2000 karakter.";
+      e.reason = tv("reasonMax");
     }
     return e;
-  }, [core, routes, populations, sources, passages, relations, reason, mode]);
+  }, [core, routes, populations, sources, passages, relations, reason, mode, tValidation]);
 
   // ---- Değişiklik (patch) hesabı — edit ----
   const scalarPatch = useMemo<UpdatePatch>(() => {

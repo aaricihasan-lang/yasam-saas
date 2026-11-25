@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
 /**
@@ -33,8 +34,8 @@ export function AromaterapiConfirmDialog({
   title,
   description,
   children,
-  confirmLabel = "Onayla",
-  cancelLabel = "Vazgeç",
+  confirmLabel: confirmLabelProp,
+  cancelLabel: cancelLabelProp,
   tone = "default",
   confirmDisabled = false,
   onConfirm,
@@ -42,6 +43,9 @@ export function AromaterapiConfirmDialog({
 }: AromaterapiConfirmDialogProps) {
   const titleId = useId();
   const descId = useId();
+  const tc = useTranslations("aromatherapy.shared.confirm");
+  const confirmLabel = confirmLabelProp ?? tc("confirm");
+  const cancelLabel = cancelLabelProp ?? tc("cancel");
   const panelRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
 

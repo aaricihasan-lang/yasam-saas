@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState, type ReactNode } from "react";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
@@ -47,15 +48,16 @@ export function useUnsavedChangesGuard(
   }, [pending]);
 
   const cancelLeave = useCallback(() => setPending(null), []);
+  const tu = useTranslations("aromatherapy.shared.unsaved");
 
   const guardDialog = (
     <AromaterapiConfirmDialog
       open={pending !== null}
       tone="danger"
-      title="Kaydedilmemiş değişiklikler"
-      description="Bu formda kaydedilmemiş değişiklikler var. Ayrılırsanız değişiklikleriniz kaybolur."
-      confirmLabel="Kaydetmeden ayrıl"
-      cancelLabel="Sayfada kal"
+      title={tu("title")}
+      description={tu("body")}
+      confirmLabel={tu("leave")}
+      cancelLabel={tu("stay")}
       onConfirm={confirmLeave}
       onCancel={cancelLeave}
     />

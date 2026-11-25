@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useId, type ReactNode } from "react";
 import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
 
@@ -16,12 +19,13 @@ import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/Aromatera
 export function ReadSearchBar({
   value,
   onChange,
-  placeholder = "Ara…",
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const tShared = useTranslations("aromatherapy.shared");
   const id = useId();
   return (
     <div className="relative w-full">
@@ -37,7 +41,7 @@ export function ReadSearchBar({
         inputMode="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? tShared("search")}
         className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-white/90 pl-9 pr-3 text-[14px] font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-amber-300 focus-visible:ring-2 focus-visible:ring-amber-300/50"
       />
     </div>
@@ -53,7 +57,7 @@ export function ReadFilterSelect({
   value,
   options,
   onChange,
-  allLabel = "Tümü",
+  allLabel,
 }: {
   label: string;
   value: string;
@@ -61,6 +65,7 @@ export function ReadFilterSelect({
   onChange: (v: string) => void;
   allLabel?: string;
 }) {
+  const tShared = useTranslations("aromatherapy.shared");
   const id = useId();
   return (
     <div className="flex min-w-[140px] flex-col gap-1">
@@ -73,7 +78,7 @@ export function ReadFilterSelect({
         onChange={(e) => onChange(e.target.value)}
         className="min-h-[44px] rounded-xl border border-slate-200 bg-white/90 px-3 text-[13px] font-bold text-slate-700 shadow-sm outline-none transition focus-visible:border-amber-300 focus-visible:ring-2 focus-visible:ring-amber-300/50"
       >
-        <option value="">{allLabel}</option>
+        <option value="">{allLabel ?? tShared("all")}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -115,12 +120,14 @@ export function ReadToolbar({
 }
 
 export function ReadResultCount({ total, loading }: { total: number; loading: boolean }) {
+  const t = useTranslations("aromatherapy.shared");
+  const locale = useLocale() as ActiveLocale;
   return (
     <span
       aria-live="polite"
       className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[12px] font-black text-slate-500"
     >
-      {loading ? "Yükleniyor…" : `${total.toLocaleString("tr-TR")} sonuç`}
+      {loading ? t("loading") : t("resultCount", { n: total, count: formatNumber(total, undefined, locale) })}
     </span>
   );
 }
@@ -132,6 +139,7 @@ export function ReadLoading({ cards = 6 }: { cards?: number }) {
 }
 
 export function ReadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const t = useTranslations("aromatherapy.shared");
   return (
     <div
       role="alert"
@@ -146,7 +154,7 @@ export function ReadError({ message, onRetry }: { message: string; onRetry: () =
         onClick={onRetry}
         className="mt-4 inline-flex min-h-[44px] items-center rounded-xl border border-rose-200 bg-white px-4 text-[13px] font-black text-rose-700 shadow-sm transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60"
       >
-        Yeniden dene
+        {t("retry")}
       </button>
     </div>
   );
@@ -165,6 +173,8 @@ export function ReadPagination({
   total: number;
   onPage: (page: number) => void;
 }) {
+  const t = useTranslations("aromatherapy.shared");
+  const locale = useLocale() as ActiveLocale;
   const totalPages = Math.max(1, Math.ceil(total / limit));
   // Tek sayfa veya boş sonuçta sayfalayıcı gizlenir (sonuç sayısı zaten araç çubuğunda).
   if (total === 0 || totalPages <= 1) return null;
@@ -176,11 +186,11 @@ export function ReadPagination({
 
   return (
     <nav
-      aria-label="Sayfalama"
+      aria-label={t("paginationAria")}
       className="mt-4 flex flex-col items-center justify-between gap-3 rounded-[20px] border border-amber-100/70 bg-white/70 px-4 py-3 sm:flex-row"
     >
       <span className="text-[12px] font-bold text-slate-500">
-        {from.toLocaleString("tr-TR")}–{to.toLocaleString("tr-TR")} / {total.toLocaleString("tr-TR")}
+        {formatNumber(from, undefined, locale)}–{formatNumber(to, undefined, locale)} / {formatNumber(total, undefined, locale)}
       </span>
       <div className="flex items-center gap-2">
         <button
@@ -193,7 +203,7 @@ export function ReadPagination({
               : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:text-amber-800"
           }`}
         >
-          ← Önceki
+          {t("prev")}
         </button>
         <span className="px-1 text-[12px] font-black text-slate-500">
           {page} / {totalPages}
@@ -208,7 +218,7 @@ export function ReadPagination({
               : "border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:text-amber-800"
           }`}
         >
-          Sonraki →
+          {t("next")}
         </button>
       </div>
     </nav>

@@ -1,5 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useCatalogWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type FormEvent } from "react";
 import {
@@ -8,7 +11,7 @@ import {
   AromaterapiMutationNotice,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import {
@@ -21,7 +24,6 @@ import {
   type StepDraft,
 } from "@/app/aromaterapi/katalog/_components/MethodStepsEditor";
 import { createMethodSeries } from "@/lib/aromaterapi/methodWrite";
-import { writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
 import { fetchSourceList, fetchSourcePassageList } from "@/lib/aromaterapi/sourceData";
 import { METHOD_KIND_TR } from "@/lib/aromaterapi/readLabels";
 import type { ListResult } from "@/lib/aromaterapi/readClient";
@@ -36,16 +38,9 @@ import type { PassageListItem, SourceListItem } from "@/lib/aromaterapi/readType
  * Uzman yönteminde kaynak/pasaj gösterilmez.
  */
 
-const KIND_OPTIONS = enumOptions(["faithful_source", "editorial", "expert"], METHOD_KIND_TR);
-const LANG_OPTIONS = [
-  { value: "tr", label: "Türkçe" },
-  { value: "en", label: "İngilizce" },
-  { value: "la", label: "Latince" },
-  { value: "fr", label: "Fransızca" },
-  { value: "de", label: "Almanca" },
-  { value: "ar", label: "Arapça" },
-  { value: "el", label: "Yunanca" },
-];
+const KIND_VALUES = ["faithful_source", "editorial", "expert"];
+// I18N: yöntem (içerik) dili kanonik kodları; etiket aromatherapy.catalog.methodForm.series.langs.<kod>.
+const LANG_VALUES = ["tr", "en", "la", "fr", "de", "ar", "el"] as const;
 
 export function MethodSeriesForm({
   preparationId,
@@ -54,6 +49,10 @@ export function MethodSeriesForm({
   preparationId: string;
   isDemo: boolean;
 }) {
+  const enumOptionsI18n = useEnumOptions();
+  const t = useTranslations("aromatherapy.catalog.methodForm.series");
+  const writeError = useCatalogWriteError();
+  const langOptions = LANG_VALUES.map((value) => ({ value, label: t(`langs.${value}`) }));
   const router = useRouter();
   const [methodKind, setMethodKind] = useState("");
   const [methodLang, setMethodLang] = useState("tr");
@@ -78,9 +77,9 @@ export function MethodSeriesForm({
     methodKind !== "" || content.method_text.trim() !== "" || steps.some((s) => s.text.trim() !== "");
   useAromaterapiDirtyGuard(dirty && !isDemo && successSeriesId === null);
 
-  const methodKindError = triedSubmit && methodKind === "" ? "Yöntem türü zorunludur." : null;
-  const methodTextError = triedSubmit && content.method_text.trim() === "" ? "Ana yöntem metni zorunludur." : null;
-  const sourceError = triedSubmit && isFaithful && !sourceItem ? "Kaynağa Sadık Yöntem için kaynak seçin." : null;
+  const methodKindError = triedSubmit && methodKind === "" ? t("kindRequired") : null;
+  const methodTextError = triedSubmit && content.method_text.trim() === "" ? t("methodTextRequired") : null;
+  const sourceError = triedSubmit && isFaithful && !sourceItem ? t("sourceRequired") : null;
 
   // Pasaj araması yalnız seçili kaynağa göre.
   const passageSearch = useCallback(
@@ -150,28 +149,28 @@ export function MethodSeriesForm({
     return (
       <div className="mx-auto w-full max-w-4xl space-y-3">
         <AromaterapiMutationNotice tone="success">
-          Üretim yöntemi oluşturuldu (ilk revizyon taslak olarak eklendi).
+          {t("created")}
         </AromaterapiMutationNotice>
         <div className="flex flex-col gap-2 sm:flex-row">
           <a href={`${base}/yontemler/${successSeriesId}`} className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105">
-            Yöntemi aç →
+            {t("open")}
           </a>
           <a href={base} className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800">
-            Preparata dön
+            {t("backPrep")}
           </a>
         </div>
       </div>
     );
   }
 
-  const generalError = errorCode ? writeMessageForCode(errorCode) : null;
+  const generalError = errorCode ? writeError(errorCode) : null;
 
   return (
     <AromaterapiFormShell
       mode="create"
       wide
-      title="Yeni Üretim Yöntemi"
-      description="Yöntem türü ve dili seçildikten sonra değiştirilemez; içerik değişiklikleri yeni revizyon olarak eklenir."
+      title={t("title")}
+      description={t("description")}
       onSubmit={onSubmit}
       onCancel={() => router.back()}
       submitting={submitting}
@@ -182,19 +181,19 @@ export function MethodSeriesForm({
         <AromaterapiReasonField value={reason} onChange={setReason} required={false} />
       }
     >
-      <AromaterapiFormSection title="Yöntem Türü ve Bağlam" hint="Bu seçimler seri kimliğidir ve sonradan değiştirilemez.">
+      <AromaterapiFormSection title={t("kindContext")} hint={t("kindContextHint")}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <EnumSelect label="Yöntem Türü" value={methodKind} onChange={onKindChange} options={KIND_OPTIONS} required error={methodKindError} disabled={isDemo} />
-          <EnumSelect label="Yöntem Dili" value={methodLang} onChange={setMethodLang} options={LANG_OPTIONS} required disabled={isDemo} allLabel="Seçin…" />
+          <EnumSelect label={t("kind")} value={methodKind} onChange={onKindChange} options={enumOptionsI18n(KIND_VALUES, METHOD_KIND_TR)} required error={methodKindError} disabled={isDemo} />
+          <EnumSelect label={t("lang")} value={methodLang} onChange={setMethodLang} options={langOptions} required disabled={isDemo} allLabel={t("choose")} />
         </div>
         {isFaithful ? (
           <div className="space-y-3 rounded-xl border border-teal-100 bg-teal-50/40 p-3">
             <p className="text-[12px] font-bold text-teal-800">
-              Kaynağa Sadık Yöntem: yöntem birebir bir kaynağa dayanır. Kaynak zorunludur; pasaj isteğe bağlıdır ve yalnız seçilen kaynağa göre listelenir.
+              {t("faithfulNote")}
             </p>
             <EntitySearchPicker<SourceListItem>
-              label="Kaynak"
-              placeholder="Kaynak başlığı ara…"
+              label={t("source")}
+              placeholder={t("sourcePh")}
               selected={sourceItem}
               onSelect={(it) => {
                 setSourceItem(it);
@@ -213,8 +212,8 @@ export function MethodSeriesForm({
             {sourceError ? <p role="alert" className="text-[12px] font-bold text-rose-600">{sourceError}</p> : null}
             {sourceItem ? (
               <EntitySearchPicker<PassageListItem>
-                label="Pasaj (opsiyonel)"
-                placeholder="Pasaj konumu ara…"
+                label={t("passage")}
+                placeholder={t("passagePh")}
                 selected={passageItem}
                 onSelect={(it) => setPassageItem(it)}
                 onClear={() => setPassageItem(null)}
@@ -226,7 +225,7 @@ export function MethodSeriesForm({
           </div>
         ) : methodKind ? (
           <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2 text-[12px] font-medium text-slate-500">
-            {methodKind === "editorial" ? "Editoryal" : "Uzman"} yöntemi doğrudan bir kaynağa bağlı değildir; kaynak/pasaj seçimi gerekmez.
+            {methodKind === "editorial" ? t("editorialNoSource") : t("expertNoSource")}
           </p>
         ) : null}
       </AromaterapiFormSection>
