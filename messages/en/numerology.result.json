@@ -137,7 +137,8 @@
         "pngFailed": "An error occurred while preparing the PNG. Check the console.",
         "tapFullscreen": "Tap the report to view it full screen",
         "fullscreenAria": "Visual report full screen",
-        "close": "Close"
+        "close": "Close",
+        "pngFileName": "numerology-report.png"
       },
       "page": {
         "sessionMissing": "No active session found. Please sign in again.",

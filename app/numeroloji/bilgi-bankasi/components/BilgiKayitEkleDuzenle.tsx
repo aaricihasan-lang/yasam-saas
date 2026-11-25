@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { numApiErrorCode } from "../../helpers/numApiClient";
 import { getKnowledgeRecord, saveKnowledgeRecord, updateKnowledgeRecordById } from "../helpers/bilgiBankaKayit";
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 import { isKulvarAnalysisType, type KulvarSectionKey } from "../helpers/knowledgeSections";
 import { EMPTY_KULVAR_BODIES, bodiesFromRecord, decideSaveMethod, sectionsFromBodies, shouldResetCanonicalFormAfterSave, type KulvarBodies } from "../helpers/kulvarFormLogic";
 import { MSG_NEEDS_SAVED_RECORD } from "../helpers/sourceUiLogic";
@@ -79,6 +80,8 @@ export function BilgiKayitEkleDuzenle() {
   const tApi = useTranslations("common.apiErrors");
   // I18N: TR'de sunucu / istisna metni birebir; EN'de kod → katalog, yoksa genel metin.
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const [analizTuru, setAnalizTuru] = useState<AnalizTuruValue>("");
   const [deger, setDeger] = useState("");
   const [bilgiKaynagi, setBilgiKaynagi] = useState("");
@@ -323,7 +326,7 @@ export function BilgiKayitEkleDuzenle() {
               <option value="">{t("form.selectPlaceholder")}</option>
               {CHAKRA_VALUE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>
@@ -337,7 +340,7 @@ export function BilgiKayitEkleDuzenle() {
               <option value="">{t("form.selectPlaceholder")}</option>
               {ELEMENT_DEGER_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
-                  {opt}
+                  {kbView(opt)}
                 </option>
               ))}
             </select>

@@ -140,6 +140,8 @@ const I18N_PRESENTATION_FILES = [
   "app/numeroloji/bilgi-bankasi/helpers/wordKulvarLogic.ts",
   "app/numeroloji/bilgi-bankasi/helpers/wordPersonSections.ts",
   "app/numeroloji/bilgi-bankasi/helpers/kbValueDisplay.ts",
+  // form hata kodu (TR metni aynen; EN koddan)
+  "app/numeroloji/bilgi-bankasi/helpers/sourceUiLogic.ts",
 ];
 /**
  * Motor / hesap / DB yazma deseni + (QA-N3-04, R5) HTTP yazma çağrıları: `fetch(…, { method: "DELETE" | "POST" | "PUT" |

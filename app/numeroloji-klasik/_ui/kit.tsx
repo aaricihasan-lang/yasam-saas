@@ -4,7 +4,8 @@
 // Tüm metin React ile kaçışlanır; dangerouslySetInnerHTML YOK. Sınıflar nk- önekli (nkm.css).
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useCallback, useEffect, useId, useRef, type ReactNode, type PointerEvent as RPointerEvent } from "react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import type { ClassicNumber, MeaningBlock, Verification } from "@/lib/numeroloji-klasik/model";
@@ -268,26 +269,30 @@ export function VerificationBadge({ v }: { v: Verification | null | undefined })
 
 export function MismatchNote({ v }: { v: Verification | null | undefined }) {
   const t = useTranslations("numerology.classic.kit");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   if (v?.status !== "mismatch") return null;
   const ov = v.oracleValue;
   const shown = Array.isArray(ov) ? ov.join(", ") : typeof ov === "boolean" ? (ov ? t("yes") : t("no")) : ov ?? null;
-  // v.note doğrulayıcı/sunucu metnidir → çevrilmez.
+  // v.note kayıtla saklanan doğrulayıcı (Türkçe teknik) notudur → TR'de aynen; diğer dillerde gösterilmez
+  // (I18N-F1-R5: karışık dil yok; uyuşmazlık bilgisi + değer katalog metniyle verilir).
   return (
     <p className="nk-mismatch-note">
       {shown !== null && shown !== "" ? t("mismatchWithValue", { value: String(shown) }) : t("mismatchPlain")}
-      {v.note ? ` ${v.note}` : ""} {t("expertDecides")}
+      {v.note && isSourceLocale ? ` ${v.note}` : ""} {t("expertDecides")}
     </p>
   );
 }
 
 export function Trace({ text, label }: { text: string | null | undefined; label?: string }) {
   const t = useTranslations("numerology.classic.kit");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   if (!text || !text.trim()) return null;
-  // Hesap izi (text) sunucu metnidir → çevrilmez; trTrace (_lib/format.ts) dokunulmadı.
+  // Hesap izi (text) sağlayıcının İngilizce iz metnidir; trTrace yalnız TR ekranda Türkçeleştirir (I18N-F1-R5:
+  // diğer dillerde ham iz gösterilir — EN ekranda Türkçeye çevrilmiş iz görünmez).
   return (
     <details className="nk-trace">
       <summary>{label ?? t("traceLabel")}</summary>
-      <div className="nk-trace-body">{trTrace(text)}</div>
+      <div className="nk-trace-body">{isSourceLocale ? trTrace(text) : text}</div>
     </details>
   );
 }

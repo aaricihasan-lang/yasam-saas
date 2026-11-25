@@ -204,7 +204,24 @@
         "noSources": "Henüz kaynak yok.",
         "deleteSource": "Kaynağı tamamen sil",
         "newSource": "Yeni Kaynak",
-        "createSource": "Kaynak Oluştur"
+        "createSource": "Kaynak Oluştur",
+        "formErrors": {
+          "PUB_YEAR_INT": "Yayın yılı geçerli bir tamsayı olmalı.",
+          "LABEL_REQUIRED": "Kaynak adı boş olamaz.",
+          "SOURCE_INVALID": "Kaynak bilgileri geçersiz.",
+          "SOURCE_REQUIRED": "Bir kaynak seçin.",
+          "SECTION_INVALID": "Geçersiz bölüm seçimi.",
+          "SECTION_KULVAR_ONLY": "Bölüm düzeyi kaynak bağı yalnız Ana/Yan Kulvar kayıtlarında kullanılabilir.",
+          "INT_NONNEG": "Yalnız 0 veya pozitif tamsayı girin.",
+          "INT_INVALID": "Geçersiz sayı.",
+          "PAGE_RANGE": "Başlangıç sayfası, bitiş sayfasından büyük olamaz.",
+          "withField": "{field}: {error}",
+          "fields": {
+            "page_start": "Başlangıç sayfası",
+            "page_end": "Bitiş sayfası",
+            "display_order": "Sıra"
+          }
+        }
       },
       "sourceNotes": {
         "expertOwnNote": "Uzmanın Kendi Notu",

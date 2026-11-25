@@ -13,6 +13,8 @@ import { getAnalysis, type ClassicAnalysisRow } from "@/lib/numeroloji-klasik/se
 import { resolveDraftRow } from "@/lib/numeroloji-klasik/server/draftRoute";
 import { futureYearsOptsFor, rowResultForViewer } from "@/lib/numeroloji-klasik/server/futureYearsView";
 
+import { resolveOutputLocale } from "@/lib/i18n/output";
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
@@ -56,7 +58,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   const at = new Date();
   // NK-R3: PNG'ye yetkisiz uzmanın göremeyeceği gelecek dönem / gelecek yıl zamanlaması GİRMEZ.
   const shown = rowResultForViewer(row, futureYearsOptsFor(guard.profile, at));
-  const out = renderClassicPng(toReportRecord({ ...(row as unknown as Record<string, unknown>), result: shown }), { generatedAt: at, expertName: expertDisplayName(guard.profile) });
+  // I18N-F1-R5 (P37): çıktı dili = ekran dili (çerez + yayın kapısı). Yalnız görünen metin; gelecek yıl kesimi (shown) dilden bağımsız.
+  // #855 birleşince: resolveReportLocale(req, hesap).
+  const output = resolveOutputLocale(req);
+  const out = renderClassicPng(toReportRecord({ ...(row as unknown as Record<string, unknown>), result: shown }), { generatedAt: at, expertName: expertDisplayName(guard.profile), output });
   if (!out.ok) {
     if (out.reason === "no_data") return classicJson(422, { ok: false, code: "PNG_NOT_AVAILABLE", error: "Bu analizde görsel rapor için çekirdek harita ya da Kalde sonucu bulunmuyor." });
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "analysis", errorClass: "server" });

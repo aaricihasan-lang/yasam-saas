@@ -137,7 +137,8 @@
         "pngFailed": "PNG hazırlanırken hata oluştu. Konsolu kontrol edin.",
         "tapFullscreen": "Tam ekran görüntülemek için rapora dokunun",
         "fullscreenAria": "Görsel rapor tam ekran",
-        "close": "Kapat"
+        "close": "Kapat",
+        "pngFileName": "numeroloji-raporu.png"
       },
       "page": {
         "sessionMissing": "Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.",

@@ -24,6 +24,7 @@ import { WordSectionPicker } from "./WordSectionPicker";
 import type { WordSections } from "../helpers/wordSectionLogic";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
+import { kbValueDisplay, type KbValueT } from "../helpers/kbValueDisplay";
 
 type KayitTuru = BilgiBankaListeSatir["kayitTuru"];
 
@@ -84,7 +85,7 @@ type ListT = ReturnType<typeof useTranslations>;
  */
 const OZET_LIMIT = 10;
 function enSatirEtiketi(t: ListT, r: BilgiBankaListeSatir): string {
-  return t("list.confirm.rowLabel", { type: analizTuruGoster(t, r), value: r.deger, kind: t(`list.confirm.rowKind.${r.kayitTuru}`) });
+  return t("list.confirm.rowLabel", { type: analizTuruGoster(t, r), value: kbValueDisplay(r.deger, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT), kind: t(`list.confirm.rowKind.${r.kayitTuru}`) });
 }
 function enSilmeEtkisiMetni(t: ListT, satirlar: readonly BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string {
   if (!satirlar.some((r) => r.kayitTuru === "aciklama")) return "";
@@ -120,6 +121,8 @@ export function BilgiKayitListesi() {
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const turGoster = (r: Pick<BilgiBankaListeSatir, "analizTuruKey" | "analizTuru">): string =>
     isSourceLocale ? r.analizTuru : analizTuruGoster(t, r);
+  // I18N-F1-R5: kanonik değer (DB eşleşme anahtarı) DEĞİŞMEZ; yalnız görünen etiket ekran dilinde.
+  const kbView = (v: string): string => (isSourceLocale ? v : kbValueDisplay(v, ((k, x) => t(`valueDisplay.${k}` as never, x as never)) as KbValueT));
   const onayMetni = (satirlar: BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string =>
     isSourceLocale ? kbSilmeOnayMetni(satirlar, etki) : enSilmeOnayMetni(t, satirlar, etki);
   const etkiMetni = (satirlar: BilgiBankaListeSatir[], etki: KbSilmeEtkisi): string =>
@@ -528,10 +531,10 @@ export function BilgiKayitListesi() {
                     checked={secili}
                     onChange={() => toggleSec(row.id)}
                     className={`${checkboxClass} shrink-0`}
-                    aria-label={t("list.selectRowAria", { label: mobileKayitKimligi({ analizTuru: turGoster(row), deger: row.deger }) })}
+                    aria-label={t("list.selectRowAria", { label: mobileKayitKimligi({ analizTuru: turGoster(row), deger: kbView(row.deger) }) })}
                   />
                   <p className="min-w-0 flex-1 break-words text-sm font-black leading-snug text-violet-900">
-                    {mobileKayitKimligi({ analizTuru: turGoster(row), deger: row.deger })}
+                    {mobileKayitKimligi({ analizTuru: turGoster(row), deger: kbView(row.deger) })}
                   </p>
                 </div>
                 <AdminTransferBadge originType={row.origin_type} />
@@ -599,7 +602,7 @@ export function BilgiKayitListesi() {
                           checked={secili}
                           onChange={() => toggleSec(row.id)}
                           className={checkboxClass}
-                          aria-label={t("list.selectRowAria", { label: `${turGoster(row)} ${row.deger}` })}
+                          aria-label={t("list.selectRowAria", { label: `${turGoster(row)} ${kbView(row.deger)}` })}
                         />
                       </div>
                     </td>
@@ -625,7 +628,7 @@ export function BilgiKayitListesi() {
                         secili ? "bg-violet-100/70" : "bg-white/95 group-hover:bg-violet-50/90"
                       }`}
                     >
-                      {row.deger}
+                      {kbView(row.deger)}
                     </td>
                     <td
                       className={`max-w-md ${tableTdClass} ${
@@ -698,7 +701,7 @@ export function BilgiKayitListesi() {
           kimlik={
             mobilSilHedef.mode === "toplu"
               ? t("list.recordCount", { count: seciliSayisi })
-              : mobileKayitKimligi({ analizTuru: turGoster(mobilSilHedef.row), deger: mobilSilHedef.row.deger })
+              : mobileKayitKimligi({ analizTuru: turGoster(mobilSilHedef.row), deger: kbView(mobilSilHedef.row.deger) })
           }
           ek={mobilSilEk}
           onClose={() => setMobilSilHedef(null)}

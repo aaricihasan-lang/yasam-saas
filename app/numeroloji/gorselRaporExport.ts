@@ -162,13 +162,17 @@ export async function gorselRaporuPngYakala(hedef: HTMLElement | null): Promise<
 }
 
 /** Yüksek çözünürlüklü tam rapor PNG'si — dosyaya indirir. Başarısızlıkta Error fırlatır. */
-export async function gorselRaporuPngYakalaVeIndir(hedef: HTMLElement | null): Promise<void> {
+export async function gorselRaporuPngYakalaVeIndir(
+  hedef: HTMLElement | null,
+  /** I18N-F1-R5 (P36): indirilen dosya adı (ekran dilinde; çağıran katalogdan verir). Yok → bugünkü TR ad. */
+  dosyaAdi: string = "numeroloji-raporu.png",
+): Promise<void> {
   if (!hedef || typeof window === "undefined") return;
   try {
     const dataUrl = await gorselRaporuPngYakala(hedef);
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = "numeroloji-raporu.png";
+    a.download = dosyaAdi;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();

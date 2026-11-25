@@ -470,7 +470,7 @@ export function NumerolojiKayitDetayPanel({
     }
     try {
       setGorselPngHazirlaniyor(true);
-      await gorselRaporuPngYakalaVeIndir(el);
+      await gorselRaporuPngYakalaVeIndir(el, t("pngFileName"));
     } catch (err) {
       console.error(err);
       alert(t("pngFailed"));
