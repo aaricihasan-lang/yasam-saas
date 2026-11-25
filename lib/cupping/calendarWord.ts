@@ -39,9 +39,9 @@ import {
   WidthType,
 } from "docx";
 import { gregorianToHijri, toYmd } from "@/lib/cupping/hijri";
+// Haftagünü SIRASI ve hesabı tek kaynaktan (bulk.ts: Pazartesi başlangıç); görünen ad çıktı dilinde (reportText).
 import { WEEKDAYS_TR, isoWeekday } from "@/app/kupa/takvim/lib/bulk";
 import {
-  CUPPING_DAY_COLORS_LABEL_TR,
   CUPPING_DAY_WORD_COLORS,
   CUPPING_DAY_WORD_NEUTRAL,
 } from "@/lib/cupping/calendarWordColors";
@@ -51,6 +51,8 @@ import type {
   CuppingCalendarPlanDay,
   CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
+import { cuppingReportText, type CuppingReportText } from "@/lib/cupping/reportText";
 import { EXPERT_SIGNATURE_CARD_TWIPS as CARD, DEFAULT_EXPERT_BRANDING_VARIANT, expertSignatureBlock, expertBrandingFields, fitLogo, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const WORD_CONTENT_TYPE =
@@ -70,11 +72,7 @@ const RULE_GRAY = "E7E2D8"; // sıcak ince çizgi (sert siyah DEĞİL)
 const C_HEADER_FILL = "F3F1EA"; // takvim haftagünü satırı yumuşak zemin
 const C_PILL_FILL = "EDEBE3"; // bilgilendirme etiket "pill" zemini
 
-/** Gregoryen ay adları (Türkçe; nötr — hiçbir hüküm taşımaz). */
-const GREGORIAN_MONTHS_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-] as const;
+/** Gregoryen ay adları: çıktı dilinde, katalogdan (reports.cupping.calendar.months; nötr — hiçbir hüküm taşımaz). */
 
 /**
  * A3 YATAY sayfa (twips). NOT: docx, orientation=LANDSCAPE iken width/height'ı ÇIKTIDA takas eder.
@@ -151,10 +149,6 @@ function wordColorFor(colorKey: CuppingDayColorKey | null): { fill: string; text
   return colorKey ? CUPPING_DAY_WORD_COLORS[colorKey] : CUPPING_DAY_WORD_NEUTRAL;
 }
 
-/** Türkçe renk adı (a11y/lejant; renk ANLAMI DEĞİL). NULL → "Renk yok". */
-function colorNameFor(colorKey: CuppingDayColorKey | null): string {
-  return colorKey ? CUPPING_DAY_COLORS_LABEL_TR[colorKey] : "Renk yok";
-}
 
 /** Metni satırlara böler (\r\n / \n); boş satırları da korur ama sondaki fazlalığı kırpar. */
 function toLines(text: string): string[] {
@@ -178,6 +172,7 @@ function miniMonthCell(
   year: number,
   month: number, // 1..12
   selected: Map<string, CuppingCalendarPlanDay>,
+  x: CuppingReportText,
 ): TableCell {
   const total = daysInMonth(year, month);
   const firstIso = isoWeekday(toYmd({ year, month, day: 1 })); // 1=Pzt … 7=Paz
@@ -195,7 +190,7 @@ function miniMonthCell(
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { before: 10, after: 10 },
-            children: [new TextRun({ text: w.short, bold: true, size: 13, font: FONT, color: C_MID })],
+            children: [new TextRun({ text: x.weekdayShort(w.iso), bold: true, size: 13, font: FONT, color: C_MID })],
           }),
         ],
       }),
@@ -275,7 +270,7 @@ function miniMonthCell(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 20, after: 40 },
-        children: [new TextRun({ text: GREGORIAN_MONTHS_TR[month - 1], bold: true, size: 18, font: FONT, color: C_BRAND })],
+        children: [new TextRun({ text: x.month(month), bold: true, size: 18, font: FONT, color: C_BRAND })],
       }),
       monthTable,
       // OOXML: bir tablo hücresi TABLO ile bitemez — sondaki boş paragraf zorunlu (yoksa Word "bozuk" der).
@@ -285,13 +280,13 @@ function miniMonthCell(
 }
 
 /** 12 mini-ayı 4 sütun × 3 satır ızgarasında (Ocak→Aralık) döşer. */
-function buildAnnualGrid(year: number, selected: Map<string, CuppingCalendarPlanDay>): Table {
+function buildAnnualGrid(year: number, selected: Map<string, CuppingCalendarPlanDay>, x: CuppingReportText): Table {
   const rows: TableRow[] = [];
   for (let r = 0; r < 3; r++) {
     const rowCells: TableCell[] = [];
     for (let c = 0; c < 4; c++) {
       const month = r * 4 + c + 1; // 1..12
-      rowCells.push(miniMonthCell(year, month, selected));
+      rowCells.push(miniMonthCell(year, month, selected, x));
     }
     rows.push(new TableRow({ cantSplit: true, children: rowCells }));
   }
@@ -315,7 +310,7 @@ function buildAnnualGrid(year: number, selected: Map<string, CuppingCalendarPlan
  *   Yıllık ızgaranın küçültülmüş hâli DEĞİL; gerçek tek-ay ızgarası. Yalnız o ayın seçili günleri
  *   uzmanın renkleriyle işaretlenir (grid ymd araması ay dışına çıkmaz → başka ay sızmaz).
  */
-function monthCalendarTable(year: number, month: number, selected: Map<string, CuppingCalendarPlanDay>): Table {
+function monthCalendarTable(year: number, month: number, selected: Map<string, CuppingCalendarPlanDay>, x: CuppingReportText): Table {
   const total = daysInMonth(year, month);
   const firstIso = isoWeekday(toYmd({ year, month, day: 1 }));
   const lead = firstIso - 1;
@@ -331,7 +326,7 @@ function monthCalendarTable(year: number, month: number, selected: Map<string, C
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { before: 44, after: 44 },
-            children: [new TextRun({ text: w.long.toLocaleUpperCase("tr-TR"), bold: true, size: 13, font: FONT, color: C_MID })],
+            children: [new TextRun({ text: x.rl.upper(x.weekdayLong(w.iso)), bold: true, size: 13, font: FONT, color: C_MID })],
           }),
         ],
       }),
@@ -406,19 +401,19 @@ function monthCalendarTable(year: number, month: number, selected: Map<string, C
 }
 
 /** AYLIK belge başlığı: "HACAMAT TAKVİMİ" + "<Ay> <Yıl>" (açıkça görünür) + plan adı. */
-function monthTitleBlock(plan: CuppingCalendarPlan, month: number): Paragraph[] {
+function monthTitleBlock(plan: CuppingCalendarPlan, month: number, x: CuppingReportText): Paragraph[] {
   return [
     // Ana başlık — güçlü serif (premium his).
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 18 },
-      children: [new TextRun({ text: "HACAMAT TAKVİMİ", bold: true, size: 44, font: HEAD_FONT, color: C_TITLE })],
+      children: [new TextRun({ text: x.t("calendar.title"), bold: true, size: 44, font: HEAD_FONT, color: C_TITLE })],
     }),
     // Seçilen ay + yıl — belirgin serif alt başlık.
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 6 },
-      children: [new TextRun({ text: `${GREGORIAN_MONTHS_TR[month - 1]} ${plan.year}`, bold: true, size: 26, font: HEAD_FONT, color: C_DARK })],
+      children: [new TextRun({ text: `${x.month(month)} ${plan.year}`, bold: true, size: 26, font: HEAD_FONT, color: C_DARK })],
     }),
     // Plan adı — sakin ikincil metin.
     new Paragraph({
@@ -441,7 +436,7 @@ function monthTitleBlock(plan: CuppingCalendarPlan, month: number): Paragraph[] 
  *   TAM Hicrî tarih + (varsa) uzmanın KISA açıklaması. Her açıklama DOĞRUDAN kendi günüyle
  *   ilişkilidir (başka günün altında görünmez). Açıklama YOKSA uydurma metin eklenmez.
  */
-function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number): TableCell {
+function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number, x: CuppingReportText): TableCell {
   if (!day) {
     // Izgara doldurma (boş hücre) — OOXML için paragraf ile biter.
     return new TableCell({
@@ -450,7 +445,8 @@ function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number): T
     });
   }
   const [y, m, d] = day.gregorian_date.split("-").map(Number);
-  const weekday = WEEKDAYS_TR[isoWeekday(day.gregorian_date) - 1]?.long ?? "";
+  const iso = WEEKDAYS_TR[isoWeekday(day.gregorian_date) - 1]?.iso;
+  const weekday = iso ? x.weekdayLong(iso) : "";
   const hijri = gregorianToHijri(day.gregorian_date);
   const c = wordColorFor(day.color_key);
 
@@ -460,7 +456,7 @@ function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number): T
       keepLines: true,
       spacing: { before: 0, after: 0 },
       children: [
-        new TextRun({ text: `${d} ${GREGORIAN_MONTHS_TR[m - 1]} ${y}`, bold: true, size: 15, font: HEAD_FONT, color: C_DARK }),
+        new TextRun({ text: x.dayDate(d, m, y), bold: true, size: 15, font: HEAD_FONT, color: C_DARK }),
         new TextRun({ text: weekday ? ` - ${weekday}` : "", size: 14, font: FONT, color: C_MID }),
       ],
     }),
@@ -470,7 +466,7 @@ function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number): T
       spacing: { before: 0, after: 0 },
       indent: { left: 170 },
       children: [
-        new TextRun({ text: hijri ? hijri.formatted : "Hicrî tarih hesaplanamadı", size: 14, font: FONT, color: C_MID, italics: !hijri }),
+        new TextRun({ text: hijri ? x.hijri(hijri) : x.t("calendar.hijriUnavailable"), size: 14, font: FONT, color: C_MID, italics: !hijri }),
       ],
     }),
   ];
@@ -509,18 +505,18 @@ function page1SummaryCell(day: CuppingCalendarPlanDay | null, colPct: number): T
  *   "devamı sonraki sayfalarda" notu belirir (yalnız gerçekten devam eden kayıt varsa).
  */
 /** Belge başlığı + plan adı/yılı (A3 üstü; her belgede bir kez) — premium serif hiyerarşi. */
-function titleBlock(plan: CuppingCalendarPlan): Paragraph[] {
+function titleBlock(plan: CuppingCalendarPlan, x: CuppingReportText): Paragraph[] {
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 14 },
-      children: [new TextRun({ text: "HACAMAT TAKVİMİ", bold: true, size: 42, font: HEAD_FONT, color: C_TITLE })],
+      children: [new TextRun({ text: x.t("calendar.title"), bold: true, size: 42, font: HEAD_FONT, color: C_TITLE })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 10 },
       children: [
-        new TextRun({ text: `${plan.year} Yıllık Takvim`, bold: true, size: 22, font: HEAD_FONT, color: C_DARK }),
+        new TextRun({ text: x.t("calendar.annualSubtitle", { year: String(plan.year) }), bold: true, size: 22, font: HEAD_FONT, color: C_DARK }),
         new TextRun({ text: `   ·   ${plan.name}`, size: 18, font: FONT, color: C_MID }),
       ],
     }),
@@ -560,12 +556,12 @@ function summaryHeading(text: string): Paragraph {
  *   TAM Hicrî tarih + varsa uzmanın KISA açıklaması). Bu, her günün ANA (ve TEK) özet gösterimidir —
  *   ikinci bir toplu liste üretilmez. Renk yalnız görsel; anlam uzmanın açıklamasından gelir.
  */
-function daySummaryTable(days: CuppingCalendarPlanDay[], cols: number = PAGE1_SUMMARY_COLUMNS): Table {
+function daySummaryTable(days: CuppingCalendarPlanDay[], x: CuppingReportText, cols: number = PAGE1_SUMMARY_COLUMNS): Table {
   const colPct = Math.floor(100 / cols);
   const rows: TableRow[] = [];
   for (let i = 0; i < days.length; i += cols) {
     const rowCells: TableCell[] = [];
-    for (let c = 0; c < cols; c++) rowCells.push(page1SummaryCell(days[i + c] ?? null, colPct));
+    for (let c = 0; c < cols; c++) rowCells.push(page1SummaryCell(days[i + c] ?? null, colPct, x));
     rows.push(new TableRow({ cantSplit: true, children: rowCells }));
   }
   return new Table({
@@ -583,10 +579,10 @@ function daySummaryTable(days: CuppingCalendarPlanDay[], cols: number = PAGE1_SU
 }
 
 /** Sıfır seçili gün notu (uydurma gün/açıklama üretilmez). */
-function noSelectedDaysPara(): Paragraph {
+function noSelectedDaysPara(x: CuppingReportText): Paragraph {
   return new Paragraph({
     spacing: { before: 30, after: 0 },
-    children: [new TextRun({ text: "Bu takvimde henüz seçili gün yok.", size: 16, font: FONT, color: C_LIGHT, italics: true })],
+    children: [new TextRun({ text: x.t("calendar.noSelectedDays"), size: 16, font: FONT, color: C_LIGHT, italics: true })],
   });
 }
 
@@ -614,9 +610,10 @@ function signatureTail(signature: readonly (Paragraph | Table)[]): (Paragraph | 
  *   Notu OLMAYAN gün için ÜRETİLMEZ. Notun hangi güne ait olduğu başlıkta tarih tekrarlanarak AÇIKÇA
  *   gösterilir. keepNext YOK (sığmayan bloğu toplu itmesin); uzun not devam sayfasına doğal akar.
  */
-function detailNoteBlock(day: CuppingCalendarPlanDay): Paragraph[] {
+function detailNoteBlock(day: CuppingCalendarPlanDay, x: CuppingReportText): Paragraph[] {
   const [y, m, d] = day.gregorian_date.split("-").map(Number);
-  const weekday = WEEKDAYS_TR[isoWeekday(day.gregorian_date) - 1]?.long ?? "";
+  const iso = WEEKDAYS_TR[isoWeekday(day.gregorian_date) - 1]?.iso;
+  const weekday = iso ? x.weekdayLong(iso) : "";
   const hijri = gregorianToHijri(day.gregorian_date);
   const c = wordColorFor(day.color_key);
   const out: Paragraph[] = [];
@@ -627,10 +624,10 @@ function detailNoteBlock(day: CuppingCalendarPlanDay): Paragraph[] {
       spacing: { before: 100, after: 6 },
       children: [
         new TextRun({ text: "▍ ", size: 20, font: FONT, color: c.text }),
-        new TextRun({ text: `${d} ${GREGORIAN_MONTHS_TR[m - 1]} ${y}`, bold: true, size: 19, font: HEAD_FONT, color: C_DARK }),
+        new TextRun({ text: x.dayDate(d, m, y), bold: true, size: 19, font: HEAD_FONT, color: C_DARK }),
         new TextRun({ text: weekday ? ` — ${weekday}` : "", size: 17, font: FONT, color: C_MID }),
-        new TextRun({ text: hijri ? `    •    ${hijri.formatted}` : "", size: 15, font: FONT, color: C_LIGHT }),
-        new TextRun({ text: `    •    Renk: ${colorNameFor(day.color_key)}`, size: 14, font: FONT, color: C_LIGHT }),
+        new TextRun({ text: hijri ? `    •    ${x.hijri(hijri)}` : "", size: 15, font: FONT, color: C_LIGHT }),
+        new TextRun({ text: `    •    ${x.t("calendar.colorLabel", { color: x.colorName(day.color_key) })}`, size: 14, font: FONT, color: C_LIGHT }),
       ],
     }),
   );
@@ -639,7 +636,7 @@ function detailNoteBlock(day: CuppingCalendarPlanDay): Paragraph[] {
       keepLines: true,
       spacing: { before: 0, after: 4 },
       indent: { left: 260 },
-      children: [new TextRun({ text: "Detay notu:", bold: true, size: 17, font: FONT, color: C_MID })],
+      children: [new TextRun({ text: x.t("calendar.detailNoteLabel"), bold: true, size: 17, font: FONT, color: C_MID })],
     }),
   );
   for (const line of toLines((day.note ?? "").trim())) {
@@ -660,19 +657,19 @@ function detailNoteBlock(day: CuppingCalendarPlanDay): Paragraph[] {
  * DETAY NOTLARI bölümü — YALNIZ detay notu bulunan günler (kronolojik). Notsuz günler için satır/
  *   kart üretilmez; hiç not yoksa bölüm hiç eklenmez ([]). Kısa açıklamalar burada TEKRAR EDİLMEZ.
  */
-function buildDetailNotesSection(days: CuppingCalendarPlanDay[]): Paragraph[] {
+function buildDetailNotesSection(days: CuppingCalendarPlanDay[], x: CuppingReportText): Paragraph[] {
   const withNotes = days
     .filter((d) => d.note && d.note.trim())
     .sort((a, b) => a.gregorian_date.localeCompare(b.gregorian_date));
   if (withNotes.length === 0) return [];
-  const out: Paragraph[] = [sectionHeader("DETAY NOTLARI", 22)];
+  const out: Paragraph[] = [sectionHeader(x.t("calendar.detailNotes"), 22)];
   out.push(
     new Paragraph({
       spacing: { before: 0, after: 10 },
-      children: [new TextRun({ text: "Yalnız detay notu bulunan günler listelenir.", size: 15, font: FONT, color: C_LIGHT, italics: true })],
+      children: [new TextRun({ text: x.t("calendar.detailNotesHint"), size: 15, font: FONT, color: C_LIGHT, italics: true })],
     }),
   );
-  for (const day of withNotes) out.push(...detailNoteBlock(day));
+  for (const day of withNotes) out.push(...detailNoteBlock(day, x));
   return out;
 }
 
@@ -715,7 +712,7 @@ function adviceTable(rows: { label: string; text: string }[]): Table {
   });
 }
 
-function buildAdviceSection(template: CuppingAdviceTemplate | null): (Paragraph | Table)[] {
+function buildAdviceSection(template: CuppingAdviceTemplate | null, x: CuppingReportText): (Paragraph | Table)[] {
   if (!template) return [];
   const before = (template.before_text ?? "").trim();
   const after = (template.after_text ?? "").trim();
@@ -723,11 +720,11 @@ function buildAdviceSection(template: CuppingAdviceTemplate | null): (Paragraph 
   if (!before && !after && !general) return [];
 
   const rows: { label: string; text: string }[] = [];
-  if (before) rows.push({ label: "Öncesi", text: before });
-  if (after) rows.push({ label: "Sonrası", text: after });
-  if (general) rows.push({ label: "Genel", text: general });
+  if (before) rows.push({ label: x.t("calendar.advice.before"), text: before });
+  if (after) rows.push({ label: x.t("calendar.advice.after"), text: after });
+  if (general) rows.push({ label: x.t("calendar.advice.general"), text: general });
 
-  const out: (Paragraph | Table)[] = [sectionHeader("BİLGİLENDİRME NOTLARI", 22)];
+  const out: (Paragraph | Table)[] = [sectionHeader(x.t("calendar.advice.heading"), 22)];
   if (template.title?.trim()) {
     out.push(
       new Paragraph({
@@ -745,7 +742,7 @@ function buildAdviceSection(template: CuppingAdviceTemplate | null): (Paragraph 
 // Kurumsal footer (yerel; paylaşımlı helper'a dokunulmaz)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function buildFooter(planLabel: string, identity: (TextRun | ImageRun)[] | null = null): Footer {
+function buildFooter(planLabel: string, x: CuppingReportText, identity: (TextRun | ImageRun)[] | null = null): Footer {
   return new Footer({
     children: [
       // Görsel kabul (11.11): A3 yıllık takvimde uzman kimliği, alt bilgi çizgisinin üstündeki MEVCUT boş satıra yazılır
@@ -760,7 +757,7 @@ function buildFooter(planLabel: string, identity: (TextRun | ImageRun)[] | null 
         spacing: { before: 0, after: 20 },
         children: [
           new TextRun({
-            text: "Bu içerik, uzman tarafından oluşturulan çalışma ve bilgilendirme kaydının bir parçasıdır.",
+            text: x.usageNote,
             italics: true,
             size: 12,
             font: FONT,
@@ -787,7 +784,7 @@ function buildFooter(planLabel: string, identity: (TextRun | ImageRun)[] | null 
         alignment: AlignmentType.CENTER,
         spacing: { before: 0, after: 0 },
         children: [
-          new TextRun({ text: `Hacamat Takvimi  •  ${planLabel}  •  Sayfa `, size: 13, font: FONT, color: C_LIGHT }),
+          new TextRun({ text: `${x.t("calendar.footerLabel")}  •  ${planLabel}  •  ${x.page} `, size: 13, font: FONT, color: C_LIGHT }),
           // NOT: TOTAL_PAGES (NUMPAGES) alanı KULLANILMAZ. Bu alan, içerik sayfa sınırına denk gelen
           //   belgelerde Word'ün PDF/yazdırma motorunu sonsuz döngüye sokup KİLİTLİYOR (kullanıcının
           //   "PDF olarak kaydet" işlemi dahil). Yalnız geçerli sayfa numarası (X) gösterilir — güvenli.
@@ -820,14 +817,20 @@ export type BuildCalendarWordInput = {
   branding?: ExpertBranding | null;
   /** Yalnız örnek/test üretimi için tasarım varyantı. */
   brandingVariant?: ExpertBrandingVariant;
+  /**
+   * I18N çıktı dili (route girişinde `resolveReportLocale` ile çözülür). Yoksa kaynak dil (tr) → belge bugünküyle birebir.
+   * Yalnız SİSTEM metinlerini seçer; plan adı, kısa açıklama, detay notu, şablon metinleri AYNEN yerleşir. Hicrî/haftagünü
+   * hesabı dile bağlı DEĞİLDİR (yalnız ay/gün adı görüntüsü).
+   */
+  output?: ReportLocale | null;
 };
 
 /** F3B: imza kartı genişliği (twip) — A3 yatayda da okunaklı A4 genişliğinde kart (sola yaslı). */
 const SIGNATURE_W = 11906 - 2 * 1000;
 
 /** F3B: "Hazırlayan" imza kartı (+ dipnot). Markalama yoksa []. */
-function buildSignatureSection(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined): (Paragraph | Table)[] {
-  return expertSignatureBlock(branding, { variant, accent: C_BRAND, contentWidth: SIGNATURE_W, fill: "F3F1EA", font: FONT }) as (Paragraph | Table)[];
+function buildSignatureSection(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined, x: CuppingReportText): (Paragraph | Table)[] {
+  return expertSignatureBlock(branding, { variant, common: x.rl.common, accent: C_BRAND, contentWidth: SIGNATURE_W, fill: "F3F1EA", font: FONT }) as (Paragraph | Table)[];
 }
 
 /**
@@ -862,7 +865,7 @@ function estimateSignatureTwips(branding: ExpertBranding | null | undefined): nu
 const A3_IDENTITY_LOGO_PX = { w: 48, h: 12 } as const;
 /** A3 alt bilgi satırına tek satırda sığan güvenli karakter sayısı (6,5 pt; 403 mm satırda ölçülen ≈ 1,16 mm/karakter → ≈ 335) — aşan kimlikte bu yol kullanılmaz (mevcut davranış). */
 const A3_IDENTITY_MAX_CHARS = 300;
-function a3IdentityRuns(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined): (TextRun | ImageRun)[] | null {
+function a3IdentityRuns(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined, x: CuppingReportText): (TextRun | ImageRun)[] | null {
   if ((variant ?? DEFAULT_EXPERT_BRANDING_VARIANT) !== "B") return null;
   const f = expertBrandingFields(branding);
   if (!f || !(f.name || f.title || f.organization || f.contactLine || f.logoPng)) return null;
@@ -873,7 +876,7 @@ function a3IdentityRuns(branding: ExpertBranding | null | undefined, variant: Ex
     out.push(new ImageRun({ type: "png", data: f.logoPng.data, transformation: fitLogo(f.logoPng, A3_IDENTITY_LOGO_PX.w, A3_IDENTITY_LOGO_PX.h) }));
     out.push(new TextRun({ text: "  ", size: 13, font: FONT }));
   }
-  out.push(new TextRun({ text: "HAZIRLAYAN", bold: true, size: 12, font: FONT, color: C_BRAND, characterSpacing: 30 }));
+  out.push(new TextRun({ text: x.preparedByCaps, bold: true, size: 12, font: FONT, color: C_BRAND, characterSpacing: 30 }));
   if (text) out.push(new TextRun({ text: `   ${text}`, size: 13, font: FONT, color: C_MID }));
   return out;
 }
@@ -933,10 +936,10 @@ function estimateSummaryRowsTwips(n: number): number {
 }
 
 /** AYLIK rapor: o ayda seçili gün yoksa nötr, doğru durum metni (uydurma gün/öneri YOK). */
-function monthEmptyPara(): Paragraph {
+function monthEmptyPara(x: CuppingReportText): Paragraph {
   return new Paragraph({
     spacing: { before: 30, after: 0 },
-    children: [new TextRun({ text: "Bu ay için seçili gün bulunmuyor.", size: 16, font: FONT, color: C_LIGHT, italics: true })],
+    children: [new TextRun({ text: x.t("calendar.monthEmpty"), size: 16, font: FONT, color: C_LIGHT, italics: true })],
   });
 }
 
@@ -952,35 +955,38 @@ async function buildMonthlyBuffer(args: {
   month: number;
   branding?: ExpertBranding | null;
   brandingVariant?: ExpertBrandingVariant;
+  x: CuppingReportText;
 }): Promise<Buffer> {
-  const { plan, sorted, template, month } = args;
+  const { plan, sorted, template, month, x } = args;
   const prefix = `${plan.year}-${String(month).padStart(2, "0")}-`;
   // YALNIZ istenen yıl+ay (kanonik YYYY-MM-DD önek eşleşmesi; saat dilimi dönüşümü YOK → kayma yok).
   const monthDays = sorted.filter((d) => d.gregorian_date.startsWith(prefix));
   const selected = new Map<string, CuppingCalendarPlanDay>();
   for (const d of monthDays) selected.set(d.gregorian_date, d);
 
-  const planLabel = `${plan.name} · ${GREGORIAN_MONTHS_TR[month - 1]} ${plan.year}`;
-  const monthSignature = buildSignatureSection(args.branding, args.brandingVariant);
+  const planLabel = `${plan.name} · ${x.month(month)} ${plan.year}`;
+  const monthSignature = buildSignatureSection(args.branding, args.brandingVariant, x);
   const children: (Paragraph | Table)[] = [
-    ...monthTitleBlock(plan, month),
-    monthCalendarTable(plan.year, month, selected),
-    summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI"),
-    ...(monthDays.length ? [daySummaryTable(monthDays, 2)] : [monthEmptyPara()]),
-    ...buildDetailNotesSection(monthDays),
-    ...buildAdviceSection(template),
+    ...monthTitleBlock(plan, month, x),
+    monthCalendarTable(plan.year, month, selected, x),
+    summaryHeading(x.t("calendar.selectedDays")),
+    ...(monthDays.length ? [daySummaryTable(monthDays, x, 2)] : [monthEmptyPara(x)]),
+    ...buildDetailNotesSection(monthDays, x),
+    ...buildAdviceSection(template, x),
     trailingPara(),
     ...signatureTail(monthSignature), // F3B (yalnız markalama açıkken)
   ];
 
   const doc = new Document({
     creator: "Yaşam Sistemi",
-    title: `Hacamat Takvimi ${GREGORIAN_MONTHS_TR[month - 1]} ${plan.year}`,
+    title: `${x.t("calendar.documentTitle")} ${x.month(month)} ${plan.year}`,
     description: plan.name,
+    // Belge dili: yalnız TR dışında (TR XML'i bugünküyle birebir kalır).
+    ...(x.rl.docxStyles() ? { styles: x.rl.docxStyles() } : {}),
     sections: [
       {
         properties: { page: { size: A4_PORTRAIT, margin: { top: 700, bottom: 900, left: 800, right: 800, header: 320, footer: 320 } } },
-        footers: { default: buildFooter(planLabel) },
+        footers: { default: buildFooter(planLabel, x) },
         children,
       },
     ],
@@ -999,6 +1005,7 @@ async function buildMonthlyBuffer(args: {
  */
 export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput): Promise<Buffer> {
   const { plan, days, template = null, month = null, branding = null, brandingVariant } = input;
+  const x = cuppingReportText(input.output);
 
   const selected = new Map<string, CuppingCalendarPlanDay>();
   for (const d of days) selected.set(d.gregorian_date, d);
@@ -1008,13 +1015,13 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // ── AYLIK RAPOR (A4 dikey, tek ay) — month 1–12 verildiğinde ─────────────────
   if (isValidMonth(month)) {
-    return buildMonthlyBuffer({ plan, sorted, template, month, branding, brandingVariant });
+    return buildMonthlyBuffer({ plan, sorted, template, month, branding, brandingVariant, x });
   }
 
-  const grid = buildAnnualGrid(plan.year, selected);
-  const notesSection = buildDetailNotesSection(sorted);
-  const adviceSection = buildAdviceSection(template);
-  const signatureSection = buildSignatureSection(branding, brandingVariant); // F3B: markalama yoksa []
+  const grid = buildAnnualGrid(plan.year, selected, x);
+  const notesSection = buildDetailNotesSection(sorted, x);
+  const adviceSection = buildAdviceSection(template, x);
+  const signatureSection = buildSignatureSection(branding, brandingVariant, x); // F3B: markalama yoksa []
 
   // Konservatif toplam yükseklik tahmini (twips).
   const gridTitle = EST.TITLE + EST.GRID;
@@ -1029,7 +1036,9 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   const A3_MARGIN = { top: 400, bottom: 700, left: 480, right: 480, header: 200, footer: 260 };
   const A4_MARGIN = { top: 900, bottom: 1120, left: 1000, right: 1000, header: 360, footer: 360 };
 
-  const docMeta = { creator: "Yaşam Sistemi", title: `Hacamat Takvimi ${plan.year}`, description: plan.name };
+  const docxStyles = x.rl.docxStyles();
+  // Belge dili: yalnız TR dışında (TR XML'i bugünküyle birebir kalır).
+  const docMeta = { creator: "Yaşam Sistemi", title: `${x.t("calendar.documentTitle")} ${plan.year}`, description: plan.name, ...(docxStyles ? { styles: docxStyles } : {}) };
 
   // ── SENARYO A/C — HER ŞEY TEK A3 SAYFADA (2. sayfa yok) ──────────────────────
   if (totalH <= A3_CONTENT_BUDGET) {
@@ -1038,17 +1047,17 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
     const signatureFits = totalH + signatureH <= A3_CONTENT_BUDGET;
     // Görsel kabul (11.11): kart sığmıyorsa kimlik A3 alt bilgi satırına (sayfa düzeni / bütçe değişmez); dipnot A3'e sığıyorsa
     // içerik sonuna, sığmıyorsa YALNIZ dipnot için A4 devam sayfası (Owner kararına açık; seçenekler raporda).
-    const identity = signatureFits ? null : a3IdentityRuns(branding, brandingVariant);
-    const noteSection = identity ? buildSignatureSection(noteOnlyBranding(branding), brandingVariant) : [];
+    const identity = signatureFits ? null : a3IdentityRuns(branding, brandingVariant, x);
+    const noteSection = identity ? buildSignatureSection(noteOnlyBranding(branding), brandingVariant, x) : [];
     const a3Note = identity ? noteOnlyBranding(branding)?.note ?? null : null;
     const noteFitsA3 = !!a3Note && totalH + estimateA3NoteTwips(a3Note) <= A3_CONTENT_BUDGET;
     const a3Tail = signatureFits ? signatureSection : noteFitsA3 ? noteSection : [];
     const a4Tail = signatureFits ? [] : identity ? (noteFitsA3 ? [] : noteSection) : signatureSection;
     const children: (Paragraph | Table)[] = [
-      ...titleBlock(plan),
+      ...titleBlock(plan, x),
       grid,
-      summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI"),
-      ...(sorted.length ? [daySummaryTable(sorted)] : [noSelectedDaysPara()]),
+      summaryHeading(x.t("calendar.selectedDays")),
+      ...(sorted.length ? [daySummaryTable(sorted, x)] : [noSelectedDaysPara(x)]),
       ...notesSection,
       ...adviceSection,
       trailingPara(),
@@ -1059,12 +1068,12 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
       sections: [
         {
           properties: { page: { size: A3_LANDSCAPE, margin: A3_MARGIN } },
-          footers: { default: buildFooter(planLabel, identity) },
+          footers: { default: buildFooter(planLabel, x, identity) },
           children,
         },
         ...(a4Tail.length === 0
           ? []
-          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: signatureTail(a4Tail) }]),
+          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel, x) }, children: signatureTail(a4Tail) }]),
       ],
     });
     return Buffer.from(await Packer.toBuffer(doc));
@@ -1080,20 +1089,20 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // Devam notu — YALNIZ gerçekten A4'e taşan içeriği (kalan gün / detay notları / bilgilendirme) anar.
   const contParts: string[] = [];
-  if (daysA4.length > 0) contParts.push(`${daysA4.length} gün daha`);
-  if (notesSection.length > 0) contParts.push("detay notları");
-  if (adviceSection.length > 0) contParts.push("bilgilendirme");
-  if (signatureSection.length > 0) contParts.push("hazırlayan bilgisi"); // F3B
+  if (daysA4.length > 0) contParts.push(x.t("calendar.overflow.moreDays", { count: daysA4.length }));
+  if (notesSection.length > 0) contParts.push(x.t("calendar.overflow.detailNotes"));
+  if (adviceSection.length > 0) contParts.push(x.t("calendar.overflow.advice"));
+  if (signatureSection.length > 0) contParts.push(x.t("calendar.overflow.preparedBy")); // F3B
   const contText =
     daysA4.length > 0
-      ? `İlk sayfada ${daysA3.length} gün gösteriliyor · ${contParts.join(" + ")} sonraki sayfalardadır.`
-      : `${contParts.join(" + ")} sonraki sayfalardadır.`;
+      ? x.t("calendar.overflow.withDays", { shown: daysA3.length, parts: contParts.join(" + ") })
+      : x.t("calendar.overflow.withoutDays", { parts: contParts.join(" + ") });
 
   const sec1Children: (Paragraph | Table)[] = [
-    ...titleBlock(plan),
+    ...titleBlock(plan, x),
     grid,
-    summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI"),
-    daySummaryTable(daysA3),
+    summaryHeading(x.t("calendar.selectedDays")),
+    daySummaryTable(daysA3, x),
     new Paragraph({
       spacing: { before: 70, after: 0 },
       children: [new TextRun({ text: contText, size: 15, font: FONT, color: C_MID, italics: true })],
@@ -1102,34 +1111,30 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   const sec2Children: (Paragraph | Table)[] = [];
   if (daysA4.length > 0) {
-    sec2Children.push(summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI (devam)"), daySummaryTable(daysA4));
+    sec2Children.push(summaryHeading(x.t("calendar.selectedDaysContinued")), daySummaryTable(daysA4, x));
   }
   sec2Children.push(...notesSection, ...adviceSection, trailingPara(), ...signatureTail(signatureSection));
 
   const doc = new Document({
     ...docMeta,
     sections: [
-      { properties: { page: { size: A3_LANDSCAPE, margin: A3_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: sec1Children },
-      { properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: sec2Children },
+      { properties: { page: { size: A3_LANDSCAPE, margin: A3_MARGIN } }, footers: { default: buildFooter(planLabel, x) }, children: sec1Children },
+      { properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel, x) }, children: sec2Children },
     ],
   });
 
   return Buffer.from(await Packer.toBuffer(doc));
 }
 
-/** Gregoryen ay adlarının ASCII-güvenli slug'ları (dosya adı için; Türkçe karakter sorununa dayanıklı). */
-const GREGORIAN_MONTHS_ASCII = [
-  "Ocak", "Subat", "Mart", "Nisan", "Mayis", "Haziran",
-  "Temmuz", "Agustos", "Eylul", "Ekim", "Kasim", "Aralik",
-] as const;
-
 /**
  * İndirme için güvenli/anlaşılır dosya adı.
  *   Yıllık: "Hacamat-Takvimi-<yıl>-Yillik.docx"
  *   Aylık:  "Hacamat-Takvimi-<yıl>-<Ay>.docx" (ör. "Hacamat-Takvimi-2026-Ocak.docx")
- * Türkçe karakterler güvenli normalize edilir (ASCII); month geçerli 1–12 değilse YILLIK.
+ * Türkçe karakterler güvenli normalize edilir (ASCII; katalogdaki `filename.months` ASCII-güvenli slug'lardır);
+ * month geçerli 1–12 değilse YILLIK. Çıktı dili verilirse sistem kısmı o dilde (EN: "Hijama-Calendar-2026-Annual.docx").
  */
-export function calendarWordFilename(plan: Pick<CuppingCalendarPlan, "year">, month?: number | null): string {
-  const scope = isValidMonth(month) ? GREGORIAN_MONTHS_ASCII[month - 1] : "Yillik";
-  return `Hacamat-Takvimi-${plan.year}-${scope}.docx`;
+export function calendarWordFilename(plan: Pick<CuppingCalendarPlan, "year">, month?: number | null, output?: ReportLocale | null): string {
+  const x = cuppingReportText(output);
+  const scope = isValidMonth(month) ? x.t(`calendar.filename.months.${month}`) : x.t("calendar.filename.annual");
+  return `${x.t("calendar.filename.prefix")}-${plan.year}-${scope}.docx`;
 }

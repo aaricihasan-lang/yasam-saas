@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { isUuid, docxResponse } from "@/lib/aromaterapi/report/request";
 import { buildSingleBlendDoc } from "@/lib/aromaterapi/report/builders";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   try {
-    const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: expertDisplayName(guard.profile), date: new Date() });
+    const res = await buildSingleBlendDoc(db, tenantId, id, { expertName: expertDisplayName(guard.profile), date: new Date(), output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }) });
     if (!res.ok) {
       if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "blend", errorClass: "server" });
       return NextResponse.json({ ok: false, error: res.error }, { status: res.status });

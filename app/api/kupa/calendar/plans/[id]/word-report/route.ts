@@ -4,6 +4,7 @@ import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import {
   cuppingError,
   getEntity,
@@ -65,6 +66,8 @@ export async function GET(
   }
 
   const { db, tenantId } = guard;
+  // I18N: rapor dili route girişinde TEK kez çözülür (yayın kapısı > hesap tercihi > çerez > tr; istemci ?locale= okunmaz).
+  const output = await resolveReportLocale(req, { db, tenantId, userId: guard.userId });
 
   // 1) Plan — tenant-scoped (başka tenant → 404).
   const planRes = await getEntity(db, CUPPING_TABLES.calendarPlans, tenantId, id);
@@ -109,7 +112,7 @@ export async function GET(
   try {
     // F3B: uzman markalaması — sahip ve ad YALNIZ oturumdan (guard); anahtar kapalı / profil yok → null (birebir).
     const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
-    buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month, branding });
+    buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month, branding, output });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
@@ -117,7 +120,7 @@ export async function GET(
   // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
   await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "calendar_plan", resourceId: id });
 
-  const filename = calendarWordFilename(plan, month);
+  const filename = calendarWordFilename(plan, month, output);
   // ASCII fallback + RFC 5987 UTF-8 (Türkçe karakter güvenli).
   const asciiName = filename.replace(/[^\x20-\x7E]/g, "_");
 

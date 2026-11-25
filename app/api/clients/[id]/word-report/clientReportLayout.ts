@@ -36,6 +36,7 @@ import {
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import { expertCoverBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import { dyText, type DyText } from "./clientReportText";
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,8 @@ export type DyCoverInput = {
   /** F3A: uzman markalaması (null/boş → kapak bugünküyle birebir). */
   branding?: ExpertBranding | null;
   brandingVariant?: ExpertBrandingVariant;
+  /** I18N çıktı dili metin katmanı (clientReportText); verilmezse TR sabitleri = bugünkü kapak (golden). */
+  text?: DyText | null;
 };
 
 function rule(color: string, size = 6, after = 0): Paragraph {
@@ -118,6 +121,7 @@ function logoParagraph(logo: Buffer, maxW: number): Paragraph | null {
  * Kapak ayrı bölüm (section) olarak kullanılır → üst/alt bilgi taşımaz.
  */
 export function dyCover(c: DyCoverInput): ReportChild[] {
+  const x = c.text ?? dyText();
   const out: ReportChild[] = [new Paragraph({ spacing: { before: 0, after: 900 } })];
   const logo = c.logo ? logoParagraph(c.logo, 230) : null;
   if (logo) {
@@ -126,19 +130,19 @@ export function dyCover(c: DyCoverInput): ReportChild[] {
     out.push(new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 120 },
-      children: [new TextRun({ text: "YAŞAM SİSTEMİ", bold: true, size: 64, font: REPORT_FONT, color: DY_NAVY })],
+      children: [new TextRun({ text: x.t("brand"), bold: true, size: 64, font: REPORT_FONT, color: DY_NAVY })],
     }));
   }
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 720 },
-    children: [new TextRun({ text: "Bütüncül Yaşam Analizi Platformu", italics: true, size: 22, font: REPORT_FONT, color: C_MID })],
+    children: [new TextRun({ text: x.t("tagline"), italics: true, size: 22, font: REPORT_FONT, color: C_MID })],
   }));
   out.push(rule(DY_NAVY, 12, 80), rule(DY_ACCENT, 4, 520));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 120 },
-    children: [new TextRun({ text: safe(c.reportTitle).toLocaleUpperCase("tr-TR"), bold: true, size: 40, font: REPORT_FONT, color: DY_NAVY, characterSpacing: 40 })],
+    children: [new TextRun({ text: x.upper(safe(c.reportTitle)), bold: true, size: 40, font: REPORT_FONT, color: DY_NAVY, characterSpacing: 40 })],
   }));
   if (c.reportSubtitle?.trim()) {
     out.push(new Paragraph({
@@ -154,11 +158,11 @@ export function dyCover(c: DyCoverInput): ReportChild[] {
   }));
   out.push(rule(DY_ACCENT, 4, 360));
   // F3A: markalama bloğu varsa uzman kimliği (ad dahil) blokta yer alır → "Uzman" künye satırı tekrar edilmez.
-  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: DY_NAVY, ruleColor: DY_ACCENT, fallbackName: c.expertName, before: 160 });
+  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: DY_NAVY, ruleColor: DY_ACCENT, fallbackName: c.expertName, before: 160, common: x.common });
   const meta: [string, string][] = [
-    ["Rapor Tarihi", c.dateLabel],
+    [x.t("reportDate"), c.dateLabel],
     ...(c.meta ?? []),
-    ...(c.expertName?.trim() && !expertBlock.length ? [["Uzman", c.expertName.trim()] as [string, string]] : []),
+    ...(c.expertName?.trim() && !expertBlock.length ? [[x.t("expert"), c.expertName.trim()] as [string, string]] : []),
   ].filter(([, v]) => !!v?.trim()) as [string, string][];
   for (const [label, value] of meta) {
     out.push(new Paragraph({

@@ -52,6 +52,7 @@ import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsA
 import { beslenmeHasData, loadAnamnezForReport, loadAnamnezOptions, loadBeslenmeForReport } from "./sensitiveData";
 import type { AnamnezReportRow, BeslenmeReportInput } from "./sensitiveSections";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 
 export const runtime = "nodejs";
 
@@ -201,6 +202,8 @@ export async function POST(
     logo: await loadHdReportLogo(),
     // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
     branding: await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }),
+    // I18N çıktı dili sözleşmesi: dil route girişinde tek kez çözülür (kapı > hesap tercihi > çerez > tr).
+    output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }),
   };
 
   const fail = (e: unknown, action: string) =>

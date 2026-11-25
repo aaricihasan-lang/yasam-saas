@@ -1,0 +1,78 @@
+{
+  "reports": {
+    "reflexology": {
+      "brand": "YAŞAM SİSTEMİ",
+      "group": {
+        "taban": "Taban",
+        "yan_ic": "Yan İç",
+        "yan_dis": "Yan Dış",
+        "el_avuc": "Avuç İçi",
+        "el_sirt": "El Sırtı"
+      },
+      "cover": {
+        "generated": "Oluşturulma Tarihi",
+        "protocolDate": "Protokol Tarihi",
+        "organCount": "Organ Sayısı",
+        "totalRegions": "Toplam Atlas Bölgesi",
+        "usedViews": "Kullanılan Görünümler",
+        "protocolCount": "Protokol Sayısı",
+        "scope": "Kapsam",
+        "totalOrgans": "Toplam Organ",
+        "singleSubtitle": "Refleksoloji Protokol Raporu",
+        "catalogTitle": "Refleksoloji Protokol Kataloğu",
+        "catalogSubtitle": "Klinik Protokol Kataloğu",
+        "atlasTitle": "Kayıtlı Atlas",
+        "atlasSubtitle": "Refleksoloji Atlas Raporu"
+      },
+      "summary": {
+        "title": "Protokol Özeti",
+        "organCount": "Organ Sayısı",
+        "totalRegions": "Toplam Atlas Bölgesi",
+        "groupRegions": "{group} Bölgesi"
+      },
+      "map": {
+        "heading": "Refleksoloji Uygulama Haritası — {group}",
+        "legend": "{organ} — {count, plural, other {{shown} bölge}}"
+      },
+      "organs": {
+        "headingProtocol": "Seçilen Organlar ve Atlas Bölgeleri",
+        "headingAtlas": "Organlar ve Atlas Bölgeleri",
+        "selected": "Seçilen organlar: ",
+        "colOrgan": "Organ",
+        "colView": "Görünüm",
+        "colRegions": "Bölge Sayısı",
+        "missing": "Atlas bölgesi bulunmayan organlar: "
+      },
+      "notes": {
+        "callout": "UYGULAMA NOTLARI",
+        "heading": "Uygulama Notları"
+      },
+      "protocolNo": "PROTOKOL #{no}",
+      "untitledProtocol": "Başlıksız Protokol",
+      "disclaimer": {
+        "title": "Bilgilendirme",
+        "text": "Refleksoloji uygulamaları tamamlayıcı niteliktedir. Bu modül tıbbi tanı veya tedavi amacı taşımaz ve hekim değerlendirmesinin yerine geçmez.",
+        "footer": "Tamamlayıcı uygulama · tıbbi tanı/tedavi yerine geçmez"
+      },
+      "header": "Yaşam Sistemi · Refleksoloji",
+      "footer": {
+        "protocol": "Refleksoloji Protokol Raporu",
+        "atlas": "Refleksoloji Atlas Raporu",
+        "page": "Sayfa"
+      },
+      "scope": {
+        "atlasAll": "Tüm Atlas Kayıtları",
+        "atlasSelected": "Seçili Atlas Kayıtları",
+        "protocolsAll": "Tüm Protokoller",
+        "protocolsSelected": "Seçili Protokoller"
+      },
+      "file": {
+        "atlas": "refleksoloji-atlas",
+        "protocol": "refleksoloji-protokol",
+        "all": "tumu",
+        "selected": "secili",
+        "protocolFallback": "protokol"
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import {
   buildAjandaReportDoc,
   type AjandaAppointmentRow,
@@ -90,12 +91,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Saf belge kurucusu (FA-02: tarih/saat/gün gruplama Europe/Istanbul; FA-44 durum etiketi).
+  // I18N çıktı dili sözleşmesi: dil route girişinde tek kez çözülür (kapı > hesap tercihi > çerez > tr).
+  const output = await resolveReportLocale(req, { db, tenantId, userId: guard.userId });
   const { doc, filename } = buildAjandaReportDoc({
     appointments,
     clientMap,
     exportMode,
     dateRange,
     expertName: expertDisplayName(guard.profile),
+    output,
   });
 
   const buffer = await Packer.toBuffer(doc);

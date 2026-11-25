@@ -68,7 +68,7 @@ export default function AnamnezTab({
     if (pdfBusy) return;
     setPdfBusy(true);
     try {
-      const res = await fetch(`${anamnezBase(clientId)}/blank-form?locale=${locale}`, { headers: anamnezAuthHeaders(), cache: "no-store" });
+      const res = await fetch(`${anamnezBase(clientId)}/blank-form`, { headers: anamnezAuthHeaders(), cache: "no-store" });
       if (!res.ok) {
         let code = "generic";
         try { code = ((await res.json()) as { code?: string }).code ?? "generic"; } catch { /* yok */ }
@@ -86,7 +86,7 @@ export default function AnamnezTab({
     if (filledBusy) return;
     setFilledBusy(item.id);
     try {
-      const res = await fetch(`${anamnezBase(clientId)}/${encodeURIComponent(item.id)}/pdf?rev=${item.revision}&locale=${locale}`, {
+      const res = await fetch(`${anamnezBase(clientId)}/${encodeURIComponent(item.id)}/pdf?rev=${item.revision}`, {
         headers: anamnezAuthHeaders(),
         cache: "no-store",
       });
@@ -97,7 +97,7 @@ export default function AnamnezTab({
         if (code === "CONFLICT") void load();
         return;
       }
-      await downloadFileResponse(res, `anamnez-${item.assessment_date}.pdf`);
+      await downloadFileResponse(res, `${locale === "en" ? "intake" : "anamnez"}-${item.assessment_date}.pdf`);
     } catch {
       showToast({ type: "error", title: t("title"), message: t("errors.generic") });
     } finally {

@@ -7,7 +7,7 @@ import { buildFilledAnamnesisPdf } from "@/lib/danisan/anamnez/filledFormPdf";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { asciiSlug, clientDisplayFromSnapshot } from "@/lib/danisan/anamnez/format";
 import { isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
-import { effectiveLocale } from "@/lib/i18n/gate";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import {
   ANAMNEZ_FULL_COLUMNS,
@@ -23,7 +23,7 @@ import type { AnamnezRecord } from "@/lib/danisan/anamnez/types";
 export const runtime = "nodejs";
 
 /**
- * GET /api/clients/[id]/anamnez/[anamnesisId]/pdf[?rev=N][&locale=tr|en]
+ * GET /api/clients/[id]/anamnez/[anamnesisId]/pdf[?rev=N]   (dil: çıktı dili sözleşmesi — `?locale=` okunmaz)
  *
  * KAYITLI (dolu) anamnez formu — PDF. Taslak veya tamamlanmış kaydın SUNUCUDAKİ son hâli yazılır
  * (kaydedilmemiş editör değişiklikleri dahil edilmez). Gizli alan cevapları yazılmaz.
@@ -69,9 +69,10 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
     return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]/pdf", action: "form_custom", tenantId, cause: new Error("invalid form_custom") });
   }
 
-  // I18N-F1: yayın kapısı kapalıyken (production) eski NEXT_LOCALE=en çerezi yok sayılır. Açık ?locale=
-  // parametresi bilinçli API isteğidir (arayüz kapı kapalıyken zaten "tr" gönderir).
-  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? effectiveLocale(req.cookies.get("NEXT_LOCALE")?.value));
+  // I18N çıktı dili sözleşmesi (lib/i18n/reportLocale): PDF dili route girişinde TEK kez, ekranla aynı kaynaktan çözülür
+  // (yayın kapısı > hesap tercihi > NEXT_LOCALE çerezi > tr). İstemcinin `?locale=` sorgu parametresi ARTIK OKUNMAZ
+  // (istemci yalnız kendi ekran dilini gönderiyordu → normal akışta sonuç aynı; kapı kapalıyken daima tr).
+  const locale = normalizeLocale((await resolveReportLocale(req, { db, tenantId, userId: guard.userId })).locale);
   let bytes: Uint8Array;
   try {
     bytes = buildFilledAnamnesisPdf({ locale, record: { ...row, form_custom: fc.value }, fontBase64: anamnezPdfFontBase64() });

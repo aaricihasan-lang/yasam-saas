@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { parseExportBody, docxResponse } from "@/lib/aromaterapi/report/request";
 import { MAX_EXPORT_BODY_BYTES } from "@/lib/aromaterapi/report/theme";
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
   const sel: ExportSelector = parsed.mode === "selected" ? { mode: "selected", ids: parsed.ids } : { mode: "all" };
   try {
-    const res = await buildSourcesDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date() });
+    const res = await buildSourcesDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date(), output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }) });
     if (!res.ok) {
       if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "source", errorClass: "server" });
       return NextResponse.json({ ok: false, error: res.error }, { status: res.status });

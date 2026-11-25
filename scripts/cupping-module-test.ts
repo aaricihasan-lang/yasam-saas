@@ -2099,7 +2099,9 @@ function run(): void {
     {
       const call = /buildCalendarPlanWordBuffer\(\{([^}]*)\}\)/.exec(wr);
       const fields = call ? call[1]!.split(",").map((f) => f.trim()).filter(Boolean) : [];
-      ok(!!call && ["plan", "days", "template", "month"].every((f) => fields.includes(f)) && fields.every((f) => /^[a-zA-Z]+$/.test(f)) && /calendarWordFilename\(plan, month\)/.test(wr),
+      // I18N (çıktı dili sözleşmesi): dosya adına isteğe bağlı 3. argüman `output` (rapor dili) eklenebilir; niyet (month'un
+      // dosya adına geçmesi) aynen kontrol edilir.
+      ok(!!call && ["plan", "days", "template", "month"].every((f) => fields.includes(f)) && fields.every((f) => /^[a-zA-Z]+$/.test(f)) && /calendarWordFilename\(plan, month(, output)?\)/.test(wr),
         "faz6-ay[m5]: month builder + dosya adına geçirilir");
     }
     ok(!/searchParams[\s\S]{0,40}year|body[\s\S]{0,40}year/.test(wr),

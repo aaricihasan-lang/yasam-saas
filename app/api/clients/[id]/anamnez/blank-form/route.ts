@@ -7,7 +7,7 @@ import { buildBlankAnamnesisPdf } from "@/lib/danisan/anamnez/blankFormPdf";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { asciiSlug } from "@/lib/danisan/anamnez/format";
 import { CURRENT_TEMPLATE_VERSION, isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
-import { effectiveLocale } from "@/lib/i18n/gate";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import {
   anamnezError,
@@ -22,7 +22,7 @@ import type { FormCustom } from "@/lib/danisan/anamnez/types";
 export const runtime = "nodejs";
 
 /**
- * GET /api/clients/[id]/anamnez/blank-form[?aid=<anamnesisId>][&locale=tr|en]
+ * GET /api/clients/[id]/anamnez/blank-form[?aid=<anamnesisId>]   (dil: çıktı dili sözleşmesi — `?locale=` okunmaz)
  *
  * Yazdırılabilir BOŞ anamnez formu (PDF). `aid` verilirse o anamnezin danışana özel form farkı
  * uygulanır; verilmezse güncel standart şablon. Cevap İÇERMEZ (boş form) — yalnız danışan adı
@@ -43,9 +43,10 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
   const client = await loadClientInTenant(db, tenantId, clientId);
   if (!client) return notFound();
 
-  // I18N-F1: yayın kapısı kapalıyken (production) eski NEXT_LOCALE=en çerezi yok sayılır. Açık ?locale=
-  // parametresi bilinçli API isteğidir (arayüz kapı kapalıyken zaten "tr" gönderir).
-  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? effectiveLocale(req.cookies.get("NEXT_LOCALE")?.value));
+  // I18N çıktı dili sözleşmesi (lib/i18n/reportLocale): PDF dili route girişinde TEK kez, ekranla aynı kaynaktan çözülür
+  // (yayın kapısı > hesap tercihi > NEXT_LOCALE çerezi > tr). İstemcinin `?locale=` sorgu parametresi ARTIK OKUNMAZ
+  // (istemci yalnız kendi ekran dilini gönderiyordu → normal akışta sonuç aynı; kapı kapalıyken daima tr).
+  const locale = normalizeLocale((await resolveReportLocale(req, { db, tenantId, userId: guard.userId })).locale);
   const aid = req.nextUrl.searchParams.get("aid");
   let version = CURRENT_TEMPLATE_VERSION;
   let formCustom: FormCustom | null = null;

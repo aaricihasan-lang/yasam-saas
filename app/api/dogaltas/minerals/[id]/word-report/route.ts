@@ -9,7 +9,8 @@ import { Packer } from "docx";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate } from "@/lib/time/reportTime";
 // Belge düzeni saf oluşturucuda (test edilebilir): statik İçindekiler + kompakt düzen.
-import { buildMineralDetailDocument, type MineralRow } from "./mineralDetailDoc";
+import { buildMineralDetailDocument, mineralDetailFilePrefix, type MineralRow } from "./mineralDetailDoc";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 
 export const runtime = "nodejs";
 
@@ -69,12 +70,13 @@ export async function POST(
   const dateSlug = reportFileDate();
   const nameSlug = slugify(mineralName);
 
-  const doc = buildMineralDetailDocument(mineral, expertDisplayName(auth.profile));
+  const output = await resolveReportLocale(req, { db, tenantId, userId: auth.userId });
+  const doc = buildMineralDetailDocument(mineral, expertDisplayName(auth.profile), output);
 
   const buffer = await Packer.toBuffer(doc);
   // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: mineral).
   await trackUsage(usageGuard, req, { module: "stones", action: "report_generated", subEntity: "mineral", resourceId: mineralId });
-  const filename = `mineral-${nameSlug}-${dateSlug}.docx`;
+  const filename = `${mineralDetailFilePrefix(output)}-${nameSlug}-${dateSlug}.docx`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {

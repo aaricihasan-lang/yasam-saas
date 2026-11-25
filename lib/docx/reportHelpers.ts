@@ -23,6 +23,7 @@ import {
   WidthType,
 } from "docx";
 import { wellnessNote, type WellnessNoteKind } from "./reportDisclaimer";
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -534,11 +535,11 @@ export function buildPremiumCover(opts: PremiumCoverOptions): ReportChild[] {
  * rows: [label, value] pairs for the summary table.
  * extras: optional additional lines below the table.
  */
-export function buildStatsPage(rows: [string, string][], extras?: string[]): ReportChild[] {
+export function buildStatsPage(rows: [string, string][], extras?: string[], common?: ReportCommonStrings): ReportChild[] {
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "RAPOR ÖZETİ", bold: true, size: 44, font: REPORT_FONT, color: C_DARK, allCaps: true })],
+      children: [new TextRun({ text: common?.reportSummary ?? "RAPOR ÖZETİ", bold: true, size: 44, font: REPORT_FONT, color: C_DARK, allCaps: true })],
       pageBreakBefore: true,
       spacing: { before: 800, after: 640 },
     }),
@@ -559,11 +560,11 @@ export function buildStatsPage(rows: [string, string][], extras?: string[]): Rep
  * TEK pageBreakBefore (başlıkta); araya ikinci sayfa kırılması KOYMAZ → özet+TOC ayrı
  * boş sayfalar oluşmaz. Başlıklar Heading STİLİ DEĞİL (düz paragraf) → TOC'a kendini eklemez.
  */
-export function buildCompactFrontMatter(rows: [string, string][], includeTOC: boolean): ReportChild[] {
+export function buildCompactFrontMatter(rows: [string, string][], includeTOC: boolean, common?: ReportCommonStrings): ReportChild[] {
   const out: ReportChild[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "RAPOR ÖZETİ", bold: true, size: 40, font: REPORT_FONT, color: C_DARK, allCaps: true })],
+      children: [new TextRun({ text: common?.reportSummary ?? "RAPOR ÖZETİ", bold: true, size: 40, font: REPORT_FONT, color: C_DARK, allCaps: true })],
       pageBreakBefore: true,
       keepNext: true,
       spacing: { before: 480, after: 360 },
@@ -574,15 +575,15 @@ export function buildCompactFrontMatter(rows: [string, string][], includeTOC: bo
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "İÇİNDEKİLER", bold: true, size: 30, font: REPORT_FONT, color: C_DARK })],
+        children: [new TextRun({ text: common?.tocHeading ?? "İÇİNDEKİLER", bold: true, size: 30, font: REPORT_FONT, color: C_DARK })],
         keepNext: true,
         spacing: { before: 520, after: 260 },
       }),
-      new TableOfContents("İçindekiler", { hyperlink: true, headingStyleRange: "1-2" }),
+      new TableOfContents(common?.tocField ?? "İçindekiler", { hyperlink: true, headingStyleRange: "1-2" }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new TextRun({
-          text: "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
+          text: common?.tocFieldNote ?? "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
           size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
         })],
         spacing: { before: 240, after: 0 },
@@ -636,19 +637,19 @@ export function buildSectionDivider(title: string, subtitle: string, color: stri
  * İçindekiler BOŞ görünür. Yeni/yenilenen raporlar `StaticTocCollector` (lib/docx/premiumToc)
  * kullanmalı — aynı sayfa düzeni, dolu + tıklanabilir girişler.
  */
-export function buildTOCPage(): ReportChild[] {
+export function buildTOCPage(common?: ReportCommonStrings): ReportChild[] {
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "İÇİNDEKİLER", bold: true, size: 40, font: REPORT_FONT, color: C_DARK })],
+      children: [new TextRun({ text: common?.tocHeading ?? "İÇİNDEKİLER", bold: true, size: 40, font: REPORT_FONT, color: C_DARK })],
       pageBreakBefore: true,
       spacing: { before: 800, after: 600 },
     }),
-    new TableOfContents("İçindekiler", { hyperlink: true, headingStyleRange: "1-2" }),
+    new TableOfContents(common?.tocField ?? "İçindekiler", { hyperlink: true, headingStyleRange: "1-2" }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [new TextRun({
-        text: "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
+        text: common?.tocFieldNote ?? "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
         size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
       })],
       spacing: { before: 320, after: 0 },
@@ -658,14 +659,18 @@ export function buildTOCPage(): ReportChild[] {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind; brandLine?: Paragraph | null }): Footer {
+/**
+ * `opts.common` (I18N çıktı dili): verilirse sayfa etiketi ve kısa bilgilendirme notu katalogdan; verilmezse bugünkü
+ * Türkçe sabitler (çıktı bayt-bayt aynı).
+ */
+export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind; brandLine?: Paragraph | null; common?: ReportCommonStrings }): Footer {
   const children: Paragraph[] = [];
   if (opts?.note) {
     children.push(new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 20 },
       children: [
-        new TextRun({ text: wellnessNote(opts.note).short, italics: true, size: 14, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: wellnessNote(opts.note, opts.common).short, italics: true, size: 14, font: REPORT_FONT, color: C_LIGHT }),
       ],
     }));
   }
@@ -674,7 +679,7 @@ export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     children: [
-      new TextRun({ text: "Sayfa ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
+      new TextRun({ text: opts?.common ? `${opts.common.page} ` : "Sayfa ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
       new TextRun({ children: [PageNumber.CURRENT], size: 18, font: REPORT_FONT, color: C_LIGHT }),
       new TextRun({ text: " / ", size: 18, font: REPORT_FONT, color: C_LIGHT }),
       new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, font: REPORT_FONT, color: C_LIGHT }),
@@ -688,22 +693,22 @@ export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind
  * Rapor sonuna eklenen sade "Bilgilendirme" bölümü (FA-16). Küçük punto, italik,
  * gri; uyarı kutusu/kırmızı renk YOK. `expertName` verilirse "Hazırlayan: …" satırı eklenir.
  */
-export function buildWellnessNoteSection(kind: WellnessNoteKind, expertName?: string | null): Paragraph[] {
+export function buildWellnessNoteSection(kind: WellnessNoteKind, expertName?: string | null, common?: ReportCommonStrings): Paragraph[] {
   const out: Paragraph[] = [
     new Paragraph({
       spacing: { before: 360, after: 60 },
-      children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+      children: [new TextRun({ text: common?.information ?? "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
     }),
     new Paragraph({
       spacing: { after: 80 },
-      children: [new TextRun({ text: wellnessNote(kind).full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
+      children: [new TextRun({ text: wellnessNote(kind, common).full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
     }),
   ];
   const name = expertName?.trim();
   if (name) {
     out.push(new Paragraph({
       spacing: { after: 60 },
-      children: [new TextRun({ text: `Hazırlayan: ${name}`, size: 16, font: REPORT_FONT, color: C_MID })],
+      children: [new TextRun({ text: `${common?.preparedBy ?? "Hazırlayan"}: ${name}`, size: 16, font: REPORT_FONT, color: C_MID })],
     }));
   }
   return out;

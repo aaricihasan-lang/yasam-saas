@@ -35,12 +35,17 @@ import { REPORT_FONT, C_MID, C_LIGHT, embedImageParagraph, sanitizeXmlText, type
 import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import {
   ALL_ATLAS_GROUPS,
-  ATLAS_GROUP_LABEL,
   type AtlasBackgroundGroup,
   type ResolvedAtlas,
   type OrganResolved,
 } from "./atlasRegionsCore";
 import { renderAtlasGroupPng } from "./atlasImage";
+// I18N-F1-R5 RAPOR-E (P21): sistem metinleri `reports.refleksoloji` → `reports.reflexology.*` (çıktı dili; TR birebir — golden).
+// Organ adları (atlas eşleşme anahtarı) ve protokol içeriği çevrilmez.
+import { reflexText } from "./reportText";
+
+const T = (key: string, values?: Record<string, string | number>): string => reflexText().t(key, values);
+const groupLabel = (g: AtlasBackgroundGroup): string => reflexText().group(g);
 
 // ─── Premium violet kimlik paleti ─────────────────────────────────────────────
 const V_EYEBROW = "7c3aed"; // violet-600
@@ -66,7 +71,7 @@ export function buildCover(protocolTitle: string, subtitle: string, meta: CoverM
     // Eyebrow
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "YAŞAM SİSTEMİ", bold: true, size: 26, font: REPORT_FONT, color: V_EYEBROW, allCaps: true })],
+      children: [new TextRun({ text: T("brand"), bold: true, size: 26, font: REPORT_FONT, color: V_EYEBROW, allCaps: true })],
       spacing: { after: 120 },
     }),
     // Report subtitle (küçük)
@@ -125,15 +130,15 @@ function protocolTitleHeading(title: string): Paragraph {
 // ─── Protokol özeti kartı (kompakt; tam sayfa DEĞİL) ──────────────────────────
 function summaryCard(input: ReflexologyProtocolInput): ReportChild[] {
   const rows: [string, string][] = [];
-  rows.push(["Organ Sayısı", String(input.organs.length)]);
+  rows.push([T("summary.organCount"), String(input.organs.length)]);
   const totalRegions = input.resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
-  rows.push(["Toplam Atlas Bölgesi", String(totalRegions)]);
+  rows.push([T("summary.totalRegions"), String(totalRegions)]);
   for (const g of ALL_ATLAS_GROUPS) {
     const count = input.resolved.regionsByGroup[g].length;
-    if (count > 0) rows.push([`${ATLAS_GROUP_LABEL[g]} Bölgesi`, String(count)]);
+    if (count > 0) rows.push([T("summary.groupRegions", { group: groupLabel(g) }), String(count)]);
   }
 
-  const out: ReportChild[] = [sectionHeading("Protokol Özeti")];
+  const out: ReportChild[] = [sectionHeading(T("summary.title"))];
   // Kısa Açıklama — yalnız varsa
   const desc = (input.description ?? "").trim();
   if (desc) {
@@ -189,7 +194,7 @@ async function atlasMapSection(
 
   const { png } = await renderAtlasGroupPng(group, regions);
   const out: ReportChild[] = [
-    sectionHeading(`Refleksoloji Uygulama Haritası — ${ATLAS_GROUP_LABEL[group]}`),
+    sectionHeading(T("map.heading", { group: groupLabel(group) })),
     embedImageParagraph(png, 580, 600),
   ];
 
@@ -205,7 +210,7 @@ function legendRow(organ: OrganResolved, count: number): Paragraph {
   return new Paragraph({
     children: [
       new TextRun({ text: "● ", size: 22, font: REPORT_FONT, color: rgbToHex(organ.color.stroke) }),
-      new TextRun({ text: `${clean(organ.label)} — ${count} bölge`, size: 20, font: REPORT_FONT, color: C_MID }),
+      new TextRun({ text: T("map.legend", { organ: clean(organ.label), count, shown: String(count) }), size: 20, font: REPORT_FONT, color: C_MID }),
     ],
     spacing: { after: 40 },
     indent: { left: 120 },
@@ -231,7 +236,7 @@ function rgbToHex(color: string): string {
 function organTable(
   resolved: ResolvedAtlas,
   organLabels: string[],
-  heading = "Seçilen Organlar ve Atlas Bölgeleri",
+  heading = T("organs.headingProtocol"),
 ): ReportChild[] {
   // Her (organ, grup) için bir satır → çok görünümlü organ doğru gösterilir.
   const bodyRows: { organ: OrganResolved; group: AtlasBackgroundGroup; count: number }[] = [];
@@ -249,7 +254,7 @@ function organTable(
     out.push(
       new Paragraph({
         children: [
-          new TextRun({ text: "Seçilen organlar: ", bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
+          new TextRun({ text: T("organs.selected"), bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
           new TextRun({ text: clean(labels.join(", ")), size: 20, font: REPORT_FONT, color: V_DARK }),
         ],
         spacing: { after: 160 },
@@ -263,7 +268,7 @@ function organTable(
 
   const headerFill = "ede9fe"; // violet-100
   const thin = { style: BorderStyle.SINGLE, size: 2, color: V_RULE } as const;
-  const headerCells = ["", "Organ", "Görünüm", "Bölge Sayısı"].map((h, i) =>
+  const headerCells = ["", T("organs.colOrgan"), T("organs.colView"), T("organs.colRegions")].map((h, i) =>
     new TableCell({
       width: { size: [8, 46, 28, 18][i], type: WidthType.PERCENTAGE },
       shading: { type: ShadingType.CLEAR, fill: headerFill, color: "auto" },
@@ -286,7 +291,7 @@ function organTable(
           children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "●", size: 18, font: REPORT_FONT, color: swatch })] })],
         }),
         cellText(clean(organ.label), 46),
-        cellText(ATLAS_GROUP_LABEL[group], 28),
+        cellText(groupLabel(group), 28),
         cellText(String(count), 18),
       ],
     });
@@ -316,7 +321,7 @@ function missingOrgansNote(resolved: ResolvedAtlas): Paragraph[] {
   return [
     new Paragraph({
       children: [
-        new TextRun({ text: "Atlas bölgesi bulunmayan organlar: ", italics: true, size: 18, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: T("organs.missing"), italics: true, size: 18, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ text: clean(resolved.missingOrgans.join(", ")), italics: true, size: 18, font: REPORT_FONT, color: C_MID }),
       ],
       spacing: { before: 120, after: 0 },
@@ -337,7 +342,7 @@ function notesCallout(notes: string | null): ReportChild[] {
     margins: { top: 120, bottom: 120, left: 200, right: 200 },
     children: [
       new Paragraph({
-        children: [new TextRun({ text: "UYGULAMA NOTLARI", bold: true, size: 20, font: REPORT_FONT, color: accent, allCaps: true })],
+        children: [new TextRun({ text: T("notes.callout"), bold: true, size: 20, font: REPORT_FONT, color: accent, allCaps: true })],
         spacing: { after: 100 },
       }),
       ...paras.map((p, i) =>
@@ -350,7 +355,7 @@ function notesCallout(notes: string | null): ReportChild[] {
     ],
   });
   return [
-    sectionHeading("Uygulama Notları"),
+    sectionHeading(T("notes.heading")),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: {
@@ -385,7 +390,7 @@ async function protocolBody(
     // Bulk: numaralı profil etiketi + başlık (yeni sayfadan).
     out.push(
       new Paragraph({
-        children: [new TextRun({ text: `PROTOKOL #${String(input.index + 1).padStart(3, "0")}`, bold: true, size: 18, font: REPORT_FONT, color: V_EYEBROW, allCaps: true })],
+        children: [new TextRun({ text: T("protocolNo", { no: String(input.index + 1).padStart(3, "0") }), bold: true, size: 18, font: REPORT_FONT, color: V_EYEBROW, allCaps: true })],
         spacing: { before: 0, after: 60 },
         keepNext: true,
         ...(opts.pageBreak ? { pageBreakBefore: true } : {}),
@@ -406,13 +411,11 @@ async function protocolBody(
 // ─── Kullanılan görünümler (kapak metadata) ───────────────────────────────────
 export function usedGroupsLabel(resolved: ResolvedAtlas): string {
   const used = ALL_ATLAS_GROUPS.filter((g) => resolved.regionsByGroup[g].length > 0);
-  return used.length ? used.map((g) => ATLAS_GROUP_LABEL[g]).join(", ") : "—";
+  return used.length ? used.map((g) => groupLabel(g)).join(", ") : "—";
 }
 
 // ─── SINGLE rapor ─────────────────────────────────────────────────────────────
-// ─── REF-002: Sağlık/uyumluluk bilgilendirmesi ────────────────────────────────
-const REFLEXOLOGY_DISCLAIMER =
-  "Refleksoloji uygulamaları tamamlayıcı niteliktedir. Bu modül tıbbi tanı veya tedavi amacı taşımaz ve hekim değerlendirmesinin yerine geçmez.";
+// ─── REF-002: Sağlık/uyumluluk bilgilendirmesi (metin: reports.reflexology.disclaimer.text) ─────────────
 
 /** Rapor sonuna eklenen profesyonel "Bilgilendirme" bölümü. */
 function disclaimerSection(): ReportChild[] {
@@ -420,14 +423,14 @@ function disclaimerSection(): ReportChild[] {
     new Paragraph({
       spacing: { before: 360, after: 80 },
       children: [
-        new TextRun({ text: "Bilgilendirme", bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
+        new TextRun({ text: T("disclaimer.title"), bold: true, size: 20, font: REPORT_FONT, color: V_ACCENT }),
       ],
     }),
     new Paragraph({
       spacing: { after: 120 },
       border: { top: { style: BorderStyle.SINGLE, size: 2, color: V_RULE } },
       children: [
-        new TextRun({ text: REFLEXOLOGY_DISCLAIMER, italics: true, size: 18, font: REPORT_FONT, color: C_MID }),
+        new TextRun({ text: T("disclaimer.text"), italics: true, size: 18, font: REPORT_FONT, color: C_MID }),
       ],
     }),
   ];
@@ -446,7 +449,7 @@ export type ReflexologyBrandingOptions = { branding?: ExpertBranding | null; bra
 const REFLEX_CONTENT_W = 11906 - 2 * 1134;
 
 function signatureSection(o: ReflexologyBrandingOptions | undefined): ReportChild[] {
-  return expertSignatureBlock(o?.branding, { variant: o?.brandingVariant, accent: V_ACCENT, contentWidth: REFLEX_CONTENT_W, fill: V_CARD_FILL, font: REPORT_FONT });
+  return expertSignatureBlock(o?.branding, { variant: o?.brandingVariant, accent: V_ACCENT, contentWidth: REFLEX_CONTENT_W, fill: V_CARD_FILL, font: REPORT_FONT, common: reflexText().common });
 }
 
 export async function buildSingleReport(
@@ -459,14 +462,14 @@ export async function buildSingleReport(
 ): Promise<ReportChild[]> {
   const totalRegions = input.resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
   const meta: CoverMeta = [
-    { label: "Oluşturulma Tarihi", value: reportDateLabel },
-    ...(protocolDateLabel ? [{ label: "Protokol Tarihi", value: protocolDateLabel }] : []),
-    { label: "Organ Sayısı", value: String(input.organs.length) },
-    { label: "Toplam Atlas Bölgesi", value: String(totalRegions) },
-    { label: "Kullanılan Görünümler", value: usedGroupsLabel(input.resolved) },
+    { label: T("cover.generated"), value: reportDateLabel },
+    ...(protocolDateLabel ? [{ label: T("cover.protocolDate"), value: protocolDateLabel }] : []),
+    { label: T("cover.organCount"), value: String(input.organs.length) },
+    { label: T("cover.totalRegions"), value: String(totalRegions) },
+    { label: T("cover.usedViews"), value: usedGroupsLabel(input.resolved) },
   ];
   const out: ReportChild[] = [
-    ...buildCover(input.title, "Refleksoloji Protokol Raporu", meta),
+    ...buildCover(input.title, T("cover.singleSubtitle"), meta),
     ...(await protocolBody(input, { bulk: false, pageBreak: false })),
     ...disclaimerSection(), // REF-002
     ...signatureSection(brand), // F3B (yalnız anahtar açıkken)
@@ -483,12 +486,12 @@ export async function buildBulkReport(
 ): Promise<ReportChild[]> {
   const totalOrgans = new Set(inputs.flatMap((i) => i.organs.map((o) => o.trim().toLocaleLowerCase("tr")))).size;
   const meta: CoverMeta = [
-    { label: "Oluşturulma Tarihi", value: createdLabel },
-    { label: "Protokol Sayısı", value: String(inputs.length) },
-    { label: "Kapsam", value: scopeLabel },
-    { label: "Toplam Organ", value: String(totalOrgans) },
+    { label: T("cover.generated"), value: createdLabel },
+    { label: T("cover.protocolCount"), value: String(inputs.length) },
+    { label: T("cover.scope"), value: scopeLabel },
+    { label: T("cover.totalOrgans"), value: String(totalOrgans) },
   ];
-  const out: ReportChild[] = [...buildCover("Refleksoloji Protokol Kataloğu", "Klinik Protokol Kataloğu", meta)];
+  const out: ReportChild[] = [...buildCover(T("cover.catalogTitle"), T("cover.catalogSubtitle"), meta)];
   for (let i = 0; i < inputs.length; i++) {
     out.push(...(await protocolBody(inputs[i], { bulk: true, pageBreak: true })));
   }
@@ -511,17 +514,17 @@ export async function buildAtlasReport(
 ): Promise<ReportChild[]> {
   const totalRegions = resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
   const meta: CoverMeta = [
-    { label: "Oluşturulma Tarihi", value: reportDateLabel },
-    { label: "Kapsam", value: scopeLabel },
-    { label: "Organ Sayısı", value: String(resolved.organs.filter((o) => o.found).length) },
-    { label: "Toplam Atlas Bölgesi", value: String(totalRegions) },
-    { label: "Kullanılan Görünümler", value: usedGroupsLabel(resolved) },
+    { label: T("cover.generated"), value: reportDateLabel },
+    { label: T("cover.scope"), value: scopeLabel },
+    { label: T("cover.organCount"), value: String(resolved.organs.filter((o) => o.found).length) },
+    { label: T("cover.totalRegions"), value: String(totalRegions) },
+    { label: T("cover.usedViews"), value: usedGroupsLabel(resolved) },
   ];
-  const out: ReportChild[] = [...buildCover("Kayıtlı Atlas", "Refleksoloji Atlas Raporu", meta)];
+  const out: ReportChild[] = [...buildCover(T("cover.atlasTitle"), T("cover.atlasSubtitle"), meta)];
   for (const g of ALL_ATLAS_GROUPS) {
     out.push(...(await atlasMapSection(g, resolved)));
   }
-  out.push(...organTable(resolved, [], "Organlar ve Atlas Bölgeleri"));
+  out.push(...organTable(resolved, [], T("organs.headingAtlas")));
   out.push(...disclaimerSection()); // REF-002
   out.push(...signatureSection(brand)); // F3B (yalnız anahtar açıkken)
   return out;
@@ -534,19 +537,19 @@ export function reflexologyHeaders(): { default: Header; first: Header } {
       children: [new Paragraph({
         alignment: AlignmentType.RIGHT,
         border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: V_RULE } },
-        children: [new TextRun({ text: "Yaşam Sistemi · Refleksoloji", size: 16, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
+        children: [new TextRun({ text: T("header"), size: 16, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
       })],
     }),
     first: new Header({ children: [new Paragraph({ children: [] })] }),
   };
 }
 
-export function reflexologyFooters(reportLabel = "Refleksoloji Protokol Raporu"): { default: Footer; first: Footer } {
+export function reflexologyFooters(reportLabel: string = T("footer.protocol")): { default: Footer; first: Footer } {
   const line = (): Paragraph =>
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [
-        new TextRun({ text: `${reportLabel}  ·  Sayfa `, size: 16, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: `${reportLabel}  ·  ${T("footer.page")} `, size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ children: [PageNumber.CURRENT], size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ text: " / ", size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, font: REPORT_FONT, color: C_LIGHT }),
@@ -560,7 +563,7 @@ export function reflexologyFooters(reportLabel = "Refleksoloji Protokol Raporu")
       spacing: { after: 20 },
       children: [
         new TextRun({
-          text: "Tamamlayıcı uygulama · tıbbi tanı/tedavi yerine geçmez",
+          text: T("disclaimer.footer"),
           italics: true,
           size: 14,
           font: REPORT_FONT,

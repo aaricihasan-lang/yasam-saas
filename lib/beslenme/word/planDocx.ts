@@ -16,6 +16,7 @@ import { fetchAllPaged, chunkIds } from "../pagedFetch";
 // Onaylı Yaşam Sistemi logosu — paket içi YEREL asset (fs; ağ YOK). HD ve Danışan Word ile aynı dosya.
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import type { ExpertBranding } from "@/lib/docx/expertBranding";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
 
 /**
  * Beslenme FAZ 6 / Plan Word — server yükleyici (SNAPSHOT-only).
@@ -93,7 +94,7 @@ export async function buildPlanDocxBuffer(
   tenantId: string,
   planId: string,
   /** F3A: `branding` = render-hazır uzman markalaması (null/yok → çıktı birebir; veri kaynağı F1/F2). */
-  opts?: { expertName?: string | null; branding?: ExpertBranding | null },
+  opts?: { expertName?: string | null; branding?: ExpertBranding | null; output?: ReportLocale | null },
 ): Promise<PlanDocxResult> {
   const { data: planData, error: planErr } = await db
     .from("nutrition_plans")
@@ -205,6 +206,7 @@ export async function buildPlanDocxBuffer(
     expertName: opts?.expertName ?? null,
     logo: await loadHdReportLogo(),
     branding: opts?.branding ?? null,
+    output: opts?.output ?? null,
     days: dayRows.map<PlanDocxDay>((d) => ({
       id: d.id,
       plan_date: d.plan_date,
