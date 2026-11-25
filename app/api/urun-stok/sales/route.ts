@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
+import { saleRpcErrorCode } from "@/lib/urun-stok/stockErrorCodes";
 import { parseSalesHistoryParams, readSalesHistoryPage } from "@/lib/urun-stok/salesHistoryServer";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -55,43 +56,43 @@ export async function POST(req: NextRequest): Promise<Response> {
     lines?: unknown;
   };
   try { body = (await req.json()) as typeof body; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "STK_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const idempotencyKey = String(body.idempotency_key ?? "").trim();
   if (!idempotencyKey || idempotencyKey.length > 200)
-    return NextResponse.json({ ok: false, error: "Geçersiz işlem anahtarı." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_INVALID_IDEMPOTENCY_KEY", error: "Geçersiz işlem anahtarı." }, { status: 400 });
 
   if (!Array.isArray(body.lines) || body.lines.length < 1)
-    return NextResponse.json({ ok: false, error: "Satış satırı gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_SALE_LINES_REQUIRED", error: "Satış satırı gerekli." }, { status: 400 });
   if (body.lines.length > MAX_LINES)
-    return NextResponse.json({ ok: false, error: "Çok fazla satış satırı." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_SALE_TOO_MANY_LINES", error: "Çok fazla satış satırı." }, { status: 400 });
 
   const cleanLines: CleanLine[] = [];
   for (const raw of body.lines as IncomingLine[]) {
     const type = String(raw?.inventory_type ?? "").trim().toLowerCase();
     if (!ALLOWED_TYPES.has(type))
-      return NextResponse.json({ ok: false, error: "Geçersiz ürün kategorisi." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "STK_INVALID_CATEGORY", error: "Geçersiz ürün kategorisi." }, { status: 400 });
 
     const invId = String(raw?.inventory_id ?? "").trim();
     if (!UUID_RE.test(invId))
-      return NextResponse.json({ ok: false, error: "Geçersiz ürün kimliği." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "STK_INVALID_PRODUCT_ID", error: "Geçersiz ürün kimliği." }, { status: 400 });
 
     const qty = finitePos(raw?.quantity);
     if (qty === null || qty <= 0)
-      return NextResponse.json({ ok: false, error: "Satılacak miktar geçersiz." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "STK_INVALID_QUANTITY", error: "Satılacak miktar geçersiz." }, { status: 400 });
 
     const line: CleanLine = { inventory_type: type, inventory_id: invId, quantity: qty };
 
     if (raw?.markup_pct != null && raw.markup_pct !== "") {
       const m = finitePos(raw.markup_pct);
       if (m === null || m < 0)
-        return NextResponse.json({ ok: false, error: "Kâr oranı geçersiz." }, { status: 400 });
+        return NextResponse.json({ ok: false, code: "STK_INVALID_MARKUP", error: "Kâr oranı geçersiz." }, { status: 400 });
       line.markup_pct = m;
     }
     if (raw?.unit_sale_price != null && raw.unit_sale_price !== "") {
       const p = finitePos(raw.unit_sale_price);
       if (p === null || p < 0)
-        return NextResponse.json({ ok: false, error: "Satış fiyatı geçersiz." }, { status: 400 });
+        return NextResponse.json({ ok: false, code: "STK_INVALID_SALE_PRICE", error: "Satış fiyatı geçersiz." }, { status: 400 });
       line.unit_sale_price = p;
     }
     cleanLines.push(line);
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         errorClass: mapped.status === 409 ? "conflict" : "server",
       });
     }
-    return NextResponse.json({ ok: false, error: mapped.error }, { status: mapped.status });
+    return NextResponse.json({ ok: false, code: saleRpcErrorCode(error), error: mapped.error }, { status: mapped.status });
   }
 
   const result = data as { sale_id?: string; duplicate?: boolean; sale?: unknown; items?: unknown };
@@ -156,7 +157,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // kalem sayısı tutarlılığı). inventory_type ALLOWLIST'ten; ham SQL identifier kullanıcı girdisinden oluşmaz.
   const params = parseSalesHistoryParams(req.nextUrl.searchParams);
   const page = await readSalesHistoryPage(db, tenantId, params);
-  if (!page.ok) return NextResponse.json({ ok: false, error: page.error }, { status: page.status });
+  if (!page.ok) return NextResponse.json({ ok: false, code: page.status === 400 ? "STK_INVALID_REQUEST" : "STK_HISTORY_READ_FAILED", error: page.error }, { status: page.status });
   return NextResponse.json({
     ok: true,
     sales: page.sales,
