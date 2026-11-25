@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { KAN_VALUES } from "@/lib/danisan/clientValidation";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -323,6 +325,7 @@ export default function DanisanListePage() {
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
   const tDel = useTranslations("common.deleteConfirm");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -526,7 +529,7 @@ export default function DanisanListePage() {
   ): Promise<{ clients: Client[]; count: number | null }> {
     const qs = new URLSearchParams({ limit: String(limit), offset: String(offset), count: "1" });
     const res = await fetch(`/api/clients?${qs.toString()}`, { headers: authHeaders() });
-    if (!res.ok) throw new Error("Listeleme hatası");
+    if (!res.ok) throw new Error("client list request failed"); // geliştirici iletisi; kullanıcıya gösterilmez (çağıranlar toast.listError / loadMoreError / loadAllError gösterir)
     const json = (await res.json()) as { clients?: Client[]; count?: number };
     return { clients: json.clients ?? [], count: typeof json.count === "number" ? json.count : null };
   }
@@ -824,7 +827,8 @@ export default function DanisanListePage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || t("toast.exportError"));
+        // Sunucu metni Türkçedir: yalnız kaynak dilde (tr) aynen gösterilir; diğer dillerde çevrilmiş genel metin.
+        throw new Error((isSourceLocale ? (err as { error?: string }).error : undefined) || t("toast.exportError"));
       }
       // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
       const count = Number(res.headers.get("X-Report-Client-Count")) || scope.count;
@@ -1041,6 +1045,7 @@ export default function DanisanListePage() {
                   yalnız görünen LABEL locale'e göre map'lenir (EN→Aries…), bilinmeyen→raw. */}
               <select value={filterBurc} onChange={(e) => setFilterBurc(e.target.value)} className={inputCls}>
                 <option value="">{t("filter.all")}</option>
+                {/* i18n-ignore: kanonik burç değerleri (lib/danisan/burc.ts çıktısı; filtre c.burc === filterBurc) */}
                 {["Koç","Boğa","İkizler","Yengeç","Aslan","Başak","Terazi","Akrep","Yay","Oğlak","Kova","Balık"].map((b) => (
                   <option key={b} value={b}>{t.has(`filter.burcOptions.${b}`) ? t(`filter.burcOptions.${b}`) : b}</option>
                 ))}
@@ -1050,10 +1055,9 @@ export default function DanisanListePage() {
               {/* Kan grubu KANONİK değer (filtre: c.kan === filterKan) → ÇEVRİLMEZ. */}
               <select value={filterKan} onChange={(e) => setFilterKan(e.target.value)} className={inputCls}>
                 <option value="">{t("filter.all")}</option>
-                <option>A Rh+</option><option>A Rh-</option>
-                <option>B Rh+</option><option>B Rh-</option>
-                <option>AB Rh+</option><option>AB Rh-</option>
-                <option>0 Rh+</option><option>0 Rh-</option>
+                {KAN_VALUES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
               </select>
             </Field>
             <Field label={t("filter.mizacLabel")}>

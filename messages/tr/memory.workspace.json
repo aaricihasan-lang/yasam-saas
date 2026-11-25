@@ -1,0 +1,112 @@
+{
+  "memory": {
+    "workspace": {
+      "page": {
+        "title": "Yaşam Hafızası",
+        "subtitle": "Mesleki bilgi ve danışan geçmişinizi güvenli biçimde tek noktadan arayın."
+      },
+      "shell": {
+        "breadcrumbAria": "Sayfa yolu",
+        "home": "Ana Sayfa",
+        "productName": "Yaşam Hafızası"
+      },
+      "tabs": {
+        "aria": "Yaşam Hafızası alanları",
+        "professional": "Mesleki Hafıza",
+        "client": "Danışan Hafızası"
+      },
+      "search": {
+        "professionalAria": "Mesleki Hafıza araması",
+        "professionalPlaceholder": "Ara: taş, protokol, sembol, çakra, konu…",
+        "clientAria": "Danışan Hafızası araması",
+        "clientPlaceholder": "Ara: danışan geçmişi, seans notu, ödev, taş, konu…",
+        "button": "Ara",
+        "retry": "Tekrar dene"
+      },
+      "results": {
+        "count": "<b>{count}</b> sonuç",
+        "countFiltered": "<b>{count}</b> sonuç (filtreli)"
+      },
+      "filters": {
+        "modules": "Modüller",
+        "clear": "Temizle"
+      },
+      "client": {
+        "intro": "Kendi danışanlarınızın geçmiş kayıtlarında (seans, not, ödev, taş, kombinasyon, randevu) arayın. Yalnız kendi tenant kapsamınızdaki danışanlar görünür.",
+        "date": "Tarih",
+        "dateFromAria": "Başlangıç tarihi",
+        "dateToAria": "Bitiş tarihi",
+        "clearDate": "Tarihi temizle",
+        "clientLabel": "Danışan: {name}",
+        "detailAria": "Danışan kaydı detayı",
+        "dateLabel": "Tarih: {date}",
+        "sourceGone": "Kaynak kaydı artık mevcut değil (snapshot korundu).",
+        "goToRecord": "{client} · {module} kaydına git",
+        "disabled": {
+          "notActive": {
+            "title": "Danışan Hafızası henüz etkin değil",
+            "msg": "Bu özellik etkinleştirildiğinde danışan geçmişinizde arama yapabilirsiniz."
+          },
+          "flagDisabled": {
+            "title": "Yaşam Hafızası bu hesapta henüz aktif değil",
+            "msg": "Bu özellik hesabınız için etkinleştirildiğinde arama yapabilirsiniz."
+          },
+          "demo": {
+            "title": "Demo hesabında kullanılamaz",
+            "msg": "Demo hesaplarında danışan hafızası araması yapılmaz."
+          }
+        }
+      },
+      "detail": {
+        "close": "Kapat",
+        "recordAria": "Kayıt detayı",
+        "matched": "Eşleşen içerik",
+        "topics": "Konular",
+        "relations": "İlişkiler",
+        "sharedLibrary": "Paylaşımlı kütüphane",
+        "shared": "Paylaşımlı",
+        "untitled": "Başlıksız kayıt",
+        "source": "Kaynak: {module}",
+        "goToModule": "{module} modülüne git"
+      },
+      "states": {
+        "coldStart": {
+          "title": "Aramaya başlayın",
+          "msg": "Taş, protokol, sembol, çakra veya bir konu yazın; mesleki bilgi havuzunuzda arayalım."
+        },
+        "clientColdStart": {
+          "title": "Aramaya başlayın",
+          "msg": "Danışan geçmişinizde seans, not, ödev, taş, kombinasyon veya randevu içeriği arayın."
+        },
+        "noResults": {
+          "title": "Sonuç bulunamadı",
+          "msg": "Bu arama için kayıt bulunamadı. Farklı bir kelime deneyin."
+        },
+        "filtered": {
+          "title": "Seçili modülde sonuç yok",
+          "msg": "Sonuçlar var ama seçtiğiniz modüllerde değil. Filtreyi genişletin."
+        },
+        "indexEmpty": {
+          "title": "Mesleki hafızanız hazırlanıyor…",
+          "msg": "Kayıtlarınız mesleki hafızaya aktarılıyor. Bu süre içinde arama sonuç vermeyebilir; aktarım tamamlandığında kayıtlarınız burada aranabilir olacak."
+        },
+        "indexReadyEmpty": {
+          "title": "Mesleki hafızanız hazır",
+          "msg": "Henüz aranabilir kayıt yok. Modüllerde kayıt oluşturdukça içerikleriniz burada aranabilir olacak."
+        },
+        "outOfScope": {
+          "title": "Bu hesap mesleki indeks kapsamı dışında",
+          "msg": "Bu hesabın kütüphane kayıtları mesleki hafızaya alınmaz (bilinçli kapsam kararı). Danışan Hafızası sekmesini kullanabilirsiniz."
+        },
+        "disabled": {
+          "title": "Yaşam Hafızası bu hesapta henüz aktif değil",
+          "msg": "Bu özellik hesabınız için etkinleştirildiğinde arama yapabilirsiniz."
+        },
+        "error": {
+          "title": "Bir şeyler ters gitti",
+          "msg": "Arama tamamlanamadı. Lütfen tekrar deneyin."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "digitalContent": {
+    "hub": {
+      "title": "Dijital İçerik Merkezi",
+      "subtitle": "Kişisel arşiv ve dijital içerik yönetimi",
+      "empty": "Bu merkezde hesabınız için açık bir modül bulunmuyor.",
+      "active": "Aktif",
+      "cards": {
+        "personal_archive": {
+          "title": "Kişisel Arşiv",
+          "desc": "Ses, video, belge ve kişisel kayıt sistemi. Tüm dosyalarınızı tek merkezde saklayın.",
+          "badge": "Arşiv"
+        },
+        "belge_ceviri": {
+          "title": "Belge Çeviri Merkezi",
+          "desc": "PDF belgelerini düzenlenebilir Word dosyasına dönüştür ve yönet.",
+          "badge": "Belge"
+        },
+        "video_ceviri": {
+          "title": "Video → Türkçe Word/PDF",
+          "desc": "Videolardan Türkçe transkript, çeviri ve eğitim dokümanı üretme merkezi.",
+          "badge": "Video"
+        },
+        "ders_notu": {
+          "title": "Ders Notu Merkezi",
+          "desc": "Ham transkripti temizle, ders notuna dönüştür. Human Design uyumlu AI çıktısı.",
+          "badge": "Notlar"
+        }
+      }
+    },
+    "demo": {
+      "title": "Demo Hesabı",
+      "message": "Bu işlem demo hesapta pasiftir. Kişisel Arşiv ekranlarını inceleyebilirsiniz; dosya yükleme, kayıt oluşturma, silme ve indirme işlemleri uzman hesabında çalışır.",
+      "banner": "Kişisel Arşiv'i demo olarak inceliyorsunuz. Arşiv ekranlarını gezebilirsiniz; dosya yükleme, kayıt oluşturma, silme ve indirme demo hesapta pasiftir."
+    }
+  }
+}

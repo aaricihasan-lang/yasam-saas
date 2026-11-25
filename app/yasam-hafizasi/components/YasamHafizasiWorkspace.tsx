@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { YhSourceModule } from "@/lib/yasam-hafizasi/config";
 import {
   filterByModules,
@@ -56,6 +57,7 @@ type Status = "idle" | "loading" | "done" | "error" | "disabled";
 
 /** Mesleki Hafıza — mevcut professional arama (shared/global KAPALI; her zaman tenant-only). */
 function ProfessionalMemoryPanel() {
+  const t = useTranslations("memory.workspace");
   const [q, setQ] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -133,13 +135,13 @@ function ProfessionalMemoryPanel() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             maxLength={YH_MAX_QUERY_LENGTH}
-            aria-label="Mesleki Hafıza araması"
-            placeholder="Ara: taş, protokol, sembol, çakra, konu…"
+            aria-label={t("search.professionalAria")}
+            placeholder={t("search.professionalPlaceholder")}
             className="h-12 w-full rounded-2xl border border-white/80 bg-white/90 pl-11 pr-4 text-base text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
           />
         </div>
         <button type="submit" className="btn-primary inline-flex min-h-[48px] items-center rounded-2xl px-5 text-sm">
-          Ara
+          {t("search.button")}
         </button>
       </form>
 
@@ -155,7 +157,7 @@ function ProfessionalMemoryPanel() {
               onClick={() => void runSearch(submitted)}
               className="btn-primary inline-flex items-center rounded-xl px-4 py-2 text-sm"
             >
-              Tekrar dene
+              {t("search.retry")}
             </button>
           }
         />
@@ -183,8 +185,10 @@ function ProfessionalMemoryPanel() {
               onClear={() => setSelectedModules([])}
             />
             <p className="mb-2 text-sm text-slate-500">
-              <span className="font-bold text-slate-700">{displayed.length}</span> sonuç
-              {selectedModules.length > 0 ? " (filtreli)" : ""}
+              {t.rich(selectedModules.length > 0 ? "results.countFiltered" : "results.count", {
+                count: displayed.length,
+                b: (chunks) => <span className="font-bold text-slate-700">{chunks}</span>,
+              })}
             </p>
             {displayed.length === 0 ? (
               <WorkspaceEmpty variant="filtered" />

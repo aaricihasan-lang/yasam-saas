@@ -1,0 +1,112 @@
+{
+  "memory": {
+    "workspace": {
+      "page": {
+        "title": "Life Memory",
+        "subtitle": "Search your professional knowledge and client history securely, from one place."
+      },
+      "shell": {
+        "breadcrumbAria": "Breadcrumb",
+        "home": "Home",
+        "productName": "Life Memory"
+      },
+      "tabs": {
+        "aria": "Life Memory areas",
+        "professional": "Professional Memory",
+        "client": "Client Memory"
+      },
+      "search": {
+        "professionalAria": "Professional Memory search",
+        "professionalPlaceholder": "Search: stone, protocol, symbol, chakra, topic…",
+        "clientAria": "Client Memory search",
+        "clientPlaceholder": "Search: client history, session note, assignment, stone, topic…",
+        "button": "Search",
+        "retry": "Try again"
+      },
+      "results": {
+        "count": "{count, plural, one {<b>#</b> result} other {<b>#</b> results}}",
+        "countFiltered": "{count, plural, one {<b>#</b> result (filtered)} other {<b>#</b> results (filtered)}}"
+      },
+      "filters": {
+        "modules": "Modules",
+        "clear": "Clear"
+      },
+      "client": {
+        "intro": "Search the past records of your own clients (sessions, notes, assignments, stones, combinations, appointments). Only clients within your own account scope are shown.",
+        "date": "Date",
+        "dateFromAria": "Start date",
+        "dateToAria": "End date",
+        "clearDate": "Clear date",
+        "clientLabel": "Client: {name}",
+        "detailAria": "Client record detail",
+        "dateLabel": "Date: {date}",
+        "sourceGone": "The source record no longer exists (snapshot preserved).",
+        "goToRecord": "Go to {client} · {module} record",
+        "disabled": {
+          "notActive": {
+            "title": "Client Memory is not active yet",
+            "msg": "Once this feature is enabled, you can search your client history."
+          },
+          "flagDisabled": {
+            "title": "Life Memory is not active on this account yet",
+            "msg": "You can search once this feature is enabled for your account."
+          },
+          "demo": {
+            "title": "Unavailable on demo accounts",
+            "msg": "Client memory search is not available on demo accounts."
+          }
+        }
+      },
+      "detail": {
+        "close": "Close",
+        "recordAria": "Record detail",
+        "matched": "Matching content",
+        "topics": "Topics",
+        "relations": "Relations",
+        "sharedLibrary": "Shared library",
+        "shared": "Shared",
+        "untitled": "Untitled record",
+        "source": "Source: {module}",
+        "goToModule": "Go to {module} module"
+      },
+      "states": {
+        "coldStart": {
+          "title": "Start searching",
+          "msg": "Type a stone, protocol, symbol, chakra or topic; we will search your professional knowledge pool."
+        },
+        "clientColdStart": {
+          "title": "Start searching",
+          "msg": "Search your client history for sessions, notes, assignments, stones, combinations or appointments."
+        },
+        "noResults": {
+          "title": "No results found",
+          "msg": "No records were found for this search. Try a different word."
+        },
+        "filtered": {
+          "title": "No results in the selected module",
+          "msg": "There are results, but not in the modules you selected. Broaden the filter."
+        },
+        "indexEmpty": {
+          "title": "Your professional memory is being prepared…",
+          "msg": "Your records are being transferred to professional memory. Searches may return no results in the meantime; once the transfer is complete, your records will be searchable here."
+        },
+        "indexReadyEmpty": {
+          "title": "Your professional memory is ready",
+          "msg": "There are no searchable records yet. As you create records in the modules, your content will become searchable here."
+        },
+        "outOfScope": {
+          "title": "This account is outside the professional index scope",
+          "msg": "This account’s library records are not added to professional memory (a deliberate scope decision). You can use the Client Memory tab."
+        },
+        "disabled": {
+          "title": "Life Memory is not active on this account yet",
+          "msg": "You can search once this feature is enabled for your account."
+        },
+        "error": {
+          "title": "Something went wrong",
+          "msg": "The search could not be completed. Please try again."
+        }
+      }
+    }
+  }
+}

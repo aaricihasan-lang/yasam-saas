@@ -40,7 +40,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("created_at", { ascending: false })
     .limit(20);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -50,18 +50,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId, userId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "DEMO_READONLY", error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const originalFilename = String(body.originalFilename ?? "").trim();
   const sizeNum = Number(body.fileSizeBytes);
   const sourceLanguage = String(body.sourceLanguage ?? "auto");
   if (!originalFilename) {
-    return NextResponse.json({ ok: false, error: "Dosya adı gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "FILE_NAME_REQUIRED", error: "Dosya adı gerekli." }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error || !data?.id) {
-    return NextResponse.json({ ok: false, error: error?.message ?? "Kayıt oluşturulamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "CREATE_FAILED", error: error?.message ?? "Kayıt oluşturulamadı." }, { status: 500 });
   }
   return NextResponse.json({ ok: true, jobId: String(data.id) });
 }
@@ -92,14 +92,14 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const jobId = String(body.jobId ?? "").trim();
-  if (!jobId) return NextResponse.json({ ok: false, error: "jobId gerekli." }, { status: 400 });
+  if (!jobId) return NextResponse.json({ ok: false, code: "JOB_ID_REQUIRED", error: "jobId gerekli." }, { status: 400 });
 
   const fields = pickClientJobPatchFields(body);
   if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   const { error } = await db
@@ -109,6 +109,6 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .eq("user_id", userId);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

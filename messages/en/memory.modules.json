@@ -1,0 +1,37 @@
+{
+  "memory": {
+    "modules": {
+      "professional": {
+        "refleksoloji": "Reflexology",
+        "sifa_rehberi": "Natural Wellness Guide",
+        "biyoenerji": "Bioenergy",
+        "dogaltas": "Natural Stone",
+        "aromaterapi": "Aromatherapy",
+        "kisisel_arsiv": "Personal Archive",
+        "numeroloji": "Numerology",
+        "yebs": "YEBS Canonical",
+        "kupa_hacamat": "Cupping & Hijama",
+        "beslenme": "Nutrition"
+      },
+      "client": {
+        "danisan_kombinasyon": "Combination",
+        "danisan_tas": "Client Stone",
+        "danisan_seans": "Session",
+        "danisan_odev": "Assignment",
+        "danisan_not": "Note",
+        "randevu": "Appointment",
+        "human_design": "Human Design"
+      },
+      "clientFallbackTitle": {
+        "danisan_kombinasyon": "Stone Combination",
+        "danisan_tas": "Client Stone",
+        "danisan_seans": "Client Session",
+        "danisan_odev": "Client Assignment",
+        "danisan_not": "Client Note",
+        "randevu": "Appointment",
+        "human_design": "Human Design",
+        "default": "Client Record"
+      }
+    }
+  }
+}

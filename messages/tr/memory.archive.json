@@ -1,0 +1,23 @@
+{
+  "memory": {
+    "archive": {
+      "label": "Yaşam Hafızası",
+      "state": {
+        "included": "Bu kayıt Mesleki Hafızanızda aranabilir.",
+        "needsReview": "Kayıt değiştiği için Hafızadan çıkarıldı. Yeniden dahil etmek için onaylayın.",
+        "excluded": "Bu kayıt Mesleki Hafızanıza dahil değil."
+      },
+      "scopeNote": "Yalnız başlık, not, kategori ve etiketler aranır. Dosya içerikleri aranmaz.",
+      "remove": "Hafızadan çıkar",
+      "noContent": "Hafızaya eklemek için kayda başlık veya not ekleyin.",
+      "confirmCheckbox": "Bu kayıt danışana ait kimlik veya özel bilgi (ad, telefon, adres, sağlık geçmişi vb.) içermiyor.",
+      "confirmInclude": "Onayla ve dahil et",
+      "cancel": "Vazgeç",
+      "include": "Yaşam Hafızası'na dahil et",
+      "errors": {
+        "noIndexableContent": "Bu kayıtta aranabilir başlık/not bulunmuyor.",
+        "generic": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+      }
+    }
+  }
+}

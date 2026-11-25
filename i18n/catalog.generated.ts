@@ -35,7 +35,14 @@ import tr_cupping from "@/messages/tr/cupping.json";
 import tr_cuppingLibrary from "@/messages/tr/cupping.library.json";
 import tr_cuppingProtocols from "@/messages/tr/cupping.protocols.json";
 import tr_cuppingTechniques from "@/messages/tr/cupping.techniques.json";
+import tr_digitalContent from "@/messages/tr/digitalContent.json";
+import tr_docTranslate from "@/messages/tr/docTranslate.json";
 import tr_home from "@/messages/tr/home.json";
+import tr_journey from "@/messages/tr/journey.json";
+import tr_lessonNotes from "@/messages/tr/lessonNotes.json";
+import tr_memoryArchive from "@/messages/tr/memory.archive.json";
+import tr_memoryModules from "@/messages/tr/memory.modules.json";
+import tr_memoryWorkspace from "@/messages/tr/memory.workspace.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
 import tr_notifications from "@/messages/tr/notifications.json";
@@ -53,6 +60,7 @@ import tr_stonesRecords from "@/messages/tr/stones.records.json";
 import tr_system from "@/messages/tr/system.json";
 import tr_terms from "@/messages/tr/terms.json";
 import tr_trial from "@/messages/tr/trial.json";
+import tr_videoTranslate from "@/messages/tr/videoTranslate.json";
 import en_agenda from "@/messages/en/agenda.json";
 import en_archivePersonal from "@/messages/en/archive.personal.json";
 import en_aromatherapy from "@/messages/en/aromatherapy.json";
@@ -85,7 +93,14 @@ import en_cupping from "@/messages/en/cupping.json";
 import en_cuppingLibrary from "@/messages/en/cupping.library.json";
 import en_cuppingProtocols from "@/messages/en/cupping.protocols.json";
 import en_cuppingTechniques from "@/messages/en/cupping.techniques.json";
+import en_digitalContent from "@/messages/en/digitalContent.json";
+import en_docTranslate from "@/messages/en/docTranslate.json";
 import en_home from "@/messages/en/home.json";
+import en_journey from "@/messages/en/journey.json";
+import en_lessonNotes from "@/messages/en/lessonNotes.json";
+import en_memoryArchive from "@/messages/en/memory.archive.json";
+import en_memoryModules from "@/messages/en/memory.modules.json";
+import en_memoryWorkspace from "@/messages/en/memory.workspace.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
 import en_notifications from "@/messages/en/notifications.json";
@@ -103,10 +118,11 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_system from "@/messages/en/system.json";
 import en_terms from "@/messages/en/terms.json";
 import en_trial from "@/messages/en/trial.json";
+import en_videoTranslate from "@/messages/en/videoTranslate.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "home.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json"],
-  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "home.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json"],
+  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -143,7 +159,14 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_cuppingLibrary,
     tr_cuppingProtocols,
     tr_cuppingTechniques,
+    tr_digitalContent,
+    tr_docTranslate,
     tr_home,
+    tr_journey,
+    tr_lessonNotes,
+    tr_memoryArchive,
+    tr_memoryModules,
+    tr_memoryWorkspace,
     tr_memoryPicker,
     tr_navigation,
     tr_notifications,
@@ -161,6 +184,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_system,
     tr_terms,
     tr_trial,
+    tr_videoTranslate,
   ],
   en: [
     en_agenda,
@@ -195,7 +219,14 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_cuppingLibrary,
     en_cuppingProtocols,
     en_cuppingTechniques,
+    en_digitalContent,
+    en_docTranslate,
     en_home,
+    en_journey,
+    en_lessonNotes,
+    en_memoryArchive,
+    en_memoryModules,
+    en_memoryWorkspace,
     en_memoryPicker,
     en_navigation,
     en_notifications,
@@ -213,5 +244,6 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_system,
     en_terms,
     en_trial,
+    en_videoTranslate,
   ],
 };

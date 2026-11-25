@@ -174,7 +174,9 @@ async function run(): Promise<void> {
 
     const tabs = read("app/yasam-hafizasi/components/MemoryAreaTabs.tsx");
     add("tabs-accessible", /role="tablist"/.test(tabs) && /role="tab"/.test(tabs) && /aria-selected/.test(tabs) && /ArrowRight/.test(tabs), "");
-    add("tabs-two-areas", /Mesleki Hafıza/.test(tabs) && /Danışan Hafızası/.test(tabs), "");
+    // I18N (gece, Ajan K): sekme etiketleri messages/tr/memory.workspace.json'da (TR birebir); niyet aynı — iki alan.
+    const yhTr = read("messages/tr/memory.workspace.json");
+    add("tabs-two-areas", /id: "professional"/.test(tabs) && /id: "client"/.test(tabs) && /tTabs\(t\.id\)/.test(tabs) && /"professional": "Mesleki Hafıza"/.test(yhTr) && /"client": "Danışan Hafızası"/.test(yhTr), "");
 
     const panel = read("app/yasam-hafizasi/components/ClientMemoryPanel.tsx");
     add("client-panel-uses-tenant-helper", /fetchTenantClientYhSearch/.test(panel), "");
@@ -187,7 +189,8 @@ async function run(): Promise<void> {
     add("tenant-helper-no-tenant-client-override", !/tenantId/.test(stripComments(helper)) && !/clientId/.test(stripComments(helper)), "");
 
     const page = read("app/yasam-hafizasi/page.tsx");
-    add("page-copy-two-areas", /danışan/i.test(page) && !/sonraki faz/i.test(page), "");
+    // I18N: sayfa alt başlığı memory.workspace.page.subtitle (TR birebir) — iki alan (mesleki + danışan) kopyası.
+    add("page-copy-two-areas", /memory\.workspace\.page/.test(page) && /"subtitle": "[^"]*danışan[^"]*"/i.test(yhTr) && !/sonraki faz/i.test(page) && !/sonraki faz/i.test(yhTr), "");
   }
 
   // ─── 8) STATIK: provisioning/grant yollarının HEPSİ tek atomik sözleşmeye uyar ──
