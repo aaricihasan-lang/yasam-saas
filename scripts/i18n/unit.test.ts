@@ -173,7 +173,7 @@ setDefaultMoreRecordsLine(null);
 ok(buildNameListLines(Array.from({ length: 11 }, (_, i) => `K${i}`)).at(-1) === "• ve 1 kayıt daha" && buildNameListLines(["A"], 1).length === 1, "kayıt kaldırılınca Türkçe yedek; ad sayısı kuralı aynı");
 
 // ── 7b. Gönderim zaman aşımı + ortak okuyucu (QTM-DY-01 / QTM-DG-02) ─────────
-section("7b. gönderim zaman aşımı kodu + ortak okuyucu metinleri");
+section("7b. gönderim zaman aşımı kodu + ortak okuyucu + demo kilit kartı metinleri");
 {
   const tcTr = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common" as never }) as any;
   const tcEn = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common" as never }) as any;
@@ -192,6 +192,11 @@ section("7b. gönderim zaman aşımı kodu + ortak okuyucu metinleri");
   ok(Object.entries(trExpected).every(([k, v]) => trR(k) === v), "TR okuyucu metinleri bugünkü sabitlerle birebir");
   ok(trR("resetAria", { px: 17 }) === "Varsayılan yazı boyutu (17px)" && trR("resetTitle", { px: 17 }) === "Varsayılan (17px)", "TR varsayılan boyut metinleri birebir");
   ok([...Object.keys(trExpected).map((k) => enR(k)), enR("resetAria", { px: 17 }), enR("resetTitle", { px: 17 })].every((v: string) => v && !/[çğıöşüİ]/.test(v)), "EN okuyucu metinleri Türkçe içermez");
+  // QTM-DG-09: ortak demo kilit kartı (DemoGate) — TR birebir, EN Türkçe içermez.
+  const trG = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common.demo.gate" as never }) as any;
+  const enG = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common.demo.gate" as never }) as any;
+  ok(trG("title") === "Demo Ön İzleme" && trG("line1") === "Bu içerik demo hesabında sınırlı gösterilir." && trG("line2") === "Tam sürümde tüm detaylar açık olarak kullanılabilir.", "TR demo kilit kartı metinleri birebir");
+  ok(["title", "line1", "line2"].every((k) => enG(k) && !/[çğıöşüİ]/.test(enG(k))), "EN demo kilit kartı Türkçe içermez");
 }
 
 // ── 8. Terminoloji + kanonik kimlik ──────────────────────────────────────────
