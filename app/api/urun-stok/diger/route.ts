@@ -35,7 +35,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
   if (error) {
     console.error("[urun-stok/diger] liste okuma hata", { code: (error as { code?: string }).code });
-    return NextResponse.json({ ok: false, error: "Stok listesi okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_LIST_READ_FAILED", error: "Stok listesi okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
   }
   return NextResponse.json({ ok: true, rows });
 }
@@ -47,15 +47,15 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "STK_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   // "Diğer" serbest metin alanları: kırp + uzunluk sınırı (başka davranış değişmez).
   const freeText = checkFreeTextFields(body, FREE_TEXT_KEYS);
-  if (!freeText.ok) return NextResponse.json({ ok: false, error: freeTextTooLongMessage() }, { status: 400 });
+  if (!freeText.ok) return NextResponse.json({ ok: false, code: "STK_FREE_TEXT_TOO_LONG", error: freeTextTooLongMessage() }, { status: 400 });
   body = freeText.body;
 
   const valid = validateInventoryWrite(CATEGORY, body, "create");
-  if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
+  if (!valid.ok) return NextResponse.json({ ok: false, code: "STK_INVALID_FIELD", error: valid.error, field: valid.field }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -70,11 +70,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data, error } = await db.from("other_inventory").insert(payload).select("id").single();
   if (error) {
     if ((error as { code?: string }).code === "23505") {
-      return NextResponse.json({ ok: false, error: "Bu kayıt zaten mevcut." }, { status: 409 });
+      return NextResponse.json({ ok: false, code: "STK_DUPLICATE", error: "Bu kayıt zaten mevcut." }, { status: 409 });
     }
     console.error("[urun-stok/diger] ekleme hata", { code: (error as { code?: string }).code });
     await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_created", subEntity: "other_item", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Kayıt eklenemedi. Lütfen tekrar deneyin." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_CREATE_FAILED", error: "Kayıt eklenemedi. Lütfen tekrar deneyin." }, { status: 500 });
   }
   const newId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "stok", action: "record_created", subEntity: "other_item", resourceId: newId });
@@ -88,18 +88,18 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "STK_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   // "Diğer" serbest metin alanları: kırp + uzunluk sınırı (başka davranış değişmez).
   const freeText = checkFreeTextFields(body, FREE_TEXT_KEYS);
-  if (!freeText.ok) return NextResponse.json({ ok: false, error: freeTextTooLongMessage() }, { status: 400 });
+  if (!freeText.ok) return NextResponse.json({ ok: false, code: "STK_FREE_TEXT_TOO_LONG", error: freeTextTooLongMessage() }, { status: 400 });
   body = freeText.body;
 
   const id = String(body.id ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
-  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "STK_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
+  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, code: "STK_INVALID_ID", error: "Geçersiz kayıt kimliği." }, { status: 400 });
   const valid = validateInventoryWrite(CATEGORY, body, "update");
-  if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
+  if (!valid.ok) return NextResponse.json({ ok: false, code: "STK_INVALID_FIELD", error: valid.error, field: valid.field }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -129,8 +129,8 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     try { const b = (await req.json()) as { id?: unknown }; id = String(b.id ?? "").trim(); }
     catch { /* gövde yoksa query'e güven */ }
   }
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
-  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "STK_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
+  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, code: "STK_INVALID_ID", error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -142,10 +142,10 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (error) {
     console.error("[urun-stok/diger] silme hata", { code: (error as { code?: string }).code });
     await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_deleted", subEntity: "other_item", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Kayıt silinemedi. Lütfen tekrar deneyin." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_DELETE_FAILED", error: "Kayıt silinemedi. Lütfen tekrar deneyin." }, { status: 500 });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "STK_NOT_FOUND", error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "stok", action: "record_deleted", subEntity: "other_item", resourceId: id });
   return NextResponse.json({ ok: true, id });

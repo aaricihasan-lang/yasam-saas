@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -14,7 +15,7 @@ import {
   type ProductRank,
   buildProductInsight,
   filterReportLines,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   generateSmartAlerts,
   highStockLowSales,
   leastProfit,
@@ -60,6 +61,7 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 }
 
 function RankList({ title, items, valueKey }: { title: string; items: ProductRank[]; valueKey: "qty" | "profit" | "revenue" }) {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const t = useTranslations("stock.reports");
   return (
     <div className="rounded-xl border-2 border-rose-100 bg-white/90 p-3">
@@ -91,6 +93,7 @@ function RankList({ title, items, valueKey }: { title: string; items: ProductRan
 export default function SatisRaporlariPage() {
   const t = useTranslations("stock.reports");
   const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const tS = useTranslations("stock.common");
   const tCat = useTranslations("stock.pricing");
   // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.

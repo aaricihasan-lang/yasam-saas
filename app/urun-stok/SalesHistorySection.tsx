@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "./useStockServerText";
+import { useStockFormat } from "./useStockFormat";
 
 /**
  * Ürün & Stok kategori ekranlarının ortak "Satış Geçmişi" bölümü.
@@ -19,7 +20,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { runInEffect } from "@/lib/runInEffect";
-import { fmtMoney } from "@/lib/urun-stok/dogaltasStockLogic";
+import { fmtMoney as libFmtMoney } from "@/lib/urun-stok/dogaltasStockLogic";
 import {
   CANCEL_CONFIRM_MESSAGE,
   HIDE_CONFIRM_MESSAGE,
@@ -67,7 +68,9 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   loadIssue?: string | null;
 }) {
   const t = useTranslations("stock.history");
-  const ss = useStockServerText();
+  const ss = useStockServerText();
+
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const deleteConfirm = useDeleteConfirm();
   const { confirm } = useConfirm();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -120,12 +123,16 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
 
   const withNotes = (base: string, notes: string) => (notes ? `${base}\n\n${notes}` : base);
   // QA K3-03: TR'de lib metinleri (confirmNotes + *_CONFIRM_MESSAGE) birebir; diğer dillerde aynı sayımlarla çevrilmiş not.
-  const notesFor = (plan: { eligible: { otherCategoryItems?: number }[]; ineligible: unknown[] }, trNotes: string) => {
+  // F1-R3: diğer dillerde uygun olmama gerekçeleri de (ilk 5 kayıt, lib ile aynı) listelenir.
+  const notesFor = (
+    plan: { eligible: { otherCategoryItems?: number }[]; ineligible: { rec: { name?: string; timestamp?: string }; reason: string }[] },
+    trNotes: string,
+  ) => {
     if (ss.isSourceLocale) return trNotes;
     const notes: string[] = [];
     const multi = plan.eligible.filter((r) => (r.otherCategoryItems ?? 0) > 0).length;
     if (multi > 0) notes.push(t("noteMulti", { count: multi }));
-    if (plan.ineligible.length > 0) notes.push(t("noteIneligible", { count: plan.ineligible.length }));
+    if (plan.ineligible.length > 0) notes.push(ss.ineligibleNote(plan.ineligible));
     return notes.join("\n\n");
   };
 

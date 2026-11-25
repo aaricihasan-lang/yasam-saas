@@ -53,7 +53,8 @@
       "emptyFiltered": "Filtreleri gevşetin veya arama metnini temizleyin.",
       "backToHub": "Ürün & Stok Merkezine dön",
       "saleRecorded": "Satış kaydedildi: {qty} {unit}",
-      "adjustFailed": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+      "adjustFailed": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+      "saleRecordedAmount": "Satış kaydedildi: {qty} {unit} · {amount}"
     }
   }
 }

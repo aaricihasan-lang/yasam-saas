@@ -28,18 +28,18 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "STK_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const action = body.action;
   if (action !== "hide" && action !== "unhide") {
-    return NextResponse.json({ ok: false, error: "Geçersiz işlem." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_INVALID_ACTION", error: "Geçersiz işlem." }, { status: 400 });
   }
   if (!Array.isArray(body.sale_ids) || body.sale_ids.length < 1 || body.sale_ids.length > MAX_IDS) {
-    return NextResponse.json({ ok: false, error: `1–${MAX_IDS} satış seçilmelidir.` }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_VISIBILITY_SELECTION_RANGE", error: `1–${MAX_IDS} satış seçilmelidir.` }, { status: 400 });
   }
   const ids = [...new Set(body.sale_ids.map((x) => String(x ?? "").trim()))];
   if (ids.some((id) => !UUID_RE.test(id))) {
-    return NextResponse.json({ ok: false, error: "Geçersiz satış kimliği." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_INVALID_SALE_ID", error: "Geçersiz satış kimliği." }, { status: 400 });
   }
 
   // Demo hesap: kalıcı yazma yok (mevcut demo sözleşmesi; istemci yalnız yerel önizleme yapar).
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       return NextResponse.json({ ok: false, code: "visibility_unavailable", error: UNAVAILABLE_MSG }, { status: 503 });
     }
     console.error("[urun-stok/sales/visibility] hata", { code: (r.error as { code?: string })?.code });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_ACTION_FAILED", error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." }, { status: 500 });
   }
   if (r.changed > 0) {
     await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "sale", itemCount: r.changed });

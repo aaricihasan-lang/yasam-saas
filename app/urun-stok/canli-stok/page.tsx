@@ -2,7 +2,10 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useStockFormat } from "../useStockFormat";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import { formatCurrency, formatNumber } from "@/lib/i18n/format";
+import { saleRecordedParts } from "@/lib/urun-stok/stockErrorCodes";
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -21,7 +24,7 @@ import {
   applyStockDelta,
   buildCriticalListText,
   filterLiveStock,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   formatStockTotals,
   isCriticalAmount,
   loadLiveStockRows,
@@ -90,7 +93,10 @@ function StockCard({
   onAdjust: (row: LiveStockRow, delta: number, idempotencyKey: string) => Promise<StockDeltaResult>;
 }) {
   const t = useTranslations("stock.live");
-  const ss = useStockServerText();
+  const ss = useStockServerText();
+
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const uiLocale = useLocale() as ActiveLocale;
   const [mode, setMode] = useState<null | "add" | "sell">(null);
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
@@ -130,13 +136,21 @@ function StockCard({
     setBusy(false);
     if (!res.ok) {
       // QA K3D-01: TR'de lib metni birebir; diğer dillerde çevrilmiş yedek.
-      setErr(ss.isSourceLocale ? res.error : t("adjustFailed"));
+      setErr(ss.isSourceLocale ? res.error : ss.text(res.error, t("adjustFailed")));
       return;
     }
     attemptRef.current = null;
     if (delta < 0) clearPendingSaleAttempt(scope);
     close();
-    setNote(ss.isSourceLocale || !res.message ? (res.message ?? null) : t("saleRecorded", { qty: n.toLocaleString("en-GB", { maximumFractionDigits: 2 }), unit: row.unitLabel }));
+    // QS-01: diğer dilde lib notundaki tutar korunur (yalnız gösterim — lib metninden okunur), birim ekran diline eşlenir.
+    const parts = ss.isSourceLocale ? null : saleRecordedParts(res.message);
+    setNote(
+      ss.isSourceLocale || !res.message
+        ? (res.message ?? null)
+        : parts
+          ? t("saleRecordedAmount", { qty: formatNumber(n, { maximumFractionDigits: 2 }, uiLocale), unit: ss.unit(row.unitLabel), amount: formatCurrency(parts.total, uiLocale) })
+          : t("saleRecorded", { qty: formatNumber(n, { maximumFractionDigits: 2 }, uiLocale), unit: ss.unit(row.unitLabel) }),
+    );
   }
 
   return (
@@ -183,7 +197,7 @@ function StockCard({
             }`}
           >
             <p className="text-xl font-black leading-none text-slate-900 sm:text-2xl">{row.stockDisplay}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">{t("unit", { unit: row.unitLabel })}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">{t("unit", { unit: ss.unit(row.unitLabel) })}</p>
           </div>
         </div>
       </div>
@@ -211,7 +225,7 @@ function StockCard({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-black text-slate-700">
-                {mode === "sell" ? t("howManySold", { unit: row.unitLabel }) : t("howManyAdd", { unit: row.unitLabel })}
+                {mode === "sell" ? t("howManySold", { unit: ss.unit(row.unitLabel) }) : t("howManyAdd", { unit: ss.unit(row.unitLabel) })}
               </span>
               <input
                 autoFocus
@@ -225,10 +239,10 @@ function StockCard({
                   if (e.key === "Enter") void confirm();
                   if (e.key === "Escape") close();
                 }}
-                placeholder={t("howManyPh", { unit: row.unitLabel })}
+                placeholder={t("howManyPh", { unit: ss.unit(row.unitLabel) })}
                 className="h-10 w-28 rounded-xl border-2 border-violet-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500"
               />
-              <span className="text-sm font-semibold text-slate-500">{row.unitLabel}</span>
+              <span className="text-sm font-semibold text-slate-500">{ss.unit(row.unitLabel)}</span>
               <button
                 type="button"
                 disabled={busy}
@@ -261,6 +275,7 @@ function StockCard({
 }
 
 export default function CanliStokMerkeziPage() {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const t = useTranslations("stock.live");
   const tCat = useTranslations("stock.pricing");
   // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.

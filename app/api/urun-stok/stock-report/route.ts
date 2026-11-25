@@ -103,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account)
-    return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return NextResponse.json({ code: "STK_DEMO_FORBIDDEN", error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let body: { exportMode?: ExportMode } = {};
   try { body = (await request.json()) as { exportMode?: ExportMode }; }
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (firstErr) {
     console.error("[stock-report] okuma hata", { code: (firstErr as { code?: string }).code });
     await trackUsage(guard, request, { module: "stok", action: "action_failed", failedAction: "report_generated", subEntity: "inventory", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Stok verisi okunamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_STOCK_READ_FAILED", error: "Stok verisi okunamadı." }, { status: 500 });
   }
 
   const rows: UnifiedRow[] = [];
@@ -192,6 +192,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!reportRows.length)
     return NextResponse.json({
       ok: false,
+      code: exportMode === "critical" ? "STK_REPORT_NO_CRITICAL" : "STK_REPORT_NO_PRODUCTS",
       error: exportMode === "critical"
         ? "Kritik stokta ürün bulunamadı."
         : "Kayıtlı ürün bulunamadı.",
