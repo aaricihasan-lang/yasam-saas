@@ -1,5 +1,6 @@
 "use client";
 
+import { useSourceWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,6 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import {
   deleteSource,
   describeSourceReferences,
-  sourceMessageForCode,
   sourceRemovalMode,
   updateSource,
 } from "@/lib/aromaterapi/sourceWrite";
@@ -39,11 +39,8 @@ export function KaynakDetailActions({
   const [dialog, setDialog] = useState<DialogState>(null);
   const [reason, setReason] = useState("");
   const ta = useTranslations("aromatherapy.sources.actions");
-  const tsrc = useTranslations("aromatherapy.sources");
   const locale = useLocale();
-  // Hata metni: tr'de sourceMessageForCode birebir; diğer dilde koddan (eşlenmeyen → genel).
-  const sourceError = (code: string | null) =>
-    locale === "tr" ? sourceMessageForCode(code) : code && tsrc.has(`errors.${code}`) ? tsrc(`errors.${code}`) : tsrc("errors.generic");
+  const sourceError = useSourceWriteError();
   // Referans özeti: tr'de describeSourceReferences birebir; diğer dilde aynı sayılarla katalogdan.
   const describeRefs = (r: Parameters<typeof describeSourceReferences>[0]) => {
     if (locale === "tr" || !r) return describeSourceReferences(r);

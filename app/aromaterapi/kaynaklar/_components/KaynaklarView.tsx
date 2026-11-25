@@ -1,5 +1,6 @@
 "use client";
 
+import { useSourceWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { formatNumber } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useLocale, useTranslations } from "next-intl";
@@ -17,7 +18,7 @@ import {
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { fetchSourceList, fetchSource } from "@/lib/aromaterapi/sourceData";
-import { updateSource, sourceMessageForCode } from "@/lib/aromaterapi/sourceWrite";
+import { updateSource } from "@/lib/aromaterapi/sourceWrite";
 import type { SourceListItem } from "@/lib/aromaterapi/readTypes";
 import { SOURCE_STATUS_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -47,10 +48,7 @@ export function KaynaklarView() {
   const hasActive = Boolean(s.q) || Object.keys(s.filters).length > 0;
   const { showToast } = useToast();
   const ts = useTranslations("aromatherapy.sources");
-  const locale = useLocale();
-  // Kaynak yazma hata metni: tr'de sourceMessageForCode birebir; diğer dilde koddan (eşlenmeyen → genel).
-  const sourceError = (code: string | null) =>
-    locale === "tr" ? sourceMessageForCode(code) : code && ts.has(`errors.${code}`) ? ts(`errors.${code}`) : ts("errors.generic");
+  const sourceError = useSourceWriteError();
   const selection = useReadListSelection({ exportUrl: "/api/aromaterapi/sources/word-report", resetKey: `${s.q}|${JSON.stringify(s.filters)}|${s.sort}`, showToast });
 
   const isDemo = readYasamUser()?.is_demo_account === true;

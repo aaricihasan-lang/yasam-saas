@@ -1,6 +1,8 @@
 "use client";
 
-import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
+import { useTranslations } from "next-intl";
+import { useSourceWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   AromaterapiFormShell,
@@ -14,7 +16,6 @@ import { fetchSource } from "@/lib/aromaterapi/sourceData";
 import {
   createSource,
   updateSource,
-  sourceMessageForCode,
 } from "@/lib/aromaterapi/sourceWrite";
 
 /**
@@ -74,6 +75,9 @@ export function KaynakForm({
   onCancel: () => void;
 }) {
   const enumOptionsI18n = useEnumOptions();
+  const enumLabel = useEnumLabel();
+  const tk = useTranslations("aromatherapy.sources.form");
+  const sourceError = useSourceWriteError();
   const [f, setF] = useState<FormState>(EMPTY_STATE);
   const [initialState, setInitialState] = useState<FormState>(EMPTY_STATE);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
@@ -129,14 +133,14 @@ export function KaynakForm({
   }, [f, initialState, reason, mode]);
   useAromaterapiDirtyGuard(dirty && !isDemo);
 
-  const typeError = triedSubmit && f.source_type.trim() === "" ? "Kaynak türü zorunludur." : null;
-  const titleError = triedSubmit && f.title.trim() === "" ? "Başlık zorunludur." : null;
+  const typeError = triedSubmit && f.source_type.trim() === "" ? tk("typeRequired") : null;
+  const titleError = triedSubmit && f.title.trim() === "" ? tk("titleRequired") : null;
   const yearError =
     triedSubmit && f.publication_year.trim() !== "" && !/^\d{4}$/.test(f.publication_year.trim())
-      ? "Yıl 1400–2100 aralığında 4 haneli olmalıdır."
+      ? tk("yearInvalid")
       : null;
   const reasonError =
-    triedSubmit && mode === "edit" && reason.trim() === "" ? "Gerekçe zorunludur." : null;
+    triedSubmit && mode === "edit" && reason.trim() === "" ? tk("reasonRequired") : null;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -187,18 +191,18 @@ export function KaynakForm({
   }
 
   if (loading) {
-    return <p className="py-8 text-center text-[13px] font-medium text-slate-500">Kaynak yükleniyor…</p>;
+    return <p className="py-8 text-center text-[13px] font-medium text-slate-500">{tk("loading")}</p>;
   }
   if (loadError) {
     return (
       <div className="py-8 text-center">
-        <p className="text-[13px] font-bold text-rose-600">{sourceMessageForCode(loadError)}</p>
+        <p className="text-[13px] font-bold text-rose-600">{sourceError(loadError)}</p>
         <button
           type="button"
           onClick={onCancel}
           className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-600 shadow-sm"
         >
-          Geri dön
+          {tk("back")}
         </button>
       </div>
     );
@@ -208,15 +212,15 @@ export function KaynakForm({
     <AromaterapiFormShell
       mode={mode}
       wide
-      title={mode === "create" ? "Yeni Kaynak" : "Kaynağı Düzenle"}
-      description="Kaynak künyenizi kendi kütüphanenize ekleyin; yalnız size görünür."
+      title={mode === "create" ? tk("newTitle") : tk("editTitle")}
+      description={tk("description")}
       onSubmit={onSubmit}
       onCancel={onCancel}
       submitting={submitting}
       isDemo={isDemo}
       dirty={dirty}
       conflict={errorCode === "AROMA_STALE"}
-      errorMessage={errorCode ? sourceMessageForCode(errorCode) : null}
+      errorMessage={errorCode ? sourceError(errorCode) : null}
       reason={
         <AromaterapiReasonField
           value={reason}
@@ -229,9 +233,9 @@ export function KaynakForm({
         />
       }
     >
-      <AromaterapiFormSection title="Künye">
+      <AromaterapiFormSection title={tk("citation")}>
         <EnumSelect
-          label="Kaynak Türü"
+          label={tk("type")}
           value={f.source_type}
           onChange={(v) => set("source_type", v)}
           options={enumOptionsI18n(SOURCE_TYPE_VALUES, SOURCE_TYPE_TR)}
@@ -239,39 +243,39 @@ export function KaynakForm({
           disabled={isDemo}
           error={typeError}
         />
-        <TextField label="Başlık" value={f.title} onChange={(v) => set("title", v)} required disabled={isDemo} error={titleError} />
-        <TextField label="Yazar(lar)" value={f.authors} onChange={(v) => set("authors", v)} disabled={isDemo} />
-        <TextField label="Kurum / Yayınevi" value={f.organization} onChange={(v) => set("organization", v)} disabled={isDemo} />
+        <TextField label={tk("title")} value={f.title} onChange={(v) => set("title", v)} required disabled={isDemo} error={titleError} />
+        <TextField label={tk("authors")} value={f.authors} onChange={(v) => set("authors", v)} disabled={isDemo} />
+        <TextField label={tk("organization")} value={f.organization} onChange={(v) => set("organization", v)} disabled={isDemo} />
         <NumberField
-          label="Yayın Yılı"
+          label={tk("year")}
           value={f.publication_year}
           onChange={(v) => set("publication_year", v)}
           min={1400}
           max={2100}
           disabled={isDemo}
-          placeholder="örn. 2019"
+          placeholder={tk("yearPh")}
         />
         {yearError ? <p className="text-[12px] font-bold text-rose-600">{yearError}</p> : null}
       </AromaterapiFormSection>
 
-      <AromaterapiFormSection title="Tanımlayıcılar" hint="İsteğe bağlı — varsa doldurun.">
-        <TextField label="DOI" value={f.doi} onChange={(v) => set("doi", v)} disabled={isDemo} mono />
-        <TextField label="PMID" value={f.pmid} onChange={(v) => set("pmid", v)} disabled={isDemo} mono />
-        <TextField label="ISBN" value={f.isbn} onChange={(v) => set("isbn", v)} disabled={isDemo} mono />
-        <TextField label="URL" value={f.url} onChange={(v) => set("url", v)} disabled={isDemo} />
-        <TextField label="Belge No" value={f.document_no} onChange={(v) => set("document_no", v)} disabled={isDemo} />
-        <TextField label="Notlar" value={f.notes} onChange={(v) => set("notes", v)} disabled={isDemo} multiline rows={3} />
+      <AromaterapiFormSection title={tk("identifiers")} hint={tk("identifiersHint")}>
+        <TextField label={tk("doi")} value={f.doi} onChange={(v) => set("doi", v)} disabled={isDemo} mono />
+        <TextField label={tk("pmid")} value={f.pmid} onChange={(v) => set("pmid", v)} disabled={isDemo} mono />
+        <TextField label={tk("isbn")} value={f.isbn} onChange={(v) => set("isbn", v)} disabled={isDemo} mono />
+        <TextField label={tk("url")} value={f.url} onChange={(v) => set("url", v)} disabled={isDemo} />
+        <TextField label={tk("documentNo")} value={f.document_no} onChange={(v) => set("document_no", v)} disabled={isDemo} />
+        <TextField label={tk("notes")} value={f.notes} onChange={(v) => set("notes", v)} disabled={isDemo} multiline rows={3} />
       </AromaterapiFormSection>
 
       {mode === "edit" ? (
-        <AromaterapiFormSection title="Durum" hint="Geçişler: Taslak → Doğrulanmış / Arşivlenmiş; Doğrulanmış → Arşivlenmiş.">
+        <AromaterapiFormSection title={tk("status")} hint={tk("statusHint")}>
           <EnumSelect
-            label="Durum"
+            label={tk("status")}
             value={f.status}
             onChange={(v) => set("status", v || "draft")}
             options={enumOptionsI18n(SOURCE_STATUS_VALUES, SOURCE_STATUS_TR)}
             disabled={isDemo}
-            allLabel="Taslak"
+            allLabel={enumLabel(SOURCE_STATUS_TR, "draft")}
           />
         </AromaterapiFormSection>
       ) : null}

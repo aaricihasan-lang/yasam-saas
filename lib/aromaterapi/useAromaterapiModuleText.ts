@@ -5,7 +5,9 @@
  * ekranda gösterim `aromatherapy.modules.<id>` ve `aromatherapy.facets.<anahtar>` katalog anahtarlarından gelir.
  * Kimliği katalogda olmayan (yeni eklenmiş) bölüm Türkçe kayıt defteri metniyle gösterilir (ham anahtar asla).
  */
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { writeMessageForCode as catalogWriteMessageForCode } from "./catalogWrite";
+import { sourceMessageForCode } from "./sourceWrite";
 import type { AromaterapiModule } from "./aromaterapiModules";
 import { oilTypeLabel } from "./aromatherapyData";
 
@@ -46,5 +48,31 @@ export function useOilFieldText() {
   return {
     label: (k: string) => (t.has(`${k}.label`) ? t(`${k}.label`) : k.replace(/_raw$/, "").replace(/_/g, " ")),
     placeholder: (k: string) => (t.has(`${k}.placeholder`) ? t(`${k}.placeholder`) : undefined),
+  };
+}
+
+/**
+ * Katalog/yöntem yazma hata kodu → ekran metni. tr'de catalogWrite.writeMessageForCode birebir;
+ * diğer dilde aromatherapy.writeErrors.<kod> (eşlenmeyen → genel metin).
+ */
+export function useCatalogWriteError(): (code: string | null) => string {
+  const t = useTranslations("aromatherapy.writeErrors");
+  const locale = useLocale();
+  return (code) =>
+    locale === "tr" ? catalogWriteMessageForCode(code) : code && t.has(code) ? t(code) : t("generic");
+}
+
+/**
+ * Kaynak yazma hata kodu → ekran metni. tr'de sourceWrite.sourceMessageForCode birebir;
+ * diğer dilde aromatherapy.sources.errors.<kod> → aromatherapy.writeErrors.<kod> → genel metin.
+ */
+export function useSourceWriteError(): (code: string | null) => string {
+  const ts = useTranslations("aromatherapy.sources.errors");
+  const tw = useTranslations("aromatherapy.writeErrors");
+  const locale = useLocale();
+  return (code) => {
+    if (locale === "tr") return sourceMessageForCode(code);
+    if (code && ts.has(code)) return ts(code);
+    return code && tw.has(code) ? tw(code) : tw("generic");
   };
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useCatalogWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
@@ -11,7 +13,7 @@ import {
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
 import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
-import { createPlantTaxon, updatePlantTaxon, writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
+import { createPlantTaxon, updatePlantTaxon } from "@/lib/aromaterapi/catalogWrite";
 import { CATALOG_STATUS_TR, TAXON_RANK_TR } from "@/lib/aromaterapi/readLabels";
 import type { PlantTaxonDetail } from "@/lib/aromaterapi/readTypes";
 
@@ -72,6 +74,9 @@ export function PlantTaxonForm({
   isDemo: boolean;
 }) {
   const enumOptionsI18n = useEnumOptions();
+  const tf = useTranslations("aromatherapy.catalog.form");
+  const tp = useTranslations("aromatherapy.catalog.form.plant");
+  const writeError = useCatalogWriteError();
   const router = useRouter();
   const [core, setCore] = useState<CoreState>(() => fromInitial(initial));
   const [reason, setReason] = useState("");
@@ -106,13 +111,13 @@ export function PlantTaxonForm({
 
   const fieldErrors = useMemo(() => {
     const e: Partial<Record<keyof CoreState | "reason", string>> = {};
-    if (core.genus.trim() === "") e.genus = "Cins zorunludur.";
-    if (core.species.trim() === "") e.species = "Tür zorunludur.";
-    if (core.taxon_rank === "") e.taxon_rank = "Takson düzeyi zorunludur.";
-    if (core.family.trim() === "") e.family = "Familya zorunludur.";
-    if (mode === "edit" && reason.trim() === "") e.reason = "Gerekçe zorunludur.";
+    if (core.genus.trim() === "") e.genus = tp("genusRequired");
+    if (core.species.trim() === "") e.species = tp("speciesRequired");
+    if (core.taxon_rank === "") e.taxon_rank = tp("rankRequired");
+    if (core.family.trim() === "") e.family = tp("familyRequired");
+    if (mode === "edit" && reason.trim() === "") e.reason = tf("reasonRequired");
     return e;
-  }, [core, reason, mode]);
+  }, [core, reason, mode, tf, tp]);
 
   const hasErrors = Object.keys(fieldErrors).length > 0;
   const err = (k: keyof CoreState | "reason") => (triedSubmit ? fieldErrors[k] ?? null : null);
@@ -193,14 +198,14 @@ export function PlantTaxonForm({
     );
   }
 
-  const generalError = errorCode && !conflict ? writeMessageForCode(errorCode) : null;
+  const generalError = errorCode && !conflict ? writeError(errorCode) : null;
 
   return (
     <AromaterapiFormShell
       mode={mode}
       wide
-      title={mode === "create" ? "Yeni Bitki" : "Bitkiyi Düzenle"}
-      description="Bitki adları bilimsel yazımıyla girilir; kanonik ad otomatik türetilir."
+      title={mode === "create" ? tp("newTitle") : tp("editTitle")}
+      description={tp("description")}
       onSubmit={onSubmit}
       onCancel={() => router.back()}
       submitting={submitting}
@@ -222,20 +227,20 @@ export function PlantTaxonForm({
     >
       {noop ? (
         <AromaterapiMutationNotice tone="info">
-          Kaydedilecek bir değişiklik bulunmuyor. Yalnızca gerekçe girmek değişiklik sayılmaz.
+          {tf("noop")}
         </AromaterapiMutationNotice>
       ) : null}
 
-      <AromaterapiFormSection title="Temel Kimlik" hint="Bilimsel ad bileşenleri (bilimsel yazımla).">
+      <AromaterapiFormSection title={tf("identity")} hint={tp("identityHint")}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TextField label="Cins (Genus)" value={core.genus} onChange={(v) => set("genus", v)} required error={err("genus")} disabled={isDemo} maxLength={120} placeholder="ör. Lavandula" />
-          <TextField label="Tür (Species)" value={core.species} onChange={(v) => set("species", v)} required error={err("species")} disabled={isDemo} maxLength={120} placeholder="ör. angustifolia" />
-          <EnumSelect label="Takson Düzeyi" value={core.taxon_rank} onChange={(v) => set("taxon_rank", v)} options={enumOptionsI18n(RANK_VALUES, TAXON_RANK_TR)} required error={err("taxon_rank")} disabled={isDemo} />
-          <TextField label="Alt Takson Adı" value={core.infraspecific_epithet} onChange={(v) => set("infraspecific_epithet", v)} disabled={isDemo} maxLength={120} hint="Alt tür / varyete / forma adı (varsa)." />
-          <TextField label="Familya" value={core.family} onChange={(v) => set("family", v)} required error={err("family")} disabled={isDemo} maxLength={120} placeholder="ör. Lamiaceae" />
-          <TextField label="Türkçe Yaygın Ad" value={core.primary_common_name_tr} onChange={(v) => set("primary_common_name_tr", v)} disabled={isDemo} maxLength={160} placeholder="ör. Lavanta" />
+          <TextField label={tp("genus")} value={core.genus} onChange={(v) => set("genus", v)} required error={err("genus")} disabled={isDemo} maxLength={120} placeholder={tp("genusPh")} />
+          <TextField label={tp("species")} value={core.species} onChange={(v) => set("species", v)} required error={err("species")} disabled={isDemo} maxLength={120} placeholder={tp("speciesPh")} />
+          <EnumSelect label={tp("rank")} value={core.taxon_rank} onChange={(v) => set("taxon_rank", v)} options={enumOptionsI18n(RANK_VALUES, TAXON_RANK_TR)} required error={err("taxon_rank")} disabled={isDemo} />
+          <TextField label={tp("infra")} value={core.infraspecific_epithet} onChange={(v) => set("infraspecific_epithet", v)} disabled={isDemo} maxLength={120} hint={tp("infraHint")} />
+          <TextField label={tp("family")} value={core.family} onChange={(v) => set("family", v)} required error={err("family")} disabled={isDemo} maxLength={120} placeholder={tp("familyPh")} />
+          <TextField label={tp("commonName")} value={core.primary_common_name_tr} onChange={(v) => set("primary_common_name_tr", v)} disabled={isDemo} maxLength={160} placeholder={tp("commonNamePh")} />
         </div>
-        <TextField label="Botanik Yazar Gösterimi" value={core.author_citation} onChange={(v) => set("author_citation", v)} disabled={isDemo} maxLength={200} hint="ör. Mill. — botanik otorite kısaltması (varsa)." />
+        <TextField label={tp("author")} value={core.author_citation} onChange={(v) => set("author_citation", v)} disabled={isDemo} maxLength={200} hint={tp("authorHint")} />
         <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white/90 px-3 shadow-sm">
           <input
             type="checkbox"
@@ -244,19 +249,19 @@ export function PlantTaxonForm({
             onChange={(e) => set("is_hybrid", e.target.checked)}
             className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-300/50"
           />
-          <span className="text-[13px] font-black text-slate-700">Hibrit (melez) takson</span>
+          <span className="text-[13px] font-black text-slate-700">{tp("hybrid")}</span>
         </label>
         {(mode === "edit" ? initial?.canonical_name : null) ? (
           <div className="rounded-xl border border-teal-100 bg-teal-50/50 px-3 py-2">
-            <span className="block text-[11px] font-black uppercase tracking-wide text-teal-700">Kanonik Ad (otomatik)</span>
+            <span className="block text-[11px] font-black uppercase tracking-wide text-teal-700">{tp("canonical")}</span>
             <span className="block text-[14px] font-black italic text-slate-800 [overflow-wrap:anywhere]">{initial!.canonical_name}</span>
           </div>
         ) : null}
       </AromaterapiFormSection>
 
       {mode === "edit" ? (
-        <AromaterapiFormSection title="Durum" hint="Durum yalnız izinli sırayla ilerler: Taslak → Doğrulanmış → Onaylanmış.">
-          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={enumOptionsI18n(statusValues(initialState.status), CATALOG_STATUS_TR)} required disabled={isDemo} allLabel="Seçin…" />
+        <AromaterapiFormSection title={tf("status")} hint={tf("statusHint")}>
+          <EnumSelect label={tf("recordStatus")} value={core.status} onChange={(v) => set("status", v)} options={enumOptionsI18n(statusValues(initialState.status), CATALOG_STATUS_TR)} required disabled={isDemo} allLabel={tf("choose")} />
         </AromaterapiFormSection>
       ) : null}
     </AromaterapiFormShell>
@@ -272,22 +277,24 @@ function SuccessPanel({
   href: string;
   onCreateAnother: () => void;
 }) {
+  const tf = useTranslations("aromatherapy.catalog.form");
+  const tp = useTranslations("aromatherapy.catalog.form.plant");
   return (
     <div className="mx-auto w-full max-w-4xl space-y-3">
       <AromaterapiMutationNotice tone="success">
-        {mode === "create" ? "Bitki oluşturuldu." : "Bitki güncellendi."}
+        {mode === "create" ? tp("created") : tp("updated")}
       </AromaterapiMutationNotice>
       <div className="flex flex-col gap-2 sm:flex-row">
         <a href={href} className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105">
-          Bitkiyi aç →
+          {tp("open")}
         </a>
         {mode === "create" ? (
           <button type="button" onClick={onCreateAnother} className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800">
-            Yeni bitki ekle
+            {tp("addAnother")}
           </button>
         ) : (
           <a href="/aromaterapi/katalog" className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800">
-            Kataloğa dön
+            {tf("backCatalog")}
           </a>
         )}
       </div>
