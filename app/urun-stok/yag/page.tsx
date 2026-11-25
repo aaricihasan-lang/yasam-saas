@@ -294,8 +294,12 @@ export default function YagUrunStokPage() {
     if (demo) { setSales(loadOilSales()); setHistoryLoadIssue(null); return; }
     const res = await loadDbCategorySales("oil");
     setSales(dbToOilRecords(res.sales));
-    setHistoryLoadIssue(salesLoadIssue(res));
-  }, []);
+    {
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setHistoryLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
+    }
+  }, [ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -455,7 +459,7 @@ export default function YagUrunStokPage() {
         deltaMode: plan.forceAbsolute ? false : addDelta,
       });
       if (!result.ok) {
-        setMsg(result.error);
+        setMsg(ss.text(result.error, tS("msg.invalidInput")));
         return;
       }
       items = result.items;
@@ -617,7 +621,7 @@ export default function YagUrunStokPage() {
     }
     const calc = calcLineAmounts(picked, toFloat(saleQty, 0), saleUnit);
     if ("error" in calc) {
-      setMsg(calc.error);
+      setMsg(ss.text(calc.error, tS("msg.invalidInput")));
       return;
     }
     const pct = toFloat(checkoutProfitPct, picked.profitPct);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 
 import Link from "next/link";
@@ -89,6 +90,7 @@ function StockCard({
   onAdjust: (row: LiveStockRow, delta: number, idempotencyKey: string) => Promise<StockDeltaResult>;
 }) {
   const t = useTranslations("stock.live");
+  const ss = useStockServerText();
   const [mode, setMode] = useState<null | "add" | "sell">(null);
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
@@ -127,13 +129,14 @@ function StockCard({
     const res = await onAdjust(row, delta, attempt.key);
     setBusy(false);
     if (!res.ok) {
-      setErr(res.error);
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde çevrilmiş yedek.
+      setErr(ss.isSourceLocale ? res.error : t("adjustFailed"));
       return;
     }
     attemptRef.current = null;
     if (delta < 0) clearPendingSaleAttempt(scope);
     close();
-    setNote(res.message ?? null);
+    setNote(ss.isSourceLocale || !res.message ? (res.message ?? null) : t("saleRecorded", { qty: n.toLocaleString("en-GB", { maximumFractionDigits: 2 }), unit: row.unitLabel }));
   }
 
   return (

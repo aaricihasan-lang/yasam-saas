@@ -292,7 +292,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     const line = calcPreview(picked, toFloat(saleQty, 0), saleUnit, toFloat(profitPct, 100));
     if ("error" in line) {
       setMsgOk(false);
-      setMsg(line.error);
+      setMsg(ss.text(line.error, tS("msg.invalidInput")));
       return;
     }
     const rec: UiBasketLine = {

@@ -326,8 +326,12 @@ export default function DogaltasUrunStokPage() {
     if (demo) { setSales(loadSales()); setHistoryLoadIssue(null); return; }
     const res = await loadDbCategorySales("dogaltas");
     setSales(dbToDogaltasRecords(res.sales));
-    setHistoryLoadIssue(salesLoadIssue(res));
-  }, []);
+    {
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setHistoryLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
+    }
+  }, [ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -433,7 +437,7 @@ export default function DogaltasUrunStokPage() {
         pendingPhotos,
       });
       if (!result.ok) {
-        setStockMsg(result.error);
+        setStockMsg(ss.text(result.error, tS("msg.invalidInput")));
         return;
       }
       items = result.items;

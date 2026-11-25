@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -89,6 +90,8 @@ function RankList({ title, items, valueKey }: { title: string; items: ProductRan
 
 export default function SatisRaporlariPage() {
   const t = useTranslations("stock.reports");
+  const ss = useStockServerText();
+  const tS = useTranslations("stock.common");
   const tCat = useTranslations("stock.pricing");
   // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.
   const catLabel = (c: string) => (tCat.has(`categories.${c}`) ? tCat(`categories.${c}`) : CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c);
@@ -111,9 +114,11 @@ export default function SatisRaporlariPage() {
     } else {
       const res = await loadDbReportLines();
       setAllLines(res.lines);
-      setLoadIssue(salesLoadIssue(res));
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
     }
-  }, [usdRate]);
+  }, [usdRate, ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;

@@ -82,7 +82,9 @@
         "updateFailed": "Kayıt güncellenemedi: {error}",
         "saveIncomplete": "Kayıt tamamlanamadı.",
         "serverDetail": "İşlem tamamlanamadı",
-        "duplicateSale": "Bu satış daha önce kaydedilmişti (bağlantı kesintisi sonrası tekrar denendi); ikinci kez kaydedilmedi ve stok yeniden düşülmedi."
+        "duplicateSale": "Bu satış daha önce kaydedilmişti (bağlantı kesintisi sonrası tekrar denendi); ikinci kez kaydedilmedi ve stok yeniden düşülmedi.",
+        "invalidInput": "Girilen değerler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
+        "loadIssue": "Satış geçmişi tam yüklenemedi. Toplamlar ve sıralamalar eksik veriye dayanacağı için kesin sonuç olarak gösterilmiyor. Sayfayı yenileyip tekrar deneyin."
       },
       "form": {
         "editRecord": "Kayıt Düzenle",

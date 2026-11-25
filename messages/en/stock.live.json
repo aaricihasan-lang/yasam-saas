@@ -51,7 +51,9 @@
       "emptyTitle": "No stock to display yet",
       "emptyNoRows": "It appears here automatically when you enter stock in the modules or when stock remains after a sale.",
       "emptyFiltered": "Relax the filters or clear the search text.",
-      "backToHub": "Back to the Products & Stock Centre"
+      "backToHub": "Back to the Products & Stock Centre",
+      "saleRecorded": "Sale recorded: {qty} {unit}.",
+      "adjustFailed": "The action could not be completed. Please try again."
     }
   }
 }
