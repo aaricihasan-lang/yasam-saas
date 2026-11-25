@@ -67,9 +67,10 @@ async function main(): Promise<void> {
 
     async function call(
       handler: unknown, method: string, params: Record<string, string>, auth: Auth,
-      body?: unknown, query = "",
+      body?: unknown, query = "", cookie?: string,
     ): Promise<{ status: number; json: Json; res: Response }> {
       const headers: Record<string, string> = {};
+      if (cookie) headers["cookie"] = cookie;
       if (auth.id) headers["x-user-id"] = auth.id;
       if (auth.token) headers["x-session-token"] = auth.token;
       if (body !== undefined) headers["content-type"] = "application/json";
@@ -399,8 +400,18 @@ async function main(): Promise<void> {
     const bfBytes = Buffer.from(await bf.res.arrayBuffer());
     ok(bf.status === 200 && bf.res.headers.get("content-type") === "application/pdf" && bfBytes.subarray(0, 5).toString() === "%PDF-", "standart boş form → PDF");
     ok((bf.res.headers.get("content-disposition") ?? "").includes("anamnez-formu"), "dosya adı anamnez-formu-*.pdf");
-    const bfA = await call(blankRoute.GET, "GET", P(seed.clients.a1), asA, undefined, `?aid=${A3}&locale=en`);
-    ok(bfA.status === 200 && (bfA.res.headers.get("content-disposition") ?? "").includes("intake-form"), "danışana özel form (EN) → PDF");
+    // I18N çıktı dili sözleşmesi: PDF dili istemcinin `?locale=` parametresinden DEĞİL, ekranla aynı kaynaktan (yayın kapısı +
+    // hesap tercihi + NEXT_LOCALE çerezi) çözülür. Niyet aynı: EN ekranda EN form üretilir; ek olarak sorgu parametresi yok sayılır.
+    const prevGate = process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING;
+    process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = "on";
+    const bfA = await call(blankRoute.GET, "GET", P(seed.clients.a1), asA, undefined, `?aid=${A3}`, "NEXT_LOCALE=en");
+    ok(bfA.status === 200 && (bfA.res.headers.get("content-disposition") ?? "").includes("intake-form"), "danışana özel form (EN ekran dili) → PDF");
+    const bfQ = await call(blankRoute.GET, "GET", P(seed.clients.a1), asA, undefined, `?aid=${A3}&locale=en`);
+    ok(bfQ.status === 200 && (bfQ.res.headers.get("content-disposition") ?? "").includes("anamnez-formu"), "istemci ?locale=en KABUL EDİLMEZ (çerez yok → tr)");
+    process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = "off";
+    const bfOff = await call(blankRoute.GET, "GET", P(seed.clients.a1), asA, undefined, `?aid=${A3}`, "NEXT_LOCALE=en");
+    ok(bfOff.status === 200 && (bfOff.res.headers.get("content-disposition") ?? "").includes("anamnez-formu"), "yayın kapısı kapalı → eski en çerezi yok sayılır (tr)");
+    if (prevGate === undefined) delete process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING; else process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = prevGate;
     ok((await call(blankRoute.GET, "GET", P(seed.clients.a1), asB)).status === 404, "B → A danışanı boş form → 404");
     ok((await call(blankRoute.GET, "GET", P(seed.clients.a1), {})).status === 401, "kimliksiz boş form → 401");
 
@@ -427,7 +438,12 @@ async function main(): Promise<void> {
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), {})).status === 401, "kimliksiz PDF → 401");
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, A1), { id: U.DEMO.id, token: U.DEMO.token })).status === 200, "demo PDF okuması → 200 (salt-okunur)");
     ok((await call(filledRoute.GET, "GET", P(seed.clients.a1, "not-a-uuid"), asA)).status === 404, "geçersiz anamnez id → 404");
-    const fpDraft = await call(filledRoute.GET, "GET", P(seed.clients.a1, A3), asA, undefined, `?rev=${(await row(A3)).revision}&locale=en`);
+    const prevGate2 = process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING;
+    process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = "on";
+    const fpDraft = await call(filledRoute.GET, "GET", P(seed.clients.a1, A3), asA, undefined, `?rev=${(await row(A3)).revision}`, "NEXT_LOCALE=en");
+    const fpQ = await call(filledRoute.GET, "GET", P(seed.clients.a1, A3), asA, undefined, `?rev=${(await row(A3)).revision}&locale=en`);
+    ok(fpQ.status === 200 && /filename="anamnez-/.test(fpQ.res.headers.get("content-disposition") ?? ""), "dolu PDF: istemci ?locale=en KABUL EDİLMEZ (çerez yok → tr)");
+    if (prevGate2 === undefined) delete process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING; else process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = prevGate2;
     const fpDraftBytes = Buffer.from(await fpDraft.res.arrayBuffer());
     ok(fpDraft.status === 200 && (fpDraft.res.headers.get("content-disposition") ?? "").includes("intake-") && (await pdfTextOf(fpDraftBytes)).includes("DRAFT"), "taslak (EN) → 200, DRAFT rozeti, intake-*.pdf");
 
