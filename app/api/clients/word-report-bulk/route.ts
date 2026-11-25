@@ -51,7 +51,7 @@ function tooMany(n: number, scope: "selected" | "all"): Response {
   const error = scope === "all"
     ? `Toplam danışan sayısı (${n}) tek Word dosyası sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen danışanları seçerek en fazla ${MAX_BULK_REPORT_CLIENTS}'lik gruplar halinde indirin.`
     : `Seçilen danışan sayısı (${n}) tek Word dosyası sınırını (${MAX_BULK_REPORT_CLIENTS}) aşıyor. Lütfen seçimi en fazla ${MAX_BULK_REPORT_CLIENTS} danışana düşürün.`;
-  return Response.json({ ok: false, error, limit: MAX_BULK_REPORT_CLIENTS, count: n }, { status: 413 });
+  return Response.json({ ok: false, code: "BULK_TOO_MANY", error, limit: MAX_BULK_REPORT_CLIENTS, count: n }, { status: 413 });
 }
 
 /** DOCX'i parça parça akıtır (Vercel gövde sınırı akışta uygulanmaz). */
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: unknown;
   try { body = await req.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return Response.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const { exportMode = "all", clientIds, includeCharges } = (body ?? {}) as {
     exportMode?: ExportMode;
@@ -98,17 +98,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   // DEMO VİTRİN: toplu Word de salt-okunur çıktı (DB yazımı/ücretli servis yok) → demo hesapta açık.
 
   if (exportMode !== "all" && exportMode !== "selected" && exportMode !== "filtered")
-    return Response.json({ ok: false, error: "Geçersiz dışa aktarma kapsamı." }, { status: 400 });
+    return Response.json({ ok: false, code: "EXPORT_SCOPE_INVALID", error: "Geçersiz dışa aktarma kapsamı." }, { status: 400 });
 
   let clients: ClientRow[] = [];
 
   if (exportMode === "selected" || exportMode === "filtered") {
     // Boş seçim ASLA "tümü"ne düşmez (eski davranış sessizce tüm tenant'ı basıyordu).
     if (!Array.isArray(clientIds) || clientIds.length === 0)
-      return Response.json({ ok: false, error: "Word için en az bir danışan seçin." }, { status: 400 });
+      return Response.json({ ok: false, code: "BULK_SELECTION_EMPTY", error: "Word için en az bir danışan seçin." }, { status: 400 });
     // Geçersiz id sessizce elenmez → tüm istek reddedilir.
     if (!clientIds.every((x) => typeof x === "string" && UUID_RE.test(x)))
-      return Response.json({ ok: false, error: "Geçersiz danışan seçimi." }, { status: 400 });
+      return Response.json({ ok: false, code: "BULK_SELECTION_INVALID", error: "Geçersiz danışan seçimi." }, { status: 400 });
     const ids = Array.from(new Set(clientIds as string[]));
     if (ids.length > MAX_BULK_REPORT_CLIENTS) return tooMany(ids.length, "selected");
 
@@ -128,10 +128,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     const missing = ids.length - found.size;
     if (found.size === 0)
-      return Response.json({ ok: false, error: "Bu seçim için danışan bulunamadı." }, { status: 404 });
+      return Response.json({ ok: false, code: "BULK_CLIENTS_NOT_FOUND", error: "Bu seçim için danışan bulunamadı." }, { status: 404 });
     if (missing > 0)
       return Response.json(
-        { ok: false, error: `Seçilen danışanlardan ${missing} tanesi bulunamadı (silinmiş olabilir). Listeyi yenileyip tekrar deneyin.` },
+        { ok: false, code: "BULK_CLIENTS_MISSING", error: `Seçilen danışanlardan ${missing} tanesi bulunamadı (silinmiş olabilir). Listeyi yenileyip tekrar deneyin.` },
         { status: 409 },
       );
     // Seçim sırası korunur (kullanıcının listede gördüğü sıra).
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       if (rows.length < PAGE) break;
     }
     if (!clients.length)
-      return Response.json({ ok: false, error: "Henüz danışan yok." }, { status: 404 });
+      return Response.json({ ok: false, code: "NO_CLIENTS", error: "Henüz danışan yok." }, { status: 404 });
     // Sayım ile okuma arasında eşzamanlı ekleme → sınır yine korunur (kırpma yok, açık hata).
     if (clients.length > MAX_BULK_REPORT_CLIENTS) return tooMany(clients.length, "all");
   }

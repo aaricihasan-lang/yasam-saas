@@ -90,12 +90,12 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data, error } = await db
@@ -120,20 +120,20 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const fields = sanitizePayload(body);
@@ -141,23 +141,23 @@ export async function POST(
   // ── Doğrulama ──
   const category = typeof fields.category === "string" ? fields.category.trim() : "";
   if (!CATEGORIES.has(category)) {
-    return NextResponse.json({ ok: false, error: "Geçerli bir ana tür seçiniz." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CHARGE_CATEGORY_INVALID", error: "Geçerli bir ana tür seçiniz." }, { status: 400 });
   }
   const amount = normalizeAmount(fields.amount);
   if (amount === null) {
-    return NextResponse.json({ ok: false, error: "Tutar 0'dan büyük geçerli bir sayı olmalıdır." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CHARGE_AMOUNT_INVALID", error: "Tutar 0'dan büyük geçerli bir sayı olmalıdır." }, { status: 400 });
   }
   if (category === "other" && !nonEmpty(fields.detail)) {
-    return NextResponse.json({ ok: false, error: "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CHARGE_OTHER_DETAIL_REQUIRED", error: "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur." }, { status: 400 });
   }
   // charge_date verildiyse geçerli YYYY-MM-DD olmalı (geçersizse DB'ye bırakılmaz → 400).
   if (nonEmpty(fields.charge_date) && !isValidDateStr(fields.charge_date)) {
-    return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CHARGE_DATE_INVALID", error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
   }
 
   // WT7: yeni kayıtta ödeme durumu açık seçim olmalı (varsayılan yazılmaz).
   if (!isPaymentStatus(fields.payment_status)) {
-    return NextResponse.json({ ok: false, error: "Ödeme durumunu seçiniz (Ödendi / Ödenmedi)." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CHARGE_PAYMENT_STATUS_REQUIRED", error: "Ödeme durumunu seçiniz (Ödendi / Ödenmedi)." }, { status: 400 });
   }
 
   const insertRow = {
@@ -206,25 +206,25 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const rowId = body.id != null ? String(body.id) : "";
   if (!rowId) {
-    return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "RECORD_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   }
 
   const fields = sanitizePayload(body);
@@ -233,11 +233,11 @@ export async function PATCH(
   if ("category" in fields) {
     const category = typeof fields.category === "string" ? fields.category.trim() : "";
     if (!CATEGORIES.has(category)) {
-      return NextResponse.json({ ok: false, error: "Geçerli bir ana tür seçiniz." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CHARGE_CATEGORY_INVALID", error: "Geçerli bir ana tür seçiniz." }, { status: 400 });
     }
     // "Diğer"e geçiliyorsa detail zorunlu (body'de gelmeli).
     if (category === "other" && !nonEmpty(fields.detail)) {
-      return NextResponse.json({ ok: false, error: "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CHARGE_OTHER_DETAIL_REQUIRED", error: "\"Diğer\" için ürün / hizmet / işlem açıklaması zorunludur." }, { status: 400 });
     }
     update.category = category;
   }
@@ -245,7 +245,7 @@ export async function PATCH(
   if ("amount" in fields) {
     const amount = normalizeAmount(fields.amount);
     if (amount === null) {
-      return NextResponse.json({ ok: false, error: "Tutar 0'dan büyük geçerli bir sayı olmalıdır." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CHARGE_AMOUNT_INVALID", error: "Tutar 0'dan büyük geçerli bir sayı olmalıdır." }, { status: 400 });
     }
     update.amount = amount;
   }
@@ -258,20 +258,20 @@ export async function PATCH(
   }
   if ("charge_date" in fields && nonEmpty(fields.charge_date)) {
     if (!isValidDateStr(fields.charge_date)) {
-      return NextResponse.json({ ok: false, error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CHARGE_DATE_INVALID", error: "Tarih geçerli bir gün (YYYY-AA-GG) olmalıdır." }, { status: 400 });
     }
     update.charge_date = String(fields.charge_date).trim();
   }
 
   if ("payment_status" in fields) {
     if (!isPaymentStatus(fields.payment_status)) {
-      return NextResponse.json({ ok: false, error: "Ödeme durumu Ödendi veya Ödenmedi olmalıdır." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CHARGE_PAYMENT_STATUS_INVALID", error: "Ödeme durumu Ödendi veya Ödenmedi olmalıdır." }, { status: 400 });
     }
     update.payment_status = fields.payment_status;
   }
 
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -293,7 +293,7 @@ export async function PATCH(
     });
   }
   if (!data) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "RECORD_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "charge", resourceId: rowId });
   return NextResponse.json({ ok: true, charge: data });
@@ -310,13 +310,13 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let rowId = new URL(req.url).searchParams.get("id")?.trim() || "";
@@ -329,7 +329,7 @@ export async function DELETE(
     }
   }
   if (!rowId) {
-    return NextResponse.json({ ok: false, error: "Silinecek kayıt id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "DELETE_ID_REQUIRED", error: "Silinecek kayıt id gerekli." }, { status: 400 });
   }
 
   const { data, error } = await db

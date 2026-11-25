@@ -55,13 +55,13 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data, error } = await db
@@ -88,7 +88,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -97,14 +97,14 @@ export async function POST(
   if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: CreateBody;
   try {
     body = (await req.json()) as CreateBody;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -155,7 +155,7 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -164,19 +164,19 @@ export async function PATCH(
   if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: CreateBody & { id?: unknown };
   try {
     body = (await req.json()) as CreateBody & { id?: unknown };
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const rowId = typeof body.id === "string" ? body.id.trim() : "";
   if (!rowId) {
-    return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "RECORD_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   }
 
   // Yalnız içerik alanları güncellenir; tenant_id/client_id/id/created_at değiştirilemez.
@@ -185,7 +185,7 @@ export async function PATCH(
   if ("analysis_data" in body) update.analysis_data = body.analysis_data ?? null;
   if ("note" in body) update.note = body.note ?? null;
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   // DY-03 (AŞAMA 2): ATOMİK sürüm kontrolü — sürüm zorunlu; tek koşullu UPDATE (row_version).
@@ -209,7 +209,7 @@ export async function PATCH(
     return NextResponse.json(r.body, { status: r.status });
   }
   if (cas.kind === "not_found") {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "RECORD_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   }
   if (cas.kind === "conflict") {
     await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "analysis", errorClass: "conflict" });
@@ -234,7 +234,7 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -250,11 +250,11 @@ export async function DELETE(
     /* aşağıda boş kontrolü yakalar */
   }
   if (!analysisId) {
-    return NextResponse.json({ ok: false, error: "analysisId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "ANALYSIS_ID_REQUIRED", error: "analysisId gerekli." }, { status: 400 });
   }
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data: deleted, error } = await db
@@ -277,7 +277,7 @@ export async function DELETE(
   // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) eskiden ok:true dönüyordu → 404; storage'a dokunulmaz.
   const deletedId = (deleted as Array<{ id: string }> | null)?.[0]?.id;
   if (!deletedId) {
-    return NextResponse.json({ ok: false, error: "Analiz bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "ANALYSIS_NOT_FOUND", error: "Analiz bulunamadı." }, { status: 404 });
   }
 
   // D1 (DY-01): analiz görseli eskiden Storage'da yetim kalıyordu. DB-FIRST (cascade-delete ile aynı

@@ -17,6 +17,13 @@ import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
+/** I18N-F1-R3: buildNotesFields Türkçe metnine karşılık dil-bağımsız kod (lib metni testlerce kilitli; aynen kalır). */
+const NOTES_BUILD_CODES: Record<string, string> = {
+  "Geçersiz istek gövdesi.": "INVALID_BODY", // i18n-ignore: lib/danisan/notesPatch kanonik hata metni (eşleme anahtarı)
+  "Geçersiz alan değeri.": "INVALID_FIELD_VALUE", // i18n-ignore: lib/danisan/notesPatch kanonik hata metni (eşleme anahtarı)
+  "Güncellenecek alan yok.": "NO_FIELDS", // i18n-ignore: lib/danisan/notesPatch kanonik hata metni (eşleme anahtarı)
+};
+
 /**
  * client_notes güvenli API katmanı (Faz 1A).
  *
@@ -64,14 +71,14 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -106,7 +113,7 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -117,7 +124,7 @@ export async function PATCH(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -126,14 +133,14 @@ export async function PATCH(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // Genel bilgi kaydı { saglik_notu, adres, oneriler } → notlar'a dokunmaz;
   // Notlar sekmesi { notlar, base_version } → diğer 3 alana dokunmaz.
   const built = buildNotesFields(body);
   if (!built.ok) {
-    return NextResponse.json({ ok: false, error: built.error }, { status: 400 });
+    return NextResponse.json({ ok: false, code: NOTES_BUILD_CODES[built.error] ?? "INVALID_BODY", error: built.error }, { status: 400 });
   }
 
   // DY-03: yazılan alan grubunun sürümü yoksa REDDEDİLİR (eski istemci korumayı atlatamaz).

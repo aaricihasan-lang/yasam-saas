@@ -42,14 +42,14 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   // C7 (2026-11-04): biçimce geçersiz id (UUID değil) DB'de 22P02 → 500 "sunucu hatası"
   // görünüyordu; böyle bir danışan olamayacağı için mevcut "bulunamadı" (404) yanıtı verilir.
   if (!CLIENT_ID_RE.test(clientId)) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -68,7 +68,7 @@ export async function GET(
   }
   if (!data) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -86,7 +86,7 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -97,7 +97,7 @@ export async function PATCH(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const verdict = validateClientWrite(body, "patch", istanbulToday());
@@ -144,7 +144,7 @@ export async function PATCH(
       return serverErrorResponse({ route: "clients/[id]", action: "PATCH-read", tenantId, cause: curErr });
     }
     if (!current) {
-      return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 404 });
+      return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 404 });
     }
     const cur = current as Record<string, unknown>;
     if (clientVersion(cur) !== baseVersion) return conflictResponse(cur);
@@ -173,7 +173,7 @@ export async function PATCH(
       if (fresh) return conflictResponse(fresh as Record<string, unknown>);
     }
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 404 },
     );
   }

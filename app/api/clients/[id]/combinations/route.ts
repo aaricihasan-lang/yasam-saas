@@ -69,14 +69,14 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -114,7 +114,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -123,7 +123,7 @@ export async function POST(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -132,12 +132,12 @@ export async function POST(
   try {
     body = (await req.json()) as SaveBody;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const name = str(body.name, MAX_NAME);
   if (!name) {
-    return NextResponse.json({ ok: false, error: "Kombinasyon adı zorunludur." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "COMBINATION_NAME_REQUIRED", error: "Kombinasyon adı zorunludur." }, { status: 400 });
   }
 
   const stoneNames = Array.isArray(body.stones)
@@ -145,7 +145,7 @@ export async function POST(
     : [];
   if (stoneNames.length === 0) {
     return NextResponse.json(
-      { ok: false, error: "En az bir taş seçilmelidir." },
+      { ok: false, code: "COMBINATION_STONES_REQUIRED", error: "En az bir taş seçilmelidir." },
       { status: 400 },
     );
   }
