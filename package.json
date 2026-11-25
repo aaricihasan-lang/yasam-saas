@@ -27,6 +27,7 @@
     "cupping:protocol:word:harness": "tsx scripts/cupping-protocol-word-harness.ts",
     "i18n:reports-golden": "tsx scripts/i18n/reports-golden.harness.ts",
     "i18n:reports-golden:ab": "tsx scripts/i18n/reports-golden-ab.harness.ts",
+    "i18n:reports-golden:cd": "tsx scripts/i18n/reports-golden-cd.harness.ts",
     "test:cupping:security": "tsx scripts/cupping-security-harness.ts",
     "test:cupping:contract": "tsx scripts/cupping-module-test.ts",
     "hd:bilgi:harness": "tsx scripts/hd-bilgi-bankasi/harness.ts",
