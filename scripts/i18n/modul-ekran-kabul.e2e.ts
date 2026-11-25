@@ -1060,15 +1060,22 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const switchTo = async (u: { userId: string; userRecord: Record<string, unknown> }) => {
         const tok = `zz-modul-ekran-s6-${randomUUID().slice(0, 12)}`;
         await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
-        const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
-        await ctx.clearCookies();
-        if (keep.length) await ctx.addCookies(keep);
+        const keepLocale = async () => {
+          const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
+          await ctx.clearCookies();
+          if (keep.length) await ctx.addCookies(keep);
+        };
+        await keepLocale();
         await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
         await page.evaluate(([uu, tk]) => {
           localStorage.clear();
           localStorage.setItem("yasam_user", uu as string);
           localStorage.setItem("yasam_session_token", tk as string);
         }, [JSON.stringify(u.userRecord), tok]);
+        // Ara sayfa ÖNCEKİ hesabın localStorage'ıyla açıldı → çerez geçişi önceki hesaba HttpOnly oturum çerezi yazmış olabilir
+        // (koşu 45608410435: B'nin /api/me/locale isteği 403 "Oturum kimliği uyuşmuyor"). Gerçek çıkışta bu çerez silinir →
+        // burada da ikinci kez temizlenir (NEXT_LOCALE cihaz çerezi yine korunur).
+        await keepLocale();
       };
       // Tanı: hesap tercihi okuması (/api/me/locale GET) adım başına durum + tercih (koşular arası tutarsızlık 957f0fa06).
       let prefLog: string[] = [];
