@@ -121,6 +121,11 @@ function SignCell({ sign, degree }: { sign: SignId; degree: number }) {
 }
 
 const zoneOf = (tz: unknown): string => (isIanaZone(tz) ? tz : "UTC");
+/**
+ * I18N-F1-R5: EN ekranda gün/ay/yıl ayırıcısı "/" (Owner A8 en-GB sırası; ATLAS-E aylık efemeris dateTr ile aynı biçim).
+ * TR çıktı DEĞİŞMEZ (GG.AA.YYYY). Yalnız sunum; anlar, saat dilimi ve hesap aynı.
+ */
+const dmyFor = (locale: string) => (s: string): string => (locale === "en" ? s.replace(/(\d{2})\.(\d{2})\.(\d{4})/g, "$1/$2/$3") : s);
 const at = (utcIso: string, tz: string) => (tz === "UTC" ? `${utcIso.slice(8, 10)}.${utcIso.slice(5, 7)}.${utcIso.slice(0, 4)} ${utcIso.slice(11, 16)} UTC` : (() => {
   const z = formatInZone(utcIso, tz);
   return z ? `${z.text} ${z.zone}` : utcIso;
@@ -151,6 +156,7 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
   const tx = useTranslations("atlas.transit");
   const tt = useTranslations("terms");
   const locale = useLocale();
+  const dmy = dmyFor(locale);
   const pointLabel = usePointLabel();
   const relativeTo = useRelativeTo();
   const tz = zoneOf(options.displayTz);
@@ -194,7 +200,7 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
       <span className="flex flex-col gap-0.5">
         {xs.map((x) => (
           <span key={x} className="whitespace-nowrap text-xs tabular-nums">
-            {at(x, tz)} <span className="text-slate-500">· {relativeTo(t.atUtc, x)}</span>
+            {dmy(at(x, tz))} <span className="text-slate-500">· {relativeTo(t.atUtc, x)}</span>
           </span>
         ))}
       </span>
@@ -205,11 +211,11 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
     <div ref={boxRef} className="flex flex-col gap-3" data-testid="astro-transit-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700" data-testid="astro-transit-moment-info">
         <p>
-          {tx.rich("momentLabel", { moment: momentLabel(t.atUtc, tz), strong: (c) => <strong data-testid="astro-transit-at">{c}</strong> })}
+          {tx.rich("momentLabel", { moment: dmy(momentLabel(t.atUtc, tz)), strong: (c) => <strong data-testid="astro-transit-at">{c}</strong> })}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">
           {tx("frameLine", { node: tt(`nodeType.${t.nodeType}`) })}
-          {cal?.startDate ? ` · ${tx("sourceCalendar", { start: cal.startDate.split("-").reverse().join("."), days: String(cal.days) })}` : ""}
+          {cal?.startDate ? ` · ${tx("sourceCalendar", { start: dmy(cal.startDate.split("-").reverse().join(".")), days: String(cal.days) })}` : ""}
         </p>
       </div>
 
@@ -247,7 +253,7 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
                   <StrengthBar v={a.strength} />
                   <span className="tabular-nums">{tx("orb", { orb: formatDegree(a.orb) })}</span>
                   <span>{a.applying ? tx("applying") : tx("separating")}</span>
-                  {showExact && exactTimesOf(ce, a).length > 0 && <span className="tabular-nums">{tx("exactAt", { at: at(exactTimesOf(ce, a)[0], tz) })}</span>}
+                  {showExact && exactTimesOf(ce, a).length > 0 && <span className="tabular-nums">{tx("exactAt", { at: dmy(at(exactTimesOf(ce, a)[0], tz)) })}</span>}
                 </span>
               </li>
             ))}
@@ -389,8 +395,8 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
         <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-slate-500" data-testid="astro-transit-exact-note">
           {showExact
             ? tx("exactNote", {
-                start: ce!.window.start.split("-").reverse().join("."),
-                end: ce!.window.end.split("-").reverse().join("."),
+                start: dmy(ce!.window.start.split("-").reverse().join(".")),
+                end: dmy(ce!.window.end.split("-").reverse().join(".")),
                 partial: ce!.complete ? "" : tx("exactNotePartial"),
                 unmatched: tx("calendarUnmatched"),
               })
@@ -515,6 +521,7 @@ type Pending = { atUtc: string; label: string; state: "planning" | "ready" | "ru
 export function DayDetail({ day, events, tz, api, onClose }: { day: string; events: ForecastEvent[]; tz: string; api: CalendarTransitApi | null; onClose: () => void }) {
   const t = useTranslations("atlas.forecast");
   const evText = useEventText();
+  const dmy = dmyFor(useLocale());
   const personal = events.filter(isPersonalEvent).sort((a, b) => (b.significance ?? -1) - (a.significance ?? -1) || a.datetime.localeCompare(b.datetime));
   const sky = events.filter((e) => !isPersonalEvent(e));
   const [pending, setPending] = useState<Pending | null>(null);
@@ -536,7 +543,7 @@ export function DayDetail({ day, events, tz, api, onClose }: { day: string; even
 
   const row = (e: ForecastEvent, i: number) => (
     <li key={`${e.datetime}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-sm text-slate-800">
-      <span className="w-full text-xs tabular-nums text-slate-500 sm:w-auto">{at(e.datetime, tz)}</span>
+      <span className="w-full text-xs tabular-nums text-slate-500 sm:w-auto">{dmy(at(e.datetime, tz))}</span>
       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{t(`eventType.${e.type}`)}</span>
       <span className="min-w-0 break-words">{evText(e)}</span>
       {e.orb !== null && <span className="text-xs tabular-nums text-slate-500">{t("orb", { orb: formatDegree(e.orb) })}</span>}
@@ -558,7 +565,7 @@ export function DayDetail({ day, events, tz, api, onClose }: { day: string; even
     <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-day-detail" aria-label={t("dayAria")}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-3 py-2">
         <h4 className="text-sm font-semibold text-indigo-950">
-          {t("dayTitle", { date: day.split("-").reverse().join(".") })} <span className="font-normal text-indigo-900/70">({tz})</span>
+          {t("dayTitle", { date: dmy(day.split("-").reverse().join(".")) })} <span className="font-normal text-indigo-900/70">({tz})</span>
         </h4>
         <button type="button" className="rounded-lg border border-indigo-200 bg-white px-2 py-0.5 text-xs text-indigo-900" onClick={onClose} data-testid="astro-day-close">
           {t("close")}
@@ -589,7 +596,7 @@ export function DayDetail({ day, events, tz, api, onClose }: { day: string; even
         {pending && (
           <div className="mx-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" role="status" data-testid="astro-day-plan">
             <p className="text-slate-700">
-              <strong>{pending.label}</strong> · {at(pending.atUtc, tz)}
+              <strong>{pending.label}</strong> · {dmy(at(pending.atUtc, tz))}
             </p>
             {pending.state === "planning" && <p className="text-xs text-slate-500">{t("planChecking")}</p>}
             {pending.state === "error" && <p className="text-xs text-rose-700">{pending.error}</p>}
@@ -617,6 +624,8 @@ export function DayDetail({ day, events, tz, api, onClose }: { day: string; even
 export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: ForecastTechnical; options?: Record<string, unknown>; calendarTransit?: CalendarTransitApi | null }) {
   const tf = useTranslations("atlas.forecast");
   const evText = useEventText();
+  const locale = useLocale();
+  const dmy = dmyFor(locale);
   const [tz, setTz] = useState(zoneOf(options.displayTz));
   const [types, setTypes] = useState<Set<ForecastEvent["type"]>>(() => new Set(["transit_aspect", "sign_ingress", "retrograde_station", "eclipse", "lunar_phase"]));
   const [minSig, setMinSig] = useState(0);
@@ -642,8 +651,8 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
     <div className="flex flex-col gap-3" data-testid="astro-forecast-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700">
         {tf.rich("period", {
-          start: t.window.start.split("-").reverse().join("."),
-          end: t.window.end.split("-").reverse().join("."),
+          start: dmy(t.window.start.split("-").reverse().join(".")),
+          end: dmy(t.window.end.split("-").reverse().join(".")),
           n: String(t.events.length),
           strong: (c) => <strong>{c}</strong>,
         })}
@@ -711,7 +720,7 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
         <p className="text-sm text-slate-500">{tf("noMatch")}</p>
       ) : (
         byMonth.map(([month, days]) => (
-          <Section key={month} title={`${month.slice(5, 7)}.${month.slice(0, 4)} (${days.reduce((n, [, l]) => n + l.length, 0)})`}>
+          <Section key={month} title={`${month.slice(5, 7)}${locale === "en" ? "/" : "."}${month.slice(0, 4)} (${days.reduce((n, [, l]) => n + l.length, 0)})`}>
             <div className="divide-y divide-slate-100" data-testid="astro-forecast-cards">
               {days.map(([d, list]) => (
                 <div key={d} className={day === d ? "bg-indigo-50/60" : undefined}>
@@ -724,7 +733,7 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
                     data-day={d}
                   >
                     <span>
-                      {tf("dayEvents", { date: d.split("-").reverse().join("."), n: String(list.length) })}
+                      {tf("dayEvents", { date: dmy(d.split("-").reverse().join(".")), n: String(list.length) })}
                       {list.some(isPersonalEvent) && <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-900">{tf("natalBadge")}</span>}
                     </span>
                     <span className="text-[11px] font-normal text-indigo-800">{day === d ? tf("detailOpen") : tf("detailClosed")}</span>
