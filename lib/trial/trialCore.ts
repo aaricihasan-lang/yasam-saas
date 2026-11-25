@@ -188,9 +188,9 @@ export const TRIAL_MESSAGES = {
   notStarted: "Deneme süreniz henüz başlamadı. Lütfen çıkış yapıp yeniden giriş yapın.",
   moduleNotInTrial: "Bu modül ücretsiz deneme paketine dahil değildir. Pro üyelikle kullanılabilir.",
   creditDaily:
-    "Bugünkü Roxy hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
+    "Bugünkü hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
   creditModule:
-    "Bu modül için bugünkü Roxy hesaplama sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
+    "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
 } as const;
 
 export const TRIAL_EXPIRED_CODE = "TRIAL_EXPIRED" as const;
