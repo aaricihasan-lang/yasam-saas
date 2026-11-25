@@ -5,6 +5,8 @@
  *     saat bilinir/bilinmez × eksik parça 0/2 → buildTechniqueView ile görünüm üretilir.
  *   • Her görünümde ESKİ ekran kararları (kaynaktan birebir kopyalanan Türkçe önek/regex kontrolleri: page.tsx yüksek enlem /
  *     ev sınırı rozeti, TimingPanels "parça" uyarısı) ile YENİ kod kararları (hasViewWarning) birebir aynı olmalı.
+ *   • Kodlar SUNUCU YANITINDA YOK (API A0 bayt kilidi): istemci `deriveViewWarningCodes` ile görünüm alanlarından türetir;
+ *     türetilen kodlar = sunucu metin koşulları (localNatalViewWarningCodes + eksik parça), her görünümde doğrulanır.
  *   • Eski kayıt yolu (warningCodes alanı yok — arşiv snapshot'ı / demo fixture'ı): yedek okuyucu aynı kararı verir.
  *   • Çeviri simülasyonu: uyarı METİNLERİ İngilizceye çevrilmiş olsa bile kodlu görünümde karar DEĞİŞMEZ (eski yöntem kaybederdi).
  *   • Sunucu uyarı METNİ ve teknik veri değişmedi: localNatalViewWarnings çıktısı ve view.technical, kod alanı eklenmeden öncekiyle aynı.
@@ -20,7 +22,7 @@ import { buildTechniqueView, type ResultRowLike } from "@/lib/astrology/view/tec
 import { deriveLocalNatalHouses } from "@/lib/astrology/houses/natalLocal";
 import { PRO_HOUSE_SYSTEMS } from "@/lib/astrology/houses/engine";
 import { localNatalViewWarningCodes, localNatalViewWarnings } from "@/lib/astrology/engine/natalHouses";
-import { hasViewWarning, legacyViewWarningCodes } from "@/lib/astrology/viewWarnings";
+import { deriveViewWarningCodes, hasViewWarning, legacyViewWarningCodes, viewWithWarningCodes } from "@/lib/astrology/viewWarnings";
 import { deskMetaSplit } from "@/app/admin/astroloji/_components/atlas/deskMeta";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { execFileSync } from "node:child_process";
@@ -74,31 +76,36 @@ for (const c of cases) {
           missingParts,
         });
         views++;
+        // API sözleşmesi: görünümde kod alanı YOK (yanıt / kayıt bayt-aynı); kodlar istemcide türetilir.
+        assert.equal(Object.prototype.hasOwnProperty.call(v, "warningCodes"), false, `${c.id}/${sys}: sunucu görünümünde warningCodes olmamalı`);
+        const codes = deriveViewWarningCodes(v);
+        const vc = { ...v, warningCodes: codes };
         // Teknik veri ve sunucu uyarı METİNLERİ dokunulmadı.
         assert.equal(JSON.stringify(d.technical), before, `${c.id}/${sys}: teknik veri değişti`);
         const masked = v.timeUnknownMasked;
         const legacyText = localNatalViewWarnings(v.technical, masked);
         for (const w of legacyText) assert.ok(v.warnings.includes(w), `${c.id}/${sys}: uyarı metni eksik`);
         assert.deepEqual(
-          v.warningCodes.filter((x) => x !== "missing_parts"),
+          codes.filter((x) => x !== "missing_parts"),
           localNatalViewWarningCodes(v.technical, masked),
           `${c.id}/${sys}: kod ↔ koşul`,
         );
 
         // ÖNCE = SONRA (kodlu görünüm)
-        assert.equal(newHighLat(v), oldHighLat(v), `${c.id}/${sys}/${primary}/${missingParts}: yüksek enlem rozeti`);
-        assert.equal(newNearCusp(v), oldNearCusp(v), `${c.id}/${sys}/${primary}/${missingParts}: ev sınırı rozeti`);
-        assert.equal(newParts(v.technique, v.warnings, v.warningCodes), oldParts(v.technique, v.warnings), `${c.id}/${sys}: parça uyarısı`);
+        assert.deepEqual(codes.includes("missing_parts"), missingParts > 0, `${c.id}/${sys}: eksik parça kodu`);
+        assert.equal(newHighLat(vc), oldHighLat(v), `${c.id}/${sys}/${primary}/${missingParts}: yüksek enlem rozeti`);
+        assert.equal(newNearCusp(vc), oldNearCusp(v), `${c.id}/${sys}/${primary}/${missingParts}: ev sınırı rozeti`);
+        assert.equal(newParts(v.technique, v.warnings, codes), oldParts(v.technique, v.warnings), `${c.id}/${sys}: parça uyarısı`);
 
         // ÖNCE = SONRA (eski kayıt: kod alanı yok → TR metin okuyucusu)
         const legacy = { method: v.method, warnings: v.warnings };
         assert.equal(newHighLat(legacy), oldHighLat(legacy));
         assert.equal(newNearCusp(legacy), oldNearCusp(legacy));
         assert.equal(newParts(v.technique, v.warnings, undefined), oldParts(v.technique, v.warnings));
-        assert.deepEqual(legacyViewWarningCodes(v.warnings), v.warningCodes, `${c.id}/${sys}: eski okuyucu = yeni kodlar`);
+        assert.deepEqual(legacyViewWarningCodes(v.warnings), codes, `${c.id}/${sys}: eski okuyucu = yeni kodlar`);
 
         // Çeviri simülasyonu: metin İngilizce → kodlu görünümde karar AYNI.
-        const en = { ...v, warnings: v.warnings.map(toEn) };
+        const en = { ...vc, warnings: v.warnings.map(toEn) };
         assert.equal(newHighLat(en), oldHighLat(v), `${c.id}/${sys}: EN metinde yüksek enlem rozeti kayboldu`);
         assert.equal(newNearCusp(en), oldNearCusp(v), `${c.id}/${sys}: EN metinde ev sınırı rozeti kayboldu`);
         assert.equal(newParts(v.technique, en.warnings, en.warningCodes), oldParts(v.technique, v.warnings));
@@ -122,10 +129,11 @@ assert.ok(parts > 0, "eksik parça vakası yok (kapsam)");
   const synth = { ...t, houseSource: { ...t.houseSource, warnings: ["high_latitude"], frame: { ...t.houseSource.frame, latitudeDeg: 69.6 } } };
   const v = buildTechniqueView({ technique: "western.natal", rows: [row(cases[0].technical)], combined: synth, options: { houseSystem: "regiomontanus" }, timeKnowledge: { primary: true, partner: null }, visibility: { visible: false, reason: "not_entitled" }, interpretations: null });
   assert.ok(v.warnings.some((w) => w.startsWith("Yüksek enlem (69.6° > 60°)")), "sunucu yüksek enlem metni aynen");
-  assert.ok(v.warningCodes.includes("high_latitude"));
-  assert.equal(newHighLat(v), true);
+  assert.ok(deriveViewWarningCodes(v).includes("high_latitude"));
+  const vc = { ...v, ...viewWithWarningCodes(v), warnings: v.warnings };
+  assert.equal(newHighLat(vc), true);
   assert.equal(oldHighLat(v), true);
-  assert.equal(newHighLat({ ...v, warnings: v.warnings.map(toEn) }), true, "EN metinde rozet korunur");
+  assert.equal(newHighLat({ ...vc, warnings: v.warnings.map(toEn) }), true, "EN metinde rozet korunur");
   assert.equal(oldHighLat({ ...v, warnings: v.warnings.map(toEn) }), false, "eski yöntem EN metinde rozeti kaybederdi (kanıt)");
   highLat++;
 }
