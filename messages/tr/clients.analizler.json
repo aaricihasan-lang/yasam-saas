@@ -85,7 +85,8 @@
         "saveAndClose": "Kaydet ve Kapat",
         "edit": "Düzenle",
         "readOnlyHint": "Kayıtlı analiz salt okunur açıldı. Değiştirmek için “Düzenle”ye basın.",
-        "editingHint": "Düzenleme modu — değişiklikler “Kaydet ve Kapat” ile kaydedilir."
+        "editingHint": "Düzenleme modu — değişiklikler “Kaydet ve Kapat” ile kaydedilir.",
+        "closeAria": "Kapat"
       },
       "section": {
         "beforeEnergy": "Seans Öncesi — Enerji Bedenleri",

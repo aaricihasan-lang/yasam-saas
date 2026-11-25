@@ -691,7 +691,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 <button
                   type="button"
                   onClick={closeModal}
-                  aria-label="Kapat"
+                  aria-label={t("modal.closeAria")}
                   className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×

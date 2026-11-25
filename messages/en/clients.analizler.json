@@ -85,7 +85,8 @@
         "saveAndClose": "Save & Close",
         "edit": "Edit",
         "readOnlyHint": "Saved analysis opened read-only. Press “Edit” to change it.",
-        "editingHint": "Edit mode — changes are saved with “Save & Close”."
+        "editingHint": "Edit mode — changes are saved with “Save & Close”.",
+        "closeAria": "Close"
       },
       "section": {
         "beforeEnergy": "Before Session — Energy Bodies",
