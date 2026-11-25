@@ -1,0 +1,55 @@
+{
+  "atlas": {
+    "natal": {
+      "symbols": {
+        "intro": "Bu rehber çarktaki işaretlerin <strong>ne olduğunu</strong> kısaca anlatır; yorum değildir. Çarkta bir sembolün üzerine gelince (dokunmatikte basılı tutunca) adı ve tam derecesi görünür.",
+        "blockBodies": "Gezegenler ve noktalar",
+        "body": {
+          "sun": "Doğum anında Güneş'in zodyaktaki konumu. Güneş zodyağı yaklaşık bir yılda dolaşır (günde ~1°).",
+          "moon": "Ay'ın konumu. En hızlı hareket eden gök cismidir: günde yaklaşık 12–15°, bu yüzden doğum saati Ay derecesini belirgin etkiler.",
+          "mercury": "Güneş'e en yakın gezegen. Dünya'dan bakıldığında Güneş'ten en fazla ~28° uzaklaşır.",
+          "venus": "Dünya'dan bakıldığında Güneş'ten en fazla ~47° uzaklaşır.",
+          "mars": "Zodyağı yaklaşık 2 yılda (687 gün) dolaşır.",
+          "jupiter": "Zodyağı yaklaşık 12 yılda dolaşır.",
+          "saturn": "Zodyağı yaklaşık 29,5 yılda dolaşır; antik çağdan bilinen gezegenlerin en uzağı.",
+          "uranus": "Zodyağı yaklaşık 84 yılda dolaşır.",
+          "neptune": "Zodyağı yaklaşık 165 yılda dolaşır.",
+          "pluto": "Zodyağı yaklaşık 248 yılda dolaşır (yörüngesi çok basık olduğundan burçlarda kalma süresi değişkendir).",
+          "north_node": "Ay yörüngesinin ekliptiği güneyden kuzeye kestiği nokta (hesaplanan nokta, gök cismi değildir).",
+          "south_node": "Kuzey Ay Düğümü'nün tam karşısı (her zaman 180°).",
+          "chiron": "Satürn ile Uranüs yörüngeleri arasında dolanan küçük gök cismi (2060 Chiron); zodyağı yaklaşık 50 yılda dolaşır.",
+          "lilith": "Kara Ay Lilith: Ay yörüngesinin Dünya'dan en uzak noktası (apoje). Bu sistemde ortalama (mean) hesap kullanılır."
+        },
+        "nodeHere": "Bu haritada: {node}.",
+        "fortuneName": "Şans Noktası",
+        "fortuneText": "Yükselen, Güneş ve Ay'dan hesaplanan nokta (gök cismi değildir). Gündüz doğumunda Yükselen + Ay − Güneş, gece doğumunda Yükselen + Güneş − Ay formülü kullanılır.",
+        "sectDay": "Bu harita: gündüz doğumu.",
+        "sectNight": "Bu harita: gece doğumu.",
+        "vertexText": "Ana dikey dairenin (doğu–batı yönündeki dikey daire) ekliptiği batı tarafta kestiği nokta; doğum yerinin enlemine ve saatine bağlıdır.",
+        "blockAngles": "Açısal noktalar (eksenler)",
+        "ascName": "Yükselen",
+        "ascText": "Doğum anında doğu ufkunda yükselen zodyak derecesi. Çoğu ev sisteminde 1. evin başlangıcıdır.",
+        "dscName": "Alçalan",
+        "dscText": "Batı ufkundaki derece; Yükselen'in tam karşısı (180°).",
+        "mcName": "Tepe Noktası (Medium Coeli)",
+        "mcText": "Ekliptiğin yerel meridyeni (güney yönü) kestiği derece. Placidus, Koch gibi sistemlerde 10. evin başlangıcıdır.",
+        "icName": "Dip Noktası (Imum Coeli)",
+        "icText": "MC'nin tam karşısı (180°).",
+        "anglesNote": "Tam Burç ve Eşit Ev sistemlerinde ev başlangıçları eksenlerle çakışmayabilir; Natal çarkında gerçek ASC–DSC ve MC–IC ekseni kalın çizgiyle ayrıca gösterilir.",
+        "blockSigns": "Burçlar",
+        "signsNote": "Zodyak 12 eşit 30° dilimdir (tropikal zodyak; 0° Koç = ilkbahar noktası). Burç rengi elementini gösterir.",
+        "blockAspects": "Açılar",
+        "aspectText": "İki nokta arasındaki {deg}° açı.",
+        "aspectMajor": "Başlıca açı: Temel görünümde de çizilir.",
+        "aspectMinor": "Küçük açı: yalnız Profesyonel görünümde, kesik çizgiyle.",
+        "aspectsNote": "Çizgi renkleri sistemin açı türü sınıfıdır: mavi uyumlu, kırmızı zorlayıcı, gri nötr. Kavuşumdaki iki nokta çarkta üst üste olduğundan kavuşum çizgisi görünmeyebilir; bütün açılar Açılar sekmesinde listelenir. Kuzey–Güney Düğüm karşıtlığı her haritada tanım gereği 180° olduğundan çarka çizilmez.",
+        "blockOrb": "Orb, retro ve derece gösterimi",
+        "orbName": "Orb",
+        "orbText": "Gerçek açının tam açı değerinden farkı. Örnek: iki gezegen arasında 93° varsa kare (90°) açı, orb 3°. Hangi orb'a kadar açı sayılacağı hesaplama kaynağının kuralıdır; bu ekran orb'u değiştirmez. Profesyonel görünümde orb küçüldükçe çizgi kalınlaşır.",
+        "retroText": "Gezegen Dünya'dan bakıldığında zodyakta geri yönde ilerliyor görünür. Bu görünür bir harekettir; gezegenin yörüngedeki yönü değişmez.",
+        "degreeName": "Derece ve dakika",
+        "degreeText": "1° = 60′ (yay dakikası). Dereceler efemeris geleneğiyle dakika kesilerek yazılır: 29°59,9′ → 29°59′ (sonraki burca yuvarlanmaz). Çarktaki cetvelde her çentik 1°, orta çentik 5°, uzun çentik 10°dir."
+      }
+    }
+  }
+}
