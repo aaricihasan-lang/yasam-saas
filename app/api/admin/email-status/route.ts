@@ -4,6 +4,8 @@ import { getEmailProvider } from "@/lib/email/provider";
 import { smtpConfigIssue } from "@/lib/email/smtpProvider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
 import { emailLimits, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
+import { emailSelfServiceScope } from "@/lib/auth/emailSelfService";
+import { smtpHourlyLimit } from "@/lib/email/smtpQuota";
 
 export const runtime = "nodejs";
 
@@ -35,6 +37,10 @@ export async function GET(req: NextRequest) {
     configIssue: smtpConfigIssue(),
     pepperConfigured: !!otpPepper(),
     limits: emailLimits(),
+    // F3: SMTP saatlik tavan (yalnız SMTP sağlayıcısında uygulanır; ≤ 50) ve kullanıcı e-postası kapsamı (rol adları;
+    // tanınmayan değerlerin yalnız SAYISI döner, değerleri dönmez).
+    hourlyLimit: provider?.name === "smtp" ? smtpHourlyLimit() : null,
+    selfServiceScope: emailSelfServiceScope(),
     last24h: r.last_24h ?? null,
     lastFailure: r.last_failure ?? null,
     lastSuccessAt: r.last_success_at ?? null,
