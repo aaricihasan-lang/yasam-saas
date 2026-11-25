@@ -183,7 +183,7 @@ function detailLabelEn(label: string): string {
 function detailTextEn(label: string, text: string): string {
   const g = /^Personality Güneş (\d+) · Personality Dünya (\d+) · Design Güneş (\d+) · Design Dünya (\d+)$/.exec(text);
   if (g) return SR_EN.detail("crossGates", { ps: g[1]!, pe: g[2]!, ds: g[3]!, de: g[4]! });
-  if (label === "Açı") {
+  if (label === "Açı") { // i18n-ignore: donmuş TR sistem etiketi (eşleme anahtarı, görünen metin değil)
     const m = /^(.*?)( \([A-Z]{2,5}\))?$/.exec(text);
     if (m) return `${hdEn.angle(m[1]) ?? m[1]}${m[2] ?? ""}`;
   }
