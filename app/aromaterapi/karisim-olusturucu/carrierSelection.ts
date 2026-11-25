@@ -138,9 +138,11 @@ export function carrierSaveBlockReason(s: {
 }): string | null {
   const code = carrierSaveBlockCode(s);
   if (code === "carrierLoading") {
+    // i18n-ignore: TR kaynak/test metni (dogal-destek-p2 unit); ekran metni aromatherapy.blend.validation.carrierLoading (koddan)
     return "Taşıyıcı yağın güvenlik bilgisi yükleniyor. Birkaç saniye sonra tekrar deneyin.";
   }
   if (code === "carrierMismatch") {
+    // i18n-ignore: TR kaynak/test metni (dogal-destek-p2 unit); ekran metni aromatherapy.blend.validation.carrierMismatch (koddan)
     return "Taşıyıcı yağın güvenlik bilgisi seçili yağla eşleşmiyor. Taşıyıcıyı yeniden seçip tekrar deneyin.";
   }
   return null;
