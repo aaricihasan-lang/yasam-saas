@@ -57,7 +57,6 @@ import type {
 } from "./reportSnapshot";
 import { formatDateLoose, formatDateOnly, formatInstantDate } from "@/lib/time/reportTime";
 import type { OutputLocale } from "@/lib/i18n/output";
-import { SR_EN } from "@/lib/human-design/providers/roxy/systemReadingLabelsEn";
 import { hdDocLanguage, hdEn, hdFooterChildren, hdReportText, hdWellnessNoteSection, type HdReportText } from "./reportText";
 
 // ── Çıktı dili (I18N-F1-R5 HD-B; bkz. reportText.ts) ─────────────────────────────
@@ -79,20 +78,20 @@ const dateOpts = () => (X.dateLocale ? { locale: X.dateLocale } : {});
 // Donmuş görünen adlar: TR → snapshot AYNEN; diğer dillerde kanonik anahtardan (tip_/otorite_/kanal kodu/kapı no).
 function typeName(sec: FrozenIdentitySection): string {
   if (!isEn()) return sec.displayName;
-  return SR_EN.term("type", sec.key.replace(/^tip_/, "")) ?? hdEn.type(sec.displayName) ?? sec.displayName;
+  return hdEn.term("type", sec.key.replace(/^tip_/, "")) ?? hdEn.type(sec.displayName) ?? sec.displayName;
 }
 function authorityName(sec: FrozenIdentitySection): string {
   if (!isEn()) return sec.displayName;
-  return SR_EN.term("authority", sec.key.replace(/^otorite_/, "")) ?? sec.displayName;
+  return hdEn.term("authority", sec.key.replace(/^otorite_/, "")) ?? sec.displayName;
 }
-const channelName = (code: string, displayName: string) => (isEn() ? SR_EN.term("channel", code) ?? displayName : displayName);
+const channelName = (code: string, displayName: string) => (isEn() ? hdEn.term("channel", code) ?? displayName : displayName);
 /** Yayımlanmamış bölüm adı (anahtar taşımaz) — görünen addan çözülür; çözülemezse aynen. */
 function omittedName(o: FrozenOmittedSection): string {
   if (!isEn()) return o.displayName;
   if (o.kind === "tip") return hdEn.type(o.displayName) ?? o.displayName;
   if (o.kind === "otorite") return hdEn.authority(o.displayName, null) ?? o.displayName;
   const ch = /(\d{1,2}-\d{1,2})/.exec(o.displayName);
-  if (o.kind === "kanal" && ch) return t("v1.channelHeading", { name: SR_EN.term("channel", ch[1]!) ?? ch[1]! });
+  if (o.kind === "kanal" && ch) return t("v1.channelHeading", { name: hdEn.term("channel", ch[1]!) ?? ch[1]! });
   const g = /(\d{1,2})/.exec(o.displayName);
   if (o.kind === "kapi" && g) return t("v1.gate", { n: g[1]! });
   return o.displayName;

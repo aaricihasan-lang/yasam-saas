@@ -108,6 +108,8 @@ export function hdTypeCodeFromLabel(label: string | null | undefined): string | 
 export const hdEn = {
   /** Kavram başlığı (Tip, Strateji, …, Enkarnasyon Haçı) — hd.terms.title. */
   title: (key: string): string => SR_EN.title(key) ?? key,
+  /** Kanonik kod → EN terim (hd.terms grubundan); yoksa null. */
+  term: (group: string, code: string | null | undefined): string | null => SR_EN.term(group, code),
   type: (label: string | null | undefined): string | null => {
     const code = hdTypeCodeFromLabel(label);
     return (code && SR_EN.term("type", code)) || label || null;
