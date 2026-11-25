@@ -70,6 +70,8 @@ export type OverviewData = {
   totalExperts: MetricValue<number>;
   activeExperts: MetricValue<number>;
   passiveExperts: MetricValue<number>;
+  /** F4-R1: active=false ve arşivde değil (eski "giriş kapalı" hesaplar). Eski sunucu yanıtında olmayabilir. */
+  loginClosedExperts?: MetricValue<number>;
   pendingExperts: MetricValue<number>;
   archivedExperts: MetricValue<number>;
   newExperts: MetricValue<number>;
@@ -150,6 +152,8 @@ export type Usage360ExpertRow = {
   approvalStatus: string;
   isDemo: boolean;
   isArchived: boolean;
+  /** ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı (giriş açık, modüller kilitli). Migration öncesi / okunamazsa undefined. */
+  accessRestricted?: boolean;
   accountCreatedAt: string | null;
   lastLoginAt: string | null;
   /** Son teknik temas (ikincil; insan etkileşimi değil). */
@@ -214,6 +218,10 @@ export type Usage360DetailData = {
   coverage: Usage360Coverage;
   account: {
     active: boolean;
+    /** ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı. Migration öncesi / okunamazsa undefined. */
+    accessRestricted?: boolean;
+    /** F4-R1: 4a arşivi (archived_at dolu). Okunamazsa undefined. */
+    archived?: boolean;
     approvalStatus: string | null;
     createdAt: string | null;
     approvedAt: string | null;

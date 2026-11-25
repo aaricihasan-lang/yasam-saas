@@ -112,9 +112,10 @@ function StagePill({ row, nowMs }: { row: MemberV2Row; nowMs: number }) {
     exempt: (row.payment_status ?? "").toLowerCase() === "exempt",
     trialEndsAt: row.trial_ends_at,
     nowMs,
+    restricted: row.access_restricted === true,
   });
   return (
-    <span className={`${styles.pill} ${styles[`t-${s.tone}`]}`} data-stage={row.stage}>
+    <span className={`${styles.pill} ${styles[`t-${s.tone}`]}`} data-stage={row.stage} data-restricted={row.access_restricted === true ? "1" : undefined}>
       <span className={styles.pillDot} aria-hidden />
       {s.label}
     </span>

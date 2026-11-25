@@ -43,11 +43,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   const target = await resolveTargetExpert(db, userId);
   if (!target) return NextResponse.json({ ok: false, error: "Kullanıcı bulunamadı." }, { status: 404, headers: NO_STORE });
 
-  const [detailRes, sessRes, activeRes, approvedRes] = await Promise.all([
+  const [detailRes, sessRes, activeRes, approvedRes, accessRes] = await Promise.all([
     db.rpc("usage360_expert_detail", { p_user_id: userId, p_from: range.from, p_to: range.to }),
     db.from("user_sessions").select("created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1),
     db.from("user_sessions").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
     db.from("users").select("approved_at").eq("id", userId).maybeSingle(),
+    // ÜYE PASİFLEŞTİRME: bağımsız kısıt (kolon yoksa hata → alan eklenmez; sayfa kırılmaz).
+    db.from("users").select("access_restricted_at, archived_at").eq("id", userId).maybeSingle(),
   ]);
   if (detailRes.error || !detailRes.data) {
     console.error("[usage360-admin] detail failed", { code: (detailRes.error as { code?: string } | null)?.code ?? null });
@@ -67,6 +69,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     coverage: usage360Coverage(measurementStart, d.from, d.to),
     account: {
       active: target.active,
+      ...(accessRes.error
+        ? {}
+        : {
+            accessRestricted: (accessRes.data as { access_restricted_at?: unknown } | null)?.access_restricted_at != null,
+            archived: (accessRes.data as { archived_at?: unknown } | null)?.archived_at != null,
+          }),
       approvalStatus: target.approvalStatus,
       createdAt: target.createdAt,
       // approved_at kolonu eski şemada yoksa hata → null (Ölçülemiyor), sayfa kırılmaz.

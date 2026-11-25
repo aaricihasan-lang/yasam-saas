@@ -57,12 +57,15 @@ export function OverviewTab({ period, refreshKey, nowMs, onOpenExpert, onSeeAll 
 
   return (
     <div className="space-y-5">
-      <SectionCard title="Uzmanlar (kullanıcı/hesap)" subtitle="Arşiv, PASİF hesapların bir alt kümesidir (toplama ayrı EKLENMEZ). Onay bekleyen de bağımsız bir ek grup değildir; toplam üzerine eklenmemelidir.">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <SectionCard title="Uzmanlar (kullanıcı/hesap)" subtitle="Aktif, Pasif, Giriş Kapalı ve Arşivde ayrık durumlardır (toplamları Toplam Uzman'dır). Onay bekleyen bağımsız bir ek grup değildir; toplam üzerine eklenmemelidir.">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           <StatTile label="Toplam Uzman" tone="violet" value={<MetricValueView metric={ov.totalExperts} />} hint="demo hariç (role=expert)" />
-          <StatTile label="Aktif Hesap" tone="emerald" value={<MetricValueView metric={ov.activeExperts} />} hint="statü (kullanım değil)" />
-          <StatTile label="Pasif" tone="slate" value={<MetricValueView metric={ov.passiveExperts} />} hint="active=false" />
-          <StatTile label="Arşiv" tone="slate" value={<MetricValueView metric={ov.archivedExperts} />} hint="pasifin alt kümesi (approved+pasif)" />
+          <StatTile label="Aktif Hesap" tone="emerald" value={<MetricValueView metric={ov.activeExperts} />} hint="statü (kullanım değil); erişim kısıtı yok" />
+          <StatTile label="Pasif" tone="amber" value={<MetricValueView metric={ov.passiveExperts} />} hint="giriş açık · modüller kilitli" />
+          {ov.loginClosedExperts ? (
+            <StatTile label="Giriş Kapalı" tone="slate" value={<MetricValueView metric={ov.loginClosedExperts} />} hint="active=false · arşivde değil" />
+          ) : null}
+          <StatTile label="Arşivde" tone="slate" value={<MetricValueView metric={ov.archivedExperts} />} hint="arşivlenmiş · giriş kapalı" />
           <StatTile label="Onay Bekleyen" tone="amber" value={<MetricValueView metric={ov.pendingExperts} />} />
           <StatTile label={`Son ${days}g Yeni Uzman`} tone="cyan" value={<MetricValueView metric={ov.newExperts} />} />
         </div>

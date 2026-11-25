@@ -446,7 +446,7 @@ function CompactUserRow({
         <div className="mt-2 flex flex-wrap gap-1.5">
           <RoleBadge role={user.role} />
           {user.role === "expert" ? <ApprovalBadge status={user.approvalStatus} /> : null}
-          <AccountBadge active={user.active} />
+          <AccountBadge active={user.active} restricted={user.accessRestricted} />
           {user.role === "expert" ? <PackageBadge label={user.membershipDisplay.packageLabel} /> : null}
           {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
           {(() => {
