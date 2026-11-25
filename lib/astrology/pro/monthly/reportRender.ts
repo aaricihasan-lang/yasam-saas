@@ -14,6 +14,7 @@ import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { fontRuns, SYMBOL_FONT_A, SYMBOL_FONT_B, type FontKey } from "@/lib/astrology/report/symbolFonts";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import { buildMonthlyReport, type MonthlyReport } from "./reportModel";
+import { SOURCE_TEXT, type MonthlyText } from "./text";
 import type { MonthlyEphemeris } from "./types";
 
 assertServerOnly("lib/astrology/pro/monthly/reportRender");
@@ -79,7 +80,10 @@ function dataTable(r: MonthlyReport): Table {
   });
 }
 
-export async function renderMonthlyDocx(r: MonthlyReport, branding: ExpertBranding | null): Promise<Buffer> {
+// I18N-F1-R5 (ATLAS-E): işleyici sabit metinleri de rapor dilinde (`L`; verilmezse kaynak dil tr → Türkçe rapor bayt-bayt aynı).
+// Not: ortak yardımcıların kendi metinleri (lib/docx/reportHelpers.buildFooter "Sayfa", uzman imza kartı) bu dosyanın değil, rapor
+// sözleşmesi işinin (#855) kapsamındadır.
+export async function renderMonthlyDocx(r: MonthlyReport, branding: ExpertBranding | null, L: MonthlyText = SOURCE_TEXT): Promise<Buffer> {
   const sym = symbolFontBuffers();
   const body = [
     new Paragraph({ spacing: { after: 60 }, children: runs(r.title, { bold: true, size: 32, color: C_DARK }) }),
@@ -87,15 +91,15 @@ export async function renderMonthlyDocx(r: MonthlyReport, branding: ExpertBrandi
     metaTable(r.meta),
     new Paragraph({ spacing: { before: 120, after: 120 }, children: runs(r.legend, { size: 15, color: C_LIGHT }) }),
     dataTable(r),
-    new Paragraph({ spacing: { before: 160, after: 60 }, keepNext: true, children: runs("Yöntem ve okuma notları", { bold: true, size: 18, color: C_DARK }) }),
+    new Paragraph({ spacing: { before: 160, after: 60 }, keepNext: true, children: runs(L.t("report.notesTitle"), { bold: true, size: 18, color: C_DARK }) }),
     ...r.notes.map((t) => new Paragraph({ spacing: { after: 60 }, children: runs(t, { size: 15, color: C_MID }) })),
-    new Paragraph({ spacing: { before: 120 }, children: runs("Rapor Yaşam Sistemi Gökyüzü Atlası'nda oluşturulmuştur.", { size: 15, color: C_LIGHT, italics: true }) }),
+    new Paragraph({ spacing: { before: 120 }, children: runs(L.t("report.createdIn"), { size: 15, color: C_LIGHT, italics: true }) }),
     ...expertSignatureBlock(branding, { accent: "5b21b6", contentWidth: CONTENT_DXA, fill: "f8fafc", font: REPORT_FONT }),
   ];
   const doc = new Document({
     creator: "Yaşam Sistemi",
     title: r.title,
-    description: "Gökyüzü Atlası aylık efemeris raporu",
+    description: L.t("report.docDescription"),
     styles: { default: { document: { run: { font: REPORT_FONT } } } },
     fonts: [
       { name: SYMBOL_FONT_A, data: sym.A },
@@ -104,8 +108,8 @@ export async function renderMonthlyDocx(r: MonthlyReport, branding: ExpertBrandi
     sections: [
       {
         properties: { page: { size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE }, margin: { top: PAGE_MARGIN, bottom: PAGE_MARGIN, left: PAGE_MARGIN, right: PAGE_MARGIN } } },
-        headers: { default: buildHeader("Yaşam Sistemi · Gökyüzü Atlası") },
-        footers: { default: buildFooter("Aylık efemeris raporu") },
+        headers: { default: buildHeader(L.t("report.header")) },
+        footers: { default: buildFooter(L.t("report.footer")) },
         children: body,
       },
     ],
@@ -203,7 +207,7 @@ class W {
   }
 }
 
-export function renderMonthlyPdf(r: MonthlyReport, branding: ExpertBranding | null): Uint8Array {
+export function renderMonthlyPdf(r: MonthlyReport, branding: ExpertBranding | null, L: MonthlyText = SOURCE_TEXT): Uint8Array {
   const w = new W();
   const d = w.doc;
   w.para(r.title, 15, INK, 0.5);
@@ -273,9 +277,9 @@ export function renderMonthlyPdf(r: MonthlyReport, branding: ExpertBranding | nu
   }
   w.y += 3;
   w.ensure(12);
-  w.para("Yöntem ve okuma notları", 9, INK, 1);
+  w.para(L.t("report.notesTitle"), 9, INK, 1);
   for (const t of r.notes) w.para(t, 7.4, MID, 1);
-  w.para("Rapor Yaşam Sistemi Gökyüzü Atlası'nda oluşturulmuştur.", 7.2, LIGHT, 2);
+  w.para(L.t("report.createdIn"), 7.2, LIGHT, 2);
   drawExpertSignaturePdf(d, branding, { get y() { return w.y; }, set y(v: number) { w.y = v; }, ensure: (h: number) => w.ensure(h) }, { font: "Geist", x: MX, width: CW, accent: ACCENT, ink: INK, mid: MID, light: LIGHT, fill: [248, 250, 252] });
 
   const total = d.getNumberOfPages();
@@ -284,8 +288,8 @@ export function renderMonthlyPdf(r: MonthlyReport, branding: ExpertBranding | nu
     d.setFont("Geist", "normal");
     d.setFontSize(7.2);
     d.setTextColor(...LIGHT);
-    d.text("YAŞAM SİSTEMİ · GÖKYÜZÜ ATLASI", PW - MX, 9, { align: "right" });
-    d.text(`Sayfa ${p} / ${total}  ·  Aylık efemeris raporu`, PW / 2, PH - 7, { align: "center" });
+    d.text(L.t("report.pdfHeader"), PW - MX, 9, { align: "right" });
+    d.text(`${L.t("report.pdfPage", { p: String(p), total: String(total) })}  ·  ${L.t("report.footer")}`, PW / 2, PH - 7, { align: "center" });
   }
   return new Uint8Array(d.output("arraybuffer"));
 }
@@ -294,9 +298,10 @@ export function renderMonthlyPdf(r: MonthlyReport, branding: ExpertBranding | nu
 export async function renderMonthlyReport(
   e: MonthlyEphemeris,
   format: "docx" | "pdf",
-  opts: { generatedAt: string; saved?: { title: string; savedAt: string; methodologyVersion: string } | null; branding?: ExpertBranding | null },
+  opts: { generatedAt: string; saved?: { title: string; savedAt: string; methodologyVersion: string } | null; branding?: ExpertBranding | null; text?: MonthlyText },
 ): Promise<{ bytes: Uint8Array; filename: string; contentType: string; model: MonthlyReport }> {
-  const model = buildMonthlyReport(e, { generatedAt: opts.generatedAt, saved: opts.saved ?? null });
-  if (format === "docx") return { bytes: new Uint8Array(await renderMonthlyDocx(model, opts.branding ?? null)), filename: `${model.fileBase}.docx`, contentType: DOCX_MIME, model };
-  return { bytes: renderMonthlyPdf(model, opts.branding ?? null), filename: `${model.fileBase}.pdf`, contentType: PDF_MIME, model };
+  const L = opts.text ?? SOURCE_TEXT;
+  const model = buildMonthlyReport(e, { generatedAt: opts.generatedAt, saved: opts.saved ?? null, text: L });
+  if (format === "docx") return { bytes: new Uint8Array(await renderMonthlyDocx(model, opts.branding ?? null, L)), filename: `${model.fileBase}.docx`, contentType: DOCX_MIME, model };
+  return { bytes: renderMonthlyPdf(model, opts.branding ?? null, L), filename: `${model.fileBase}.pdf`, contentType: PDF_MIME, model };
 }

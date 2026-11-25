@@ -11,6 +11,9 @@
 // Kuzey düğüm / Rahu'nun tam karşısında olması denetlenir. Uymayan yanıt saklanmaz ve gösterilmez (eksik/çelişkili tablo yok).
 // Bilinmeyen yeni cisim adları yok sayılır (yalnız beyaz listedeki cisimler alınır); serbest metin alanı alınmaz.
 
+// I18N-F1-R5 (ATLAS-E): kullanıcıya giden metinler katalogdan (text.ts; varsayılan kaynak dil tr). İzdüşüm `reason` metinleri yalnız sunucu
+// günlüğüne yazılır (kullanıcıya gösterilmez) → teknik, çeviri kapsamı dışı.
+import { SOURCE_TEXT, type MonthlyText } from "./text";
 import { VEDIC_MONTHLY_BODIES, WESTERN_MONTHLY_BODIES, type MonthlyBody, type MonthlyDay, type MonthlyError, type MonthlyKind, type MonthlyRequest } from "./types";
 
 export const MONTHLY_ENDPOINT: Readonly<Record<MonthlyKind, string>> = {
@@ -59,12 +62,12 @@ const ROUND_TOL_DEG = 0.00021;
  */
 export const CHIRON_VERIFIED_YEARS = [1600, 2100] as const;
 export type BodyVerification = { verified: boolean; note: string };
-export function bodyVerification(kind: MonthlyKind, body: MonthlyBody, year: number): BodyVerification {
+export function bodyVerification(kind: MonthlyKind, body: MonthlyBody, year: number, L: MonthlyText = SOURCE_TEXT): BodyVerification {
   if (kind === "western" && body === "lilith") {
-    return { verified: false, note: "Kara Ay Lilith (ortalama Ay apojesi) bağımsız bir referansla doğrulanamadı; tanım hesaplama modeline bağlıdır." };
+    return { verified: false, note: L.t("verify.lilith") };
   }
   if (kind === "western" && body === "chiron" && (year < CHIRON_VERIFIED_YEARS[0] || year > CHIRON_VERIFIED_YEARS[1])) {
-    return { verified: false, note: `Kiron yalnız ${CHIRON_VERIFIED_YEARS[0]}–${CHIRON_VERIFIED_YEARS[1]} yılları arasında bağımsız olarak doğrulandı; bu dönem için doğrulama yok.` };
+    return { verified: false, note: L.t("verify.chiron", { from: String(CHIRON_VERIFIED_YEARS[0]), to: String(CHIRON_VERIFIED_YEARS[1]) }) };
   }
   return { verified: true, note: "" };
 }
@@ -79,12 +82,12 @@ export const monthDates = (year: number, month: number): string[] => {
 export function parseMonthlyRequest(raw: unknown): { ok: true; value: MonthlyRequest } | { ok: false; error: MonthlyError } {
   const r = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
   const kind = r.kind;
-  if (kind !== "western" && kind !== "vedic") return { ok: false, error: { code: "INVALID_INPUT", field: "kind", error: "Efemeris türü geçersiz." } };
+  if (kind !== "western" && kind !== "vedic") return { ok: false, error: { code: "INVALID_INPUT", field: "kind", error: SOURCE_TEXT.t("errors.kindInvalid") } };
   const year = typeof r.year === "string" && /^\d{4}$/.test(r.year) ? Number(r.year) : r.year;
   const month = typeof r.month === "string" && /^\d{1,2}$/.test(r.month) ? Number(r.month) : r.month;
-  if (typeof year !== "number" || !Number.isInteger(year)) return { ok: false, error: { code: "INVALID_INPUT", field: "year", error: "Yıl geçersiz." } };
-  if (typeof month !== "number" || !Number.isInteger(month) || month < 1 || month > 12) return { ok: false, error: { code: "INVALID_INPUT", field: "month", error: "Ay geçersiz." } };
-  if (year < MONTHLY_MIN_YEAR || year > MONTHLY_MAX_YEAR) return { ok: false, error: { code: "OUT_OF_RANGE", field: "year", error: `Yıl ${MONTHLY_MIN_YEAR}–${MONTHLY_MAX_YEAR} aralığında olmalı.` } };
+  if (typeof year !== "number" || !Number.isInteger(year)) return { ok: false, error: { code: "INVALID_INPUT", field: "year", error: SOURCE_TEXT.t("errors.yearInvalid") } };
+  if (typeof month !== "number" || !Number.isInteger(month) || month < 1 || month > 12) return { ok: false, error: { code: "INVALID_INPUT", field: "month", error: SOURCE_TEXT.t("errors.monthInvalid") } };
+  if (year < MONTHLY_MIN_YEAR || year > MONTHLY_MAX_YEAR) return { ok: false, error: { code: "OUT_OF_RANGE", field: "year", error: SOURCE_TEXT.t("errors.yearRange", { min: String(MONTHLY_MIN_YEAR), max: String(MONTHLY_MAX_YEAR) }) } };
   return { ok: true, value: { kind, year, month } };
 }
 

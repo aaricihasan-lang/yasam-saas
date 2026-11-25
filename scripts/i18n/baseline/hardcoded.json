@@ -1,6 +1,6 @@
 {
  "aciklama": "I18N-F1 sabit metin tabanı (dosya → sayı). CI'da hiçbir dosya bu sayıyı AŞAMAZ; tabanda olmayan dosya 0 olmalı. Düşüş serbesttir — çeviri sonrası `npm run i18n:hardcoded:update` ile taban aşağı çekilir. Artış ancak Owner onayıyla güncellenir ve PR diff'inde görünür.",
- "total": 33131,
+ "total": 32933,
  "files": {
   "app/_campaign/VisitorCampaignView.tsx": 42,
   "app/_campaign/visitorView.ts": 3,
@@ -71,8 +71,6 @@
   "app/admin/astroloji/_components/ephemeris/DegreesTool.tsx": 35,
   "app/admin/astroloji/_components/ephemeris/EphemerisDesk.tsx": 71,
   "app/admin/astroloji/_components/ephemeris/LunationsTool.tsx": 48,
-  "app/admin/astroloji/_components/ephemeris/MonthlyEphemerisDesk.tsx": 63,
-  "app/admin/astroloji/_components/ephemeris/SkyToolsDesk.tsx": 14,
   "app/admin/astroloji/_components/ephemeris/skyToolsUi.tsx": 4,
   "app/admin/astroloji/_lib/analysisPicker.ts": 3,
   "app/admin/astroloji/_lib/api.ts": 7,
@@ -101,8 +99,6 @@
   "app/api/admin/astroloji/analyses/[id]/report/route.ts": 2,
   "app/api/admin/astroloji/analyses/report/route.ts": 2,
   "app/api/admin/astroloji/efemeris/ay/route.ts": 1,
-  "app/api/admin/astroloji/efemeris/aylik/kayitlar/[id]/rapor/route.ts": 2,
-  "app/api/admin/astroloji/efemeris/aylik/rapor/route.ts": 2,
   "app/api/admin/astroloji/efemeris/derece/route.ts": 1,
   "app/api/admin/astroloji/efemeris/route.ts": 2,
   "app/api/admin/astroloji/horary/western/records/[id]/report/route.ts": 2,
@@ -1134,14 +1130,7 @@
   "lib/astrology/pro/lunations/eclipses.ts": 5,
   "lib/astrology/pro/lunations/phases.ts": 5,
   "lib/astrology/pro/lunations/request.ts": 8,
-  "lib/astrology/pro/monthly/contract.ts": 18,
-  "lib/astrology/pro/monthly/crossCheck.ts": 7,
-  "lib/astrology/pro/monthly/format.ts": 46,
-  "lib/astrology/pro/monthly/records.ts": 11,
-  "lib/astrology/pro/monthly/reportModel.ts": 27,
-  "lib/astrology/pro/monthly/reportRender.ts": 9,
-  "lib/astrology/pro/monthly/routeKit.ts": 1,
-  "lib/astrology/pro/monthly/service.ts": 7,
+  "lib/astrology/pro/monthly/contract.ts": 10,
   "lib/astrology/profiles/service.ts": 17,
   "lib/astrology/progressionHouses.ts": 6,
   "lib/astrology/progressionNodesText.ts": 6,
@@ -1207,7 +1196,6 @@
   "lib/auth/adminGuard.ts": 6,
   "lib/auth/createExpertTenant.ts": 3,
   "lib/auth/demoReadOnly.ts": 1,
-  "lib/auth/emailSelfService.ts": 1,
   "lib/auth/loginThrottle.ts": 2,
   "lib/auth/membership.ts": 1,
   "lib/auth/membershipAccessCore.ts": 2,
@@ -1709,6 +1697,7 @@
   "lib/yasam-hafizasi/yebs/yebsVisibility.ts": 1
  },
  "gerekceler": {
-  "lib/backup/registry.ts": "I18N-F1-R1: 221 → 241. Artışın tamamı #839'un eklediği 20 'system' sınıfı auth tablosunun off(...) 'reason' alanı (geliştirici gerekçesi). Bu alan hiçbir ekranda gösterilmez (UI yalnız `label` okur; app/settings/BackupSections.tsx:59-69, `.reason` okuyan ürün kodu yok). Kullanıcıya görünen metin değildir."
+  "lib/backup/registry.ts": "I18N-F1-R1: 221 → 241. Artışın tamamı #839'un eklediği 20 'system' sınıfı auth tablosunun off(...) 'reason' alanı (geliştirici gerekçesi). Bu alan hiçbir ekranda gösterilmez (UI yalnız `label` okur; app/settings/BackupSections.tsx:59-69, `.reason` okuyan ürün kodu yok). Kullanıcıya görünen metin değildir. I18N-F1-R4 (08c20b3d7, #840): 241 → 243 — `astro_sky_monthly_ephemeris` kanonik kaynak etiketi \"Aylık Efemeris Kayıtları\" (ekran gösterimi #856 settings.backup.json `tables.*` ile çevrilir) + `astro_sky_monthly_cache` off(...) reason (geliştirici gerekçesi). I18N-F1-R5 ATLAS-E: değiştirilmedi (dosya Yedek&Aktarım sahipliğinde).",
+  "lib/astrology/pro/monthly/contract.ts": "I18N-F1-R5 ATLAS-E: 18 → 10. Kullanıcıya görünen 8 metin katalogda (atlas.monthly.errors / verify). Kalan 10 = projectMonthly izdüşüm reddi `reason` metinleri (sağlayıcı yanıtı tutarsızlık nedeni); yalnız sunucu günlüğüne yazılır (service.ts console.error), kullanıcıya PROVIDER_INCONSISTENT genel metni gider → teknik, çeviri kapsamı dışı."
  }
 }

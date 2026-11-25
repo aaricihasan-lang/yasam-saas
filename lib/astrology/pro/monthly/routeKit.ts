@@ -14,7 +14,10 @@ import { readAstroRoxyConfig } from "@/lib/astrology/config";
 import { callRoxy } from "@/lib/astrology/providers/roxy/client";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { isProEphemerisEnabled } from "../ephemeris/flags";
+import { MONTHLY_MAX_YEAR, MONTHLY_MIN_YEAR } from "./contract";
+import { MONTHLY_RECORD_CAP } from "./records";
 import { MONTHLY_PROVIDER_LANG, type MonthlyDeps } from "./service";
+import { localizeErrorBody, SOURCE_TEXT, type MonthlyText } from "./text";
 
 assertServerOnly("lib/astrology/pro/monthly/routeKit");
 
@@ -66,13 +69,20 @@ export function monthlyDeps(ctx: GateCtx, allowProvider: boolean): MonthlyDeps {
   };
 }
 
-export async function anyRate(ctx: GateCtx): Promise<Response | null> {
+export async function anyRate(ctx: GateCtx, L: MonthlyText = SOURCE_TEXT): Promise<Response | null> {
   const rl = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-ephemeris-monthly", `${ctx.tenantId}:${ctx.userId}`), MONTHLY_RATE.any.limit, MONTHLY_RATE.any.windowSeconds);
   if (rl.allowed) return null;
-  return NextResponse.json({ ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla tablo istendi. Lütfen biraz sonra tekrar deneyin.", retryAfterSec: rl.retryAfterSec }, { status: 429, headers: { ...ASTRO_NO_STORE, "Retry-After": String(rl.retryAfterSec) } });
+  return NextResponse.json({ ok: false, code: "RATE_LIMITED", error: L.t("errors.tableRate"), retryAfterSec: rl.retryAfterSec }, { status: 429, headers: { ...ASTRO_NO_STORE, "Retry-After": String(rl.retryAfterSec) } });
 }
 
 export const json = (body: Record<string, unknown>, status = 200) => NextResponse.json(body, { status, headers: ASTRO_NO_STORE });
+/**
+ * I18N-F1-R5 (ATLAS-E): kütüphanenin kaynak dilde (tr) ürettiği hata gövdesi → istek dili. Dil ROTA katmanında
+ * (lib/i18n/output.resolveOutputLocale — ekranla aynı çerez + yayın kapısı) çözülüp `L` olarak verilir; bu dizin dil katmanını bilmez.
+ * Kaynak dilde gövde AYNEN döner (Türkçe yanıt bayt-bayt aynı); yalnız `error` metni değişir — `code`, durum kodu ve diğer alanlar aynı.
+ */
+export const localizeBody = <B extends Record<string, unknown>>(body: B, L: MonthlyText): B =>
+  localizeErrorBody(body, L, { minYear: MONTHLY_MIN_YEAR, maxYear: MONTHLY_MAX_YEAR, recordCap: MONTHLY_RECORD_CAP });
 
 export function fileResponse(out: { bytes: Uint8Array; filename: string; contentType: string }): Response {
   const asciiName = out.filename.replace(/[^\x20-\x7E]/g, "_");
