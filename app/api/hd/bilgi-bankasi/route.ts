@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminUserRequest } from "@/lib/auth/userGuard";
 import { isHdEntityKind } from "@/lib/human-design/admin/centralContentValidation";
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const kindRaw = url.searchParams.get("kind")?.trim() ?? "";
     if (!isHdEntityKind(kindRaw)) {
       return NextResponse.json(
-        { ok: false, error: "Geçersiz veya eksik kind (tip|otorite|kapi|kanal)." },
+        { ok: false, error: hdApiText(req, "invalidKind") },
         { status: 400, headers: NO_STORE },
       );
     }
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (!r.ok) {
       const notFound = r.error.code === "not_found";
       const status = notFound ? 404 : 500;
-      const error = notFound ? "Kayıt bulunamadı." : hdSafeDbError("bilgi-bankasi.entity", r.error);
+      const error = notFound ? hdApiText(req, "recordNotFound") : hdSafeDbError("bilgi-bankasi.entity", r.error);
       return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE });
     }
     return NextResponse.json({ ok: true, ...r.data }, { status: 200, headers: NO_STORE });
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     if (!chartRes.row) {
       // Yok veya başka tenant → ayırt etme (fail-safe 404).
-      return NextResponse.json({ ok: false, error: "Harita bulunamadı." }, { status: 404, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdApiText(req, "chartNotFound") }, { status: 404, headers: NO_STORE });
     }
     const chart = chartRes.row;
     const structure = buildPersonalKnowledgeStructure({

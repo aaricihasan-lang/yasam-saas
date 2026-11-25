@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -35,7 +36,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
   // yalnız hazır örnek analizler incelenir. Normal uzman akışı değişmez.
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında transit hesaplaması yapılmaz. Hazır örnek analizleri inceleyebilirsiniz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoTransit") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -43,7 +44,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-transit-user", guard.userId), 600, 60 * 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla hesaplama yapıldı. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedComputeShort") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -54,7 +55,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
   const tz = (sp.get("tz") ?? "").trim() || TRANSIT_TIME_ZONE;
   const rawOffset = (sp.get("offset") ?? "").trim();
   const offset = rawOffset === "" ? null : /^[+-]?\d{1,6}$/.test(rawOffset) ? Number(rawOffset) : Number.NaN;
-  if (Number.isNaN(offset)) return NextResponse.json({ ok: false, code: "INVALID_OFFSET", error: "Geçersiz UTC ofseti." }, { status: 400, headers: NO_STORE });
+  if (Number.isNaN(offset)) return NextResponse.json({ ok: false, code: "INVALID_OFFSET", error: hdApiText(req, "invalidUtcOffset") }, { status: 400, headers: NO_STORE });
   const m = date || time ? resolveTransitMoment(date, time, tz, offset) : nowTransitMoment(new Date(), tz);
   if (!m.ok) {
     return NextResponse.json(
@@ -84,13 +85,13 @@ async function handleGet(req: NextRequest): Promise<Response> {
     if (e instanceof TransitVerificationError) {
       console.error("[hd-transit] verification failed", { utc: m.moment.utcIso, details: e.details });
       return NextResponse.json(
-        { ok: false, code: "TRANSIT_UNVERIFIED", error: "Bu an için gezegen konumları bağımsız olarak doğrulanamadı; doğrulanamayan sonuç gösterilmez. Lütfen tekrar deneyin." },
+        { ok: false, code: "TRANSIT_UNVERIFIED", error: hdApiText(req, "transitPositionsUnverified") },
         { status: 502, headers: NO_STORE },
       );
     }
     const known = e instanceof TransitEngineError;
     return NextResponse.json(
-      { ok: false, code: known ? "TRANSIT_UNVERIFIED" : "TRANSIT_FAILED", error: "Transit hesaplanamadı; doğrulanamayan sonuç gösterilmez. Lütfen tekrar deneyin." },
+      { ok: false, code: known ? "TRANSIT_UNVERIFIED" : "TRANSIT_FAILED", error: hdApiText(req, "transitFailed") },
       { status: 500, headers: NO_STORE },
     );
   }

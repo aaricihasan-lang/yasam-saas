@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { reportReferencedImagePaths } from "@/lib/human-design/api/hdStorage";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -31,14 +32,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
-    return fail(403, "Demo hesabında bu işlem kullanılamaz.");
+    return fail(403, hdApiText(req, "demoNoFeature"));
   }
 
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    return fail(400, "Geçerli JSON gövdesi gerekli.");
+    return fail(400, hdApiText(req, "malformedJson"));
   }
   const clientId =
     raw && typeof raw === "object"
@@ -60,10 +61,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (clientErr) {
     console.error("[hd/delete-chart-image] client lookup:", clientErr.message);
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_deleted", subEntity: "image", errorClass: "server" });
-    return fail(500, "Danışan doğrulanamadı.");
+    return fail(500, hdApiText(req, "clientNotVerified"));
   }
   if (!client) {
-    return fail(403, "Danışan doğrulanamadı.");
+    return fail(403, hdApiText(req, "clientNotVerified"));
   }
 
   const currentPath =
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (updateError) {
     console.error("[hd/delete-chart-image] db update:", updateError.message);
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "record_deleted", subEntity: "image", errorClass: "server" });
-    return fail(500, "Görsel kaydı temizlenemedi.");
+    return fail(500, hdApiText(req, "imageRecordCleanupFailed"));
   }
 
   // Yalnız bu tenant/client'a ait geçerli path silinir (legacy public URL/boş/başka

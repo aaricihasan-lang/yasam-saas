@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getChartForReportV2 } from "@/lib/human-design/api/chartPersistence";
@@ -25,13 +26,13 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const chartId = (new URL(req.url).searchParams.get("chartId") ?? "").trim();
   if (!UUID_RE.test(chartId)) {
-    return NextResponse.json({ ok: false, error: "Geçerli chartId gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "chartIdParamRequired") }, { status: 400, headers: NO_STORE });
   }
   const { row, error } = await getChartForReportV2(guard.db, guard.tenantId, chartId, { withProviderRaw: false });
-  if (error) return NextResponse.json({ ok: false, error: "Analiz okunamadı." }, { status: 500, headers: NO_STORE });
-  if (!row) return NextResponse.json({ ok: false, error: "Analiz bulunamadı." }, { status: 404, headers: NO_STORE });
+  if (error) return NextResponse.json({ ok: false, error: hdApiText(req, "analysisReadFailed") }, { status: 500, headers: NO_STORE });
+  if (!row) return NextResponse.json({ ok: false, error: hdApiText(req, "analysisNotFound") }, { status: 404, headers: NO_STORE });
 
   const kb = await listKnowledgeForReport(guard.db, guard.tenantId, buildExpertKnowledgeCodes(toAppChartCodes(row), centerStateMap(classifyChartRowCenters(row))));
-  if (kb.error) return NextResponse.json({ ok: false, error: "Bilgi Bankası okunamadı." }, { status: 500, headers: NO_STORE });
+  if (kb.error) return NextResponse.json({ ok: false, error: hdApiText(req, "knowledgeReadFailed") }, { status: 500, headers: NO_STORE });
   return NextResponse.json({ ok: true, count: countReportableExpertEntries(kb.rows) }, { status: 200, headers: NO_STORE });
 }

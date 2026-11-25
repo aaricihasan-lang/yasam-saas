@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../../_lib/hdApiText";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word-dl", guard.tenantId), 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla indirme isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, error: hdApiText(req, "rateLimitedDownload") },
       { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
       : null;
     buffer = await renderRelationReportBuffer(s, { image, logo, branding });
   } catch {
-    return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "reportDocFailed") }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
   return new Response(new Uint8Array(buffer), {
     headers: {

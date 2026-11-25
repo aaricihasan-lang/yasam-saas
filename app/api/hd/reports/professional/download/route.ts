@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word-dl", guard.tenantId), 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla indirme isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, error: hdApiText(req, "rateLimitedDownload") },
       { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "malformedJson") }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
   const reportId = String((raw as Record<string, unknown> | null)?.reportId ?? "").trim();
   if (!reportId) {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   // HD-27: geçersiz biçimli kimlik DB'ye gitmez (önceden 500 + sahte action_failed).
   if (!isUuid(reportId)) {
-    return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz reportId." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, code: "INVALID_ID", error: hdApiText(req, "invalidReportId") }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   const read = await getCanonicalReportForDownload(guard.db, guard.tenantId, reportId);
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   } catch {
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "reportDocFailed") }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 
   // Dosya adı: raporun oluşturulduğu YEREL gün (Europe/Istanbul); yoksa bugünün yerel günü.

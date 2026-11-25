@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -28,7 +29,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   const rl = await quotaCheck("hd-relation-comment", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-comment", guard.userId), 120, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Çok fazla kayıt isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedCommentSave") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   const { id } = await ctx.params;
   const r = await updateRelationComment({ db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account }, id, raw);

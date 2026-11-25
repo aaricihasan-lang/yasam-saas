@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -41,7 +42,7 @@ async function handlePost(req: NextRequest): Promise<Response> {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   const result = await createRelationAnalysis(
     { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account },

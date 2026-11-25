@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { searchJourneyClients } from "@/lib/human-design/api/journeyLink";
@@ -20,6 +21,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   const url = new URL(req.url);
   const search = (url.searchParams.get("search") ?? "").slice(0, 100);
   const { rows, error } = await searchJourneyClients(guard.db, guard.tenantId, search);
-  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: "Danışanlar yüklenemedi." }, { status: 500, headers: NO_STORE });
+  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: hdApiText(req, "clientsLoadFailed") }, { status: 500, headers: NO_STORE });
   return NextResponse.json({ ok: true, rows }, { status: 200, headers: NO_STORE });
 }

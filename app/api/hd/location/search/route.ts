@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -38,7 +39,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
-    return NextResponse.json({ ok: false, code: "DEMO_READONLY", error: "Demo hesabında genişletilmiş konum araması kapalıdır." }, { status: 403, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoLocationSearch") }, { status: 403, headers: NO_STORE });
   }
 
   const q = (new URL(req.url).searchParams.get("q") ?? "").trim();
@@ -47,7 +48,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
   }
   const config = readRoxyServerConfig();
   if (!config) {
-    return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: "Genişletilmiş konum araması şu anda kullanılamıyor." }, { status: 503, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: hdApiText(req, "locationSearchUnavailable") }, { status: 503, headers: NO_STORE });
   }
 
   const providerQuery = exonymTarget(q)?.name ?? q;
@@ -79,14 +80,14 @@ async function handleGet(req: NextRequest): Promise<Response> {
     );
     if (!rl.allowed) {
       return NextResponse.json(
-        { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla konum araması yapıldı. Lütfen biraz sonra tekrar deneyin." },
+        { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedLocation") },
         { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
       );
     }
     const r = await searchRoxyLocations(config, providerQuery, { limit: 10 });
     if (!r.ok) {
       console.error("[hd-roxy-location] search failed", { kind: r.kind, status: r.status });
-      return NextResponse.json({ ok: false, code: "PROVIDER_ERROR", error: "Konum servisine şu anda ulaşılamıyor. İl listesinden seçim yapabilirsiniz." }, { status: 502, headers: NO_STORE });
+      return NextResponse.json({ ok: false, code: "PROVIDER_ERROR", error: hdApiText(req, "locationServiceDown") }, { status: 502, headers: NO_STORE });
     }
     locations = r.cities.map(roxyCityToLocation);
     if (cache.size >= ROXY_LOCATION_CACHE.maxEntries) cache.delete(cache.keys().next().value as string);
@@ -95,7 +96,7 @@ async function handleGet(req: NextRequest): Promise<Response> {
 
   const results = toHdSearchResults(locations, (l) => signLocationRef(l));
   if (!results) {
-    return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: "Genişletilmiş konum araması şu anda kullanılamıyor." }, { status: 503, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "NOT_CONFIGURED", error: hdApiText(req, "locationSearchUnavailable") }, { status: 503, headers: NO_STORE });
   }
   return NextResponse.json({ ok: true, cached, results }, { status: 200, headers: NO_STORE });
 }

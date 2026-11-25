@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -52,7 +53,7 @@ async function readManualBody(
     return {
       ok: false,
       response: NextResponse.json(
-        { ok: false, error: "Geçerli JSON gövdesi gerekli." },
+        { ok: false, error: hdApiText(req, "malformedJson") },
         { status: 400, headers: NO_STORE },
       ),
     };
@@ -61,7 +62,7 @@ async function readManualBody(
     return {
       ok: false,
       response: NextResponse.json(
-        { ok: false, error: "İstek gövdesi nesne olmalı." },
+        { ok: false, error: hdApiText(req, "bodyNotObject") },
         { status: 400, headers: NO_STORE },
       ),
     };
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında harita kaydedilemez." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoChartSave") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       {
         ok: false,
         code: "MANUAL_CHART_CLOSED",
-        error: "Yeni manuel Human Design kaydı artık kullanılmıyor. Human Design Hesaplama bölümünden otomatik hesaplama yapın.",
+        error: hdApiText(req, "manualChartClosed"),
       },
       { status: 410, headers: NO_STORE },
     );
@@ -98,13 +99,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     raw = await req.json();
   } catch {
     return NextResponse.json(
-      { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." },
+      { ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") },
       { status: 400, headers: NO_STORE },
     );
   }
   if (!isObj(raw)) {
     return NextResponse.json(
-      { ok: false, code: "INVALID_BODY", error: "İstek gövdesi nesne olmalı." },
+      { ok: false, code: "INVALID_BODY", error: hdApiText(req, "bodyNotObject") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = await quotaCheck("hd-chart-save-user", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-chart-save-user", guard.userId), 30, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla kayıt yapıldı. Lütfen daha sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedSave") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -199,7 +200,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     if (!row) {
       return NextResponse.json(
-        { ok: false, code: "NOT_FOUND", error: "Kayıt bulunamadı." },
+        { ok: false, code: "NOT_FOUND", error: hdApiText(req, "recordNotFound") },
         { status: 404, headers: NO_STORE },
       );
     }
@@ -221,13 +222,13 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (new URL(req.url).searchParams.get("scope") !== "manual") {
     return NextResponse.json(
-      { ok: false, error: "Desteklenmeyen işlem." },
+      { ok: false, error: hdApiText(req, "unsupportedAction") },
       { status: 400, headers: NO_STORE },
     );
   }
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında güncelleme yapılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoUpdate") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -236,7 +237,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const id = str(parsed.body.id).trim();
   if (!id) {
     return NextResponse.json(
-      { ok: false, error: "Güncellenecek haritanın id'si gerekli." },
+      { ok: false, error: hdApiText(req, "chartIdRequired") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -247,7 +248,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   }
   const { ok, error } = await updateManualChartById(guard.db, guard.tenantId, id, parsed.body);
   if (!ok) {
-    return NextResponse.json({ ok: false, error: error ?? "Güncellenemedi." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: error ?? hdApiText(req, "updateFailed") }, { status: 400, headers: NO_STORE });
   }
   await trackUsage(guard, req, { module: "human_design", action: "record_updated", subEntity: "chart", resourceId: id });
   return NextResponse.json({ ok: true, id }, { status: 200, headers: NO_STORE });
@@ -258,7 +259,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında silme yapılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoDelete") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -285,7 +286,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       return NextResponse.json({ ok: true, deletedClientId: clientId }, { status: 200, headers: NO_STORE });
     }
     return NextResponse.json(
-      { ok: false, error: "Silme için id veya clientId gerekli." },
+      { ok: false, error: hdApiText(req, "deleteIdOrClientRequired") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -293,7 +294,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const id = url.searchParams.get("id");
   if (!id) {
     return NextResponse.json(
-      { ok: false, code: "MISSING_ID", error: "Silinecek kaydın id'si gerekli." },
+      { ok: false, code: "MISSING_ID", error: hdApiText(req, "deleteRecordIdRequired") },
       { status: 400, headers: NO_STORE },
     );
   }

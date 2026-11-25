@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // D3 (owner kararı 2026-11-02): demo hesabında hiçbir modülde yeni hesaplama yapılmaz; yalnız hazır örnek incelenir.
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında yeni Human Design hesaplaması yapılmaz. Hazır örnek analizleri inceleyebilirsiniz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoCompute") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = await quotaCheck("hd-compute-user", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-compute-user", guard.userId), 60, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla hesaplama yapıldı. Lütfen daha sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedCompute") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     raw = await req.json();
   } catch {
     return NextResponse.json(
-      { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." },
+      { ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 export async function GET(_req: NextRequest): Promise<Response> {
   return NextResponse.json(
-    { ok: false, code: "METHOD_NOT_ALLOWED", error: "Yalnız POST desteklenir." },
+    { ok: false, code: "METHOD_NOT_ALLOWED", error: hdApiText(_req, "postOnly") },
     { status: 405, headers: { ...NO_STORE, Allow: "POST" } },
   );
 }

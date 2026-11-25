@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getRelationAnalysis } from "@/lib/human-design/relations/relationService";
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const names = a.participants.map((p) => p.name);
   const analysis = a.kind === "connection" ? connectionExplanations(a.result as HdConnectionResult, names[0], names[1]) : pentaExplanations(a.result as HdPentaResult, names);
   const k = await relationKnowledge(rctx, a, { forReport: false });
-  if (!k.ok) return NextResponse.json({ ok: false, code: "KNOWLEDGE_READ_FAILED", error: "Bilgi Bankası okunamadı." }, { status: 500, headers: NO_STORE });
+  if (!k.ok) return NextResponse.json({ ok: false, code: "KNOWLEDGE_READ_FAILED", error: hdApiText(req, "knowledgeReadFailed") }, { status: 500, headers: NO_STORE });
   const isAdmin = String(guard.profile?.role ?? "").trim().toLowerCase() === "admin";
   const central = isAdmin ? await relationCentralKnowledge(rctx, a) : null;
   return NextResponse.json(
