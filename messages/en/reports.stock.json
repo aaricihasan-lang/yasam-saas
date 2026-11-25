@@ -1,0 +1,81 @@
+{
+  "reports": {
+    "stock": {
+      "brand": "YAŞAM SİSTEMİ",
+      "coverTitle": {
+        "all": "PRODUCT & STOCK REPORT",
+        "critical": "CRITICAL STOCK REPORT"
+      },
+      "coverSubtitle": "Product & Stock Inventory Report · {scope}",
+      "generatedOn": "Date Generated: {date}",
+      "scope": {
+        "all": "All Product Stock",
+        "critical": "Critical Stock"
+      },
+      "cover": {
+        "products": "Product Lines",
+        "categories": "Categories",
+        "critical": "Critical Stock",
+        "depleted": "Out of Stock",
+        "value": "Estimated Stock Value"
+      },
+      "stats": {
+        "products": "Product Lines",
+        "categories": "Number of Categories",
+        "critical": "Critical Stock Items",
+        "depleted": "Out-of-Stock Products",
+        "value": "Estimated Stock Value",
+        "scope": "Scope"
+      },
+      "summary": {
+        "heading": "1. Stock Summary",
+        "products": "Total Product Lines",
+        "categories": "Number of Categories",
+        "critical": "Critical Stock Items",
+        "depleted": "Out-of-Stock Products",
+        "value": "Estimated Stock Value",
+        "scope": "Report Scope",
+        "productCount": "{count, plural, one {{shown} product} other {{shown} products}}",
+        "note": "This report covers all database-backed product stock categories (Natural Stone, Oil, Soap/Cream, Accessories, Other). Only positive stock contributes to the stock value."
+      },
+      "criticalSection": {
+        "heading": "2. Critical & Out-of-Stock Alert",
+        "summary": "{count, plural, one {{shown} product is} other {{shown} products are}} at a critical level or out of stock"
+      },
+      "list": {
+        "heading": "{n}. Product List",
+        "summary": "{count, plural, one {{shown} product} other {{shown} products}} · grouped by category",
+        "categoryCount": "{count, plural, one {{shown} product} other {{shown} products}}",
+        "item": "PRODUCT #{n}",
+        "depletedPrefix": "⚠ OUT OF STOCK — ",
+        "criticalPrefix": "⚠ CRITICAL — "
+      },
+      "fields": {
+        "stock": "Current Stock",
+        "group": "Type / Group",
+        "unitCost": "Unit Cost",
+        "value": "Estimated Value"
+      },
+      "criticalSuffix": " ⚠ Critical",
+      "depleted": "(Out of stock)",
+      "category": {
+        "dogaltas": "Natural Stone",
+        "oil": "Oil",
+        "soap_cream": "Soap / Cream",
+        "accessory": "Prayer Beads / Jewellery / Accessories",
+        "other": "Other Products"
+      },
+      "footer": "Product & Stock Report · {scope}",
+      "file": {
+        "base": "product-stock",
+        "all": "all",
+        "critical": "critical"
+      },
+      "unit": {
+        "adet": "pcs",
+        "ml": "ml",
+        "gram": "g"
+      }
+    }
+  }
+}
