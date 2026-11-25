@@ -451,6 +451,7 @@ async function main() {
   const PRm = await import("@/lib/astrology/model/westernPlanetaryReturn");
   const LLm = await import("@/lib/astrology/view/natalLabelLayout");
   const PVm = await import("@/lib/astrology/view/natalPositionView");
+  const TDm = await import("@/lib/astrology/transitDetail");
   type Tr = (key: string, values?: Record<string, string | number>) => string;
   const tr = (ns: string): Tr => createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as Record<string, never>, namespace: ns as never }) as unknown as Tr;
   t("atlas.planetaryReturn: başlık / gezegen / aralık / yöntem / döngü notu / hareket = lib (westernPlanetaryReturn)", () => {
@@ -476,6 +477,19 @@ async function main() {
     const tech = natals[0].t;
     assert.equal(n("point.fortune"), PV.positionRow(tech, "x:fortune", false)!.name);
     assert.equal(n("point.vertex"), PV.positionRow(tech, "x:vertex", false)!.name);
+  });
+
+  t("atlas.techniqueSelector.lib: tarih/saat giriş uyarıları = lib transitDetail çıktıları (ekran eşlemesi tek kaynaktan)", () => {
+    const TD = TDm;
+    const l = tr("atlas.techniqueSelector.lib");
+    assert.equal(TD.dateInputIssue(""), l("dateMissing"));
+    assert.equal(TD.dateInputIssue("2026-02-30"), l("dateInvalid"));
+    assert.equal(TD.dateInputIssue("1500-01-01"), l("dateRangeYear", { min: TD.ATLAS_YEAR_MIN, max: TD.ATLAS_YEAR_MAX }));
+    assert.equal(TD.timeInputIssue(""), l("timeMissing"));
+    assert.equal(TD.timeInputIssue("25:99"), l("timeInvalid"));
+    assert.equal(TD.localToUtcPreview("2026-10-22", "12:00", "Mars/Olympus").text, l("tzInvalid"));
+    assert.equal(TD.localToUtcPreview("2026-03-29", "02:30", "Europe/Berlin").text, l("timeGap"));
+    assert.equal(TD.localToUtcPreview("2026-10-22", "12:00", "Europe/Istanbul").text, l("preview", { date: "22.10.2026", time: "09:00" }));
   });
 
   const groups: [string, string, Case[]][] = [

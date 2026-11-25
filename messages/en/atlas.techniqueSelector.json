@@ -1,0 +1,309 @@
+{
+  "atlas": {
+    "techniqueSelector": {
+      "lib": {
+        "dateMissing": "Date missing — complete the day, month and year.",
+        "dateInvalid": "Invalid date — check the day, month and 4-digit year.",
+        "timeMissing": "Time missing — complete the hour and minute.",
+        "timeInvalid": "Invalid time.",
+        "tzInvalid": "Invalid time zone.",
+        "timeGap": "This local time does not exist on this date (time zone or daylight saving change) — change the time.",
+        "dateTimeInvalid": "Invalid date or time.",
+        "dateRangeYear": "The date must be within {min}–{max} (write the year with 4 digits).",
+        "dateRange": "The date must be within {min}–{max}.",
+        "preview": "Moment to calculate: {date} {time} UTC"
+      },
+      "kpAyanamsaHint": "The difference between KP-Newcomb and the old KP table is a few arc seconds today; it can change the sub-lord result only at points very close to a boundary.",
+      "tzCommon": "Frequently used",
+      "tzAll": "All time zones",
+      "chain": {
+        "legend": "Current period chain (Maha → Prana)",
+        "off": "Do not add",
+        "now": "Now (to the minute)",
+        "custom": "Selected moment",
+        "dateAria": "Current period chain date",
+        "timeAria": "Current period chain time",
+        "tzAria": "Current period chain time zone",
+        "note": "1 extra request (none if cached). The record contains only the selected level's list and the 5 periods at this moment."
+      },
+      "forecast": {
+        "endInvalid": "Invalid end date.",
+        "endBefore": "The end cannot be before the start.",
+        "endMax": "At most {max} days can be selected.",
+        "endAria": "Calendar end",
+        "endIssue": "End: {issue}",
+        "start": "Start",
+        "startAria": "Calendar start",
+        "end": "End",
+        "daysAria": "Calendar duration",
+        "tzAria": "Calendar time zone",
+        "startIssue": "Start: {issue}",
+        "summary": "{days, plural, one {# day} other {# days}} · {parts, plural, one {# part} other {# parts}} (provider limit 90 days/request; at most {max} days). Day details are calculated separately on the result screen if requested."
+      },
+      "kpRange": {
+        "kind": {
+          "sublord": "Sub-Lord changes",
+          "rasi": "Rasi (sign) changes",
+          "positions": "KP position table (≤ 7 days)"
+        },
+        "legend": "KP time range",
+        "start": "Start (UTC day)",
+        "startAria": "KP range start",
+        "duration": "Duration",
+        "durationAria": "KP range duration",
+        "tzAria": "KP range display time zone",
+        "tzDisplay": "{z} (display)",
+        "kindsAria": "KP range types",
+        "planetsAria": "KP range planets",
+        "noNodes": "Rahu/Ketu are not available on these endpoints.",
+        "interval": "Position interval",
+        "intervalAria": "KP position interval",
+        "posTooLong": "The position table can be at most {max} days; shorten the duration or remove the position table.",
+        "estimate": "Estimated {n} provider requests (1 per planet × type; position table 1). Saved parts are not requested again; the exact count is in the plan preview. At most {max} days; the Moon changes Sub-Lord ~9 times a day."
+      },
+      "days": "{n, plural, one {# day} other {# days}}",
+      "minutes": "{n} min",
+      "daily": "daily",
+      "hours": "{n, plural, one {# hour} other {# hours}}",
+      "returnLoc": {
+        "aria": "{label} location",
+        "birth": "By birthplace",
+        "other": "At a different location",
+        "pick": " (select below)"
+      },
+      "transit": {
+        "aria": "Transit moment",
+        "now": "Now",
+        "date": "Selected day",
+        "custom": "Selected day and time",
+        "dateAria": "Transit date",
+        "timeAria": "Transit time",
+        "tzAria": "Transit time zone",
+        "noteNow": "Now: the calculation moment is rounded to the full UTC hour (e.g. 14:37 → 14:00 UTC); reopening within the same hour makes no new request. For minute precision use “Selected day and time”. The time zone is for display only.",
+        "noteDate": "Selected day: local 12:00 of that day is used (the Moon moves ~13° a day; choose a time for a specific moment).",
+        "noteCustom": "The selected time is processed to the minute."
+      },
+      "targetShared": "Target date (shared by progression + solar arc)",
+      "targetAria": "Target date",
+      "solar": {
+        "year": "Return year",
+        "yearAria": "Solar return year",
+        "name": "Solar return"
+      },
+      "lunar": {
+        "month": "Return month (UTC)",
+        "monthAria": "Lunar return month",
+        "seqAria": "Lunar return within the month",
+        "seq": "Return {n}",
+        "none": " (none this month)",
+        "two": "There are {n} lunar returns this month. To calculate the other one, change the order and recalculate (each return is 1 request; both remain as separate records).",
+        "name": "Lunar return"
+      },
+      "lahiriFixed": "Lahiri (fixed) — this calculation has no ayanamsa option.",
+      "panchanga": {
+        "detail": "Add detailed Panchanga (sunrise/sunset, vara, Rahu Kaal, Yamaganda, Gulika, Abhijit, Brahma muhurta) —",
+        "plus1": "1 extra request",
+        "hours": "Add planetary hours (Hora, 24 slots) and Choghadiya (16 slots) —",
+        "plus2": "2 extra requests",
+        "sameDay": "(same day and place)",
+        "day": "Day",
+        "dayAria": "Detailed Panchanga day",
+        "place": "Place:",
+        "polar": "This option is not calculated for places beyond the polar circle."
+      },
+      "emptyBirthday": "(empty = birthday)",
+      "birthPlace": "birthplace",
+      "notLahiri": "The selected ayanamsa is not Lahiri: this calculation is not made (the provider calculates only with Lahiri). Set the ayanamsa to Lahiri in the Vedic selections.",
+      "kp": {
+        "ayanamsa": "KP ayanamsa (all KP)",
+        "ayanamsaAria": "KP ayanamsa ({tech})",
+        "node": "Node",
+        "nodeAria": "KP node ({id})",
+        "nodeMean": "Mean (KP tradition)",
+        "nodeTrue": "True",
+        "nowHorary": "Now (actual question moment · to the minute)",
+        "dateAria": "KP date",
+        "timeAria": "KP time",
+        "tzAria": "KP time zone",
+        "sharedMoment": "(moment shared by ruling / transit / horary)",
+        "assessPlace": "Assessment place",
+        "observePlace": "Observation place",
+        "placeShared": "(shared by ruling + horary)",
+        "placeIntro": "The location where the question or event is considered —",
+        "notBirth": "it is not the birthplace",
+        "placeTail": ". Techniques that need the birth chart use the saved birthplace separately.",
+        "useBirth": "Use the birthplace as the observation place",
+        "otherPlace": "Another location",
+        "placeRequired": "This technique is not added to the plan until an observation place is selected.",
+        "pickPlace": "Select the location.",
+        "mdAria": "KP dasha mahadasha",
+        "adAria": "KP dasha antardasha",
+        "pdAria": "KP dasha pratyantardasha",
+        "sdAria": "KP dasha sookshma",
+        "horaryNumber": "Horary number (1–249)",
+        "horaryAria": "Horary number",
+        "transitModeAria": "KP transit mode",
+        "moment": "Single moment (KP sky)",
+        "range": "Time range (Sub-Lord · Rasi changes)",
+        "rulingNote": "The ruling planets calculation takes no ayanamsa option (KP-Newcomb built in).",
+        "momentNote": "Single moment: the provider gives no transit analysis against natal cusps; this is the KP sky of the moment. For change times use “Time range”."
+      },
+      "nowHour": "Now (full UTC hour)",
+      "dateTime": "Date/time",
+      "dasha": {
+        "mdList": "Mahadasha list",
+        "kpTo": {
+          "ad": "{lord} → antardashas",
+          "pd": "{lord} → pratyantardashas",
+          "sd": "{lord} → sookshmas",
+          "pr": "{lord} → pranas"
+        },
+        "adList": "(antardasha list)",
+        "pdList": "(pratyantardasha list)",
+        "sdList": "(sookshma list)",
+        "ayAria": "Vedic ayanamsa (dasha)",
+        "level": "Level",
+        "mdAria": "Dasha mahadasha",
+        "mdList120": "Mahadasha list (120 years)",
+        "vTo": {
+          "ad": "{lord} mahadasha → antardashas",
+          "pd": "{lord} antardasha → pratyantardashas",
+          "sd": "{lord} pratyantardasha → sookshmas",
+          "pr": "{lord} sookshma → pranas"
+        },
+        "adAria": "Dasha antardasha",
+        "pdAria": "Dasha pratyantardasha",
+        "sdAria": "Dasha sookshma"
+      },
+      "gochara": {
+        "dateAria": "Gochara date",
+        "timeAria": "Gochara time",
+        "tzAria": "Gochara time zone",
+        "lahiri": "Lahiri (fixed) — the Gochara calculation takes no ayanamsa option. It is a calculation and record separate from the Western transit.",
+        "notLahiri": "The selected ayanamsa is not Lahiri: Gochara is not calculated (the provider calculates only with Lahiri)."
+      },
+      "chara": {
+        "scheme": "Karaka scheme",
+        "schemeAria": "Chara karaka scheme",
+        "eight": "8 karakas (Rahu included; Pitrikaraka separate)",
+        "seven": "7 karakas (Rahu excluded)",
+        "note": "The scheme choice is a school preference; the two schemes are separate calculations and separate records.",
+        "ayAria": "Vedic ayanamsa (Chara Karakas)"
+      },
+      "vedicAyanamsa": "Ayanamsa (all Vedic calculations)",
+      "vedicAyAria": "Vedic ayanamsa ({tech})",
+      "varga": {
+        "ayAria": "Vedic ayanamsa (varga)",
+        "division": "Division",
+        "aria": "Varga division"
+      },
+      "d1": {
+        "ayAria": "Vedic ayanamsa"
+      },
+      "relocation": "Target location (the birth moment stays the same; only the location changes)",
+      "ls": {
+        "birth": "Centre: birthplace",
+        "other": "Centre: another location"
+      },
+      "prof": {
+        "year": "Profection year",
+        "pick": "Select",
+        "age": "age {n}",
+        "thisYear": " (this year)",
+        "ageAria": "Profection age",
+        "range": "Profection year at age {n}: {start} – {end}",
+        "wholeSign": "The house system is fixed in this technique: Whole Sign. The house system preference in your birth chart analyses does not change.",
+        "leap": "29 February birth: in non-leap years the new profection year starts on 1 March; in leap years on 29 February."
+      },
+      "extra": {
+        "sections": "Sections (each section is calculated separately)",
+        "label": {
+          "asteroids": "Asteroids (Ceres, Pallas, Juno, Vesta)",
+          "lots": "Hermetic lots (Arabic parts)",
+          "lilith": "Black Moon Lilith — mean and true"
+        },
+        "note": "Hermetic lots require the birth time. The natal chart and natal request do not change; if a natal chart with the same house system is saved, the result is shown as a layer on the natal wheel."
+      },
+      "pr": {
+        "planet": "Planet",
+        "planetAria": "Return planet",
+        "target": "Target date (approximate; past or future)",
+        "targetAria": "Planetary return target date",
+        "note": "The return closest to this date is calculated. In a retrograde cycle the planet may cross its natal degree more than once; select the crossing below.",
+        "navTitle": "The target date becomes {d}; crossings are listed again",
+        "navNone": "Waiting for plan information or no return in this direction",
+        "prev": "← Previous return",
+        "next": "Next return →",
+        "crossingAria": "Crossing in the return cluster",
+        "crossing": "Crossing {n}",
+        "loop": "This return cluster has {n} crossings (retrograde cycle). Each crossing is a separate request and a separate record; change the selection to calculate another one.",
+        "none": "No return found near the target date.",
+        "name": "Planetary return"
+      },
+      "displayTz": "Display time zone",
+      "fs": {
+        "orb": "Conjunction orb",
+        "orbAria": "Fixed star orb",
+        "note": "The orb is only a filter: data is fetched once from the provider with 3°; changing the orb creates no new request.",
+        "catalog": "Add the 43-star catalogue appendix to the Word/PDF report"
+      },
+      "defaultSuffix": " (default)",
+      "hel": {
+        "day": "Assessment day (local)",
+        "dayAria": "Heliacal assessment day",
+        "place": "Observation place:",
+        "note": "Visibility is assessed at the sunrise / sunset horizon and for the observation place; the birth time is not needed. Not calculated for places beyond ±60° latitude. This is a different calculation from the “combust” mark in the birth chart."
+      },
+      "gm": {
+        "rolesAria": "Gun Milan calculation roles",
+        "roles": "Calculation roles (in the traditional table role 1 is male / groom, role 2 female / bride):",
+        "note": "The other-person selection is shared with Synastry / Composite; both people's birth times are required. If the roles change, order-sensitive kootas (e.g. Varna) may score differently; each role order is a separate calculation and a separate record. The result is a technical assessment; it contains no marriage / relationship judgement."
+      },
+      "role": {
+        "clientFirst": "Role 1: the analysed client · role 2: the other person",
+        "partnerFirst": "Role 1: the other person · role 2: the analysed client"
+      },
+      "sadeSati": {
+        "note": "The status is given for the day of calculation (the assessment day is written to the record). Reopening on the same day creates no new request."
+      },
+      "rolesAria": "{tech} calculation roles",
+      "dk": {
+        "roles": "Calculation roles — role 1 (traditional: groom) / role 2 (traditional: bride):",
+        "noteDashakoot": "It is a system separate from Gun Milan; scores are not converted between them. Dina, Mahendra, Stree Deergha, Rasi and Vasya are counted from bride to groom and are therefore sensitive to role order; each role order is a separate calculation and a separate record.",
+        "notePapasamyam": "The comparison is directional (the role 2 total is compared with role 1's); each role order is a separate calculation and a separate record.",
+        "note": "The other-person selection is shared with the other two-person techniques; both people's birth times are required. The result is a technical assessment; it contains no marriage / relationship decision."
+      },
+      "partner": {
+        "label": "Other person (shared by synastry / composite)",
+        "search": "Search for the other person",
+        "searchAria": "Search other person",
+        "aria": "Other person profile",
+        "pick": "— select —"
+      },
+      "natal": {
+        "note": "Houses are calculated with the selected classical system; planetary positions do not change. Planet interpretations are not shown in this system.",
+        "north": "N",
+        "south": "S",
+        "polarLead": "This selection cannot be calculated.",
+        "polar": "The {hs} house system is undefined at latitude {lat}. Choose Whole Sign or Equal House.",
+        "highLead": "High latitude ({lat}).",
+        "high": "At this latitude house sizes can be very unequal; keep this in mind when interpreting.",
+        "tuLead": "Birth time unknown.",
+        "tu": "Houses, Ascendant/MC and house placements are not shown; the selected house system is not used in this analysis.",
+        "hs": "House system",
+        "only": "Natal only",
+        "hsAria": "Natal house system",
+        "basic": "Basic systems",
+        "classic": "Classical systems",
+        "shared": "{list} are calculated with the shared house system:",
+        "change": "Change"
+      },
+      "method": {
+        "node": "Lunar node (shared by Western)",
+        "nodeAria": "Lunar node",
+        "hs": "House system (shared by Western)",
+        "hsAria": "House system"
+      }
+    }
+  }
+}
