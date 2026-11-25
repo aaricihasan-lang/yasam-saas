@@ -1,0 +1,7 @@
+{
+  "common": {
+    "submitLock": {
+      "timeout": "İşlem zaman aşımına uğradı. Lütfen tekrar deneyin."
+    }
+  }
+}
