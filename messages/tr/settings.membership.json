@@ -20,7 +20,7 @@
       },
       "rules": {
         "trialDigital": "Dijital İçerik ve alt modülleri (Kişisel Arşiv, Belge Çeviri, Video Çeviri, Ders Notu) ile Yaşam Hafızası deneme paketine dahil değildir.",
-        "trialCredit": "Gökyüzü Atlası, Human Design ve Numeroloji'deki Roxy hesaplamaları günlük ortak krediyle sınırlıdır; kredi Türkiye saatiyle 00.00'da yenilenir.",
+        "trialCredit": "Gökyüzü Atlası, Human Design ve Numeroloji'deki hesaplamalar günlük ortak hesaplama kredisiyle sınırlıdır; kredi Türkiye saatiyle 00.00'da yenilenir.",
         "trialNoExtend": "Deneme süresi uzatılamaz ve yeniden başlatılamaz.",
         "readOnlyView": "Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.",
         "readOnlyBlock": "Yeni kayıt, düzenleme, silme ve yeni hesaplama yapılamaz.",
@@ -38,7 +38,7 @@
         "proRequestReceivedAt": "Alındı · {at}",
         "proRequestReceived": "Alındı",
         "proRequestNote": "Yöneticiniz talebinizi değerlendirecektir.",
-        "credit": "Bugünkü Roxy krediniz",
+        "credit": "Bugün Kalan Hesaplama Kredisi",
         "creditNote": "Kalan / günlük ortak kredi. Türkiye saatiyle 00.00'da yenilenir.",
         "membershipStart": "Üyelik başlangıcı",
         "membershipEnd": "Üyelik bitişi",

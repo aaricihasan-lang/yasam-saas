@@ -2365,6 +2365,8 @@
   "navigation.quickNav.open": "6c96e962e74b3bfa",
   "navigation.quickNav.settings": "5e36ad26db89e0dd",
   "navigation.tagline": "ab204bc6440a3a86",
+  "settings.membership.rows.credit": "a96f04793cc4b61c",
+  "settings.membership.rules.trialCredit": "7d5d472a680f3a07",
   "stones.assignmentDesc.Astrolojik Atama": "031e606b38b7b144",
   "stones.assignmentDesc.Elementler": "cf54889276f027fb",
   "stones.assignmentDesc.Etkili Organlar": "b49f94bfeb76da94",
@@ -3383,6 +3385,9 @@
   "stones.saveCombo.selectedSummary": "2d62c1dc19ea2f63",
   "stones.saveCombo.summary": "e012841f2de81034",
   "stones.saveCombo.title": "c732b183fb217690",
-  "stones.validation.mineralPercentInvalid": "114a263afb837066"
+  "stones.validation.mineralPercentInvalid": "114a263afb837066",
+  "trial.errors.codes.TRIAL_CREDIT_LIMIT": "b550443e19133245",
+  "trial.errors.codes.TRIAL_CREDIT_MODULE_LIMIT": "81c785fd2c5e3077",
+  "trial.notice.credit": "d4b364710be1b003"
  }
 }

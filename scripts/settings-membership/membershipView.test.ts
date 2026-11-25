@@ -64,7 +64,7 @@ console.log("\n── Deneme üyesi aktif ──");
   ok(v.kind === "trial_active" && v.packageLabel === "Ücretsiz deneme (7 gün)" && v.statusLabel === "Deneme sürüyor", "aktif deneme etiketi (admin adlandırmasıyla aynı)", v);
   ok(v.rows.some((r) => r.term === "Deneme başlangıcı" && r.value === "8 Kasım 2026, 12:00"), "deneme başlangıcı TSİ", v.rows);
   ok(v.rows.some((r) => r.term === "Deneme bitişi" && r.value === "15 Kasım 2026, 12:00"), "deneme bitişi TSİ (168 saat)");
-  ok(v.rows.some((r) => r.term === "Bugünkü Roxy krediniz" && r.value === "38 / 50"), "günlük ortak kredi: kalan / limit");
+  ok(v.rows.some((r) => r.term === "Bugün Kalan Hesaplama Kredisi" && r.value === "38 / 50"), "günlük ortak kredi: kalan / limit");
   ok(v.restrictions.some((r) => r.includes("Dijital İçerik")) && v.restrictions.some((r) => r.includes("00.00")), "deneme kısıtları: Dijital İçerik kapalı + kredi gece yarısı yenilenir");
   ok(v.contactCta?.label === "Pro üyelik talebi", "Pro üyelik talebi → mevcut İrtibat akışı");
   noForbidden(v, "aktif deneme");
@@ -175,6 +175,14 @@ console.log("\n── Deneme hata kodları (i18n) ──");
   };
   ok(TRIAL_ERROR_CODES.every((c) => trCodes[c] === expectTr[c]), "TR katalog = sunucu Türkçe metni (8 kod, birebir)");
   ok(TRIAL_ERROR_CODES.every((c) => typeof enCodes[c] === "string" && enCodes[c] !== "" && !/roxy/i.test(enCodes[c])), "EN: 8 kod dolu, Roxy adı yok");
+  // I18N geniş geliştirme (B1): uzman ekranında sağlayıcı adı görünmez — TR katalog ve sunucu Türkçe metni de "Roxy" içermez
+  // ("Hesaplama Kredisi" terimi). Kod adları (TRIAL_CREDIT_*), kredi hesabı ve API sözleşmesi değişmedi.
+  ok(
+    TRIAL_ERROR_CODES.every((c) => !/roxy/i.test(trCodes[c])) &&
+      !/roxy/i.test(JSON.stringify(trTrial)) &&
+      !/roxy/i.test(TRIAL_MESSAGES.creditDaily + TRIAL_MESSAGES.creditModule),
+    "TR: deneme metinlerinde Roxy adı yok (hesaplama kredisi)",
+  );
   ok(
     trialErrorCode({ code: "MODULE_DENIED", trialCode: "MODULE_NOT_IN_TRIAL" }) === "MODULE_NOT_IN_TRIAL" &&
       trialErrorCode({ code: "MODULE_DENIED" }) === null &&
