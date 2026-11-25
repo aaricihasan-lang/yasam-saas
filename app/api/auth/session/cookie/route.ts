@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { getServerDb } from "@/lib/supabase-server";
 import { resolveActiveSession } from "@/lib/auth/sessionSecurity";
 import {
@@ -36,6 +37,7 @@ function json(body: Record<string, unknown>, status: number) {
  *   - Token yanıt gövdesinde DÖNMEZ.
  */
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   const cfg = getSessionCookieConfig();
   if (cfg.mode === "off") return json({ error: "Bulunamadı." }, 404);
   if (isAndroidAppRequest(req.headers)) return json({ error: "Bu istemci için desteklenmiyor." }, 403);
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (existing && existing !== token) {
       const current = await resolveActiveSession(db, existing);
       if (current.status === "active" && current.userId !== state.userId) {
-        return json({ error: "Bu tarayıcıda başka bir oturum açık.", code: "COOKIE_CONFLICT" }, 409);
+        return json({ error: te("cookie.conflict"), code: "COOKIE_CONFLICT" }, 409);
       }
     }
 
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
     // oturumu da çereze taşınır — aksi hâlde WebView'daki eski token yolu kesilir ve kullanıcı habersiz çıkışa düşer.
     // Yetki genişlemez: token'ı zaten elinde tutan aynı kaynak istemci, AYNI oturumu HttpOnly çereze taşır.
     const androidUpgrade = row.client_channel === "android_app" && androidAppSessionTransport() === "cookie";
-    if (row.client_channel === "android_app" && !androidUpgrade) return json({ error: "Bu istemci için desteklenmiyor." }, 403);
+    if (row.client_channel === "android_app" && !androidUpgrade) return json({ error: te("cookie.unsupported") }, 403);
 
     // Süresiz (F2-A öncesi) Android oturumu: çerez en çok 30 gün yaşar; oturumun geçerliliği yine DB'de denetlenir.
     const maxAge = cookieMaxAgeFromExpiresAt(row.expires_at)

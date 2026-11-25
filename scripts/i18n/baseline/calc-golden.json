@@ -1,0 +1,2683 @@
+{
+ "aciklama": "I18N-F1 hesaplama altın değerleri (sentetik girdiler). Yalnız Owner onaylı hesap değişikliğinde --update-golden ile yenilenir.",
+ "sha256": "e14f9ccbdb9c96f4dbca2c340b39650c7a096037dc8338456e8cbe1836c1bf46",
+ "sample": {
+  "hd": [
+   {
+    "schemaVersion": "1.0",
+    "meta": {
+     "engine": "astronomy-engine 2.1.19",
+     "nodeType": "true",
+     "calibrationStatus": "validated",
+     "disclaimer": "Deterministik HD hesabı (gate/line → channels → centers → definition → type → authority → profile → cross-gates), 7 gerçek golden case ile doğrulanmıştır. Cross tema adı gates-only (referans tablosu yok). Doğrulanmamış kapsamlar validation.reasons'da, per-chart uyarılar warnings'te işaretlidir."
+    },
+    "input": {
+     "date": "1990-04-01",
+     "time": "14:30",
+     "timezone": "Europe/Istanbul",
+     "location": {
+      "lat": 41.0082,
+      "lon": 28.9784
+     }
+    },
+    "timing": {
+     "birthUtcIso": "1990-04-01T11:30:00.000Z",
+     "designUtcIso": "1990-01-04T02:44:52.199Z",
+     "daysBeforeBirth": 87.36467361450195
+    },
+    "activations": [
+     {
+      "body": "Sun",
+      "side": "personality",
+      "longitude": 11.479333478045305,
+      "gate": 21,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Moon",
+      "side": "personality",
+      "longitude": 89.22697950926602,
+      "gate": 15,
+      "line": 2,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mercury",
+      "side": "personality",
+      "longitude": 24.861258252025323,
+      "gate": 42,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Venus",
+      "side": "personality",
+      "longitude": 325.03167509241234,
+      "gate": 30,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mars",
+      "side": "personality",
+      "longitude": 315.4719232859985,
+      "gate": 13,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Jupiter",
+      "side": "personality",
+      "longitude": 92.80985218147481,
+      "gate": 15,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Saturn",
+      "side": "personality",
+      "longitude": 294.4343130191762,
+      "gate": 61,
+      "line": 4,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Uranus",
+      "side": "personality",
+      "longitude": 279.52181909451167,
+      "gate": 38,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Neptune",
+      "side": "personality",
+      "longitude": 284.51194810131074,
+      "gate": 38,
+      "line": 6,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Pluto",
+      "side": "personality",
+      "longitude": 227.31987054842728,
+      "gate": 1,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "NorthNode",
+      "side": "personality",
+      "longitude": 314.77639106232857,
+      "gate": 13,
+      "line": 2,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Earth",
+      "side": "personality",
+      "longitude": 191.4793334780453,
+      "gate": 48,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "SouthNode",
+      "side": "personality",
+      "longitude": 134.77639106232857,
+      "gate": 7,
+      "line": 2,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Sun",
+      "side": "design",
+      "longitude": 283.47940004816644,
+      "gate": 38,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Moon",
+      "side": "design",
+      "longitude": 9.181033390785615,
+      "gate": 17,
+      "line": 6,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mercury",
+      "side": "design",
+      "longitude": 294.2284161449743,
+      "gate": 61,
+      "line": 4,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Venus",
+      "side": "design",
+      "longitude": 305.73714231924225,
+      "gate": 41,
+      "line": 4,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mars",
+      "side": "design",
+      "longitude": 251.8419500263924,
+      "gate": 5,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Jupiter",
+      "side": "design",
+      "longitude": 94.7993578300908,
+      "gate": 52,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Saturn",
+      "side": "design",
+      "longitude": 285.9668393209066,
+      "gate": 54,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Uranus",
+      "side": "design",
+      "longitude": 275.9408740245792,
+      "gate": 58,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Neptune",
+      "side": "design",
+      "longitude": 282.1366697473477,
+      "gate": 38,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Pluto",
+      "side": "design",
+      "longitude": 227.1636364229803,
+      "gate": 1,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "NorthNode",
+      "side": "design",
+      "longitude": 316.926800519429,
+      "gate": 13,
+      "line": 4,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Earth",
+      "side": "design",
+      "longitude": 103.47940004816644,
+      "gate": 39,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "SouthNode",
+      "side": "design",
+      "longitude": 136.92680051942898,
+      "gate": 7,
+      "line": 4,
+      "boundaryFlag": false
+     }
+    ],
+    "type": "Generator",
+    "authority": "Emotional",
+    "profile": "3/5",
+    "definition": {
+     "kind": "split-small",
+     "componentCount": 2,
+     "definedCenters": [
+      "G",
+      "SolarPlexus",
+      "Sacral",
+      "Root"
+     ]
+    },
+    "centers": {
+     "defined": [
+      "G",
+      "SolarPlexus",
+      "Sacral",
+      "Root"
+     ],
+     "open": [
+      "Head",
+      "Ajna",
+      "Throat",
+      "Heart",
+      "Spleen"
+     ]
+    },
+    "channels": [
+     {
+      "id": "5-15",
+      "name": "Rhythm",
+      "gates": [
+       5,
+       15
+      ],
+      "centers": [
+       "Sacral",
+       "G"
+      ]
+     },
+     {
+      "id": "30-41",
+      "name": "Recognition",
+      "gates": [
+       30,
+       41
+      ],
+      "centers": [
+       "SolarPlexus",
+       "Root"
+      ]
+     }
+    ],
+    "incarnationCross": {
+     "gates": [
+      21,
+      48,
+      38,
+      39
+     ],
+     "angle": "Right Angle",
+     "status": "gates-only"
+    },
+    "validation": {
+     "overall": "validated",
+     "reasons": []
+    },
+    "warnings": []
+   },
+   {
+    "schemaVersion": "1.0",
+    "meta": {
+     "engine": "astronomy-engine 2.1.19",
+     "nodeType": "true",
+     "calibrationStatus": "validated",
+     "disclaimer": "Deterministik HD hesabı (gate/line → channels → centers → definition → type → authority → profile → cross-gates), 7 gerçek golden case ile doğrulanmıştır. Cross tema adı gates-only (referans tablosu yok). Doğrulanmamış kapsamlar validation.reasons'da, per-chart uyarılar warnings'te işaretlidir."
+    },
+    "input": {
+     "date": "1979-11-23",
+     "time": "03:05",
+     "timezone": "Europe/Berlin",
+     "location": {
+      "lat": 52.52,
+      "lon": 13.405
+     }
+    },
+    "timing": {
+     "birthUtcIso": "1979-11-23T02:05:00.000Z",
+     "designUtcIso": "1979-08-25T23:55:20.361Z",
+     "daysBeforeBirth": 89.09004211425781
+    },
+    "activations": [
+     {
+      "body": "Sun",
+      "side": "personality",
+      "longitude": 240.1759608905636,
+      "gate": 34,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Moon",
+      "side": "personality",
+      "longitude": 281.3681742332899,
+      "gate": 38,
+      "line": 2,
+      "boundaryFlag": true
+     },
+     {
+      "body": "Mercury",
+      "side": "personality",
+      "longitude": 233.52866286845256,
+      "gate": 43,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Venus",
+      "side": "personality",
+      "longitude": 263.1460252501653,
+      "gate": 11,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mars",
+      "side": "personality",
+      "longitude": 151.41513031814782,
+      "gate": 59,
+      "line": 2,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Jupiter",
+      "side": "personality",
+      "longitude": 158.49911764398348,
+      "gate": 40,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Saturn",
+      "side": "personality",
+      "longitude": 175.25343698918368,
+      "gate": 6,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Uranus",
+      "side": "personality",
+      "longitude": 231.84878646330526,
+      "gate": 43,
+      "line": 4,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Neptune",
+      "side": "personality",
+      "longitude": 259.4708755218526,
+      "gate": 26,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Pluto",
+      "side": "personality",
+      "longitude": 200.67046607214115,
+      "gate": 57,
+      "line": 6,
+      "boundaryFlag": false
+     },
+     {
+      "body": "NorthNode",
+      "side": "personality",
+      "longitude": 154.03198043781595,
+      "gate": 59,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Earth",
+      "side": "personality",
+      "longitude": 60.1759608905636,
+      "gate": 20,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "SouthNode",
+      "side": "personality",
+      "longitude": 334.03198043781595,
+      "gate": 55,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Sun",
+      "side": "design",
+      "longitude": 152.1760449243934,
+      "gate": 59,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Moon",
+      "side": "design",
+      "longitude": 187.77023455568008,
+      "gate": 18,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mercury",
+      "side": "design",
+      "longitude": 135.8297241098386,
+      "gate": 7,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Venus",
+      "side": "design",
+      "longitude": 152.30507715576607,
+      "gate": 59,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Mars",
+      "side": "design",
+      "longitude": 101.41054581349374,
+      "gate": 39,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Jupiter",
+      "side": "design",
+      "longitude": 142.7942008527706,
+      "gate": 4,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Saturn",
+      "side": "design",
+      "longitude": 165.30830447038034,
+      "gate": 64,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Uranus",
+      "side": "design",
+      "longitude": 227.32050638869669,
+      "gate": 1,
+      "line": 5,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Neptune",
+      "side": "design",
+      "longitude": 257.72475558882513,
+      "gate": 26,
+      "line": 1,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Pluto",
+      "side": "design",
+      "longitude": 197.3836823735096,
+      "gate": 57,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "NorthNode",
+      "side": "design",
+      "longitude": 158.44547531558783,
+      "gate": 40,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "Earth",
+      "side": "design",
+      "longitude": 332.1760449243934,
+      "gate": 55,
+      "line": 3,
+      "boundaryFlag": false
+     },
+     {
+      "body": "SouthNode",
+      "side": "design",
+      "longitude": 338.4454753155878,
+      "gate": 37,
+      "line": 3,
+      "boundaryFlag": false
+     }
+    ],
+    "type": "Manifesting Generator",
+    "authority": "Emotional",
+    "profile": "1/3",
+    "definition": {
+     "kind": "single",
+     "componentCount": 1,
+     "definedCenters": [
+      "Throat",
+      "Heart",
+      "Spleen",
+      "SolarPlexus",
+      "Sacral",
+      "Root"
+     ]
+    },
+    "centers": {
+     "defined": [
+      "Throat",
+      "Heart",
+      "Spleen",
+      "SolarPlexus",
+      "Sacral",
+      "Root"
+     ],
+     "open": [
+      "Head",
+      "Ajna",
+      "G"
+     ]
+    },
+    "channels": [
+     {
+      "id": "6-59",
+      "name": "Mating",
+      "gates": [
+       6,
+       59
+      ],
+      "centers": [
+       "SolarPlexus",
+       "Sacral"
+      ]
+     },
+     {
+      "id": "20-34",
+      "name": "Charisma",
+      "gates": [
+       20,
+       34
+      ],
+      "centers": [
+       "Throat",
+       "Sacral"
+      ]
+     },
+     {
+      "id": "20-57",
+      "name": "The Brainwave",
+      "gates": [
+       20,
+       57
+      ],
+      "centers": [
+       "Throat",
+       "Spleen"
+      ]
+     },
+     {
+      "id": "34-57",
+      "name": "Power",
+      "gates": [
+       34,
+       57
+      ],
+      "centers": [
+       "Sacral",
+       "Spleen"
+      ]
+     },
+     {
+      "id": "37-40",
+      "name": "Community",
+      "gates": [
+       37,
+       40
+      ],
+      "centers": [
+       "SolarPlexus",
+       "Heart"
+      ]
+     },
+     {
+      "id": "39-55",
+      "name": "Emoting",
+      "gates": [
+       39,
+       55
+      ],
+      "centers": [
+       "Root",
+       "SolarPlexus"
+      ]
+     }
+    ],
+    "incarnationCross": {
+     "gates": [
+      34,
+      20,
+      59,
+      55
+     ],
+     "angle": "Right Angle",
+     "status": "gates-only"
+    },
+    "validation": {
+     "overall": "validated",
+     "reasons": []
+    },
+    "warnings": [
+     "Sınır: personality.Moon (gate 38 line 2) gate/line sınırına çok yakın; doğum saati belirsizliği sonucu etkileyebilir."
+    ]
+   }
+  ],
+  "burc": [
+   "Koç",
+   "Koç",
+   "Boğa",
+   "Oğlak",
+   "Balık",
+   "Aslan"
+  ],
+  "ifade": [
+   {
+    "display": "1",
+    "key": "1",
+    "steps": [
+     "Tüm harflerin sayısal karşılığı: 1 + 7 + 1 + 5 + 7 + 9 + 3 + 4 + 1 + 8 = 46",
+     "Sadeleştirme: 46 → 10",
+     "Sadeleştirme: 10 → 1",
+     "Tek haneye düşüldü: 1"
+    ]
+   },
+   {
+    "display": "5",
+    "key": "5",
+    "steps": [
+     "Tüm harflerin sayısal karşılığı: 9 + 1 + 4 + 1 + 9 + 3 + 3 + 1 + 7 + 9 + 9 + 6 + 8 + 2 + 3 + 9 + 2 = 86",
+     "Sadeleştirme: 86 → 14",
+     "Sadeleştirme: 14 → 5",
+     "Tek haneye düşüldü: 5"
+    ]
+   },
+   {
+    "display": "9",
+    "key": "9",
+    "steps": [
+     "Tüm harflerin sayısal karşılığı: 7 + 3 + 3 + 1 + 5 + 5 + 9 + 1 + 9 + 2 = 45",
+     "Sadeleştirme: 45 → 9",
+     "Tek haneye düşüldü: 9"
+    ]
+   }
+  ],
+  "hayatYolu": [
+   {
+    "display": "35/8",
+    "key": "35/8",
+    "steps": [
+     "Doğum tarihindeki rakamlar: 1 + 9 + 8 + 5 + 0 + 7 + 1 + 4 = 35",
+     "Bir kez sadeleştirme: 35 → 3 + 5 = 8",
+     "Hayat Yolu / DM Kodu: 35/8"
+    ]
+   },
+   {
+    "display": "26/8",
+    "key": "26/8",
+    "steps": [
+     "Doğum tarihindeki rakamlar: 1 + 9 + 7 + 2 + 1 + 2 + 3 + 1 = 26",
+     "Bir kez sadeleştirme: 26 → 2 + 6 = 8",
+     "Hayat Yolu / DM Kodu: 26/8"
+    ]
+   },
+   {
+    "display": "15/6",
+    "key": "15/6",
+    "steps": [
+     "Doğum tarihindeki rakamlar: 2 + 0 + 0 + 1 + 0 + 2 + 2 + 8 = 15",
+     "Bir kez sadeleştirme: 15 → 1 + 5 = 6",
+     "Hayat Yolu / DM Kodu: 15/6"
+    ]
+   }
+  ],
+  "moon": [
+   {
+    "phase": {
+     "name": "Dolunay",
+     "emoji": "🌕"
+    },
+    "sign": {
+     "name": "Yengeç",
+     "emoji": "♋"
+    },
+    "illum": 100
+   },
+   {
+    "phase": {
+     "name": "Balsamik",
+     "emoji": "🌘"
+    },
+    "sign": {
+     "name": "İkizler",
+     "emoji": "♊"
+    },
+    "illum": 0
+   },
+   {
+    "phase": {
+     "name": "Şişen Ay",
+     "emoji": "🌔"
+    },
+    "sign": {
+     "name": "Başak",
+     "emoji": "♍"
+    },
+    "illum": 96
+   }
+  ],
+  "horary": [
+   {
+    "profile": {
+     "id": "lilly-1647",
+     "label": "William Lilly, Christian Astrology (1647) — yalnız tablo ve eşikler",
+     "unverified": [
+      "voc:apply-meaning"
+     ]
+    },
+    "methodology": {
+     "scoring": "lilly_ca115",
+     "radicality": "lilly_ca121",
+     "considerations": "lilly_ca121_123",
+     "inheritedFromLilly": [],
+     "houseSystem": "regiomontanus",
+     "ephemeris": "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)",
+     "orbVariant": "lilly_ca107_primary",
+     "orbs": {
+      "saturn": 10,
+      "jupiter": 12,
+      "mars": 7.5,
+      "sun": 17,
+      "venus": 8,
+      "mercury": 7,
+      "moon": 12.5
+     },
+     "houseVirtue": "lilly_ca_5deg_nearest_cusp",
+     "accidentalHouseBasis": "virtue"
+    },
+    "questionUtc": "2026-03-14T09:30:00.000Z",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "frame": {
+     "utcMs": 1773480600000,
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "obliquity": 23.438370997182233,
+     "ramc": 343.49776815709106,
+     "asc": 95.08121171306772,
+     "mc": 342.1047971069637
+    },
+    "houseSystem": "regiomontanus",
+    "cusps": [
+     95.08121171306772,
+     117.84623433697584,
+     137.95846974583912,
+     162.1047971069637,
+     197.9799245517188,
+     241.9983263638419,
+     275.08121171306766,
+     297.84623433697584,
+     317.9584697458391,
+     342.1047971069637,
+     17.97992455171874,
+     61.99832636384184
+    ],
+    "sect": {
+     "day": true,
+     "sunAltitude": 45.42815320523816,
+     "method": "geometric_altitude"
+    },
+    "planets": [
+     {
+      "planet": "saturn",
+      "lon": 3.3524722917726075,
+      "sign": "aries",
+      "degree": 3.3524722917725853,
+      "speed": 0.12374029157263067,
+      "retrograde": false,
+      "house": 10,
+      "degreesToNextCusp": 14.627452259946153,
+      "houseVirtue": {
+       "geometricHouse": 10,
+       "virtueHouse": 10,
+       "nearestCusp": 11,
+       "distanceToNearestCusp": 14.627452259946153,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 9.544827382815242,
+       "phase": "under_beams",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "saturn",
+       "sign": "aries",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": true,
+       "peregrine": true,
+       "score": -9,
+       "rulers": {
+        "domicile": "mars",
+        "exaltation": "sun",
+        "triplicity": "sun",
+        "participating": null,
+        "term": "jupiter",
+        "face": "mars"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_10",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "under_beams",
+         "points": -4,
+         "verified": true
+        }
+       ],
+       "total": 5,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "jupiter",
+      "lon": 105.1038967454437,
+      "sign": "cancer",
+      "degree": 15.103896745443706,
+      "speed": 0.010574309261301096,
+      "retrograde": false,
+      "house": 1,
+      "degreesToNextCusp": 12.742337591532134,
+      "houseVirtue": {
+       "geometricHouse": 1,
+       "virtueHouse": 1,
+       "nearestCusp": 1,
+       "distanceToNearestCusp": 10.022685032375989,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 111.29625183648636,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "jupiter",
+       "sign": "cancer",
+       "domicile": false,
+       "exaltation": true,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 4,
+       "rulers": {
+        "domicile": "moon",
+        "exaltation": "jupiter",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "mercury",
+        "face": "mercury"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_1",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "slow",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 10,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "mars",
+      "lon": 339.2963704446325,
+      "sign": "pisces",
+      "degree": 9.29637044463243,
+      "speed": 0.7872728892880332,
+      "retrograde": false,
+      "house": 9,
+      "degreesToNextCusp": 2.8084266623312146,
+      "houseVirtue": {
+       "geometricHouse": 9,
+       "virtueHouse": 10,
+       "nearestCusp": 10,
+       "distanceToNearestCusp": 2.808426662331158,
+       "shifted": true,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 14.511274464324856,
+       "phase": "under_beams",
+       "crossSign": false
+      },
+      "essential": {
+       "planet": "mars",
+       "sign": "pisces",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": true,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 3,
+       "rulers": {
+        "domicile": "jupiter",
+        "exaltation": "venus",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "jupiter",
+        "face": "saturn"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_10",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "oriental",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "under_beams",
+         "points": -4,
+         "verified": true
+        }
+       ],
+       "total": 9,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "sun",
+      "lon": 353.80764490895734,
+      "sign": "pisces",
+      "degree": 23.8076449089574,
+      "speed": 0.9973239347555136,
+      "retrograde": false,
+      "house": 10,
+      "degreesToNextCusp": 24.172279642761396,
+      "houseVirtue": {
+       "geometricHouse": 10,
+       "virtueHouse": 10,
+       "nearestCusp": 10,
+       "distanceToNearestCusp": 11.702847801993585,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": null,
+      "essential": {
+       "planet": "sun",
+       "sign": "pisces",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": true,
+       "score": -5,
+       "rulers": {
+        "domicile": "jupiter",
+        "exaltation": "venus",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "mars",
+        "face": "mars"
+       }
+      },
+      "mutualReception": [
+       {
+        "with": "venus",
+        "by": "exaltation",
+        "points": 4
+       }
+      ],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_10",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        }
+       ],
+       "total": 7,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "venus",
+      "lon": 9.876584447320813,
+      "sign": "aries",
+      "degree": 9.876584447320795,
+      "speed": 1.2409863406810473,
+      "retrograde": false,
+      "house": 10,
+      "degreesToNextCusp": 8.103340104397944,
+      "houseVirtue": {
+       "geometricHouse": 10,
+       "virtueHouse": 10,
+       "nearestCusp": 11,
+       "distanceToNearestCusp": 8.103340104397944,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 16.068939538363452,
+       "phase": "under_beams",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "venus",
+       "sign": "aries",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": true,
+       "face": false,
+       "detriment": true,
+       "fall": false,
+       "peregrine": false,
+       "score": -3,
+       "rulers": {
+        "domicile": "mars",
+        "exaltation": "sun",
+        "triplicity": "sun",
+        "participating": null,
+        "term": "venus",
+        "face": "mars"
+       }
+      },
+      "mutualReception": [
+       {
+        "with": "sun",
+        "by": "exaltation",
+        "points": 4
+       }
+      ],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_10",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "under_beams",
+         "points": -4,
+         "verified": true
+        }
+       ],
+       "total": 9,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "mercury",
+      "lon": 340.6205295829652,
+      "sign": "pisces",
+      "degree": 10.620529582965219,
+      "speed": -0.662521039672356,
+      "retrograde": true,
+      "house": 9,
+      "degreesToNextCusp": 1.4842675239984828,
+      "houseVirtue": {
+       "geometricHouse": 9,
+       "virtueHouse": 10,
+       "nearestCusp": 10,
+       "distanceToNearestCusp": 1.4842675239984828,
+       "shifted": true,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 13.187115325992181,
+       "phase": "under_beams",
+       "crossSign": false
+      },
+      "essential": {
+       "planet": "mercury",
+       "sign": "pisces",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": true,
+       "fall": true,
+       "peregrine": true,
+       "score": -14,
+       "rulers": {
+        "domicile": "jupiter",
+        "exaltation": "venus",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "jupiter",
+        "face": "jupiter"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_10",
+         "points": 5,
+         "verified": true
+        },
+        {
+         "key": "retrograde",
+         "points": -5,
+         "verified": true
+        },
+        {
+         "key": "slow",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "oriental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "under_beams",
+         "points": -4,
+         "verified": true
+        }
+       ],
+       "total": -8,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "moon",
+      "lon": 297.03382098769646,
+      "sign": "capricorn",
+      "degree": 27.03382098769646,
+      "speed": 12.404746295387667,
+      "retrograde": false,
+      "house": 7,
+      "degreesToNextCusp": 0.8124133492793817,
+      "houseVirtue": {
+       "geometricHouse": 7,
+       "virtueHouse": 8,
+       "nearestCusp": 8,
+       "distanceToNearestCusp": 0.8124133492793817,
+       "shifted": true,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 56.773823921260885,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "moon",
+       "sign": "capricorn",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": true,
+       "fall": false,
+       "peregrine": true,
+       "score": -10,
+       "rulers": {
+        "domicile": "saturn",
+        "exaltation": "mars",
+        "triplicity": "venus",
+        "participating": null,
+        "term": "saturn",
+        "face": "sun"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_8",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "slow",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "moon_decreasing",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": -1,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     }
+    ],
+    "receptions": [
+     {
+      "guest": "saturn",
+      "host": "jupiter",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "saturn",
+      "host": "mars",
+      "by": [
+       "domicile",
+       "face"
+      ]
+     },
+     {
+      "guest": "saturn",
+      "host": "sun",
+      "by": [
+       "exaltation",
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "mars",
+      "by": [
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "mercury",
+      "by": [
+       "term",
+       "face"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "moon",
+      "by": [
+       "domicile"
+      ]
+     },
+     {
+      "guest": "mars",
+      "host": "saturn",
+      "by": [
+       "face"
+      ]
+     },
+     {
+      "guest": "mars",
+      "host": "jupiter",
+      "by": [
+       "domicile",
+       "term"
+      ]
+     },
+     {
+      "guest": "mars",
+      "host": "venus",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "jupiter",
+      "by": [
+       "domicile"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "mars",
+      "by": [
+       "triplicity",
+       "term",
+       "face"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "venus",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "venus",
+      "host": "mars",
+      "by": [
+       "domicile",
+       "face"
+      ]
+     },
+     {
+      "guest": "venus",
+      "host": "sun",
+      "by": [
+       "exaltation",
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "jupiter",
+      "by": [
+       "domicile",
+       "term",
+       "face"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "mars",
+      "by": [
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "venus",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "saturn",
+      "by": [
+       "domicile",
+       "term"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "mars",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "sun",
+      "by": [
+       "face"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "venus",
+      "by": [
+       "triplicity"
+      ]
+     }
+    ],
+    "aspects": [
+     {
+      "a": "saturn",
+      "b": "sun",
+      "angle": 0,
+      "orb": 9.544827382815242,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": false,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "sun",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "saturn",
+      "b": "venus",
+      "angle": 0,
+      "orb": 6.52411215554821,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "saturn",
+      "b": "moon",
+      "angle": 60,
+      "orb": 6.318651304076184,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": false,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "moon",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "jupiter",
+      "b": "mars",
+      "angle": 120,
+      "orb": 5.807526300811219,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "mars",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "jupiter",
+      "b": "sun",
+      "angle": 120,
+      "orb": 8.703748163513637,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "jupiter",
+      "b": "venus",
+      "angle": 90,
+      "orb": 5.227312298122911,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "venus",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "jupiter",
+      "b": "mercury",
+      "angle": 120,
+      "orb": 4.483367162478544,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "jupiter",
+      "b": "moon",
+      "angle": 180,
+      "orb": 11.92992424225281,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "mars",
+      "b": "mercury",
+      "angle": 0,
+      "orb": 1.3241591383327886,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": true,
+       "bToward": true,
+       "approach": "mutual",
+       "applier": null,
+       "lillyApplication": "direct_and_retrograde"
+      }
+     },
+     {
+      "a": "sun",
+      "b": "moon",
+      "angle": 60,
+      "orb": 3.2261760787391722,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     }
+    ],
+    "moon": {
+     "sign": "capricorn",
+     "ingressUtc": "2026-03-14T15:13:25Z",
+     "last": {
+      "ms": 1773456082470.7031,
+      "atUtc": "2026-03-14T02:41:22Z",
+      "a": "moon",
+      "b": "sun",
+      "angle": 60,
+      "aLon": 293.52459376147806,
+      "bLon": 353.5246168310869,
+      "aSpeed": 12.32921115836325,
+      "bSpeed": 0.9974629031207769,
+      "aToward": true,
+      "bToward": false,
+      "approach": "a",
+      "applier": "moon",
+      "lillyApplication": "direct_swifter_to_slower",
+      "uncertaintySec": 84.71773096052232,
+      "inCurrentSign": true
+     },
+     "nextInSign": [],
+     "firstAfterIngress": {
+      "ms": 1773524791406.25,
+      "atUtc": "2026-03-14T21:46:31Z",
+      "a": "moon",
+      "b": "saturn",
+      "angle": 60,
+      "aLon": 303.41574899292357,
+      "bLon": 3.415788453075356,
+      "aSpeed": 12.552707703282977,
+      "bSpeed": 0.12384154753453913,
+      "aToward": true,
+      "bToward": false,
+      "approach": "a",
+      "applier": "moon",
+      "lillyApplication": "direct_swifter_to_slower",
+      "uncertaintySec": 77.23954767635769
+     },
+     "voidOfCourse": true,
+     "voidOfCourseWithOuter": false,
+     "applyingWithinMoieties": [
+      "saturn"
+     ],
+     "bodies": [
+      "saturn",
+      "jupiter",
+      "mars",
+      "sun",
+      "venus",
+      "mercury"
+     ]
+    },
+    "partOfFortune": {
+     "lon": 38.30738779180683,
+     "sign": "taurus",
+     "house": 11,
+     "formula": "lilly_same"
+    },
+    "planetaryHour": {
+     "dayRuler": "saturn",
+     "hourRuler": "mercury",
+     "hourNumber": 6,
+     "isDayHour": true,
+     "startUtc": "2026-03-14T09:14:18Z",
+     "endUtc": "2026-03-14T10:13:36Z",
+     "sunriseDefinition": "üst kenar + standart kırılma (astronomy-engine)"
+    },
+    "radicality": {
+     "ascRuler": "moon",
+     "hourRuler": "mercury",
+     "same": false,
+     "hourRulerRulesAscTriplicity": false,
+     "note": "CA s. 121: saat yöneticisi ile ASC yöneticisi aynı, aynı üçlüden ya da 'aynı doğadan' ise radikal. 'Aynı doğa' (sıcak/kuru vb.) tablosu bu katmanda yok → uzman değerlendirir."
+    },
+    "considerations": [
+     {
+      "key": "moon_void_of_course",
+      "evidence": "burç girişi 2026-03-14T15:13:25Z;"
+     },
+     {
+      "key": "lord7_afflicted",
+      "evidence": "saturn: düşüş (CA s. 122–123)"
+     }
+    ],
+    "consistency": null
+   },
+   {
+    "profile": {
+     "id": "lilly-1647",
+     "label": "William Lilly, Christian Astrology (1647) — yalnız tablo ve eşikler",
+     "unverified": [
+      "voc:apply-meaning"
+     ]
+    },
+    "methodology": {
+     "scoring": "lilly_ca115",
+     "radicality": "lilly_ca121",
+     "considerations": "lilly_ca121_123",
+     "inheritedFromLilly": [],
+     "houseSystem": "regiomontanus",
+     "ephemeris": "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)",
+     "orbVariant": "lilly_ca107_primary",
+     "orbs": {
+      "saturn": 10,
+      "jupiter": 12,
+      "mars": 7.5,
+      "sun": 17,
+      "venus": 8,
+      "mercury": 7,
+      "moon": 12.5
+     },
+     "houseVirtue": "lilly_ca_5deg_nearest_cusp",
+     "accidentalHouseBasis": "virtue"
+    },
+    "questionUtc": "2025-10-02T21:15:00.000Z",
+    "latitude": 51.5072,
+    "longitude": -0.1276,
+    "frame": {
+     "utcMs": 1759439700000,
+     "latitude": 51.5072,
+     "longitude": -0.1276,
+     "obliquity": 23.43854839033174,
+     "ramc": 330.46289332300034,
+     "asc": 93.14987354535214,
+     "mc": 328.30106790009313
+    },
+    "houseSystem": "regiomontanus",
+    "cusps": [
+     93.14987354535214,
+     113.7784150845531,
+     129.6854797677223,
+     148.30106790009313,
+     180.6935740378159,
+     234.7981880731877,
+     273.1498735453522,
+     293.7784150845531,
+     309.6854797677223,
+     328.30106790009313,
+     0.6935740378158926,
+     54.7981880731877
+    ],
+    "sect": {
+     "day": false,
+     "sunAltitude": -32.58484512725929,
+     "method": "geometric_altitude"
+    },
+    "planets": [
+     {
+      "planet": "saturn",
+      "lon": 357.61376430509,
+      "sign": "pisces",
+      "degree": 27.613764305089944,
+      "speed": -0.07478980438418148,
+      "retrograde": true,
+      "house": 10,
+      "degreesToNextCusp": 3.0798097327258915,
+      "houseVirtue": {
+       "geometricHouse": 10,
+       "virtueHouse": 11,
+       "nearestCusp": 11,
+       "distanceToNearestCusp": 3.0798097327258347,
+       "shifted": true,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 167.68062908405614,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "saturn",
+       "sign": "pisces",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": true,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 2,
+       "rulers": {
+        "domicile": "jupiter",
+        "exaltation": "venus",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "saturn",
+        "face": "mars"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_11",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "retrograde",
+         "points": -5,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 4,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "jupiter",
+      "lon": 112.688431619179,
+      "sign": "cancer",
+      "degree": 22.688431619179028,
+      "speed": 0.11749553535901214,
+      "retrograde": false,
+      "house": 1,
+      "degreesToNextCusp": 1.0899834653740754,
+      "houseVirtue": {
+       "geometricHouse": 1,
+       "virtueHouse": 2,
+       "nearestCusp": 2,
+       "distanceToNearestCusp": 1.0899834653740754,
+       "shifted": true,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 77.2447036018549,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "jupiter",
+       "sign": "cancer",
+       "domicile": false,
+       "exaltation": true,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 4,
+       "rulers": {
+        "domicile": "moon",
+        "exaltation": "jupiter",
+        "triplicity": "mars",
+        "participating": null,
+        "term": "venus",
+        "face": "moon"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_2",
+         "points": 3,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "oriental",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 16,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "mars",
+      "lon": 217.15002939064638,
+      "sign": "scorpio",
+      "degree": 7.150029390646409,
+      "speed": 0.6827456369805986,
+      "retrograde": false,
+      "house": 5,
+      "degreesToNextCusp": 17.648158682541293,
+      "houseVirtue": {
+       "geometricHouse": 5,
+       "virtueHouse": 5,
+       "nearestCusp": 6,
+       "distanceToNearestCusp": 17.648158682541293,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 27.216894169612488,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "mars",
+       "sign": "scorpio",
+       "domicile": true,
+       "exaltation": false,
+       "triplicity": true,
+       "term": false,
+       "face": true,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 9,
+       "rulers": {
+        "domicile": "mars",
+        "exaltation": null,
+        "triplicity": "mars",
+        "participating": null,
+        "term": "jupiter",
+        "face": "mars"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_5",
+         "points": 3,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 12,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "sun",
+      "lon": 189.9331352210339,
+      "sign": "libra",
+      "degree": 9.933135221033922,
+      "speed": 0.9838082107144146,
+      "retrograde": false,
+      "house": 5,
+      "degreesToNextCusp": 44.86505285215378,
+      "houseVirtue": {
+       "geometricHouse": 5,
+       "virtueHouse": 5,
+       "nearestCusp": 5,
+       "distanceToNearestCusp": 9.23956118321803,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": null,
+      "essential": {
+       "planet": "sun",
+       "sign": "libra",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": true,
+       "peregrine": true,
+       "score": -9,
+       "rulers": {
+        "domicile": "venus",
+        "exaltation": "saturn",
+        "triplicity": "mercury",
+        "participating": null,
+        "term": "venus",
+        "face": "moon"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_5",
+         "points": 3,
+         "verified": true
+        },
+        {
+         "key": "slow",
+         "points": -2,
+         "verified": true
+        }
+       ],
+       "total": 1,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "venus",
+      "lon": 166.3928958205896,
+      "sign": "virgo",
+      "degree": 16.392895820589615,
+      "speed": 1.2325743073452031,
+      "retrograde": false,
+      "house": 4,
+      "degreesToNextCusp": 14.300678217226277,
+      "houseVirtue": {
+       "geometricHouse": 4,
+       "virtueHouse": 4,
+       "nearestCusp": 5,
+       "distanceToNearestCusp": 14.300678217226277,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 23.540239400444307,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "venus",
+       "sign": "virgo",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": true,
+       "detriment": false,
+       "fall": true,
+       "peregrine": false,
+       "score": -3,
+       "rulers": {
+        "domicile": "mercury",
+        "exaltation": "mercury",
+        "triplicity": "moon",
+        "participating": null,
+        "term": "jupiter",
+        "face": "venus"
+       }
+      },
+      "mutualReception": [
+       {
+        "with": "mercury",
+        "by": "domicile",
+        "points": 5
+       }
+      ],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_4",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "oriental",
+         "points": -2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 13,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "mercury",
+      "lon": 204.15381919149436,
+      "sign": "libra",
+      "degree": 24.153819191494335,
+      "speed": 1.560627601681972,
+      "retrograde": false,
+      "house": 5,
+      "degreesToNextCusp": 30.644368881693367,
+      "houseVirtue": {
+       "geometricHouse": 5,
+       "virtueHouse": 5,
+       "nearestCusp": 5,
+       "distanceToNearestCusp": 23.460245153678443,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 14.220683970460414,
+       "phase": "under_beams",
+       "crossSign": false
+      },
+      "essential": {
+       "planet": "mercury",
+       "sign": "libra",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": true,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": false,
+       "score": 3,
+       "rulers": {
+        "domicile": "venus",
+        "exaltation": "saturn",
+        "triplicity": "mercury",
+        "participating": null,
+        "term": "mars",
+        "face": "jupiter"
+       }
+      },
+      "mutualReception": [
+       {
+        "with": "venus",
+        "by": "domicile",
+        "points": 5
+       }
+      ],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_5",
+         "points": 3,
+         "verified": true
+        },
+        {
+         "key": "direct",
+         "points": 4,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "occidental",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "under_beams",
+         "points": -4,
+         "verified": true
+        }
+       ],
+       "total": 7,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     },
+     {
+      "planet": "moon",
+      "lon": 313.7709469154877,
+      "sign": "aquarius",
+      "degree": 13.770946915487684,
+      "speed": 13.232221529302478,
+      "retrograde": false,
+      "house": 9,
+      "degreesToNextCusp": 14.530120984605446,
+      "houseVirtue": {
+       "geometricHouse": 9,
+       "virtueHouse": 9,
+       "nearestCusp": 9,
+       "distanceToNearestCusp": 4.085467147765371,
+       "shifted": false,
+       "ambiguous": false,
+       "rule": "lilly_ca_5deg_nearest_cusp"
+      },
+      "solar": {
+       "distance": 123.83781169445376,
+       "phase": "free",
+       "crossSign": true
+      },
+      "essential": {
+       "planet": "moon",
+       "sign": "aquarius",
+       "domicile": false,
+       "exaltation": false,
+       "triplicity": false,
+       "term": false,
+       "face": false,
+       "detriment": false,
+       "fall": false,
+       "peregrine": true,
+       "score": -5,
+       "rulers": {
+        "domicile": "saturn",
+        "exaltation": null,
+        "triplicity": "mercury",
+        "participating": null,
+        "term": "venus",
+        "face": "mercury"
+       }
+      },
+      "mutualReception": [],
+      "accidental": {
+       "items": [
+        {
+         "key": "house_9",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "swift",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "moon_increasing",
+         "points": 2,
+         "verified": true
+        },
+        {
+         "key": "free_from_combustion",
+         "points": 5,
+         "verified": true
+        }
+       ],
+       "total": 11,
+       "excludedUnverified": 0,
+       "scheme": "lilly_ca115"
+      }
+     }
+    ],
+    "receptions": [
+     {
+      "guest": "saturn",
+      "host": "jupiter",
+      "by": [
+       "domicile"
+      ]
+     },
+     {
+      "guest": "saturn",
+      "host": "mars",
+      "by": [
+       "triplicity",
+       "face"
+      ]
+     },
+     {
+      "guest": "saturn",
+      "host": "venus",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "mars",
+      "by": [
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "venus",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "jupiter",
+      "host": "moon",
+      "by": [
+       "domicile",
+       "face"
+      ]
+     },
+     {
+      "guest": "mars",
+      "host": "jupiter",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "saturn",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "venus",
+      "by": [
+       "domicile",
+       "term"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "mercury",
+      "by": [
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "sun",
+      "host": "moon",
+      "by": [
+       "face"
+      ]
+     },
+     {
+      "guest": "venus",
+      "host": "jupiter",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "venus",
+      "host": "mercury",
+      "by": [
+       "domicile",
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "venus",
+      "host": "moon",
+      "by": [
+       "triplicity"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "saturn",
+      "by": [
+       "exaltation"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "jupiter",
+      "by": [
+       "face"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "mars",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "mercury",
+      "host": "venus",
+      "by": [
+       "domicile"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "saturn",
+      "by": [
+       "domicile"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "venus",
+      "by": [
+       "term"
+      ]
+     },
+     {
+      "guest": "moon",
+      "host": "mercury",
+      "by": [
+       "triplicity",
+       "face"
+      ]
+     }
+    ],
+    "aspects": [
+     {
+      "a": "saturn",
+      "b": "jupiter",
+      "angle": 120,
+      "orb": 4.92533268591103,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": true,
+       "bToward": true,
+       "approach": "mutual",
+       "applier": null,
+       "lillyApplication": "direct_and_retrograde"
+      }
+     },
+     {
+      "a": "saturn",
+      "b": "sun",
+      "angle": 180,
+      "orb": 12.319370915943864,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": false,
+      "roles": null
+     },
+     {
+      "a": "jupiter",
+      "b": "sun",
+      "angle": 90,
+      "orb": 12.755296398145106,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "sun",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "jupiter",
+      "b": "venus",
+      "angle": 60,
+      "orb": 6.2955357985894125,
+      "applying": true,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": {
+       "aToward": false,
+       "bToward": true,
+       "approach": "b",
+       "applier": "venus",
+       "lillyApplication": "direct_swifter_to_slower"
+      }
+     },
+     {
+      "a": "jupiter",
+      "b": "mercury",
+      "angle": 90,
+      "orb": 1.4653875723154215,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "mars",
+      "b": "moon",
+      "angle": 90,
+      "orb": 6.620917524841275,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     },
+     {
+      "a": "sun",
+      "b": "moon",
+      "angle": 120,
+      "orb": 3.8378116944537624,
+      "applying": false,
+      "withinMoieties": true,
+      "bySign": true,
+      "roles": null
+     }
+    ],
+    "moon": {
+     "sign": "aquarius",
+     "ingressUtc": "2025-10-04T02:06:58Z",
+     "last": {
+      "ms": 1759412481591.7969,
+      "atUtc": "2025-10-02T13:41:22Z",
+      "a": "moon",
+      "b": "sun",
+      "angle": 120,
+      "aLon": 309.62323674337085,
+      "bLon": 189.62323226174365,
+      "aSpeed": 13.100805030237098,
+      "bSpeed": 0.9836556871746325,
+      "aToward": true,
+      "bToward": false,
+      "approach": "a",
+      "applier": "moon",
+      "lillyApplication": "direct_swifter_to_slower",
+      "uncertaintySec": 79.22655509314465,
+      "inCurrentSign": true
+     },
+     "nextInSign": [
+      {
+       "ms": 1759515296923.8281,
+       "atUtc": "2025-10-03T18:14:57Z",
+       "a": "moon",
+       "b": "mercury",
+       "angle": 120,
+       "aLon": 325.513995344547,
+       "bLon": 205.51398889413645,
+       "aSpeed": 13.613038765285637,
+       "bSpeed": 1.548483090917216,
+       "aToward": true,
+       "bToward": false,
+       "approach": "a",
+       "applier": "moon",
+       "lillyApplication": "direct_swifter_to_slower",
+       "uncertaintySec": 79.57193169074219
+      }
+     ],
+     "firstAfterIngress": {
+      "ms": 1759595768261.7188,
+      "atUtc": "2025-10-04T16:36:08Z",
+      "a": "moon",
+      "b": "mars",
+      "angle": 120,
+      "aLon": 338.3849362966553,
+      "bLon": 218.38493785425038,
+      "aSpeed": 14.023819199235732,
+      "bSpeed": 0.6845576346868256,
+      "aToward": true,
+      "bToward": false,
+      "approach": "a",
+      "applier": "moon",
+      "lillyApplication": "direct_swifter_to_slower",
+      "uncertaintySec": 71.96800177840012
+     },
+     "voidOfCourse": false,
+     "voidOfCourseWithOuter": false,
+     "applyingWithinMoieties": [],
+     "bodies": [
+      "saturn",
+      "jupiter",
+      "mars",
+      "sun",
+      "venus",
+      "mercury"
+     ]
+    },
+    "partOfFortune": {
+     "lon": 216.98768523980596,
+     "sign": "scorpio",
+     "house": 5,
+     "formula": "lilly_same"
+    },
+    "planetaryHour": {
+     "dayRuler": "jupiter",
+     "hourRuler": "mars",
+     "hourNumber": 16,
+     "isDayHour": false,
+     "startUtc": "2025-10-02T20:42:50Z",
+     "endUtc": "2025-10-02T21:45:16Z",
+     "sunriseDefinition": "üst kenar + standart kırılma (astronomy-engine)"
+    },
+    "radicality": {
+     "ascRuler": "moon",
+     "hourRuler": "mars",
+     "same": false,
+     "hourRulerRulesAscTriplicity": true,
+     "note": "CA s. 121: saat yöneticisi ile ASC yöneticisi aynı, aynı üçlüden ya da 'aynı doğadan' ise radikal. 'Aynı doğa' (sıcak/kuru vb.) tablosu bu katmanda yok → uzman değerlendirir."
+    },
+    "considerations": [
+     {
+      "key": "lord7_afflicted",
+      "evidence": "saturn: geri (CA s. 122–123)"
+     }
+    ],
+    "consistency": null
+   }
+  ]
+ }
+}

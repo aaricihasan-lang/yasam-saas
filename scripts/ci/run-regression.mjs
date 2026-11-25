@@ -42,6 +42,13 @@ const KANAL_BEKLEME_MS = 5000;
 const SECRET_ENV = /(SUPABASE|ROXY|SERVICE_ROLE|DATABASE_URL|POSTGRES_URL|API_KEY|_TOKEN|TOKEN_|SECRET|PASSWORD|ANTHROPIC|OPENAI|GEMINI|DEEPL|GOOGLE_|VERCEL|INNGEST|RESEND|SMTP|AWS_|STRIPE|IYZICO|GH_|GITHUB_TOKEN|NPM_TOKEN)/i;
 const KORUNAN_YOL_RE = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji|nkb|cosmic)|\/(hd|human-design|numeroloji)-|\/(astro|astroloji|hd|numeroloji)\//i;
 const ERTELENEN_YOL_RE = /backup|usage-?360|hday/i;
+/**
+ * I18N-F1-R1 — DAR KAPSAMLI, SALT OKUNUR korunan alan istisnası (Owner kararı 2026-11-24, madde 6).
+ * Yalnız TAM dosya yolu eşleşmesi; joker / regex yok. Bu testler korunan hesaplama koduna (HD / Atlas / Numeroloji /
+ * Kozmik) YAZMAZ, ağ / DB / sır kullanmaz; yalnız aynı kanonik girdilerle TR ve EN koşullarında sonuçların birebir
+ * aynı olduğunu doğrular. Genel koruma kuralı (KORUNAN_YOL_RE) DEĞİŞMEDİ; listeye ekleme yalnız Owner onayıyla.
+ */
+export const KORUNAN_SALT_OKUNUR_ISTISNA = new Set(["scripts/i18n/calc-invariance.harness.ts"]);
 
 function cleanEnv(extra) {
   const env = {};
@@ -137,7 +144,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
 }
 
 function runTest(t) {
-  if (KORUNAN_YOL_RE.test(t.file)) return Promise.resolve({ refused: "korunan alan (HD/Atlas/Numeroloji/Kozmik) — çalıştırma yasağı" });
+  if (KORUNAN_YOL_RE.test(t.file) && !KORUNAN_SALT_OKUNUR_ISTISNA.has(t.file)) return Promise.resolve({ refused: "korunan alan (HD/Atlas/Numeroloji/Kozmik) — çalıştırma yasağı" });
   if (ERTELENEN_YOL_RE.test(t.file)) return Promise.resolve({ refused: "ertelenen grup (Backup/Usage360/HDAY) — çalıştırma yasağı" });
   return new Promise((resolve) => {
     const netLog = path.join(os.tmpdir(), `ci-net-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.log`);

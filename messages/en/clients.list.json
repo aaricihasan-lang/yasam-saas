@@ -96,6 +96,7 @@
         "daysLater": "in {n} days"
       },
       "toast": {
+        "bulkNoun": "clients",
         "sessionWarningTitle": "Session warning",
         "noSession": "Session not found. Please sign in again.",
         "noTenant": "Your account has no workspace (tenant) information.",
@@ -120,7 +121,7 @@
         "exportError": "Report could not be generated",
         "unknownError": "Unknown error",
         "deleteUnlinked": "Numerology, Human Design, Reflexology and Bioenergy records are not linked to clients; delete them separately.",
-        "deleteRequireLabel": "Type “SİL” to confirm:",
+        "deleteRequireLabel": "Type “DELETE” to confirm:",
         "deleteFailedTitle": "Some clients could not be deleted",
         "deleteFailedNames": "Not deleted (kept selected): {names}"
       },

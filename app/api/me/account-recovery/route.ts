@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { jsonNoStore, verifySelfSessionRequest } from "@/lib/auth/sessionModel";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { isMfaChallengeId } from "@/lib/auth/mfaChallenge";
@@ -21,12 +23,13 @@ export const runtime = "nodejs";
  * Demo hesabında yazma kapalı.
  */
 export async function GET(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   const { data, error } = await guard.db.rpc("auth_recovery_status", { p_actor_token: guard.token });
-  if (error) return jsonNoStore({ error: "Kurtarma durumu okunamadı." }, 500);
+  if (error) return jsonNoStore({ error: te("accountRecovery.readFailed") }, 500);
   const r = (data ?? {}) as Record<string, unknown>;
-  if (r.ok !== true) return jsonNoStore({ error: "Oturum doğrulanamadı." }, 401);
+  if (r.ok !== true) return jsonNoStore({ error: te("common.sessionUnverified") }, 401);
   return jsonNoStore({
     codesActive: Number(r.codes_active) || 0,
     generatedAt: r.codes_generated_at ?? null,
@@ -41,6 +44,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.isDemo) return demoReadOnlyResponse();
@@ -54,34 +58,34 @@ export async function POST(req: NextRequest) {
       p_actor_token: guard.token,
       p_code_hashes: codes.map((c) => hashRecoveryCode(guard.userId, c)),
     });
-    if (error) return jsonNoStore({ error: "Kurtarma kodları oluşturulamadı." }, 500);
+    if (error) return jsonNoStore({ error: te("accountRecovery.createFailed") }, 500);
     const r = (data ?? {}) as { ok?: unknown; code?: unknown; revoked?: unknown };
     if (r.ok !== true) {
-      if (r.code === "rate_limited") return jsonNoStore({ code: "RATE_LIMITED", error: "Son 24 saatte en fazla 3 kez kod oluşturabilirsiniz." }, 429);
+      if (r.code === "rate_limited") return jsonNoStore({ code: "RATE_LIMITED", error: te("accountRecovery.rateLimited") }, 429);
       if (r.code === "strong_mfa_required") {
-        return jsonNoStore({ code: "STRONG_MFA_REQUIRED", error: "Telefonunuz kayıtlı olduğu için kurtarma kodları yalnız telefonla (QR) açılmış bir oturumda oluşturulabilir." }, 403);
+        return jsonNoStore({ code: "STRONG_MFA_REQUIRED", error: te("accountRecovery.strongMfaRequired") }, 403);
       }
       if (r.code === "forbidden") {
-        return jsonNoStore({ code: "MFA_SESSION_REQUIRED", error: "Kurtarma kodları yalnız ikinci doğrulamayla açılmış bir oturumda oluşturulabilir." }, 403);
+        return jsonNoStore({ code: "MFA_SESSION_REQUIRED", error: te("accountRecovery.mfaSessionRequired") }, 403);
       }
-      return jsonNoStore({ error: "Kurtarma kodları oluşturulamadı." }, 400);
+      return jsonNoStore({ error: te("accountRecovery.createFailed") }, 400);
     }
-    await sendSecurityNotice(guard.db, { userId: guard.userId, to: step.email, name: step.name, kind: "recovery_codes_generated" });
+    await sendSecurityNotice(guard.db, { userId: guard.userId, to: step.email, name: step.name, kind: "recovery_codes_generated", locale: resolveOutputLocale(req).locale });
     return jsonNoStore({ codes: codes.map(formatRecoveryCode), revoked: Number(r.revoked) || 0 }, 200);
   }
 
   if (body?.action === "cancel_case") {
     const caseId = typeof body.caseId === "string" ? body.caseId.trim() : "";
-    if (!isMfaChallengeId(caseId)) return jsonNoStore({ error: "Geçersiz talep." }, 400);
+    if (!isMfaChallengeId(caseId)) return jsonNoStore({ error: te("accountRecovery.invalidCase") }, 400);
     const { data, error } = await guard.db.rpc("auth_recovery_case_close", {
       p_actor_token: guard.token, p_case_id: caseId, p_action: "cancel", p_reason: "Hesap sahibi iptal etti",
     });
-    if (error) return jsonNoStore({ error: "Talep iptal edilemedi." }, 500);
+    if (error) return jsonNoStore({ error: te("accountRecovery.cancelFailed") }, 500);
     const r = (data ?? {}) as { ok?: unknown; code?: unknown };
     if (r.ok !== true) {
       return jsonNoStore(r.code === "forbidden"
-        ? { code: "MFA_SESSION_REQUIRED", error: "Talebi iptal etmek için ikinci doğrulamayla giriş yapmış olmalısınız." }
-        : { error: "Talep bulunamadı veya artık beklemede değil." }, r.code === "forbidden" ? 403 : 404);
+        ? { code: "MFA_SESSION_REQUIRED", error: te("accountRecovery.cancelNeedsMfa") }
+        : { error: te("accountRecovery.caseNotFound") }, r.code === "forbidden" ? 403 : 404);
     }
     return jsonNoStore({ ok: true }, 200);
   }
@@ -90,17 +94,17 @@ export async function POST(req: NextRequest) {
     const step = await reconfirmPassword(guard.db, req, guard.userId, body.password);
     if (!step.ok) return jsonNoStore(step.body, step.status);
     const { data, error } = await guard.db.rpc("auth_owner_offline_bootstrap", { p_actor_token: guard.token });
-    if (error) return jsonNoStore({ error: "Eşleştirme kodu üretilemedi." }, 500);
+    if (error) return jsonNoStore({ error: te("accountRecovery.pairingCodeFailed") }, 500);
     const r = (data ?? {}) as { ok?: unknown; code?: unknown; expires_at?: unknown };
     if (r.ok !== true) {
-      const msg = r.code === "stale_session" ? "Bu işlem çevrimdışı kodla girişten sonraki 30 dakika içinde yapılabilir. Yeniden giriş yapın."
-        : r.code === "already_issued" ? "Bu oturum için eşleştirme kodu zaten üretildi."
-          : "Bu işlem yalnız Owner'ın çevrimdışı kurtarma koduyla açtığı oturumda yapılabilir.";
+      const msg = r.code === "stale_session" ? te("accountRecovery.staleSession")
+        : r.code === "already_issued" ? te("accountRecovery.alreadyIssued")
+          : te("accountRecovery.ownerOfflineOnly");
       return jsonNoStore({ code: String(r.code ?? "forbidden").toUpperCase(), error: msg }, 403);
     }
     const code = String(r.code ?? "");
     return jsonNoStore({ code: code.match(/.{1,4}/g)?.join("-") ?? code, expiresAt: r.expires_at ?? null }, 200);
   }
 
-  return jsonNoStore({ error: "Geçersiz işlem." }, 400);
+  return jsonNoStore({ error: te("common.invalidAction") }, 400);
 }

@@ -1,0 +1,42 @@
+{
+  "clients": {
+    "consent": {
+      "title": "KVKK Aydınlatma ve Onam",
+      "sectionAria": "KVKK aydınlatma ve onam kayıtları",
+      "intro": "Danışanınıza yaptığınız aydınlatmayı ve aldığınız izinleri kayıt altına alın. Kayıtlar değiştirilemez; geri çekme yeni bir kayıt olarak eklenir.",
+      "loading": "Yükleniyor…",
+      "retry": "Yeniden dene",
+      "noRecord": "Kayıt yok",
+      "demoNotice": "Demo hesabında onam kaydı eklenemez.",
+      "fieldType": "Kayıt türü",
+      "fieldStatus": "Durum",
+      "fieldMethod": "Alınma yöntemi",
+      "fieldNote": "Not (isteğe bağlı — sağlık bilgisi yazmayın)",
+      "saving": "Kaydediliyor…",
+      "submit": "Kaydı ekle",
+      "defer": "Sonra tamamla",
+      "sampleNotice": "Örnek aydınlatma metni",
+      "saved": "Kaydedildi.",
+      "history": "Kayıt geçmişi ({count})",
+      "historyEmpty": "Henüz kayıt yok.",
+      "errorNotReady": "KVKK onam kaydı henüz etkin değil.",
+      "errorLoad": "Onam kayıtları yüklenemedi.",
+      "errorSave": "Kayıt eklenemedi. Lütfen tekrar deneyin.",
+      "badgeUnavailable": "KVKK durumu alınamadı",
+      "badgeTitle": "KVKK aydınlatma / açık rıza kaydı durumu",
+      "badgeNone": "KVKK kaydı yok",
+      "badgeOk": "KVKK: aydınlatma + açık rıza kayıtlı",
+      "badgeMissing": "KVKK eksik: {missing}",
+      "missingInformed": "aydınlatma",
+      "missingExplicit": "açık rıza",
+      "type": {
+        "aydinlatma_bildirildi": { "label": "Aydınlatma metni bildirildi", "help": "Danışana kişisel verilerinin nasıl işlendiği anlatıldı (KVKK m.10)." },
+        "acik_riza_ozel_nitelikli": { "label": "Özel nitelikli veri için açık rıza", "help": "Sağlık vb. özel nitelikli kişisel verilerin işlenmesine açık rıza (KVKK m.6)." },
+        "acik_riza_yurtdisi_aktarim": { "label": "Yurt dışına aktarım için açık rıza", "help": "Verilerin yurt dışındaki altyapı sağlayıcılarında işlenmesine ilişkin rıza (KVKK m.9)." },
+        "iletisim_izni": { "label": "İletişim izni", "help": "Randevu hatırlatma vb. amaçlarla danışanla iletişime geçme izni." }
+      },
+      "status": { "granted": "Verildi", "refused": "Reddedildi", "withdrawn": "Geri çekildi", "pending": "Bekliyor" },
+      "method": { "islak_imza": "Islak imza (kâğıt form)", "uygulama_onay": "Uygulama içi onay", "sozlu_kayit": "Sözlü (kayıt altına alındı)", "diger": "Diğer" }
+    }
+  }
+}

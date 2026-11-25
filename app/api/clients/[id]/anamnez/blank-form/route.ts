@@ -7,6 +7,7 @@ import { buildBlankAnamnesisPdf } from "@/lib/danisan/anamnez/blankFormPdf";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { asciiSlug } from "@/lib/danisan/anamnez/format";
 import { CURRENT_TEMPLATE_VERSION, isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
+import { effectiveLocale } from "@/lib/i18n/gate";
 import { validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import {
   anamnezError,
@@ -42,7 +43,9 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
   const client = await loadClientInTenant(db, tenantId, clientId);
   if (!client) return notFound();
 
-  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? req.cookies.get("NEXT_LOCALE")?.value);
+  // I18N-F1: yayın kapısı kapalıyken (production) eski NEXT_LOCALE=en çerezi yok sayılır. Açık ?locale=
+  // parametresi bilinçli API isteğidir (arayüz kapı kapalıyken zaten "tr" gönderir).
+  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? effectiveLocale(req.cookies.get("NEXT_LOCALE")?.value));
   const aid = req.nextUrl.searchParams.get("aid");
   let version = CURRENT_TEMPLATE_VERSION;
   let formCustom: FormCustom | null = null;

@@ -1,0 +1,134 @@
+{
+  "auth": {
+    "server": {
+      "common": {
+        "forbiddenOrigin": "İstek kaynağı doğrulanamadı.",
+        "emailNotInScope": "E-posta ile doğrulama ve adres değişikliği bu hesap için henüz açılmadı.",
+        "tooManyAttempts": "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.",
+        "invalidOrExpiredRelogin": "Giriş isteği geçersiz veya süresi dolmuş. Lütfen yeniden giriş yapın.",
+        "sessionCreateFailed": "Oturum oluşturulamadı.",
+        "inactiveContactAdmin": "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin.",
+        "inactive": "Hesabınız pasif durumda.",
+        "noRole": "Hesabınız için geçerli bir rol tanımlı değil.",
+        "pending": "Hesabınız yönetici onayı bekliyor.",
+        "sessionUnverified": "Oturum doğrulanamadı.",
+        "invalidAction": "Geçersiz işlem.",
+        "invalidRequest": "Geçersiz istek.",
+        "codeVerifyFailed": "Kod doğrulanamadı.",
+        "codeSendFailed": "Kod gönderilemedi.",
+        "codeWrong": "Kod hatalı.",
+        "attemptsLeft": " Kalan deneme: {count}.",
+        "waitBeforeNewCode": "Yeni kod istemeden önce biraz bekleyin.",
+        "emailMethodUnavailable": "E-posta ile doğrulama şu anda kullanılamıyor.",
+        "deviceNotFound": "Cihaz bulunamadı.",
+        "invalidDevice": "Geçersiz cihaz.",
+        "emailAddressUnavailable": "Bu e-posta adresi kullanılamıyor."
+      },
+      "complete": {
+        "rejected": "Doğrulama tamamlanamadı. Lütfen yeniden giriş yapın.",
+        "unavailable": "Doğrulama şu anda tamamlanamıyor."
+      },
+      "emailSend": {
+        "tooMany": "Bu giriş için en fazla 3 kod gönderilebilir. Lütfen yeniden giriş yapın veya QR ile onaylayın.",
+        "rateLimited": "Çok fazla kod istendi. Lütfen daha sonra tekrar deneyin veya QR ile onaylayın.",
+        "quotaExhausted": "E-posta ile doğrulama şu anda kullanılamıyor. Lütfen QR ile onaylayın veya daha sonra tekrar deneyin.",
+        "sendFailed": "Kod e-postayla gönderilemedi. Lütfen QR ile onaylayın veya biraz sonra tekrar deneyin.",
+        "emailUnverified": "E-posta adresiniz henüz doğrulanmadı; bu yöntem kullanılamaz."
+      },
+      "emailVerify": {
+        "invalid": "Giriş isteği geçersiz. Lütfen yeniden giriş yapın.",
+        "expired": "Kodun süresi doldu. Yeni kod isteyin.",
+        "none": "Geçerli bir kod yok. Yeni kod isteyin.",
+        "locked": "Kod 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın."
+      },
+      "qr": {
+        "invalid": "Bu giriş isteği geçersiz veya süresi dolmuş."
+      },
+      "recovery": {
+        "wrong": "Kurtarma kodu geçersiz veya daha önce kullanılmış.",
+        "locked": "Kurtarma kodu 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın.",
+        "rateLimited24h": "Son 24 saatte çok fazla hatalı kurtarma kodu girildi. Lütfen daha sonra tekrar deneyin veya sistem yöneticinize başvurun."
+      },
+      "deviceBind": {
+        "invalid": "Oturum cihaz kanıtı geçersiz veya süresi dolmuş."
+      },
+      "session": {
+        "authRequired": "Kimlik doğrulama gerekli.",
+        "loginUnavailable": "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin.",
+        "tooManyOpen": "Bu hesap için tamamlanmamış çok sayıda doğrulama isteği var. Lütfen açık kalan giriş ekranlarındaki isteği tamamlayın veya 5 dakika sonra tekrar deneyin.",
+        "mfaRequired": "Girişi tamamlamak için ikinci doğrulama gerekiyor.",
+        "mfaNoMethod": "Hesabınız için ikinci doğrulama zorunlu; şu anda kullanılabilir doğrulama yöntemi yok. Lütfen sistem yöneticisiyle iletişime geçin.",
+        "loginIncomplete": "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin."
+      },
+      "cookie": {
+        "conflict": "Bu tarayıcıda başka bir oturum açık.",
+        "unsupported": "Bu istemci için desteklenmiyor."
+      },
+      "enroll": {
+        "badRequest": "Eksik veya geçersiz eşleştirme isteği.",
+        "badTimestamp": "Telefonunuzun saati hatalı görünüyor.",
+        "badPresenceKey": "Geçersiz cihaz varlık anahtarı.",
+        "badSignature": "Cihaz imzası doğrulanamadı.",
+        "bootstrapInvalid": "Yönetici ilk cihaz kodu geçersiz.",
+        "unavailable": "Eşleştirme şu anda yapılamıyor.",
+        "demo": "Demo hesabına cihaz eşleştirilemez.",
+        "pendingExists": "Bekleyen bir cihaz eşleştirmeniz zaten var. Yöneticinizin onayını bekleyin; 15 dakika içinde onaylanmazsa kapanır ve yeniden deneyebilirsiniz.",
+        "keyInUse": "Bu cihaz anahtarı zaten kayıtlı.",
+        "deviceLimit": "En fazla 2 güvenilir cihaz eşleştirilebilir. Önce eski cihazı kaldırın.",
+        "bootstrapInvalidOrExpired": "Yönetici ilk cihaz kodu geçersiz veya süresi dolmuş."
+      },
+      "accountRecovery": {
+        "readFailed": "Kurtarma durumu okunamadı.",
+        "createFailed": "Kurtarma kodları oluşturulamadı.",
+        "rateLimited": "Son 24 saatte en fazla 3 kez kod oluşturabilirsiniz.",
+        "strongMfaRequired": "Telefonunuz kayıtlı olduğu için kurtarma kodları yalnız telefonla (QR) açılmış bir oturumda oluşturulabilir.",
+        "mfaSessionRequired": "Kurtarma kodları yalnız ikinci doğrulamayla açılmış bir oturumda oluşturulabilir.",
+        "invalidCase": "Geçersiz talep.",
+        "cancelFailed": "Talep iptal edilemedi.",
+        "cancelNeedsMfa": "Talebi iptal etmek için ikinci doğrulamayla giriş yapmış olmalısınız.",
+        "caseNotFound": "Talep bulunamadı veya artık beklemede değil.",
+        "pairingCodeFailed": "Eşleştirme kodu üretilemedi.",
+        "staleSession": "Bu işlem çevrimdışı kodla girişten sonraki 30 dakika içinde yapılabilir. Yeniden giriş yapın.",
+        "alreadyIssued": "Bu oturum için eşleştirme kodu zaten üretildi.",
+        "ownerOfflineOnly": "Bu işlem yalnız Owner'ın çevrimdışı kurtarma koduyla açtığı oturumda yapılabilir."
+      },
+      "devices": {
+        "listFailed": "Cihazlar alınamadı.",
+        "statusReadFailed": "Durum okunamadı.",
+        "replaceStartFailed": "Telefon değişimi başlatılamadı.",
+        "oldDeviceProofRequired": "Telefon değişimi için son 30 dakika içinde ESKİ telefonunuzla (QR) giriş yapmış olmalısınız. Eski telefon elinizde değilse onu iptal edin.",
+        "cancelFailed": "İptal edilemedi."
+      },
+      "emailChange": {
+        "needStrong": "E-posta adresini değiştirmek için telefonla (QR) veya kurtarma koduyla giriş yapmış olmalısınız. E-posta koduyla açılmış oturumda adres değiştirilemez.",
+        "sendUnavailable": "E-posta gönderimi şu anda kullanılamıyor; adres değişikliği yapılamaz.",
+        "badEmail": "Geçerli bir e-posta adresi girin.",
+        "startFailed": "İstek başlatılamadı.",
+        "sameEmail": "Yeni adres mevcut adresinizle aynı.",
+        "rateLimited": "Son 24 saatte en fazla 3 adres değişikliği isteği yapılabilir.",
+        "quotaExhausted": "E-posta gönderim sınırına ulaşıldı. Lütfen daha sonra tekrar deneyin.",
+        "sendFailed": "Doğrulama kodu yeni adrese gönderilemedi. Adresi kontrol edip tekrar deneyin.",
+        "codeFormat": "Kod 6 haneli olmalı.",
+        "changeFailed": "Adres değiştirilemedi.",
+        "lockedNewRequest": "Kod 5 kez hatalı girildi. Yeni bir istek başlatın.",
+        "expiredNewRequest": "Kodun süresi doldu. Yeni bir istek başlatın.",
+        "notSentNewRequest": "Kod gönderilemedi. Yeni bir istek başlatın.",
+        "invalidOrExpiredNewRequest": "İstek geçersiz veya süresi dolmuş. Yeni bir istek başlatın."
+      },
+      "emailVerification": {
+        "noEmail": "Kayıtlı e-posta adresi yok.",
+        "lockedNewCode": "Kod 5 kez hatalı girildi. Yeni kod isteyin."
+      },
+      "stepUp": {
+        "passwordRequired": "Devam etmek için parolanızı girin.",
+        "noEmail": "Hesabınızda kayıtlı e-posta adresi yok.",
+        "verifyFailed": "Parola doğrulanamadı.",
+        "wrong": "Parola hatalı."
+      },
+      "userAgent": {
+        "unknownOs": "Bilinmeyen sistem",
+        "browser": "Tarayıcı"
+      }
+    }
+  }
+}

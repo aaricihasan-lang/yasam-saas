@@ -39,12 +39,17 @@ import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import MyLoginMethodsPanel from "@/components/settings/MyLoginMethodsPanel";
+// I18N-F1-R1: hesap bazlı dil seçimi — yalnız yayın kapısı açıkken sekme olarak eklenir.
+import LanguagePreferenceSection from "@/components/settings/LanguagePreferenceSection";
+import { isLocaleSwitchingEnabled } from "@/lib/i18n/gate";
+import { useTranslations } from "next-intl";
+import { Languages } from "lucide-react";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
 import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership";
+type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership" | "language";
 
 type SupportMessage = {
   id: string;
@@ -650,7 +655,9 @@ export default function SettingsPage() {
     setTabState(id);
   };
   const workspaceAccess = useWorkspaceAccess(!!user);
-  const tabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
+  const tLang = useTranslations("common.languagePreference");
+  const baseTabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
+  const tabs = isLocaleSwitchingEnabled() ? [...baseTabs, { id: "language" as Tab, label: tLang("tabLabel"), icon: Languages }] : baseTabs;
 
   if (!checked) {
     return (
@@ -747,6 +754,7 @@ export default function SettingsPage() {
               {tab === "restore"   && <RestoreTab  user={user} />}
               {tab === "membership" && <MembershipSettingsTab user={user} onOpenContact={() => setTab("contact")} />}
               {tab === "workspace" && workspaceAccess.status === "on" && <WorkspaceSettingsTab access={workspaceAccess} readOnly={isDemo} />}
+              {tab === "language" && isLocaleSwitchingEnabled() && <LanguagePreferenceSection />}
             </>
           )}
         </div>

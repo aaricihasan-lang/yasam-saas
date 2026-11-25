@@ -1,0 +1,134 @@
+{
+  "auth": {
+    "server": {
+      "common": {
+        "forbiddenOrigin": "The request origin could not be verified.",
+        "emailNotInScope": "Email verification and email address changes are not yet enabled for this account.",
+        "tooManyAttempts": "Too many attempts. Please try again shortly.",
+        "invalidOrExpiredRelogin": "This sign-in request is invalid or has expired. Please sign in again.",
+        "sessionCreateFailed": "The session could not be created.",
+        "inactiveContactAdmin": "Your account is inactive. Please contact your system administrator.",
+        "inactive": "Your account is inactive.",
+        "noRole": "No valid role is assigned to your account.",
+        "pending": "Your account is awaiting administrator approval.",
+        "sessionUnverified": "Your session could not be verified.",
+        "invalidAction": "Invalid action.",
+        "invalidRequest": "Invalid request.",
+        "codeVerifyFailed": "The code could not be verified.",
+        "codeSendFailed": "The code could not be sent.",
+        "codeWrong": "Incorrect code.",
+        "attemptsLeft": " Attempts remaining: {count}.",
+        "waitBeforeNewCode": "Please wait a moment before requesting a new code.",
+        "emailMethodUnavailable": "Email verification is currently unavailable.",
+        "deviceNotFound": "Device not found.",
+        "invalidDevice": "Invalid device.",
+        "emailAddressUnavailable": "This email address cannot be used."
+      },
+      "complete": {
+        "rejected": "Verification could not be completed. Please sign in again.",
+        "unavailable": "Verification cannot be completed at the moment."
+      },
+      "emailSend": {
+        "tooMany": "A maximum of 3 codes can be sent for this sign-in. Please sign in again or approve with the QR code.",
+        "rateLimited": "Too many codes have been requested. Please try again later or approve with the QR code.",
+        "quotaExhausted": "Email verification is currently unavailable. Please approve with the QR code or try again later.",
+        "sendFailed": "The code could not be sent by email. Please approve with the QR code or try again shortly.",
+        "emailUnverified": "Your email address has not been verified yet, so this method cannot be used."
+      },
+      "emailVerify": {
+        "invalid": "This sign-in request is invalid. Please sign in again.",
+        "expired": "The code has expired. Please request a new code.",
+        "none": "There is no valid code. Please request a new code.",
+        "locked": "An incorrect code was entered 5 times. For your security, this sign-in request has been closed; please sign in again."
+      },
+      "qr": {
+        "invalid": "This sign-in request is invalid or has expired."
+      },
+      "recovery": {
+        "wrong": "The recovery code is invalid or has already been used.",
+        "locked": "An incorrect recovery code was entered 5 times. For your security, this sign-in request has been closed; please sign in again.",
+        "rateLimited24h": "Too many incorrect recovery codes have been entered in the last 24 hours. Please try again later or contact your system administrator."
+      },
+      "deviceBind": {
+        "invalid": "The session device proof is invalid or has expired."
+      },
+      "session": {
+        "authRequired": "Authentication is required.",
+        "loginUnavailable": "Signing in is not possible at the moment. Please try again.",
+        "tooManyOpen": "There are too many unfinished verification requests for this account. Please complete the request on a sign-in screen that is still open, or try again in 5 minutes.",
+        "mfaRequired": "Two-step verification is required to complete sign-in.",
+        "mfaNoMethod": "Two-step verification is mandatory for your account, but no verification method is currently available. Please contact your system administrator.",
+        "loginIncomplete": "Sign-in could not be completed at the moment. Please try again."
+      },
+      "cookie": {
+        "conflict": "Another session is already open in this browser.",
+        "unsupported": "Not supported for this client."
+      },
+      "enroll": {
+        "badRequest": "The pairing request is incomplete or invalid.",
+        "badTimestamp": "Your phone's clock appears to be incorrect.",
+        "badPresenceKey": "Invalid device presence key.",
+        "badSignature": "The device signature could not be verified.",
+        "bootstrapInvalid": "The administrator's first-device code is invalid.",
+        "unavailable": "Pairing is not possible at the moment.",
+        "demo": "Devices cannot be paired with the demo account.",
+        "pendingExists": "You already have a device pairing awaiting approval. Please wait for your administrator to approve it; if it is not approved within 15 minutes it will close and you can try again.",
+        "keyInUse": "This device key is already registered.",
+        "deviceLimit": "A maximum of 2 trusted devices can be paired. Please remove the old device first.",
+        "bootstrapInvalidOrExpired": "The administrator's first-device code is invalid or has expired."
+      },
+      "accountRecovery": {
+        "readFailed": "The recovery status could not be read.",
+        "createFailed": "Recovery codes could not be created.",
+        "rateLimited": "You can create codes at most 3 times in 24 hours.",
+        "strongMfaRequired": "Because your phone is registered, recovery codes can only be created in a session opened with your phone (QR code).",
+        "mfaSessionRequired": "Recovery codes can only be created in a session opened with two-step verification.",
+        "invalidCase": "Invalid request.",
+        "cancelFailed": "The request could not be cancelled.",
+        "cancelNeedsMfa": "You must be signed in with two-step verification to cancel this request.",
+        "caseNotFound": "The request was not found or is no longer pending.",
+        "pairingCodeFailed": "The pairing code could not be generated.",
+        "staleSession": "This can only be done within 30 minutes of signing in with an offline code. Please sign in again.",
+        "alreadyIssued": "A pairing code has already been generated for this session.",
+        "ownerOfflineOnly": "This can only be done in a session opened with the Owner's offline recovery code."
+      },
+      "devices": {
+        "listFailed": "Devices could not be retrieved.",
+        "statusReadFailed": "The status could not be read.",
+        "replaceStartFailed": "The phone replacement could not be started.",
+        "oldDeviceProofRequired": "To replace your phone, you must have signed in with your OLD phone (QR code) within the last 30 minutes. If you no longer have the old phone, revoke it instead.",
+        "cancelFailed": "Could not be cancelled."
+      },
+      "emailChange": {
+        "needStrong": "To change your email address, you must be signed in with your phone (QR code) or a recovery code. The address cannot be changed in a session opened with an email code.",
+        "sendUnavailable": "Email sending is currently unavailable, so the address cannot be changed.",
+        "badEmail": "Please enter a valid email address.",
+        "startFailed": "The request could not be started.",
+        "sameEmail": "The new address is the same as your current address.",
+        "rateLimited": "At most 3 address change requests can be made in 24 hours.",
+        "quotaExhausted": "The email sending limit has been reached. Please try again later.",
+        "sendFailed": "The verification code could not be sent to the new address. Please check the address and try again.",
+        "codeFormat": "The code must be 6 digits.",
+        "changeFailed": "The address could not be changed.",
+        "lockedNewRequest": "An incorrect code was entered 5 times. Please start a new request.",
+        "expiredNewRequest": "The code has expired. Please start a new request.",
+        "notSentNewRequest": "The code could not be sent. Please start a new request.",
+        "invalidOrExpiredNewRequest": "The request is invalid or has expired. Please start a new request."
+      },
+      "emailVerification": {
+        "noEmail": "There is no registered email address.",
+        "lockedNewCode": "An incorrect code was entered 5 times. Please request a new code."
+      },
+      "stepUp": {
+        "passwordRequired": "Please enter your password to continue.",
+        "noEmail": "There is no email address registered to your account.",
+        "verifyFailed": "Your password could not be verified.",
+        "wrong": "Incorrect password."
+      },
+      "userAgent": {
+        "unknownOs": "Unknown system",
+        "browser": "Browser"
+      }
+    }
+  }
+}

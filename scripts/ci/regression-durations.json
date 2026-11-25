@@ -308,6 +308,9 @@
   "scripts/yh-tsquery-plan-harness.ts": 0.5,
   "scripts/yh-visibility-scope-harness.ts": 0.5,
   "scripts/yh-webhook-vault-migration-harness.mjs": 1.0,
-  "scripts/yh-worker-v2/workerV2ParityHarness.ts": 0.6
+  "scripts/yh-worker-v2/workerV2ParityHarness.ts": 0.6,
+  "scripts/i18n/calc-invariance.harness.ts": 45,
+  "scripts/i18n/ci-gates.mjs": 90,
+  "scripts/i18n/pg/user-locale-prefs.check.mjs": 25
  }
 }

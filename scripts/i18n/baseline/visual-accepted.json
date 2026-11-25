@@ -1,0 +1,7 @@
+{
+  "aciklama": "Görsel regresyonda BİLİNÇLİ kabul edilen farklar (tam ekran adı + piksel kutusu, CSS px; deviceScaleFactor 1). Kutu dışındaki her fark yine FAIL. Yeni satır yalnız gerekçe ve kanıtla eklenir; ilgili değişiklik main'e girdikten sonra satır kaldırılır.",
+  "regions": [
+    { "file": "tr-desktop-panel.png", "x": 1076, "y": 8, "w": 112, "h": 52, "gerekce": "I18N-F1 (Owner kararı A1): yayın kapısı kapalıyken paneldeki dil seçici gizli; main'de görünüyordu (F0 bulgu 3). Kanıt: F1-R1 fark kutusu x1086-1178 y17-52." },
+    { "file": "tr-mobile390-panel.png", "x": 218, "y": 8, "w": 68, "h": 50, "gerekce": "Aynı dil seçici (mobil). Kanıt: F1-R1 fark kutusu x226-277 y15-50." }
+  ]
+}

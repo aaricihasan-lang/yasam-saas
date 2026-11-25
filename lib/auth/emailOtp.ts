@@ -10,6 +10,7 @@ import { createHash, createHmac, randomInt } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEmailProvider, type EmailProvider } from "@/lib/email/provider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 type Env = Record<string, string | undefined>;
 
@@ -111,7 +112,7 @@ function otpScope(purpose: "login" | "verify_email", userId: string, challengeId
 
 export async function issueAndSendOtp(
   db: SupabaseClient,
-  args: { userId: string; email: string; name?: string | null; purpose: "login" | "verify_email"; challengeId: string | null },
+  args: { userId: string; email: string; name?: string | null; purpose: "login" | "verify_email"; challengeId: string | null; locale?: ActiveLocale },
   env: Env = process.env,
   providerOverride?: EmailProvider | null,
 ): Promise<OtpSendOutcome> {
@@ -143,7 +144,7 @@ export async function issueAndSendOtp(
       ...(Number.isFinite(Number(r.retry_after)) ? { retryAfter: Number(r.retry_after) } : {}),
     };
   }
-  const mail = renderOtpEmail({ purpose: args.purpose, code, name: args.name ?? null, minutes: 3 });
+  const mail = renderOtpEmail({ purpose: args.purpose, code, name: args.name ?? null, minutes: 3, locale: args.locale });
   const sent = await provider.send({ to: args.email, subject: mail.subject, text: mail.text, html: mail.html, category: args.purpose });
   await db.rpc("auth_email_delivery_result", {
     p_delivery_id: Number(r.delivery_id),

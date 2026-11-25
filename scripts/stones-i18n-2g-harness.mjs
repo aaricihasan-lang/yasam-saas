@@ -80,12 +80,35 @@ console.log("\n[GATE E] 2F empty-state preserved");
 detSrc.includes('if (!text || !text.trim()) return "";') ? ok("shortPreview boş → '' korundu") : err("shortPreview 2F davranışı bozuldu");
 (detSrc.split('t("noInfoYet")').length - 1) >= 4 ? ok("t('noInfoYet') empty-state fallback korundu") : err("noInfoYet fallback azaldı");
 
+// I18N-F1 (2026-11-24): eski regex /toSafeStone[\s\S]{0,600}t\(/ dosyadaki İLK "toSafeStone" geçişinden sonraki
+// 600 karakterde herhangi bir "…t(" (ör. fieldEntriesText( ) bulunca yanlış FAIL veriyordu. Artık gerçek fonksiyon
+// gövdesi süslü parantez eşleşmesiyle çıkarılır ve içinde çeviri çağrısı (t/tf/tl/tc/td) aranır. Beklenti aynı.
+function functionBody(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  if (start < 0) return null;
+  let i = source.indexOf("{", source.indexOf(")", start));
+  let depth = 0;
+  for (let j = i; j < source.length; j++) {
+    if (source[j] === "{") depth++;
+    else if (source[j] === "}" && --depth === 0) return source.slice(i, j + 1);
+  }
+  return null;
+}
+const toSafeStoneBody = functionBody(detSrc, "toSafeStone");
+const toSafeStoneHasT = toSafeStoneBody === null || /(^|[^\w.])(t|tf|tl|tc|td)\(/.test(toSafeStoneBody);
+// I18N-F1 (2026-11-24): "Kök Çakra"/"Sakral Çakra" kanonik çakra listesi 2026-10-02 cfbeb94f ile
+// lib/dogaltas/stoneTaxonomy.ts'e taşındı (sayfa STONE_CHAKRA_OPTIONS'ı import ediyor). Literal ya sayfada ya da
+// (merkezî taksonomide + sayfa taksonomiyi import ediyor) olmalı; ikisi de yoksa FAIL.
+const taxonomySrc = src("lib/dogaltas/stoneTaxonomy.ts");
+const canonInDetail = (c) => detSrc.includes(`"${c}"`)
+  || (detSrc.includes("@/lib/dogaltas/stoneTaxonomy") && taxonomySrc.includes(`"${c}"`));
+
 // ── GATE F: canonical / persisted / catalog untouched ───────────────────────
 console.log("\n[GATE F] canonical / persisted / catalog untouched");
-["Kök Çakra", "Çakra Atama", "Kan Grupları"].every((c) => detSrc.includes(`"${c}"`))
+["Kök Çakra", "Çakra Atama", "Kan Grupları"].every(canonInDetail)
   ? ok("canonical facet/assignment değerleri korunmuş") : err("canonical değer kaybolmuş");
 detSrc.includes('|| "İsimsiz Taş"') ? ok("toSafeStone 'İsimsiz Taş' DATA fallback dokunulmadı (veri katmanı)") : err("İsimsiz Taş data fallback DEĞİŞMİŞ");
-!/toSafeStone[\s\S]{0,600}t\(/.test(detSrc) ? ok("toSafeStone içinde t() yok — data mapping'e dokunulmadı") : err("toSafeStone'a t() sızmış");
+!toSafeStoneHasT ? ok("toSafeStone içinde t() yok — data mapping'e dokunulmadı") : err("toSafeStone'a t() sızmış");
 
 // ── GATE G: ICU parse (touched namespace) ───────────────────────────────────
 console.log("\n[GATE G] ICU parse integrity");

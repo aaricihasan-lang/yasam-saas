@@ -322,6 +322,7 @@ export default function DanisanListePage() {
   useBfcacheRefresh();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+  const tDel = useTranslations("common.deleteConfirm");
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -700,14 +701,14 @@ export default function DanisanListePage() {
       const confirmed = await deleteConfirm({
         title: t("toast.deleteConfirmTitle"),
         count: ids.length,
-        noun: "danışan",
+        noun: t("toast.bulkNoun"),
         message: [
           t("toast.deleteConfirmMsg", { count: ids.length }),
           buildNameListLines(ids.map(nameOf), ids.length).join("\n"),
           "",
           t("toast.deleteUnlinked"),
         ].join("\n"),
-        requireText: "SİL",
+        requireText: tDel("confirmWord"),
         requireTextLabel: t("toast.deleteRequireLabel"),
       });
       if (!confirmed) return;

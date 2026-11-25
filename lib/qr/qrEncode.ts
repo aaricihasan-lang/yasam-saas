@@ -267,7 +267,7 @@ export function encodeQr(text: string, ecc: QrEcc = "M", forceMask?: number): Qr
     const countBits = ver <= 9 ? 8 : 16;
     if (4 + countBits + bytes.length * 8 <= capacityBits) break;
   }
-  if (ver > MAX_VERSION) throw new Error("QR içeriği çok uzun");
+  if (ver > MAX_VERSION) throw new Error("QR içeriği çok uzun"); // i18n-ignore: teknik iç hata (sağlayıcı/günlük); kullanıcıya gösterilmez
 
   const bits: number[] = [];
   const append = (val: number, len: number) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };

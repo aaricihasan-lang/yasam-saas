@@ -1,0 +1,46 @@
+{
+  "terms": {
+    "zodiac": {
+      "aries": "Aries",
+      "taurus": "Taurus",
+      "gemini": "Gemini",
+      "cancer": "Cancer",
+      "leo": "Leo",
+      "virgo": "Virgo",
+      "libra": "Libra",
+      "scorpio": "Scorpio",
+      "sagittarius": "Sagittarius",
+      "capricorn": "Capricorn",
+      "aquarius": "Aquarius",
+      "pisces": "Pisces"
+    },
+    "body": {
+      "sun": "Sun",
+      "moon": "Moon",
+      "mercury": "Mercury",
+      "venus": "Venus",
+      "mars": "Mars",
+      "jupiter": "Jupiter",
+      "saturn": "Saturn",
+      "uranus": "Uranus",
+      "neptune": "Neptune",
+      "pluto": "Pluto",
+      "north_node": "North Node",
+      "south_node": "South Node",
+      "chiron": "Chiron",
+      "lilith": "Black Moon Lilith"
+    },
+    "element": {
+      "fire": "Fire",
+      "earth": "Earth",
+      "air": "Air",
+      "water": "Water"
+    },
+    "moonPhase": {
+      "new_moon": "New Moon",
+      "first_quarter": "First Quarter",
+      "full_moon": "Full Moon",
+      "last_quarter": "Last Quarter"
+    }
+  }
+}

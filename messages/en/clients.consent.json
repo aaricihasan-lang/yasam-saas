@@ -1,0 +1,42 @@
+{
+  "clients": {
+    "consent": {
+      "title": "KVKK Privacy Notice and Consent",
+      "sectionAria": "KVKK privacy notice and consent records",
+      "intro": "Record the privacy information you have given your client and the permissions you have obtained. Records cannot be changed; a withdrawal is added as a new record.",
+      "loading": "Loading…",
+      "retry": "Try again",
+      "noRecord": "No record",
+      "demoNotice": "Consent records cannot be added in the demo account.",
+      "fieldType": "Record type",
+      "fieldStatus": "Status",
+      "fieldMethod": "Method obtained",
+      "fieldNote": "Note (optional — do not enter health information)",
+      "saving": "Saving…",
+      "submit": "Add record",
+      "defer": "Complete later",
+      "sampleNotice": "Sample privacy notice",
+      "saved": "Saved.",
+      "history": "Record history ({count})",
+      "historyEmpty": "No records yet.",
+      "errorNotReady": "KVKK consent records are not enabled yet.",
+      "errorLoad": "Consent records could not be loaded.",
+      "errorSave": "The record could not be added. Please try again.",
+      "badgeUnavailable": "KVKK status unavailable",
+      "badgeTitle": "KVKK privacy notice / explicit consent record status",
+      "badgeNone": "No KVKK record",
+      "badgeOk": "KVKK: privacy notice + explicit consent recorded",
+      "badgeMissing": "KVKK incomplete: {missing}",
+      "missingInformed": "privacy notice",
+      "missingExplicit": "explicit consent",
+      "type": {
+        "aydinlatma_bildirildi": { "label": "Privacy notice provided", "help": "The client was informed how their personal data is processed (KVKK Art. 10)." },
+        "acik_riza_ozel_nitelikli": { "label": "Explicit consent for special category data", "help": "Explicit consent to the processing of special category personal data such as health data (KVKK Art. 6)." },
+        "acik_riza_yurtdisi_aktarim": { "label": "Explicit consent for transfer abroad", "help": "Consent to the data being processed by infrastructure providers located abroad (KVKK Art. 9)." },
+        "iletisim_izni": { "label": "Contact permission", "help": "Permission to contact the client, for example for appointment reminders." }
+      },
+      "status": { "granted": "Given", "refused": "Refused", "withdrawn": "Withdrawn", "pending": "Pending" },
+      "method": { "islak_imza": "Wet signature (paper form)", "uygulama_onay": "In-app consent", "sozlu_kayit": "Verbal (recorded)", "diger": "Other" }
+    }
+  }
+}

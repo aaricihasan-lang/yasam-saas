@@ -90,3 +90,23 @@ chakra → Chakra Analysis · planet → Chakra-Planet Analysis · (diğer) → 
 - **HomeworkStatus:** `bekliyor`, `devam`, `tamamlandi`, `gecikti`, `iptal` (write payload)
 - **YolculukTab META:** type/durum/odevDurum/alertCat/scoreStage code'ları + `["Hava","Su","Ateş","Toprak"]`
 - **Ücret:** TRY / `₺` — currency conversion YOK (yalnız format)
+
+## I18N-F1 ekleri (2026-11-24)
+
+**Tek terminoloji kaynağı:** kimlik listeleri `lib/i18n/terms/registry.ts`, etiketler `messages/<dil>/terms.json` (`terms.zodiac.*`, `terms.body.*`, `terms.element.*`, `terms.moonPhase.*`). Türkçe etiketler `lib/astrology/labels/tr.ts` ile birebir aynıdır (`npm run i18n:unit` denetler). Modüller burç/gezegen/element listesini YENİDEN TANIMLAMAZ; yeni alanlar (`terms.hd.*`, `terms.numerology.*`, `terms.stones.*`) koordinatör onayıyla buraya eklenir.
+
+**Çevrilmeyecek (kanonik) değerler — ek liste:**
+- `clients.burc` (Türkçe burç adı; okumada `fromLegacyTr("zodiac", …)` ile kimliğe çevrilir)
+- Human Design bilgi bankası kategori değerleri ("Kapılar", "Tipler", "Otoriteler" — `lib/human-design/codeHelpers.ts`)
+- Numeroloji uyum sınıfları ("İYİ" / "KÖTÜ" / "KÇB") ve element değerleri; Türkçe alfabe tabanlı harf→sayı hesabı (`tr-TR` katlama KALIR)
+- Kozmik Ajanda burç/gezegen/ay evresi anahtarları (Kozmik dalgasına kadar)
+- Doğaltaş kanonik listeleri (`lib/dogaltas/stoneTaxonomy.ts`), taş/mineral adları
+
+**Kod içi kanonik değer işareti:** sabit metin dedektörü kullanıcıya görünür Türkçe metni sayar; kanonik değerler aynı satırda `// i18n-ignore: <gerekçe>` ile işaretlenir (gerekçesiz işaret PR incelemesinde reddedilir).
+
+**Yazım:** İngilizce biçimlendirme en-GB (GG/AA/YYYY yerine ürün sözleşmesi GG.AA.YYYY korunur, 24 saat). İngiliz/Amerikan yazım kararı Owner'da (bkz. `docs/i18n/F1-altyapi.md` §6).
+
+**Modül adları — İngilizce (Owner kararı, F1-R1, en-GB):** Gökyüzü Atlası → Celestial Atlas · Şifa Rehberi → Natural Wellness Guide ·
+Kupa / Hacamat → Cupping & Hijama · Danışan Yönetimi → Client Management · Doğaltaş → Natural Stone · Kozmik Ajanda → Cosmic Calendar
+(Kozmik fazında uygulanacak). Türkçe modül adları DEĞİŞMEZ. Human Design teknik terimleri (Center, Gate, Channel, Authority, Profile)
+alanın resmî İngilizce kullanımıyla kalır.

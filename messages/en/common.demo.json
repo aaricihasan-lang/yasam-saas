@@ -1,0 +1,12 @@
+{
+  "common": {
+    "demo": {
+      "accountLabel": "Demo Account",
+      "gate": {
+        "title": "Demo Preview",
+        "line1": "This content is shown in limited form in the demo account.",
+        "line2": "All details are available in the full version."
+      }
+    }
+  }
+}

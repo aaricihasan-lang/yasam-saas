@@ -1,0 +1,46 @@
+{
+  "terms": {
+    "zodiac": {
+      "aries": "Koç",
+      "taurus": "Boğa",
+      "gemini": "İkizler",
+      "cancer": "Yengeç",
+      "leo": "Aslan",
+      "virgo": "Başak",
+      "libra": "Terazi",
+      "scorpio": "Akrep",
+      "sagittarius": "Yay",
+      "capricorn": "Oğlak",
+      "aquarius": "Kova",
+      "pisces": "Balık"
+    },
+    "body": {
+      "sun": "Güneş",
+      "moon": "Ay",
+      "mercury": "Merkür",
+      "venus": "Venüs",
+      "mars": "Mars",
+      "jupiter": "Jüpiter",
+      "saturn": "Satürn",
+      "uranus": "Uranüs",
+      "neptune": "Neptün",
+      "pluto": "Plüton",
+      "north_node": "Kuzey Ay Düğümü",
+      "south_node": "Güney Ay Düğümü",
+      "chiron": "Kiron",
+      "lilith": "Kara Ay Lilith"
+    },
+    "element": {
+      "fire": "Ateş",
+      "earth": "Toprak",
+      "air": "Hava",
+      "water": "Su"
+    },
+    "moonPhase": {
+      "new_moon": "Yeni Ay",
+      "first_quarter": "İlk Dördün",
+      "full_moon": "Dolunay",
+      "last_quarter": "Son Dördün"
+    }
+  }
+}

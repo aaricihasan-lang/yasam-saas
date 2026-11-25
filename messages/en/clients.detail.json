@@ -146,7 +146,7 @@
         "fieldAdres": "address",
         "fieldOneriler": "recommendations",
         "requireLabel": "Type the client's name to confirm: “{name}”",
-        "requireLabelFallback": "Type “SİL” to confirm:",
+        "requireLabelFallback": "Type “DELETE” to confirm:",
         "confirm": "Delete Permanently",
         "hdWarning": "The Human Design profile and Human Design analyses linked to this client will also be permanently deleted."
       },
@@ -194,6 +194,7 @@
         "fullAnalysis": "∞ Open Full Numerology Analysis →"
       },
       "appt": {
+        "notFound": "Appointment not found.",
         "defaultTitle": "Session",
         "titleFallback": "Meeting",
         "badge": "Client-Specific Schedule",

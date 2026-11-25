@@ -662,6 +662,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/auth-s6/stale-profile-sync.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/final-hardening/admin-pending-ux.harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -761,6 +766,19 @@
    "file": "scripts/i18n-clientNotes-harness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/i18n/calc-invariance.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/i18n/ci-gates.mjs",
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/i18n/pg/user-locale-prefs.check.mjs",
+   "timeoutSec": 120
   },
   {
    "file": "scripts/kup02-word-safety/routes.harness.ts",

@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { CURRENT_TEMPLATE_VERSION, normalizeLocale } from "@/lib/danisan/anamnez/schema";
+import { effectiveLocale } from "@/lib/i18n/gate";
 import { applyChangedSources, linksChanged } from "@/lib/danisan/anamnez/sources";
 import { validateCreateInput } from "@/lib/danisan/anamnez/validate";
 import {
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest, { params }: RouteCtx): Promise<Resp
 
     if (input.mode === "refresh") {
       const { values } = await fetchSourceValues(db, tenantId, clientId, client.kan);
-      const locale = normalizeLocale(req.cookies.get("NEXT_LOCALE")?.value);
+      const locale = normalizeLocale(effectiveLocale(req.cookies.get("NEXT_LOCALE")?.value));
       const applied = applyChangedSources(
         templateVersion,
         prev.form_custom,

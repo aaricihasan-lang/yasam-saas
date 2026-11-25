@@ -1,0 +1,41 @@
+{
+  "common": {
+    "deleteConfirm": {
+      "title": "Are you sure you want to delete this?",
+      "yes": "Yes",
+      "cancel": "Cancel",
+      "irreversibleNotice": "This action cannot be undone.",
+      "irreversibleMarker": "cannot be undone",
+      "secondTitle": "Final confirmation",
+      "secondMessageIrreversible": "This action is permanent. Please make sure you are not deleting this by mistake.",
+      "secondMessage": "Do you want to proceed?",
+      "secondConfirmIrreversible": "Delete Permanently",
+      "secondConfirm": "Confirm",
+      "confirmWord": "DELETE",
+      "moreRecords": "and {count, plural, one {# more record} other {# more records}}",
+      "bulk": {
+        "phrase": "DELETE {count} RECORDS",
+        "deleteAllPhrase": "DELETE ALL",
+        "defaultNoun": "records",
+        "scope": "{count} {noun}",
+        "scopeAll": "ALL {count} {noun}",
+        "verbDelete": "will be permanently deleted",
+        "verbRemove": "will be removed",
+        "warnIrreversible": "This action cannot be undone.",
+        "warnScope": "Please check the scope.",
+        "stage1TitleAll": "Delete All — Step 1/3",
+        "stage1Title": "Bulk Delete — Step 1/3",
+        "continue": "Continue",
+        "stage2Title": "Verification — Step 2/3",
+        "stage2Message": "To prevent accidental bulk deletion, type the phrase below:\n\n{phrase}",
+        "requireLabel": "Type “{phrase}”. Capitalisation does not matter; numbers and words must match exactly.",
+        "stage3TitleIrreversible": "Final Confirmation — This action cannot be undone.",
+        "stage3Title": "Final Confirmation",
+        "stage3MessageIrreversible": "{scope} will be permanently deleted.\n\nDeleted records cannot be recovered. Do you want to continue?",
+        "stage3Message": "{scope} will be removed. Do you want to continue?",
+        "confirmIrreversible": "Delete Permanently ({count})",
+        "confirm": "Confirm ({count})"
+      }
+    }
+  }
+}

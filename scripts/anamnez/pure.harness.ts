@@ -273,7 +273,13 @@ ok(JSON.stringify(kTr) === JSON.stringify(kEn), `clients.anamnez TR/EN anahtar e
 const dTr = JSON.parse(read("messages/tr/clients.detail.json")).clients.detail;
 const dEn = JSON.parse(read("messages/en/clients.detail.json")).clients.detail;
 ok(dTr.tab.anamnez && dEn.tab.anamnez && dTr.deletePreview.table.anamneses && dEn.deletePreview.table.anamnesisFiles, "sekme + silme önizleme etiketleri TR/EN");
-ok(/clients\.anamnez\.json/.test(read("i18n/request.ts")) && (read("i18n/request.ts").match(/ClientsAnamnez/g) ?? []).length === 4, "namespace i18n/request.ts'e kayıtlı (TR+EN)");
+// I18N-F1 (2026-11-24): katalog kaydı i18n/request.ts'ten otomatik üretilen i18n/catalog.generated.ts'e taşındı
+// (npm run i18n:catalog; güncelliği CI'da scripts/i18n/gen-catalog.mjs --check denetler). Beklenti aynı: TR VE EN kayıtlı.
+{
+  const reg = read("i18n/catalog.generated.ts");
+  ok(reg.includes('"@/messages/tr/clients.anamnez.json"') && reg.includes('"@/messages/en/clients.anamnez.json"')
+    && (reg.match(/\b(tr|en)_clientsAnamnez\b/g) ?? []).length === 4, "namespace katalog kaydında (i18n/catalog.generated.ts) kayıtlı (TR+EN)");
+}
 // Kullanılan literal anahtarlar mevcut mu?
 const has = (key: string) => key.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), mTr.clients.anamnez) !== undefined;
 const uiFiles = [

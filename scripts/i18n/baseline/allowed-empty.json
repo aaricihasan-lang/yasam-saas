@@ -1,0 +1,7 @@
+{
+  "aciklama": "Bilinçli boş çeviri değerleri (I18N-F1). Her satır gerekçesiyle; yeni satır eklemek PR incelemesinde görünür. Anahtar biçimi <dil>:<anahtar>.",
+  "keys": {
+    "en:home.hero.titlePart2": "İngilizce cümle yapısı: TR 'Danışanlarınızı … yönetin' fiili sonda; EN fiil titlePart1 içinde. Boş bırakılması bilinçli (Ağustos 2026 EN copy).",
+    "en:stones.hub.hero.titleSuffix": "TR 'Doğaltaş Yönetimi' ekini EN 'Natural Stone' başlığı tek başına karşılar (PR #240 rename turu)."
+  }
+}

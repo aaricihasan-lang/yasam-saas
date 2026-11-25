@@ -186,7 +186,7 @@ export function createSmtpProvider(env: Env = process.env, hooks: SmtpTestHooks 
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const deadline = new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(Object.assign(new Error("smtp toplam zaman aşımı"), { code: "ETIMEDOUT" })), t.total);
+          timer = setTimeout(() => reject(Object.assign(new Error("smtp toplam zaman aşımı"), { code: "ETIMEDOUT" })), t.total); // i18n-ignore: teknik iç hata (sağlayıcı/günlük); kullanıcıya gösterilmez
         });
         await Promise.race([transport.sendMail({ envelope: { from: sender, to: [msg.to] }, raw }), deadline]);
         return { ok: true, providerMessageId: mid };

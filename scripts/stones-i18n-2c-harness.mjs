@@ -31,7 +31,11 @@ function leaves(obj, prefix = "") {
 function bag(n) {
   return { n, count: n, num: n, issues: n, variants: n, titles: n, shown: n, total: n, skipped: n,
     query: "q", q: "q", label: "L", name: "N", combo: "C", client: "Cl", error: "E", field: "F",
-    px: 14, value: "V", date: "D", id: "1", title: "T", imageCount: n };
+    px: 14, value: "V", date: "D", id: "1", title: "T", imageCount: n,
+    // I18N-F1: ürün bu iki mesajı ek argümanlarla çağırıyor — kombinasyonlar/page.tsx:584
+    // t("deleteGroupMessage", { issue, n }) ve kombinasyonlar/[title]/page.tsx:1288
+    // t("deleteHiddenCopies", { v, d }). Eski torba bu argümanları vermediği için render "FAIL" oluyordu.
+    issue: "I", v: n, d: n };
 }
 
 for (const loc of ["tr", "en"]) {
@@ -59,6 +63,19 @@ for (const loc of ["tr", "en"]) {
   if (fail === 0) ok(`${loc}: ${parsed} value ICU-parse OK, ${plurals} plural render OK`);
 }
 
+// I18N-F1 (2026-11-24): 2026-10-02 cfbeb94f ("taxonomy" P1/P2 kapanışı) çakra/uyarı kanonik listelerini
+// lib/dogaltas/stoneTaxonomy.ts'e TAŞIDI; sayfa onları import ediyor. Kanonik değer korunuyor mu sorusu artık:
+// "literal sayfada VEYA (merkezî taksonomide VE sayfa taksonomiyi import ediyor)". Beklenti gevşetilmedi: literal
+// hiçbir yerde yoksa ya da sayfa merkezî listeyi kullanmıyorsa yine FAIL.
+const TAXONOMY_REL = "lib/dogaltas/stoneTaxonomy.ts";
+const TAXONOMY_IMPORT = "@/lib/dogaltas/stoneTaxonomy";
+function canonPresent(src, lit) {
+  const raw = (s) => s.includes(`"${lit}"`) || s.includes(`'${lit}'`);
+  if (raw(src)) return true;
+  if (!src.includes(TAXONOMY_IMPORT)) return false;
+  return raw(readFileSync(join(ROOT, TAXONOMY_REL), "utf8"));
+}
+
 // GATE C — canonical facet/sentinel literals must still be raw in source
 console.log("\n[GATE C] canonical facet/sentinel literaller kaynakta korunuyor");
 const CANON = [
@@ -73,7 +90,7 @@ for (const [rel, lits] of CANON) {
   let src;
   try { src = readFileSync(join(ROOT, rel), "utf8"); } catch { err(`${rel}: okunamadı`); continue; }
   for (const lit of lits) {
-    if (src.includes(`"${lit}"`) || src.includes(`'${lit}'`)) ok(`${rel}: "${lit}" korunmuş`);
+    if (canonPresent(src, lit)) ok(`${rel}: "${lit}" korunmuş`);
     else err(`${rel}: "${lit}" ham literal BULUNAMADI`);
   }
 }

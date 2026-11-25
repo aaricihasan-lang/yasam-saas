@@ -96,6 +96,7 @@
         "daysLater": "{n} gün sonra"
       },
       "toast": {
+        "bulkNoun": "danışan",
         "sessionWarningTitle": "Oturum uyarısı",
         "noSession": "Oturum bulunamadı. Lütfen tekrar giriş yapın.",
         "noTenant": "Hesabınızda çalışma alanı (tenant) bilgisi yok.",

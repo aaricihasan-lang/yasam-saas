@@ -194,6 +194,7 @@
         "fullAnalysis": "∞ Tam Numeroloji Analizi Aç →"
       },
       "appt": {
+        "notFound": "Randevu bulunamadı.",
         "defaultTitle": "Seans",
         "titleFallback": "Görüşme",
         "badge": "Danışana Özel Ajanda",

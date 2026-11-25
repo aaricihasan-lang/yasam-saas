@@ -15,21 +15,15 @@
  * Ağ hatası karar DEĞİLDİR. Token veya kullanıcı verisi bu bileşende tutulmaz.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { completeMfaLogin, mfaEmailRequest, mfaRecoveryVerify, pollMfaChallenge, type MfaChallengeInfo } from "@/lib/auth/loginUser";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
 type Done = { row: Record<string, unknown>; sessionToken: string | null; suspiciousLogin: boolean };
 type Method = "qr" | "email" | "recovery";
 
-const FINAL_TEXT: Record<string, string> = {
-  denied: "Giriş isteği telefonunuzdan reddedildi. Bu siz değilseniz parolanızı değiştirin ve yöneticinize bildirin.",
-  expired: "Giriş isteğinin süresi doldu. Lütfen yeniden giriş yapın.",
-  consumed: "Bu giriş isteği zaten kullanıldı. Lütfen yeniden giriş yapın.",
-  invalid: "Giriş isteği bu tarayıcıda bulunamadı. Lütfen yeniden giriş yapın.",
-  locked: "Kod 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın.",
-  recovery_locked: "Kurtarma kodu 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın.",
-  failed: "Giriş tamamlanamadı. Lütfen yeniden giriş yapın.",
-};
+// I18N-F1-R1: son durum KİMLİKLERİ (kontrol akışı); görünen metin auth.ui.mfaQr.final.<kimlik>.
+type FinalKey = "denied" | "expired" | "consumed" | "invalid" | "locked" | "recovery_locked" | "failed";
 
 function detectPhone(): "android" | "ios" | null {
   if (typeof navigator === "undefined") return null;
@@ -49,6 +43,7 @@ export default function MfaQrPanel({
   onDone: (r: Done) => void | Promise<void>;
   onCancel: () => void;
 }) {
+  const t = useTranslations("auth.ui.mfaQr");
   const hasQr = challenge.methods.includes("qr_device") && !!challenge.qr;
   const hasEmail = challenge.methods.includes("email_otp");
   const hasRecovery = challenge.methods.includes("recovery_code");
@@ -58,7 +53,7 @@ export default function MfaQrPanel({
   // Telefondaki tarayıcıda QR okutulamaz → e-posta varsa o öne çıkar; aksi halde QR.
   const [method, setMethod] = useState<Method>(() =>
     hasQr && !(phone && hasEmail) ? "qr" : hasEmail ? "email" : hasQr ? "qr" : "recovery");
-  const [final, setFinal] = useState<keyof typeof FINAL_TEXT | null>(null);
+  const [final, setFinal] = useState<FinalKey | null>(null);
   const [completing, setCompleting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const doneRef = useRef(false);
@@ -140,13 +135,13 @@ export default function MfaQrPanel({
       setEmailSent(true);
       setCode("");
       setResendAt(Date.now() + 60_000);
-      setEmailInfo(`Kod ${challenge.emailHint ?? "e-posta adresinize"} adresine gönderildi. 3 dakika geçerlidir; gelen kutunuzda yoksa istenmeyen klasörüne bakın.`);
+      setEmailInfo(t("emailSent", { email: challenge.emailHint ?? t("emailSentFallbackTarget") }));
       window.setTimeout(() => codeRef.current?.focus(), 0);
       return;
     }
     if (r.code === "MFA_INVALID") { doneRef.current = true; setFinal("invalid"); return; }
     if (r.retryAfter) setResendAt(Date.now() + r.retryAfter * 1000);
-    setEmailError(r.message ?? "Kod gönderilemedi. Lütfen biraz sonra tekrar deneyin.");
+    setEmailError(r.message ?? t("sendFailed"));
   }
 
   async function verifyEmail() {
@@ -164,7 +159,7 @@ export default function MfaQrPanel({
     // F2-I: bağlantı hatasında kod sunucuya ulaşmadı → girilen kod korunur (bağlantı gelince aynı kodla yeniden denenir).
     if (r.code !== "NETWORK") setCode("");
     if (r.code === "OTP_EXPIRED" || r.code === "OTP_NONE") setResendAt(0);
-    setEmailError(r.message ?? "Kod doğrulanamadı.");
+    setEmailError(r.message ?? t("verifyFailed"));
     window.setTimeout(() => codeRef.current?.focus(), 0);
   }
 
@@ -177,15 +172,15 @@ export default function MfaQrPanel({
     if (r.ok) {
       setRecoveryCode("");
       setRecoveryOk(r.kind === "code"
-        ? `Kurtarma kodu kabul edildi. Kalan kullanılmamış kod: ${r.remaining}.`
-        : "Kurtarma bileti kabul edildi.");
+        ? t("recoveryAcceptedCode", { remaining: String(r.remaining) })
+        : t("recoveryAcceptedTicket"));
       await finish();
       return;
     }
     if (r.code === "RECOVERY_LOCKED") { doneRef.current = true; setFinal("recovery_locked"); return; }
     if (r.code === "MFA_INVALID") { doneRef.current = true; setFinal("invalid"); return; }
     setRecoveryCode("");
-    setRecoveryError(r.message ?? "Kurtarma kodu doğrulanamadı.");
+    setRecoveryError(r.message ?? t("recoveryFailed"));
     window.setTimeout(() => recoveryRef.current?.focus(), 0);
   }
 
@@ -205,17 +200,17 @@ export default function MfaQrPanel({
   return (
     <div className="relative z-10 mt-4 space-y-4" data-testid="mfa-qr-panel">
       <div className="rounded-2xl border border-violet-100 bg-gradient-to-b from-violet-50/80 to-white px-4 py-4 text-center shadow-sm">
-        <p className="text-[15px] font-bold text-slate-800">İkinci doğrulama</p>
+        <p className="text-[15px] font-bold text-slate-800">{t("title")}</p>
         {!hasAny ? (
           <p className="mt-2 text-sm font-semibold text-slate-600">
-            {challenge.message ?? "Hesabınız için ikinci doğrulama zorunlu; şu anda kullanılabilir doğrulama yöntemi yok. Lütfen sistem yöneticisiyle iletişime geçin."}
+            {challenge.message ?? t("noMethod")}
           </p>
         ) : shownFinal ? (
-          <p role="alert" className="mt-2 text-sm font-semibold text-rose-700" data-testid="mfa-final">{FINAL_TEXT[shownFinal]}</p>
+          <p role="alert" className="mt-2 text-sm font-semibold text-rose-700" data-testid="mfa-final">{t(`final.${shownFinal}`)}</p>
         ) : completing ? (
           <>
             {recoveryOk && <p className="mt-3 text-[13px] font-semibold text-slate-700" data-testid="mfa-recovery-ok">{recoveryOk}</p>}
-            <p className="mt-3 text-sm font-semibold text-emerald-700" data-testid="mfa-completing">Doğrulandı — giriş tamamlanıyor…</p>
+            <p className="mt-3 text-sm font-semibold text-emerald-700" data-testid="mfa-completing">{t("completing")}</p>
           </>
         ) : method === "recovery" && hasRecovery ? (
           <form
@@ -224,10 +219,9 @@ export default function MfaQrPanel({
             data-testid="mfa-recovery-panel"
           >
             <p className="text-[13px] leading-snug text-slate-600">
-              Kurtarma kodlarınızdan <span className="font-semibold">kullanılmamış birini</span> girin. Her kod yalnızca bir kez kullanılabilir.
-              Sistem yöneticisinin verdiği kurtarma biletini de buraya girebilirsiniz.
+              {t.rich("recoveryIntro", { b: (c) => <span className="font-semibold">{c}</span> })}
             </p>
-            <label htmlFor="mfa-recovery-code" className="mt-3 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">Kurtarma kodu</label>
+            <label htmlFor="mfa-recovery-code" className="mt-3 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">{t("recoveryLabel")}</label>
             <input
               id="mfa-recovery-code"
               ref={recoveryRef}
@@ -239,17 +233,17 @@ export default function MfaQrPanel({
               autoCorrect="off"
               spellCheck={false}
               enterKeyHint="done"
-              placeholder="ABCD-EFGH-…"
+              placeholder={t("recoveryPlaceholder")}
               className="mt-1 h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-center font-mono text-[15px] font-bold tracking-wider text-slate-900 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
             />
-            <p className="mt-1 text-[11px] text-slate-500" aria-live="polite">{recoveryChars}/28 karakter</p>
+            <p className="mt-1 text-[11px] text-slate-500" aria-live="polite">{t("recoveryChars", { count: String(recoveryChars) })}</p>
             <button
               type="submit"
               data-testid="mfa-recovery-verify"
               disabled={recoveryBusy || recoveryChars !== 28}
               className="mt-3 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
             >
-              {recoveryBusy ? "Doğrulanıyor…" : "Kurtarma koduyla giriş yap"}
+              {recoveryBusy ? t("verifying") : t("recoverySubmit")}
             </button>
             {recoveryError && (
               <p role="alert" data-testid="mfa-recovery-error" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{recoveryError}</p>
@@ -257,20 +251,20 @@ export default function MfaQrPanel({
             {(hasQr || hasEmail) && (
               <button type="button" data-testid="mfa-recovery-back" onClick={() => setMethod(hasQr && !(phone && hasEmail) ? "qr" : hasEmail ? "email" : "qr")}
                 className="mt-3 w-full text-xs font-bold text-violet-700 hover:underline">
-                Telefon veya e-posta ile doğrulamaya dön
+                {t("recoveryBack")}
               </button>
             )}
-            <p className="mt-3 text-center text-xs font-semibold text-slate-500" data-testid="mfa-countdown">Kalan süre {mm}:{ss}</p>
+            <p className="mt-3 text-center text-xs font-semibold text-slate-500" data-testid="mfa-countdown">{t("countdown", { mm, ss })}</p>
           </form>
         ) : (
           <>
             {hasQr && hasEmail && (
-              <div role="tablist" aria-label="Doğrulama yöntemi" className="mx-auto mt-3 flex max-w-xs gap-1 rounded-xl bg-slate-100 p-1">
+              <div role="tablist" aria-label={t("methodTabs")} className="mx-auto mt-3 flex max-w-xs gap-1 rounded-xl bg-slate-100 p-1">
                 <button type="button" role="tab" aria-selected={method === "qr"} data-testid="mfa-method-qr" className={tabCls(method === "qr")} onClick={() => setMethod("qr")}>
-                  Telefonla (QR)
+                  {t("methodQr")}
                 </button>
                 <button type="button" role="tab" aria-selected={method === "email"} data-testid="mfa-method-email" className={tabCls(method === "email")} onClick={() => setMethod("email")}>
-                  E-posta kodu
+                  {t("methodEmail")}
                 </button>
               </div>
             )}
@@ -278,12 +272,11 @@ export default function MfaQrPanel({
             {method === "qr" && hasQr ? (
               <>
                 <p className="mt-3 text-[13px] leading-snug text-slate-600">
-                  Telefonunuzun kamerasıyla QR kodu okutun. <span className="font-semibold">Yaşam Sistemi</span> uygulaması açılınca
-                  aşağıdaki sayıyı seçip onaylayın.
+                  {t.rich("qrIntro", { b: (c) => <span className="font-semibold">{c}</span> })}
                 </p>
                 <div className="mx-auto mt-3 w-[min(240px,70vw)] rounded-xl bg-white p-2 ring-1 ring-slate-200">
                   {svg && (
-                    <svg viewBox={svg.viewBox} role="img" aria-label="Giriş onayı için QR kod" className="block h-auto w-full text-slate-900" shapeRendering="crispEdges">
+                    <svg viewBox={svg.viewBox} role="img" aria-label={t("qrAria")} className="block h-auto w-full text-slate-900" shapeRendering="crispEdges">
                       <rect width="100%" height="100%" fill="#ffffff" />
                       <path d={svg.d} fill="currentColor" />
                     </svg>
@@ -295,16 +288,15 @@ export default function MfaQrPanel({
                     data-testid="mfa-open-app"
                     className="mx-auto mt-3 block max-w-xs rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700"
                   >
-                    Bu telefonda uygulamayla onayla
+                    {t("openApp")}
                   </a>
                 )}
-                <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Telefona yazacağınız kod</p>
+                <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">{t("matchLabel")}</p>
                 <p className="mt-0.5 font-mono text-4xl font-extrabold tracking-[0.2em] text-violet-800" data-testid="mfa-match-code" aria-live="polite">
                   {challenge.qr?.matchCode}
                 </p>
                 <p className="mt-2 text-[11px] leading-snug text-slate-500">
-                  Bu giriş isteğini siz başlatmadıysanız telefonda <span className="font-semibold">Reddet</span>&apos;e basın.
-                  QR kodu başka bir bilgisayarda açılsa bile giriş yalnızca bu tarayıcıda tamamlanır.
+                  {t.rich("qrWarning", { b: (c) => <span className="font-semibold">{c}</span> })}
                 </p>
               </>
             ) : (
@@ -312,7 +304,7 @@ export default function MfaQrPanel({
                 {!emailSent ? (
                   <>
                     <p className="text-[13px] leading-snug text-slate-600">
-                      Kayıtlı e-posta adresinize <span className="font-semibold">{challenge.emailHint ?? ""}</span> 6 haneli bir doğrulama kodu göndereceğiz.
+                      {t.rich("emailIntro", { email: challenge.emailHint ?? "", b: (c) => <span className="font-semibold">{c}</span> })}
                     </p>
                     <button
                       type="button"
@@ -321,7 +313,7 @@ export default function MfaQrPanel({
                       onClick={() => void sendEmail()}
                       className="mx-auto mt-3 block w-full max-w-xs rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
                     >
-                      {emailBusy === "send" ? "Gönderiliyor…" : resendIn > 0 ? `Tekrar deneme ${resendIn} sn` : "Kodu e-postama gönder"}
+                      {emailBusy === "send" ? t("sending") : resendIn > 0 ? t("retryIn", { seconds: String(resendIn) }) : t("sendCode")}
                     </button>
                   </>
                 ) : (
@@ -330,7 +322,7 @@ export default function MfaQrPanel({
                     className="mx-auto max-w-xs"
                   >
                     {emailInfo && <p role="status" className="text-[12px] leading-snug text-slate-600" data-testid="mfa-email-info">{emailInfo}</p>}
-                    <label htmlFor="mfa-email-code" className="mt-3 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">Doğrulama kodu</label>
+                    <label htmlFor="mfa-email-code" className="mt-3 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">{t("codeLabel")}</label>
                     <input
                       id="mfa-email-code"
                       ref={codeRef}
@@ -349,7 +341,7 @@ export default function MfaQrPanel({
                       disabled={emailBusy !== null || code.length !== 6}
                       className="mt-3 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
                     >
-                      {emailBusy === "verify" ? "Doğrulanıyor…" : "Doğrula ve giriş yap"}
+                      {emailBusy === "verify" ? t("verifying") : t("verifySubmit")}
                     </button>
                     <button
                       type="button"
@@ -358,26 +350,26 @@ export default function MfaQrPanel({
                       onClick={() => void sendEmail()}
                       className="mt-2 w-full text-xs font-bold text-violet-700 hover:underline disabled:text-slate-400 disabled:no-underline"
                     >
-                      {resendIn > 0 ? `Yeni kod ${resendIn} sn sonra istenebilir` : "Yeni kod gönder"}
+                      {resendIn > 0 ? t("resendIn", { seconds: String(resendIn) }) : t("resend")}
                     </button>
                   </form>
                 )}
                 {emailError && (
                   <p role="alert" data-testid="mfa-email-error" className="mx-auto mt-3 max-w-xs rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
                     {emailError}
-                    {hasQr && <> <button type="button" className="underline" onClick={() => setMethod("qr")}>QR ile onaylayın</button></>}
+                    {hasQr && <> <button type="button" className="underline" onClick={() => setMethod("qr")}>{t("useQr")}</button></>}
                   </p>
                 )}
                 {phone === "ios" && !hasQr && (
-                  <p className="mt-2 text-[11px] text-slate-500">iPhone&apos;da uygulama kurmanız gerekmez; e-posta kodu yeterlidir.</p>
+                  <p className="mt-2 text-[11px] text-slate-500">{t("iosNote")}</p>
                 )}
               </div>
             )}
-            <p className="mt-3 text-xs font-semibold text-slate-500" data-testid="mfa-countdown">Kalan süre {mm}:{ss}</p>
+            <p className="mt-3 text-xs font-semibold text-slate-500" data-testid="mfa-countdown">{t("countdown", { mm, ss })}</p>
             {hasRecovery && (
               <button type="button" data-testid="mfa-use-recovery" onClick={openRecovery}
                 className="mt-3 w-full text-xs font-bold text-violet-700 hover:underline">
-                Telefonuma veya e-postama erişemiyorum — kurtarma kodu kullan
+                {t("useRecovery")}
               </button>
             )}
           </>
@@ -389,7 +381,7 @@ export default function MfaQrPanel({
         disabled={completing}
         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-60"
       >
-        {shownFinal || !hasAny ? "Giriş ekranına dön" : "Vazgeç"}
+        {shownFinal || !hasAny ? t("backToLogin") : t("cancel")}
       </button>
     </div>
   );

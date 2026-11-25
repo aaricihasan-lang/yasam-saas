@@ -1,0 +1,6 @@
+{
+  "aciklama": "Diller arasında argüman kümesi bilinçli olarak farklı olan anahtarlar (I18N-F1). Çağrı yeri her iki dilin argümanlarını da geçirir; yalnız gerekçeyle eklenir. Anahtar biçimi <dil>:<anahtar>.",
+  "keys": {
+    "en:clients.notes.totalLabel": "Türkçe 'Toplam Not' sayıyla çekimlenmez; İngilizce Note/Notes için {count} çoğulu gerekir. Çağrı: NotesTab.tsx t('totalLabel', { count })."
+  }
+}

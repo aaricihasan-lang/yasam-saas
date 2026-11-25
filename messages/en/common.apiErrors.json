@@ -1,0 +1,33 @@
+{
+  "common": {
+    "apiErrors": {
+      "generic": "The action could not be completed. Please try again.",
+      "network": "Could not connect. Please check your internet connection and try again.",
+      "codes": {
+        "NOT_FOUND": "Record not found.",
+        "BAD_ID": "Invalid record ID.",
+        "INVALID_ID": "Invalid record ID.",
+        "BAD_JSON": "Invalid request body.",
+        "MALFORMED_JSON": "Invalid request body.",
+        "INVALID_BODY": "Invalid request body.",
+        "INVALID_INPUT": "The information entered is not valid.",
+        "UNKNOWN_FIELD": "The request contains an unrecognised field.",
+        "PAYLOAD_TOO_LARGE": "The request is too large.",
+        "BODY_TOO_LARGE": "The request is too large.",
+        "RATE_LIMITED": "Too many requests in a short time. Please wait a moment and try again.",
+        "DEMO_READONLY": "This is a test account; changes are not saved.",
+        "DB_ERROR": "Your data could not be saved right now. Please try again later.",
+        "SERVER_ERROR": "An unexpected error occurred. Please try again later.",
+        "READ_FAILED": "The data could not be loaded. Please try again.",
+        "CREATE_FAILED": "The record could not be created.",
+        "UPDATE_FAILED": "The record could not be updated.",
+        "DELETE_FAILED": "The record could not be deleted.",
+        "CONFLICT": "This record was changed elsewhere. Refresh the page and try again.",
+        "VERSION_CONFLICT": "This record was changed in another tab. The latest version has been loaded; please try again.",
+        "CLIENT_NOT_FOUND": "Client not found.",
+        "INVALID_LOCALE": "The selected language is not supported.",
+        "LOCALE_SWITCHING_DISABLED": "Language selection is not available at the moment."
+      }
+    }
+  }
+}

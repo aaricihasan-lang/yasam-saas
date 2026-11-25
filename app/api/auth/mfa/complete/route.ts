@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator, type ServerTranslator } from "@/lib/i18n/serverMessages";
 import { randomUUID } from "crypto";
 import { getServerDb } from "@/lib/supabase-server";
 import {
@@ -45,8 +46,8 @@ function json(body: Record<string, unknown>, status: number, extra?: Record<stri
 }
 
 /** Challenge reddi: oturum YOK; tekrar kullanılamayacak durumlarda bağlama çerezi temizlenir. */
-function rejected(code: string, status: number, androidApp: boolean, clearBinding: boolean) {
-  const res = json({ code, error: "Doğrulama tamamlanamadı. Lütfen yeniden giriş yapın." }, status);
+function rejected(code: string, status: number, androidApp: boolean, clearBinding: boolean, te: ServerTranslator) {
+  const res = json({ code, error: te("complete.rejected") }, status);
   if (clearBinding && !androidApp) clearMfaBindingCookie(res);
   return res;
 }
@@ -64,47 +65,48 @@ function rejected(code: string, status: number, androidApp: boolean, clearBindin
  * SESSION_LIMIT · 409 ADMIN_* · 429 · 500/503 (ayrıntı sızdırılmaz).
  */
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   const androidApp = isAndroidAppRequest(req.headers);
   try {
     if (!androidApp && !checkSameOriginRequest(req.headers).ok) {
-      return json({ code: "FORBIDDEN", error: "İstek kaynağı doğrulanamadı." }, 403);
+      return json({ code: "FORBIDDEN", error: te("common.forbiddenOrigin") }, 403);
     }
     const body = (await req.json().catch(() => null)) as { challengeId?: unknown; replaceSessionToken?: unknown } | null;
     const challengeId = typeof body?.challengeId === "string" ? body.challengeId.trim() : "";
     const binding = readMfaBinding(req, androidApp);
-    if (!isMfaChallengeId(challengeId) || !binding) return rejected("MFA_INVALID", 401, androidApp, false);
+    if (!isMfaChallengeId(challengeId) || !binding) return rejected("MFA_INVALID", 401, androidApp, false, te);
 
     const db = getServerDb();
     const clientIp = extractClientIp(req.headers);
     const ipHit = await hitDbRateLimit(db, rateLimitBucket("mfa-complete-ip", clientIp), COMPLETE_IP_LIMIT, COMPLETE_IP_WINDOW_SEC);
     if (!ipHit.allowed) {
       const retryAfter = Math.max(1, ipHit.retryAfterSec);
-      return json({ code: "RATE_LIMITED", error: "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", retryAfter }, 429, { "Retry-After": String(retryAfter) });
+      return json({ code: "RATE_LIMITED", error: te("common.tooManyAttempts"), retryAfter }, 429, { "Retry-After": String(retryAfter) });
     }
 
     const bindingHash = hashMfaBinding(binding);
     const st = await readMfaChallengeState(db, challengeId, bindingHash);
-    if (!st) return json({ code: "ERROR", error: "Doğrulama şu anda tamamlanamıyor." }, 503);
-    if (st.state === "invalid") return rejected("MFA_INVALID", 401, androidApp, false);
-    if (st.state === "pending") return rejected("MFA_NOT_VERIFIED", 401, androidApp, false);
+    if (!st) return json({ code: "ERROR", error: te("complete.unavailable") }, 503);
+    if (st.state === "invalid") return rejected("MFA_INVALID", 401, androidApp, false, te);
+    if (st.state === "pending") return rejected("MFA_NOT_VERIFIED", 401, androidApp, false, te);
     if (st.state !== "verified") {
-      return rejected(st.state === "consumed" ? "MFA_CONSUMED" : st.state === "expired" ? "MFA_EXPIRED" : "MFA_DENIED", 401, androidApp, true);
+      return rejected(st.state === "consumed" ? "MFA_CONSUMED" : st.state === "expired" ? "MFA_EXPIRED" : "MFA_DENIED", 401, androidApp, true, te);
     }
-    if (!st.userId) return rejected("MFA_INVALID", 401, androidApp, false);
+    if (!st.userId) return rejected("MFA_INVALID", 401, androidApp, false, te);
 
     // Hesap gating'i login ile AYNI kural (challenge açıldıktan sonra pasifleşme/rol değişimi yakalanır).
     const { data: u, error: uErr } = await db.from("users").select(GATING_SELECT).eq("id", st.userId).maybeSingle();
-    if (uErr) return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+    if (uErr) return json({ code: "ERROR", error: te("common.sessionCreateFailed") }, 500);
     const row = u as Record<string, unknown> | null;
     if (!row || row.active !== true) {
-      return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+      return json({ code: "INACTIVE", error: te("common.inactiveContactAdmin") }, 403);
     }
     const role = normalizeRole(row.role);
     if (role !== "admin" && role !== "expert") {
-      return json({ code: "NO_ROLE", error: "Hesabınız için geçerli bir rol tanımlı değil." }, 403);
+      return json({ code: "NO_ROLE", error: te("common.noRole") }, 403);
     }
     if (role === "expert" && !isExpertReady({ active: row.active, approval: resolveApprovalStatus(row) })) {
-      return json({ code: "PENDING", error: "Hesabınız yönetici onayı bekliyor." }, 403);
+      return json({ code: "PENDING", error: te("common.pending") }, 403);
     }
 
     // Aynı cihazdaki önceki token (login ile aynı kural): gövde (Android/header) veya web oturum çerezi.
@@ -130,6 +132,7 @@ export async function POST(req: NextRequest) {
         reason === "inactive" ? 403 : 401,
         androidApp,
         reason === "consumed" || reason === "expired",
+        te,
       );
     }
     if (!result.ok) {
@@ -144,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
     if (result.state !== "active") {
       // auth_finalize_login bekleyen onay oturumu üretmez (DB savunması); buraya ulaşılmamalı.
-      return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+      return json({ code: "ERROR", error: te("common.sessionCreateFailed") }, 500);
     }
 
     // Login başarı yanıtıyla AYNI taşıma kuralları (HTTPONLY H2+/H6b).
@@ -175,6 +178,6 @@ export async function POST(req: NextRequest) {
     if (!androidApp) clearMfaBindingCookie(response);
     return response;
   } catch {
-    return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+    return json({ code: "ERROR", error: te("common.sessionCreateFailed") }, 500);
   }
 }

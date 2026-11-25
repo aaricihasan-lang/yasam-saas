@@ -1,0 +1,15 @@
+{
+  "common": {
+    "languagePreference": {
+      "tabLabel": "Language",
+      "title": "Interface language",
+      "description": "Your chosen language is saved to your account and applied when you sign in from another browser or device. Your client records and notes are not translated.",
+      "accountSaved": "Language saved to your account: {label}",
+      "accountUnset": "No language preference is saved to your account; the default language is Turkish.",
+      "accountUnavailable": "Your language preference cannot be saved to your account at the moment; your choice applies to this device only.",
+      "savedAccount": "Your language preference has been saved to your account.",
+      "savedDevice": "The language has been changed for this device; it could not be saved to your account.",
+      "saveError": "The language could not be changed. Please try again."
+    }
+  }
+}

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
+import { clearLocaleCookie } from "@/lib/i18n/localeCookie";
 import { randomUUID } from "crypto";
 import { getServerDb } from "@/lib/supabase-server";
 import {
@@ -104,6 +106,7 @@ async function auditAdminSessionEvent(
  * 403 INACTIVE / PENDING / NO_ROLE / SESSION_LIMIT · 500 (ayrıntı sızdırılmaz).
  */
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   try {
     const body = (await req.json().catch(() => null)) as
       | { email?: unknown; password?: unknown; replaceSessionToken?: unknown }
@@ -125,7 +128,7 @@ export async function POST(req: NextRequest) {
 
     if (!email.trim() || !password.trim()) {
       // Credential yok → kimlik kanıtı yok. Token ÜRETİLMEZ.
-      return json({ code: "INVALID_CREDENTIALS", error: "Kimlik doğrulama gerekli." }, 401);
+      return json({ code: "INVALID_CREDENTIALS", error: te("session.authRequired") }, 401);
     }
 
     const db = getServerDb();
@@ -154,7 +157,7 @@ export async function POST(req: NextRequest) {
       return json({ code: "INVALID_CREDENTIALS", error: LOGIN_INVALID_MESSAGE }, 401);
     }
     if (verified.status !== "ok") {
-      return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+      return json({ code: "ERROR", error: te("session.loginUnavailable") }, 500);
     }
 
     const row = verified.row;
@@ -164,18 +167,18 @@ export async function POST(req: NextRequest) {
     //   active=false → herkes reddedilir · admin yalnız active · uzman active + onaylı.
     if (row.active !== true) {
       return json(
-        { code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." },
+        { code: "INACTIVE", error: te("common.inactiveContactAdmin") },
         403,
       );
     }
     if (role !== "admin" && role !== "expert") {
-      return json({ code: "NO_ROLE", error: "Hesabınız için geçerli bir rol tanımlı değil." }, 403);
+      return json({ code: "NO_ROLE", error: te("common.noRole") }, 403);
     }
     if (
       role === "expert" &&
       !isExpertReady({ active: row.active, approval: resolveApprovalStatus(row as Record<string, unknown>) })
     ) {
-      return json({ code: "PENDING", error: "Hesabınız yönetici onayı bekliyor." }, 403);
+      return json({ code: "PENDING", error: te("common.pending") }, 403);
     }
 
     // AUTH-09: herkese açık demo kimliğiyle sınırsız oturum satırı üretilemez.
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest) {
     // Zorunluluk okunamazsa fail-closed (500). Yöntem sunulamıyorsa da parolaya DÜŞÜLMEZ.
     const mfaRequirement = await readMfaRequirement(db, String(row.id));
     if (mfaRequirement.status === "error") {
-      return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+      return json({ code: "ERROR", error: te("session.loginUnavailable") }, 500);
     }
     if (mfaRequirement.status === "required") {
       const androidApp = isAndroidAppRequest(req.headers);
@@ -211,7 +214,7 @@ export async function POST(req: NextRequest) {
           return json(
             {
               code: "MFA_TOO_MANY_OPEN",
-              error: "Bu hesap için tamamlanmamış çok sayıda doğrulama isteği var. Lütfen açık kalan giriş ekranlarındaki isteği tamamlayın veya 5 dakika sonra tekrar deneyin.",
+              error: te("session.tooManyOpen"),
               retryAfter,
             },
             429,
@@ -219,9 +222,9 @@ export async function POST(req: NextRequest) {
           );
         }
         if (begun.reason === "inactive") {
-          return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+          return json({ code: "INACTIVE", error: te("common.inactiveContactAdmin") }, 403);
         }
-        return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+        return json({ code: "ERROR", error: te("session.loginUnavailable") }, 500);
       }
       const methods = await resolveUserMfaMethods(db, {
         userId: String(row.id),
@@ -244,8 +247,8 @@ export async function POST(req: NextRequest) {
           ...(methods.includes("email_otp") && typeof row.email === "string" ? { emailHint: maskEmail(row.email) } : {}),
           ...(androidApp ? { mfaBinding: bindingSecret } : {}),
           error: methods.length > 0
-            ? "Girişi tamamlamak için ikinci doğrulama gerekiyor."
-            : "Hesabınız için ikinci doğrulama zorunlu; şu anda kullanılabilir doğrulama yöntemi yok. Lütfen sistem yöneticisiyle iletişime geçin.",
+            ? te("session.mfaRequired")
+            : te("session.mfaNoMethod"),
         },
         202,
       );
@@ -261,7 +264,7 @@ export async function POST(req: NextRequest) {
 
     // Bu yol MFA tamamlaması kullanmaz; MFA reddi burada beklenmez (savunma: oturum yok → 500).
     if (!result.ok && "mfaRejected" in result) {
-      return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+      return json({ code: "ERROR", error: te("common.sessionCreateFailed") }, 500);
     }
     // P3 reject-new: limit aşımında yeni oturum OLUŞTURULMAZ (mevcut oturumlar korunur).
     if (!result.ok) {
@@ -309,7 +312,7 @@ export async function POST(req: NextRequest) {
         reason: "pending_disabled",
         channel: result.channel,
       }).catch(() => {});
-      return json({ code: "ERROR", error: "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin." }, 503);
+      return json({ code: "ERROR", error: te("session.loginIncomplete") }, 503);
     }
 
     // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid. Android oturumuna ASLA set edilmez.
@@ -347,7 +350,7 @@ export async function POST(req: NextRequest) {
     return response;
   } catch {
     // Hata ayrıntısı/stack client'a sızdırılmaz.
-    return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+    return json({ code: "ERROR", error: te("common.sessionCreateFailed") }, 500);
   }
 }
 
@@ -450,5 +453,7 @@ export async function DELETE(req: NextRequest) {
   }
   const response = json({ ok: true }, 200);
   if (hasWebSessionCookie(req)) clearWebSessionCookie(response);
+  // I18N-F1-R1: arayüz dili çerezi de silinir (ortak bilgisayar; hesap tercihi bir sonraki girişte yeniden uygulanır).
+  clearLocaleCookie(response);
   return response;
 }
