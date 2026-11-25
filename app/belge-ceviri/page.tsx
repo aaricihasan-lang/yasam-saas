@@ -288,7 +288,8 @@ export default function BelgeCeviriPage() {
     e.target.value = "";
   }
 
-  function downloadTxt(text: string, filename = "ocr-metin.txt") {
+  // P38/P44: indirme adı ekran dilinde (tr birebir: ocr-metin / ocr-ceviri). Sunucu adı iki türü ayırmadığı için istemci üretir.
+  function downloadTxt(text: string, filename = `${t("fileName.ocrText")}.txt`) {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -300,7 +301,7 @@ export default function BelgeCeviriPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleOcrWordDownload(text: string, which: "original" | "translation", filename = "ocr-metin.docx") {
+  async function handleOcrWordDownload(text: string, which: "original" | "translation", filename = `${t("fileName.ocrText")}.docx`) {
     if (isDemo) { demo.notify(showToast); return; }
     if (downloadingWord) return;
     setDownloadingWord(which);
@@ -747,7 +748,7 @@ export default function BelgeCeviriPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => downloadTxt(ocrResult.translation ?? "", "ocr-ceviri.txt")}
+                            onClick={() => downloadTxt(ocrResult.translation ?? "", `${t("fileName.ocrTranslation")}.txt`)}
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
@@ -755,7 +756,7 @@ export default function BelgeCeviriPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
+                            onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", `${t("fileName.ocrTranslation")}.docx`)}
                             disabled={downloadingWord === "translation"}
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                           >

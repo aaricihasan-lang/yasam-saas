@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
@@ -155,9 +156,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("[pdf-to-word]", err);
     await trackUsage(auth.user, request, { module: "belge_ceviri", action: "action_failed", failedAction: "report_generated", subEntity: "document", errorClass: "server" });
-    const message = err instanceof Error ? err.message : String(err);
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
     return NextResponse.json(
-      { success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("PROCESSING_FAILED") },
       { status: 500 },
     );
   }

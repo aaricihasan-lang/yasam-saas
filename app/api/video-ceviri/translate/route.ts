@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import OpenAI from "openai";
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { ok: false, code: "AI_NOT_CONFIGURED", error: "OpenAI API anahtarı yapılandırılmamış." },
+        { ok: false, code: "AI_NOT_CONFIGURED", error: requestTranslator(request, "videoTranslate.apiErrors")("AI_NOT_CONFIGURED") },
         { status: 500 },
       );
     }
@@ -199,7 +200,8 @@ export async function POST(request: NextRequest) {
       detectedLanguageCode: detectedLangCode,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, code: "PROCESSING_FAILED", error: message }, { status: 500 });
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
+    console.error("[video-ceviri/translate] hata:", err);
+    return NextResponse.json({ ok: false, code: "PROCESSING_FAILED", error: requestTranslator(request, "videoTranslate.apiErrors")("PROCESSING_FAILED") }, { status: 500 });
   }
 }
