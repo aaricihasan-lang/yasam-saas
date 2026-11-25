@@ -144,9 +144,9 @@ const narrRows = (fake: ReturnType<typeof createFakeDb>) => fake.tables[HD_NARRA
 async function main() {
   console.log("\n[F] Özellik bayrağı — varsayılan KAPALI = bugünkü davranış");
   ok("F0 bayrak: yok / 'true' / '1' / 'ON' kapalı; yalnız 'on' açık",
-    !isHdNarrativeI18nEnabled({} as NodeJS.ProcessEnv) && !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "true" } as NodeJS.ProcessEnv) &&
-    !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "1" } as NodeJS.ProcessEnv) && !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "ON" } as NodeJS.ProcessEnv) &&
-    isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "on" } as NodeJS.ProcessEnv));
+    !isHdNarrativeI18nEnabled({} as unknown as NodeJS.ProcessEnv) && !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "true" } as unknown as NodeJS.ProcessEnv) &&
+    !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "1" } as unknown as NodeJS.ProcessEnv) && !isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "ON" } as unknown as NodeJS.ProcessEnv) &&
+    isHdNarrativeI18nEnabled({ HD_NARRATIVE_I18N: "on" } as unknown as NodeJS.ProcessEnv));
   {
     const { db, fake } = setup();
     const { d, calls } = deps({ enabled: false });
