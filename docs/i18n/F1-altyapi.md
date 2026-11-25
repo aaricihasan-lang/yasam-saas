@@ -11,7 +11,7 @@ Başlangıç: `origin/main` 7de474e8 (2026-11-24). Mevcut next-intl 4 mimarisi K
 | `i18n/request.ts` | Locale = kapı + çerez; production'da hedef dil kataloğu kaynak dil üzerine birleştirilir (eksik anahtar → boş/ham anahtar yerine Türkçe metin); `timeZone: Europe/Istanbul`. |
 | `lib/i18n/localePreference*.ts`, `app/api/me/locale` | **Kalıcı dil tercihi** (hesap). Bkz. §3. |
 | `lib/i18n/localeCookie.ts`, `setLocale.ts` | Çerez: HttpOnly, production'da Secure, SameSite=Lax, 1 yıl. `clearLocale()` çıkış entegrasyonu için hazır. |
-| `lib/i18n/format.ts` | tr-TR / en-GB / de-DE; `formatNumber`, `formatCurrency` (TRY sabit, kur yok), `formatTime24`, `formatDateAbsoluteInZone`. Mevcut fonksiyonlar byte-aynı. |
+| `lib/i18n/format.ts` | tr-TR / en-GB / de-DE; `formatNumber`, `formatCurrency` (TRY sabit, kur yok), `formatTime24`, `formatDateAbsoluteInZone`. Mevcut fonksiyonlar byte-aynı. Mutlak sayısal tarih (A13): isteğe bağlı `locale` → tr `DD.MM.YYYY` (argümansız çağrı dahil, bayt-bayt aynı) · en `DD/MM/YYYY`; 24 saat. |
 | `lib/i18n/apiError.ts` + `common.apiErrors` | Sunucu `code` → ekran dili. TR'de sunucu metni bugünkü gibi; başka dilde eşlenmemiş Türkçe metin ASLA yapıştırılmaz. |
 | `lib/i18n/output.ts` | Word/PDF/PNG **çıktı dili sözleşmesi** (ekran dili = çıktı dili, aynı katalog, kullanıcı içeriği çevrilmez, hesap dile bağlanmaz). |
 | `lib/i18n/providerLanguage.ts` | Roxy dil hazırlığı (doğrulanmış/bekleyen diller, önbellek anahtarına dil). Henüz hiçbir modüle bağlı değil. |
@@ -64,7 +64,7 @@ F1 şu dosyalara DOKUNMAZ: `lib/auth/**`, `app/api/auth/**`, `app/layout.tsx`, `
 | Türkçe ad | Bugünkü EN | Öneri | Önerinin Türkçe karşılığı | Gerekçe | Alternatifler |
 |---|---|---|---|---|---|
 | Gökyüzü Atlası | *(çevrilmemiş)* | **Celestial Atlas** | Göksel Atlas | "Gökyüzü atlası" metaforunu korur; profesyonel ve doğal | Astrology Atlas (Astroloji Atlası) · Sky Atlas (Gökyüzü Atlası — kelimesi kelimesine) |
-| Yaşam Takvimi / Kozmik Ajanda | Life Calendar / Cosmic Agenda | **Cosmic Calendar** | Kozmik Takvim | İngilizcede "agenda" toplantı gündemi demektir; takvim anlamı "calendar" | Cosmic Planner (Kozmik Planlayıcı) · Life Calendar (Yaşam Takvimi) |
+| Yaşam Takvimi / Kozmik Ajanda | Life Calendar / Cosmic Calendar (R5 §24 uygulandı; önceki: Cosmic Agenda) | **Cosmic Calendar** | Kozmik Takvim | İngilizcede "agenda" toplantı gündemi demektir; takvim anlamı "calendar" | Cosmic Planner (Kozmik Planlayıcı) · Life Calendar (Yaşam Takvimi) |
 | Doğal Destek & Rehber (Şifa Rehberi) | Natural Support & Guide | **Natural Wellness Guide** | Doğal İyi Yaşam Rehberi | "Healing" (şifa) İngilizce pazarlarda tıbbi iddia gibi okunur; "wellness" güvenli ve doğal | Holistic Care Guide (Bütüncül Bakım Rehberi) · Natural Support Guide |
 | Kupa / Hacamat | *(çevrilmemiş)* | **Cupping & Hijama** | Kupa ve Hacamat | Hacamatın uluslararası karşılığı "hijama" | Cupping Therapy (Kupa Terapisi) |
 | Yaşam Hafızası | Life Memory | **Life Memory** (marka terimi olarak koru) | Yaşam Hafızası | Kısa, ayırt edici; açıklayıcı alt başlıkla desteklenebilir | Life Archive (Yaşam Arşivi) · Life Records (Yaşam Kayıtları) |

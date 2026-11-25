@@ -177,6 +177,67 @@
           "title": "Oturumu telefona bağla",
           "p1": "Bu işlem yalnızca telefonunuzdaki <b>Yaşam Sistemi</b> Android uygulamasında, eşleştirilmiş güvenilir telefonla yapılır. Tarayıcıda yapılacak bir işlem yoktur."
         }
+      },
+      "moduleAccess": {
+        "eyebrow": "Erişim kısıtlı",
+        "session": {
+          "title": "Oturumunuz Sona Erdi",
+          "line1": "Güvenliğiniz için bu cihazdaki oturum kapandı.",
+          "line2": "Kaldığınız yerden devam etmek için yeniden giriş yapın."
+        },
+        "membership": {
+          "title": "Üyeliğiniz Aktif Değil",
+          "line1": "Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.",
+          "line2": "Modüllere erişim için yöneticiniz ile görüşün."
+        },
+        "permission": {
+          "title": "Yetkiniz Bulunmuyor",
+          "line1": "Bu modül hesabınızda aktif değil.",
+          "line2": "Lütfen yöneticiniz ile görüşün."
+        },
+        "signIn": "Giriş Yap",
+        "backHome": "Ana Panele Dön"
+      },
+      "sessions": {
+        "title": "Oturumlarım",
+        "refresh": "Yenile",
+        "intro": "Kaybolan bir cihaz varsa buradan oturumunu kapatabilirsiniz. Android uygulama oturumu, siz çıkış yapana veya kapatana kadar açık kalır.",
+        "loading": "Yükleniyor…",
+        "loadFailed": "Oturumlar okunamadı.",
+        "loadFailedNetwork": "Oturumlar okunamadı. Bağlantınızı kontrol edin.",
+        "revokeFailed": "Oturum kapatılamadı.",
+        "revokeFailedNetwork": "Oturum kapatılamadı. Bağlantınızı kontrol edin.",
+        "confirmCurrent": "Bu cihazdaki oturumu kapatmak istiyor musunuz? Çıkış yapılacak.",
+        "confirmOther": "\"{device}\" oturumunu kapatmak istiyor musunuz?",
+        "androidPersistent": "Android uygulama (kalıcı)",
+        "pending": "Onay bekliyor",
+        "thisDevice": "Bu cihaz",
+        "kindAndroid": "Android uygulama",
+        "kindWeb": "Web",
+        "openedAt": "Açılış {date}",
+        "lastSeenAt": "Son görülme {date}",
+        "revoke": "Bu oturumu kapat",
+        "endedSummary": "Son kapanan oturumlar ({count})",
+        "endReasonDefault": "Kapandı",
+        "endReason": {
+          "user_logout": "Çıkış yapıldı",
+          "owner_self_revoked": "Bu ekrandan kapatıldı",
+          "expired_idle": "Süre doldu (kullanılmadı)",
+          "expired_absolute": "Süre doldu",
+          "expired_policy_cleanup": "Süre doldu",
+          "stale": "Yeni girişte kapandı",
+          "replaced_same_device": "Aynı cihazda yeniden giriş",
+          "owner_denied": "Onay verilmedi",
+          "pending_expired": "Onay süresi doldu",
+          "password_changed": "Parola değişti",
+          "admin_terminated": "Yönetici kapattı",
+          "admin_logout_all": "Yönetici kapattı",
+          "admin_password_reset": "Parola sıfırlandı"
+        }
+      },
+      "passwordInput": {
+        "show": "Parolayı göster",
+        "hide": "Parolayı gizle"
       }
     }
   }

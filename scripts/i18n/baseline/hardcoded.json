@@ -1,6 +1,6 @@
 {
  "aciklama": "I18N-F1 sabit metin tabanı (dosya → sayı). CI'da hiçbir dosya bu sayıyı AŞAMAZ; tabanda olmayan dosya 0 olmalı. Düşüş serbesttir — çeviri sonrası `npm run i18n:hardcoded:update` ile taban aşağı çekilir. Artış ancak Owner onayıyla güncellenir ve PR diff'inde görünür.",
- "total": 34116,
+ "total": 34076,
  "files": {
   "app/_campaign/VisitorCampaignView.tsx": 42,
   "app/_campaign/visitorView.ts": 3,
@@ -981,7 +981,7 @@
   "components/astrology/AstrologyClientStatus.tsx": 3,
   "components/astrology/AtlasDevelopmentNotice.tsx": 4,
   "components/auth/AdminSessionApprovalBanner.tsx": 11,
-  "components/auth/ModuleAccessDenied.tsx": 10,
+  "components/auth/ModuleAccessDenied.tsx": 1,
   "components/auth/ModuleAccessPending.tsx": 5,
   "components/auth/SupportRequestForm.tsx": 25,
   "components/common/reader/ReaderFontSizeControl.tsx": 9,
@@ -1003,7 +1003,6 @@
   "components/layout/side-menu/SideMenu.tsx": 2,
   "components/media/CameraCaptureButton.tsx": 1,
   "components/notifications/NotificationBell.tsx": 18,
-  "components/settings/MySessionsPanel.tsx": 29,
   "components/sifa-rehberi-v2/BlockCard.tsx": 22,
   "components/sifa-rehberi-v2/Dialogs.tsx": 51,
   "components/sifa-rehberi-v2/LegacyGuides.tsx": 15,
@@ -1021,7 +1020,6 @@
   "components/sifa-rehberi/SifaCategoryField.tsx": 5,
   "components/trial/TrialNotice.tsx": 14,
   "components/ui/ConfirmProvider.tsx": 1,
-  "components/ui/PasswordInput.tsx": 2,
   "components/ui/ToastProvider.tsx": 2,
   "components/yasam-hafizasi/ArchiveMemoryToggle.tsx": 14,
   "hooks/useDeleteConfirm.ts": 2,
