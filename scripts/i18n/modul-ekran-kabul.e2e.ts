@@ -361,6 +361,8 @@ async function newCtx(browser: Browser, fx: Fixture, lang: Lang, width: number):
     viewport: { width, height: HEIGHT[width] ?? 900 }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
     locale: lang === "en" ? "en-GB" : "tr-TR", timezoneId: "Europe/Istanbul", acceptDownloads: true,
   });
+  // tsx/esbuild keepNames: page.evaluate'e giden işlevler __name(...) yardımcısını çağırır; tarayıcıda tanımlı olmalı.
+  await ctx.addInitScript({ content: "globalThis.__name = globalThis.__name || ((f) => f);" });
   await ctx.addCookies([{ name: "NEXT_LOCALE", value: lang, url: APP }]);
   await ctx.addInitScript(([u, tok]) => {
     localStorage.setItem("yasam_user", u as string);
