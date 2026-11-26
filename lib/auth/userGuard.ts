@@ -20,6 +20,11 @@ import {
 import { isTrialReadOnlyExportPath } from "@/lib/trial/readOnlyRoutes";
 import { bindTrialMeterIdentity } from "@/lib/trial/roxyMeter";
 import { isUndefinedColumnError } from "@/lib/auth/undefinedColumn";
+import {
+  ACCESS_RESTRICTED_CODE,
+  ACCESS_RESTRICTED_MESSAGE,
+  isAccessRestrictionExemptRequest,
+} from "@/lib/auth/accessRestriction";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type UserGuardOk = {
@@ -145,9 +150,18 @@ export async function verifyUserRequest(
   // (sessionToken / userId header'ları) dayanır ve ayrı tablolara vurur → paralel
   // çalıştırılır. Güvenlik kontrolleri aşağıda aynı sırayla, aynı status ve gövdeyle
   // değerlendirilir (davranış korunur; users satırı yalnız binding geçerse döner).
-  const [session, userRes] = await Promise.all([
+  // ÜYE PASİFLEŞTİRME F3: bağımsız erişim kısıtı ayrı (paralel) okunur — migration 20280126000000 öncesi kolon
+  // yoksa (42703) kısıt YOK sayılır (bugünkü davranış); başka her hata → kapalı (403).
+  const restrictionQuery = db
+    .from("users")
+    .select("access_restricted_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const [session, userRes, restrictionRes] = await Promise.all([
     resolveSessionUserId(db, credential),
     usersQuery,
+    restrictionQuery,
   ]);
 
   // Header ve cookie FARKLI kullanıcılara çözüldü → fail-closed.
@@ -206,6 +220,31 @@ export async function verifyUserRequest(
     };
   }
 
+  // ÜYE PASİFLEŞTİRME F3 — KAPALI-BAŞLANGIÇ merkezi kapı: "Pasif" hesap (access_restricted_at dolu) yalnız
+  // lib/auth/accessRestriction açık listesindeki uçlara (birebir yol + yöntem) erişir; diğer HER uç (yeni eklenenler
+  // dahil) 403. Oturum korunur (giriş/çıkış/oturum kontrolü bu kapıyı kullanmaz). Kısıt her istekte canlı okunur.
+  let accessRestrictedAt: string | null = null;
+  if (restrictionRes.error) {
+    if (!isUndefinedColumnError(restrictionRes.error)) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Yetki yok." }, { status: 403 }),
+      };
+    }
+  } else {
+    const raw = (restrictionRes.data as { access_restricted_at?: unknown } | null)?.access_restricted_at;
+    accessRestrictedAt = raw === null || raw === undefined || String(raw).trim() === "" ? null : String(raw);
+  }
+  if (accessRestrictedAt !== null && !isAccessRestrictionExemptRequest(req.method, req.nextUrl?.pathname)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { code: ACCESS_RESTRICTED_CODE, error: ACCESS_RESTRICTED_MESSAGE },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      ),
+    };
+  }
+
   // TRIAL7: Roxy çağırabilen uçlarda (withTrialRoxyMeter bağlamı) doğrulanan kimlik kredi sayacına
   // bağlanır; yalnız deneme uzmanında ölçüm açılır. Bağlam yoksa etkisiz.
   bindTrialMeterIdentity(db, userId, includeProfile ? (data as Record<string, unknown>) : undefined);
@@ -218,7 +257,8 @@ export async function verifyUserRequest(
     is_demo_account: data.is_demo_account === true,
     db,
     // includeProfile=false ise undefined → diğer route'lar ek kolon/veri taşımaz.
-    profile: includeProfile ? (data as Record<string, unknown>) : undefined,
+    // F3: profile'a access_restricted_at eklenir (üyelik çekirdeği "Pasif" → none; ana sayfa minimum durum bilgisi).
+    profile: includeProfile ? { ...(data as Record<string, unknown>), access_restricted_at: accessRestrictedAt } : undefined,
     sessionToken: session.status === "ok" ? session.token : undefined,
   };
 }

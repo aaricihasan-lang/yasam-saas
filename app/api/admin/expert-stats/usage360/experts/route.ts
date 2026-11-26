@@ -14,7 +14,8 @@ import type { Usage360ExpertsData } from "@/lib/admin/stats/apiTypes";
 
 export const runtime = "nodejs";
 
-const STATUS_ALLOW = new Set(["all", "active", "passive", "archive", "pending"]);
+// F4-R1 (20280126000200): passive = giriş açık + modüller kilitli; login_closed = active=false & arşivde değil.
+const STATUS_ALLOW = new Set(["all", "active", "passive", "login_closed", "archive", "pending"]);
 const SORT_ALLOW = new Set(["last_activity", "name", "last_login", "today_actions", "d7", "d30", "created_at"]);
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
@@ -52,11 +53,30 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
   const obj = (data ?? {}) as { total?: number; rows?: Record<string, unknown>[]; measurementStart?: string | null };
   const total = Number(obj.total ?? 0);
+  const rows = (Array.isArray(obj.rows) ? obj.rows : []).map(mapExpertRow);
+  // ÜYE PASİFLEŞTİRME: bağımsız kısıt yalnız GÖSTERİM için ayrı okunur (kolon yoksa / hata → alan eklenmez).
+  // Filtre ve sayaçlar usage360 RPC'lerinde değişmez (active tanımı aynen).
+  if (rows.length > 0) {
+    const { data: acc, error: accErr } = await db
+      .from("users")
+      .select("id, access_restricted_at, archived_at")
+      .in("id", rows.map((r) => r.userId));
+    if (!accErr) {
+      const list = (acc ?? []) as { id: unknown; access_restricted_at: unknown; archived_at: unknown }[];
+      const restricted = new Set(list.filter((r) => r.access_restricted_at != null).map((r) => String(r.id)));
+      const archived = new Set(list.filter((r) => r.archived_at != null).map((r) => String(r.id)));
+      for (const r of rows) {
+        r.accessRestricted = restricted.has(r.userId);
+        // F4-R1: arşiv = 4a archived_at (Aşama 1 "onaylı + pasif" tahmini yerine; okunamazsa eski tanım kalır).
+        r.isArchived = archived.has(r.userId);
+      }
+    }
+  }
   const payload: { ok: true; contractVersion: 1; data: Usage360ExpertsData } = {
     ok: true,
     contractVersion: 1,
     data: {
-      rows: (Array.isArray(obj.rows) ? obj.rows : []).map(mapExpertRow),
+      rows,
       page,
       pageSize,
       total,

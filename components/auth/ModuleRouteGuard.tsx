@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import {
@@ -19,13 +19,28 @@ import {
 function isGuardedPath(path: string): boolean {
   return findRouteModuleRule(path) !== null || isAdminOnlyRoutePath(path);
 }
+
+/**
+ * ÜYE PASİFLEŞTİRME F5-R1: modül kuralı OLMAYAN ürün gezinme sayfaları — yalnız "Pasif" (erişim kısıtlı) hesapta
+ * kısıt ekranı gösterilir; diğer herkes için davranış AYNEN (skip). Veri yine sunucuda 403 ile kapalıdır.
+ */
+const RESTRICTED_ONLY_PREFIXES = ["/life-analysis", "/beslenme", "/dashboard"] as const;
+function isRestrictedOnlyPath(path: string): boolean {
+  return RESTRICTED_ONLY_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+}
 import {
   clearYasamUser,
   readYasamUser,
   syncYasamUserFromDbOutcome,
 } from "@/lib/auth/yasamUser";
 import { useStoredSessionGuard } from "@/hooks/useSessionGuard";
+import { isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
+import { ACCESS_RESTRICTED_EVENT, installAccessRestrictionSignal } from "@/lib/auth/accessRestrictionSignal";
 import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
+
+// ÜYE PASİFLEŞTİRME F5: modül yüklenirken (bileşen efektlerinden ÖNCE) — oturum açıkken pasif yapılan uzmanın ilk 403'ü
+// kilidi hemen tetikler (bkz. lib/auth/accessRestrictionSignal.ts).
+installAccessRestrictionSignal();
 
 type ModuleRouteGuardProps = {
   children: ReactNode;
@@ -35,7 +50,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [decision, setDecision] = useState<RouteModuleGuardDecision>("skip");
-  const [denyReason, setDenyReason] = useState<"permission" | "membership" | "session">(
+  const [denyReason, setDenyReason] = useState<"permission" | "membership" | "session" | "restricted">(
     "permission",
   );
   // K-1: Yetki DB ile kesinleşene kadar "deny" ekranı GÖSTERİLMEZ. Cache belirsizken
@@ -51,6 +66,16 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   // bayat red kesinleştirilmez ve erişim de verilmez → "doğrulanamadı / tekrar dene".
   const [unverified, setUnverified] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // F5: sunucu "hesap pasif" dediyse (ACCESS_RESTRICTED_EVENT) bir sonraki doğrulama TTL'yi atlar.
+  const forceSyncRef = useRef(false);
+  useEffect(() => {
+    const onRestricted = () => {
+      forceSyncRef.current = true;
+      setAttempt((n) => n + 1);
+    };
+    window.addEventListener(ACCESS_RESTRICTED_EVENT, onRestricted);
+    return () => window.removeEventListener(ACCESS_RESTRICTED_EVENT, onRestricted);
+  }, []);
 
   // WEB P1: modül ve /admin sayfalarında oturum sunucuda sona erdiyse (süre dolumu / iptal)
   // kullanıcı 401'lerle sayfada takılmaz — durum temizlenir, neden taşınır ve ana sayfadaki
@@ -91,6 +116,25 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     const path = pathname ?? "/";
     setUnverified(false);
 
+    if (!isGuardedPath(path) && isRestrictedOnlyPath(path)) {
+      const cachedUser = readYasamUser();
+      setDecision(isAccessRestrictedRow(cachedUser as unknown as Record<string, unknown>) ? "deny_membership" : "skip");
+      setDenyReason("restricted");
+      setResolved(true);
+      setDecidedPath(path);
+      if (cachedUser) {
+        const force = forceSyncRef.current;
+        forceSyncRef.current = false;
+        void syncYasamUserFromDbOutcome(cachedUser, force ? { force: true } : undefined).then((outcome) => {
+          if (cancelled || outcome.kind !== "fresh") return;
+          setDecision(isAccessRestrictedRow(outcome.user as unknown as Record<string, unknown>) ? "deny_membership" : "skip");
+        });
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (!isGuardedPath(path)) {
       setDecision("skip");
       setResolved(true);
@@ -105,7 +149,7 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
     // olmayan kullanıcıyla karıştırılmaz ("Yetkiniz Bulunmuyor" → "Ana Panele Dön" → giriş
     // ekranı zinciri yerine doğrudan "Oturumunuz sona erdi" + "Giriş Yap").
     setDenyReason(
-      !cached ? "session" : initial === "deny_membership" ? "membership" : "permission",
+      !cached ? "session" : initial === "deny_membership" ? membershipDenyKind(cached) : "permission",
     );
     // Cache erişime izin veriyorsa (allow/skip) anında göster — ekstra gecikme yok.
     // Cache belirsiz/deny ise, DB doğrulaması bitene kadar "resolved" false kalır.
@@ -119,12 +163,14 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
       return;
     }
 
-    void syncYasamUserFromDbOutcome(cached).then((outcome) => {
+    const force = forceSyncRef.current;
+    forceSyncRef.current = false;
+    void syncYasamUserFromDbOutcome(cached, force ? { force: true } : undefined).then((outcome) => {
       if (cancelled) return;
       if (outcome.kind === "fresh") {
         const next = evaluateRouteModuleGuard(path, outcome.user);
         setDecision(next);
-        setDenyReason(next === "deny_membership" ? "membership" : "permission");
+        setDenyReason(next === "deny_membership" ? membershipDenyKind(outcome.user) : "permission");
       } else if (outcome.kind === "unavailable" && initial !== "allow" && initial !== "skip") {
         // Final-A3: red yalnız ÖNBELLEKTEN geliyordu ve sunucu şu an yanıt veremiyor →
         // "Üyeliğiniz Aktif Değil" / "Yetkiniz Bulunmuyor" kesinleştirilmez; içerik de açılmaz.
@@ -161,4 +207,9 @@ export default function ModuleRouteGuard({ children }: ModuleRouteGuardProps) {
   }
 
   return <>{children}</>;
+}
+
+/** ÜYE PASİFLEŞTİRME F5: üyelik reddi "Pasif" (bağımsız kısıt) kaynaklıysa ayrı, kibar ekran. */
+function membershipDenyKind(user: unknown): "membership" | "restricted" {
+  return isAccessRestrictedRow(user as Record<string, unknown> | null) ? "restricted" : "membership";
 }

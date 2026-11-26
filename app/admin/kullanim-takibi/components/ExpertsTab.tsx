@@ -9,8 +9,8 @@ import { CHANNEL_LABEL, CHANNEL_SHORT, channelShares, formatDurationTr } from "@
 import { SectionCard, LoadingBlock, ErrorBlock, EmptyBlock, Pagination, StatusPill } from "./ui";
 
 const STATUS_OPTS = [
-  { k: "all", l: "Tümü" }, { k: "active", l: "Aktif" }, { k: "passive", l: "Pasif" },
-  { k: "archive", l: "Arşiv" }, { k: "pending", l: "Onay bekleyen" },
+  { k: "all", l: "Tümü" }, { k: "active", l: "Aktif" }, { k: "passive", l: "Pasif · modüller kilitli" },
+  { k: "login_closed", l: "Giriş kapalı" }, { k: "archive", l: "Arşivde" }, { k: "pending", l: "Onay bekleyen" },
 ];
 const SORT_OPTS = [
   { k: "last_activity", l: "Son aktivite" }, { k: "name", l: "Ad" }, { k: "last_login", l: "Son giriş" },
@@ -139,7 +139,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
                     <td className="py-2 pr-3">
                       <span className="block font-medium text-slate-800">{r.fullName || "—"}</span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <StatusPill active={r.active} approvalStatus={r.approvalStatus} isArchived={r.isArchived} />
+                        <StatusPill active={r.active} approvalStatus={r.approvalStatus} isArchived={r.isArchived} accessRestricted={r.accessRestricted} />
                         {r.isDemo ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">DEMO</span> : null}
                       </span>
                     </td>
@@ -175,7 +175,7 @@ export function ExpertsTab({ refreshKey, nowMs, onOpenExpert }: {
                   <span className="flex items-start justify-between gap-2">
                     <span className="min-w-0">
                       <span className="block truncate font-semibold text-slate-800">{r.fullName || "—"}</span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-1.5"><StatusPill active={r.active} approvalStatus={r.approvalStatus} isArchived={r.isArchived} /></span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-1.5"><StatusPill active={r.active} approvalStatus={r.approvalStatus} isArchived={r.isArchived} accessRestricted={r.accessRestricted} /></span>
                     </span>
                     <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
                   </span>

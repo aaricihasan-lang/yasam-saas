@@ -648,6 +648,11 @@ export type ManagedUser = {
   legacyPackage?: boolean;
   /** H3: 7 günlük deneme fazı (deneme rejiminde değilse "none"). DB trial_phase_of ile aynı kural. */
   trialPhase?: TrialPhase;
+  /**
+   * ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı ("Pasif" = giriş açık, modüller kilitli). Yalnız kaynak satırda
+   * `access_restricted` (boolean) varsa dolar; yoksa alan HİÇ eklenmez (eski davranış / migration öncesi).
+   */
+  accessRestricted?: boolean;
 };
 
 /**
@@ -861,6 +866,7 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
       row.admin_level != null ? String(row.admin_level).trim() : undefined,
     createdAt: row.created_at != null ? String(row.created_at) : undefined,
     approvedAt: row.approved_at != null ? String(row.approved_at) : undefined,
+    ...(typeof row.access_restricted === "boolean" ? { accessRestricted: row.access_restricted } : {}),
   };
 }
 

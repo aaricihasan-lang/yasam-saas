@@ -620,6 +620,8 @@ type UserDetailJson = {
   viewer?: { isMainAdmin?: boolean };
   /** AŞAMA 4a — yönetim arşivi (users.archived_at). supported=false → migration öncesi (eski davranış). */
   archive?: { supported?: boolean; archivedAt?: string | null };
+  /** ÜYE PASİFLEŞTİRME F4 — bağımsız erişim kısıtı (users.access_restricted_at). supported=false → migration öncesi. */
+  access?: { supported?: boolean; restrictedAt?: string | null };
 };
 
 type UserDetailResult =
@@ -756,6 +758,12 @@ export default function AdminUserDetailPage() {
   });
   const [unarchiveOpen, setUnarchiveOpen] = useState(false);
   const isArchived = archiveInfo.archivedAt !== null;
+  // ÜYE PASİFLEŞTİRME F4: "Pasif" = giriş açık, modüller kilitli (bağımsız kısıt). supported=false → eski davranış.
+  const [accessInfo, setAccessInfo] = useState<{ supported: boolean; restrictedAt: string | null }>({
+    supported: false,
+    restrictedAt: null,
+  });
+  const isRestricted = accessInfo.restrictedAt !== null;
   // Owner kararı (12.11): arşivleme yalnız onaylı uzmana sunulur (sunucu + RPC de reddeder).
   const canArchiveTarget = user?.role === "expert" && user.approvalStatus === "approved";
   const [savingPayment, setSavingPayment] = useState(false);
@@ -982,6 +990,10 @@ export default function AdminUserDetailPage() {
     setArchiveInfo({
       supported: json.archive?.supported === true,
       archivedAt: json.archive?.supported === true && json.archive.archivedAt ? String(json.archive.archivedAt) : null,
+    });
+    setAccessInfo({
+      supported: json.access?.supported === true,
+      restrictedAt: json.access?.supported === true && json.access.restrictedAt ? String(json.access.restrictedAt) : null,
     });
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setLicenseDraft({ ...mapped.licenseSettings });
@@ -1473,11 +1485,49 @@ export default function AdminUserDetailPage() {
       });
       return;
     }
-    if (user.active) {
-      setDeactivateOpen(true); // pasife alma → onay ekranı (tüm cihazlardan çıkış)
+    if (user.active && !isRestricted) {
+      setDeactivateOpen(true); // pasife alma → onay ekranı (uzman: erişim kısıtı · yönetici: tüm cihazlardan çıkış)
+    } else if (isRestricted) {
+      void doLiftRestriction(); // F4: "Aktif Yap" erişim kısıtını kaldırır (gerekirse önce girişi açar)
     } else {
       void doToggleActive(); // aktifleştirme → doğrudan (oturum oluşturmaz)
     }
+  }
+
+  /** F4: uzmanda "Pasif Yap" bağımsız erişim kısıtıdır; yönetici hesabı / migration öncesi → eski davranış. */
+  const usesAccessRestriction = user?.role === "expert" && accessInfo.supported;
+
+  /** F4: Pasif Yap (uzman) — giriş açık kalır, modüller kilitlenir; oturumlar kapatılmaz, kayıt silinmez. */
+  async function doRestrict(): Promise<boolean> {
+    if (!user) return false;
+    const done = (await postStatus("set_access", { restricted: true, expectedRestricted: false })) !== null;
+    if (done) {
+      showToast({
+        title: "Başarılı",
+        message: "Uzman pasif yapıldı: giriş açık, modüller kilitli. Oturumlar kapatılmadı; hiçbir kayıt silinmedi.",
+        type: "success",
+      });
+    }
+    return done;
+  }
+
+  /**
+   * F4: Aktif Yap (kısıtlı uzman) — kısıt kaldırılır; önceki meşru yetkiler (paket, deneme, modüller) aynen döner,
+   * ek yetki verilmez. Giriş de kapalıysa (ör. arşivden çıkarılmış) önce mevcut aktifleştirme, ardından kısıt kaldırma;
+   * ara adımda hata olursa hesap güvenli tarafta ("Pasif": giriş açık, modüller kilitli) kalır.
+   */
+  async function doLiftRestriction(): Promise<boolean> {
+    if (!user) return false;
+    if (!user.active && (await postStatus("toggle_active", { currentActive: false })) === null) return false;
+    const done = (await postStatus("set_access", { restricted: false, expectedRestricted: true })) !== null;
+    if (done) {
+      showToast({
+        title: "Başarılı",
+        message: "Uzman aktif yapıldı; önceki üyelik ve modül yetkileri geri geldi.",
+        type: "success",
+      });
+    }
+    return done;
   }
 
   async function doToggleActive(): Promise<boolean> {
@@ -1497,7 +1547,8 @@ export default function AdminUserDetailPage() {
   }
 
   async function confirmDeactivate() {
-    if (await doToggleActive()) setDeactivateOpen(false);
+    const done = usesAccessRestriction ? await doRestrict() : await doToggleActive();
+    if (done) setDeactivateOpen(false);
   }
 
   // ── Tüm cihazlardan çıkış (iki adımlı onay) ─────────────────────────────────
@@ -1960,7 +2011,7 @@ export default function AdminUserDetailPage() {
                 <>
                   <RoleBadge role={user.role} />
                   {user.role === "expert" ? <ApprovalBadge status={user.approvalStatus} /> : null}
-                  <AccountBadge active={user.active} archived={isArchived} />
+                  <AccountBadge active={user.active} archived={isArchived} restricted={accessInfo.supported ? isRestricted : undefined} />
                   {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
                   {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
                 </>
@@ -2053,7 +2104,7 @@ export default function AdminUserDetailPage() {
                     Erişim
                   </p>
                   <div className={detailCss.quickButtons}>
-                    {!user.active && !isArchived && (user.role === "admin" || user.approvalStatus === "approved") ? (
+                    {(!user.active && !isArchived && (user.role === "admin" || user.approvalStatus === "approved")) || (isRestricted && !isArchived) ? (
                       <button
                         type="button"
                         disabled={actionUserId === user.id || !canManageAccountActions()}
@@ -2064,7 +2115,7 @@ export default function AdminUserDetailPage() {
                         Aktif Yap
                       </button>
                     ) : null}
-                    {user.active ? (
+                    {user.active && !isRestricted ? (
                       <button
                         type="button"
                         disabled={actionUserId === user.id || !canManageAccountActions()}
@@ -2232,7 +2283,7 @@ export default function AdminUserDetailPage() {
                     <div className={tile}>
                       <dt className={term}>Hesap Durumu</dt>
                       <dd className="mt-2">
-                        <AccountBadge active={user.active} archived={isArchived} />
+                        <AccountBadge active={user.active} archived={isArchived} restricted={accessInfo.supported ? isRestricted : undefined} />
                         <p className="mt-2 text-xs font-semibold text-slate-600">
                           Kayıt: {formatCreatedAt(user.createdAt)}
                         </p>
@@ -3240,22 +3291,25 @@ export default function AdminUserDetailPage() {
               id="uye-hesap-durumu"
               className={`${panelClass} border-slate-200/80`}
               aria-labelledby="uye-hesap-durumu-baslik"
-              data-account-state={isArchived ? "archived" : user.active ? "active" : "passive"}
+              data-account-state={isArchived ? "archived" : !user.active ? "passive" : isRestricted ? "restricted" : "active"}
             >
               <h2 id="uye-hesap-durumu-baslik" className="text-xl font-black text-slate-950">Hesap durumu ve erişim özeti</h2>
               <div className={`mt-4 ${detailCss.infoGrid}`}>
                 <div className={detailCss.infoCard}>
                   <b>Hesap</b>
                   <span>
-                    <AccountBadge active={user.active} archived={isArchived} />
+                    <AccountBadge active={user.active} archived={isArchived} restricted={accessInfo.supported ? isRestricted : undefined} />
                   </span>
                   <span>
                     {isArchived
                       ? "Giriş kapalı. Kayıtlar korunur; üyelik, modül, ödeme ve erişim bilgileri değiştirilemez."
-                      : user.active
-                        ? "Giriş açık."
-                        : "Giriş kapalı. Kayıtlar korunur; “Aktif Yap” ile yeniden açılır."}
+                      : user.active && isRestricted
+                        ? "Pasif: giriş açık, tüm modüller kilitli. Kayıtlar korunur; “Aktif Yap” ile önceki yetkiler geri gelir."
+                        : user.active
+                          ? "Giriş açık."
+                          : "Giriş kapalı. Kayıtlar korunur; “Aktif Yap” ile yeniden açılır."}
                   </span>
+                  {isRestricted && accessInfo.restrictedAt ? <span data-restricted-at>Pasif yapılma: {formatDateTimeTr(accessInfo.restrictedAt)}</span> : null}
                   {isArchived && archiveInfo.archivedAt ? <span data-archived-at>Arşivlenme: {formatDateTimeTr(archiveInfo.archivedAt)}</span> : null}
                 </div>
                 {user.role === "expert" ? (
@@ -4058,7 +4112,14 @@ export default function AdminUserDetailPage() {
               ) : null}
               <div className="mt-4 grid gap-3">
                 <p className={detailCss.note}>
-                  {archiveInfo.supported ? (
+                  {archiveInfo.supported && usesAccessRestriction ? (
+                    <>
+                      <b>Pasif ile arşiv farkı:</b> Pasif uzman sisteme girer ve modülleri görür ancak hiçbirini kullanamaz;
+                      oturumları kapatılmaz. Arşivlenen hesabın (yalnız ana yönetici, parola + onay metni) girişi ve bütün
+                      oturumları kapanır; normal listeden çıkar ve “Aktif Yap” ile açılamaz — önce ana yönetici arşivden
+                      çıkarır. İki durumda da hiçbir kayıt silinmez; “Aktif Yap” önceki yetkileri aynen geri getirir.
+                    </>
+                  ) : archiveInfo.supported ? (
                     <>
                       <b>Pasif ile arşiv farkı:</b> ikisi de girişi ve bütün oturumları kapatır; kayıtlar silinmez.
                       Pasif hesap normal üye listesinde kalır ve “Aktif Yap” ile açılır. Arşivlenen hesap (yalnız ana
@@ -4592,11 +4653,19 @@ export default function AdminUserDetailPage() {
             <h2 id="deactivate-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
               Kullanıcıyı pasife almak üzeresiniz
             </h2>
-            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
-              Bu işlem kullanıcının erişimini durdurur ve <span className="font-black">masaüstü, mobil ve tablet
-              dahil tüm cihazlardaki oturumlarını kapatır</span>. Kullanıcı yeniden aktif yapılana ve tekrar giriş
-              yapana kadar sisteme erişemez.
-            </p>
+            {usesAccessRestriction ? (
+              <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700" data-deactivate-mode="restrict">
+                Uzman <span className="font-black">sisteme girebilir ve modülleri görür, ancak hiçbir modülü kullanamaz</span>:
+                danışan, analiz, rapor ve dosyalara erişim kapanır. Oturumlar kapatılmaz; hiçbir danışan, analiz veya rapor
+                kaydı silinmez. “Aktif Yap” ile önceki yetkiler aynen geri gelir.
+              </p>
+            ) : (
+              <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+                Bu işlem kullanıcının erişimini durdurur ve <span className="font-black">masaüstü, mobil ve tablet
+                dahil tüm cihazlardaki oturumlarını kapatır</span>. Kullanıcı yeniden aktif yapılana ve tekrar giriş
+                yapana kadar sisteme erişemez.
+              </p>
+            )}
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -4617,6 +4686,8 @@ export default function AdminUserDetailPage() {
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                     İşleniyor…
                   </>
+                ) : usesAccessRestriction ? (
+                  "Pasif yap"
                 ) : (
                   "Pasife al ve çıkış yaptır"
                 )}

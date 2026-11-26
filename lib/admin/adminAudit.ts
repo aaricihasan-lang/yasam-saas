@@ -70,6 +70,10 @@ export const ADMIN_AUDIT_ACTIONS = [
   // AŞAMA 4a — ⚠️ 20280101000600_admin_member_archive_state.sql CHECK süperseti ile BİREBİR.
   // Yalnız SQL RPC (admin_unarchive_user) yazar; hesap pasif kalır.
   "user_unarchived",
+  // ÜYE PASİFLEŞTİRME F2 — ⚠️ 20280126000000_member_access_restriction.sql CHECK süperseti ile BİREBİR.
+  // Yalnız SQL RPC (admin_set_member_access_restriction) yazar; "Pasif" = giriş açık, modüller kilitli.
+  "user_access_restricted",
+  "user_access_unrestricted",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

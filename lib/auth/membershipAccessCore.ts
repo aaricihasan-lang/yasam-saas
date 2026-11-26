@@ -15,9 +15,13 @@
  * salt-okunur; inceleme / başlamamış = erişim yok. Bu kolon mevcut hesapların hiçbirinde yoktur:
  * Premium / admin / demo / eski deneme hesaplarında tarih alanları erişime GİRMEZ (davranış aynı).
  *
- * SAFLIK: yalnız `approvalGate` ve `lib/trial/trialCore` (saf çekirdekler) import edilir; IO/env/DB YOK.
+ * ÜYE PASİFLEŞTİRME F3 (Owner 2026-11-24): bağımsız erişim kısıtı (access_restricted_at, "Pasif") → none; deneme ve
+ * paket kurallarından ÖNCE gelir (süresi dolmuş denemenin salt-okunur hakkı da kapanır).
+ *
+ * SAFLIK: yalnız `approvalGate`, `accessRestriction` ve `lib/trial/trialCore` (saf çekirdekler) import edilir; IO/env/DB YOK.
  */
 import { normalizeRole, normalizeApprovalStatus, resolveApprovalStatus } from "./approvalGate";
+import { isAccessRestrictedRow } from "./accessRestriction";
 import {
   isSelfTrialRow,
   resolveTrialPhase,
@@ -86,6 +90,7 @@ export function resolveMembershipAccessLevel(
   if (!row) return "none";
   if (normalizeRole(row.role) === "admin") return "full";
   if (!isActiveFlag(row.active)) return "none";
+  if (isAccessRestrictedRow(row)) return "none";
   if (normalizeApprovalStatus(resolveApprovalStatus(row)) !== "approved") return "none";
   if (resolveMembershipPackageType(row) === "premium") return "full";
   if (isSelfTrialRow(row)) return trialPhaseAccessLevel(resolveTrialPhase(row, nowMs));

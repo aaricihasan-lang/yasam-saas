@@ -19,7 +19,7 @@
  * Çalıştır: npx tsx scripts/uye-arsiv-4a/arsiv-4a.harness.ts
  */
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
@@ -45,6 +45,57 @@ function ok(cond: boolean, label: string, detail?: unknown): void {
 }
 
 const MIG_4A = "20280101000600_admin_member_archive_state.sql";
+
+/** 4a migration'ının kurduğu audit CHECK'i — SABİT (33). 4a CHECK'inin kendisi bununla birebir doğrulanır (M6a). */
+const AUDIT_ACTIONS_AT_4A: readonly string[] = [
+  "user_created", "user_activated", "user_deactivated", "user_approved", "user_rejected",
+  "password_changed_by_admin", "all_sessions_terminated", "single_session_terminated",
+  "desktop_limit_changed", "mobile_limit_changed", "tablet_limit_changed", "total_session_limit_changed",
+  "module_enabled", "module_disabled", "payment_status_changed", "role_changed", "workspace_viewed",
+  "user_deleted", "user_archived", "main_admin_critical_action",
+  "library_transfer_completed", "library_transfer_failed", "library_transfer_retried",
+  "user_profile_updated", "license_settings_changed", "security_exempt_changed",
+  "admin_web_login_pending", "admin_web_login_approved", "admin_web_login_denied",
+  "admin_mobile_login_rejected", "own_session_terminated", "pricing_phase_changed", "user_unarchived",
+];
+/** 4a SONRASI yetkili olarak eklenen eylemler → ekleyen migration. Yeni eylem ancak buraya bilinçli eklenirse geçer. */
+const AUDIT_ACTIONS_AFTER_4A: Readonly<Record<string, string>> = {
+  user_access_restricted: "20280126000000_member_access_restriction.sql",
+  user_access_unrestricted: "20280126000000_member_access_restriction.sql",
+};
+
+const AUDIT_CHECK_RE = /ADD\s+CONSTRAINT\s+admin_audit_action_chk\s+CHECK\s*\(\s*action\s+IN\s*\(([\s\S]*?)\)\s*\)/i;
+function auditCheckActions(sql: string): string[] | null {
+  const m = AUDIT_CHECK_RE.exec(sql);
+  return m ? Array.from(m[1].matchAll(/'([a-z_]+)'/g)).map((x) => x[1]).sort() : null;
+}
+/** Tüm migration'lar içinde admin_audit_action_chk'yi EN SON tanımlayan dosya ve eylemleri (etkin SQL listesi). */
+function latestAuditCheckFromMigrations(): { file: string; actions: string[] } {
+  const dir = path.join(process.cwd(), "supabase/migrations");
+  let last: { file: string; actions: string[] } = { file: "", actions: [] };
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".sql")).sort()) {
+    const a = auditCheckActions(readFileSync(path.join(dir, f), "utf8"));
+    if (a) last = { file: f, actions: a };
+  }
+  return last;
+}
+function migrationAddsAuditAction(file: string, action: string): boolean {
+  return (auditCheckActions(readFileSync(path.join(process.cwd(), "supabase/migrations", file), "utf8")) ?? []).includes(action);
+}
+/** Saf parite kontrolü (negatif testlerle de sınanır). Boş dizi = uyumlu. */
+function auditParityErrors(i: { live4a: string[]; ts: string[]; finalSql: string[]; legacy: string[]; authorized: Readonly<Record<string, string>> }): string[] {
+  const e: string[] = [];
+  const s = (x: string[]) => JSON.stringify([...new Set(x)].sort());
+  if (s(i.live4a) !== s(i.legacy)) e.push("4a canlı CHECK sabit 33 ile aynı değil");
+  for (const a of i.legacy) {
+    if (!i.ts.includes(a)) e.push(`TS eski eylemi kaybetti: ${a}`);
+    if (!i.finalSql.includes(a)) e.push(`son SQL CHECK eski eylemi kaybetti: ${a}`);
+  }
+  if (s(i.ts) !== s(i.finalSql)) e.push("TS ≠ son SQL CHECK");
+  for (const a of i.finalSql) if (!i.legacy.includes(a) && i.authorized[a] === undefined) e.push(`yetkisiz SQL eylemi: ${a}`);
+  for (const a of i.ts) if (!i.legacy.includes(a) && i.authorized[a] === undefined) e.push(`yetkisiz TS eylemi: ${a}`);
+  return e;
+}
 const OWNER = "00000000-0000-4000-8000-0000000004a1";
 const ADMIN2 = "00000000-0000-4000-8000-0000000004a2";
 const TOK = { owner: "zz-4a-owner-token-0001", admin2: "zz-4a-admin2-token-0001" };
@@ -293,7 +344,32 @@ async function main(): Promise<void> {
       "M5 4 fonksiyon: SECURITY DEFINER + sabit search_path; anon/authenticated çalıştıramaz, yalnız service_role", acl);
     const chk = (await su.query(`select pg_get_constraintdef(oid) d from pg_constraint where conname='admin_audit_action_chk'`)).rows[0].d as string;
     const liveActions = Array.from(chk.matchAll(/'([a-z_]+)'::text/g)).map((m) => m[1]).sort();
-    ok(JSON.stringify(liveActions) === JSON.stringify([...ADMIN_AUDIT_ACTIONS].sort()), "M6 audit CHECK = TS eylem listesi (user_unarchived dahil 33)", liveActions.length);
+    // M6 (Owner onayı 24.11, üye pasifleştirme F3-R1): 4a SONRASI migration'lar audit CHECK'ine yetkili eylem
+    // ekleyebildiği için TS listesi artık 4a anındaki CHECK'ten büyüktür. Kontrol GEVŞETİLMEZ, bölünür:
+    //   M6a 4a CHECK = sabit 33 eylem (birebir) · M6b 33 eylemin hepsi TS'te · M6c SON migration CHECK'i = TS (birebir) ·
+    //   M6d 4a sonrası ek eylemler YALNIZ yetkili listedeki (kaynak migration'ıyla) · M6e negatif testler.
+    const legacy4a = [...AUDIT_ACTIONS_AT_4A].sort();
+    const finalSql = latestAuditCheckFromMigrations();
+    ok(JSON.stringify(liveActions) === JSON.stringify(legacy4a), "M6a 4a audit CHECK = sabit 33 eylem (birebir; eksik/fazla yok)", liveActions.length);
+    const m6Errors = auditParityErrors({ live4a: liveActions, ts: [...ADMIN_AUDIT_ACTIONS], finalSql: finalSql.actions, legacy: legacy4a, authorized: AUDIT_ACTIONS_AFTER_4A });
+    ok(legacy4a.every((a) => (ADMIN_AUDIT_ACTIONS as readonly string[]).includes(a)), "M6b eski 33 eylemin TAMAMI TS listesinde korunuyor");
+    ok(m6Errors.length === 0 && JSON.stringify([...ADMIN_AUDIT_ACTIONS].sort()) === JSON.stringify(finalSql.actions),
+      `M6c son migration CHECK'i (${finalSql.file}) = TS eylem listesi (birebir, ${finalSql.actions.length})`, m6Errors);
+    ok(finalSql.actions.filter((a) => !legacy4a.includes(a)).every((a) => AUDIT_ACTIONS_AFTER_4A[a] !== undefined)
+      && Object.entries(AUDIT_ACTIONS_AFTER_4A).every(([a, mig]) => finalSql.actions.includes(a) && migrationAddsAuditAction(mig, a)),
+      "M6d 4a sonrası eklenen eylemler YALNIZ yetkili listeden ve beyan edilen migration'da tanımlı", AUDIT_ACTIONS_AFTER_4A);
+    {
+      const base = { live4a: liveActions, ts: [...ADMIN_AUDIT_ACTIONS], finalSql: finalSql.actions, legacy: legacy4a, authorized: AUDIT_ACTIONS_AFTER_4A };
+      const neg = {
+        tsEskiEylemEksik: auditParityErrors({ ...base, ts: base.ts.filter((a) => a !== "user_deactivated") }),
+        canli4aBeklenmeyen: auditParityErrors({ ...base, live4a: [...base.live4a, "zz_yetkisiz_eylem"].sort() }),
+        sqlYetkisizEk: auditParityErrors({ ...base, finalSql: [...base.finalSql, "zz_yetkisiz_eylem"].sort() }),
+        tsYetkisizEk: auditParityErrors({ ...base, ts: [...base.ts, "zz_yetkisiz_eylem"] }),
+        sqlEskiEylemDustu: auditParityErrors({ ...base, finalSql: base.finalSql.filter((a) => a !== "user_archived") }),
+      };
+      ok(Object.values(neg).every((e) => e.length > 0), "M6e negatif: eski eylem kaybı / beklenmeyen-yetkisiz eylem (SQL veya TS) / SQL'den eylem düşmesi YAKALANIR",
+        Object.fromEntries(Object.entries(neg).map(([k, v]) => [k, v.length])));
+    }
     ok(Boolean(AUDIT_ACTION_LABELS.user_unarchived), "M7 yönetim geçmişinde “Arşivden çıkarıldı” etiketi var");
 
     console.log("\n[L] Eski kayıtlar (otomatik arşivleme YOK)");

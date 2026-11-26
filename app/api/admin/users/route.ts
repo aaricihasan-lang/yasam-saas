@@ -93,6 +93,18 @@ export async function GET(req: NextRequest) {
         if (t) Object.assign(u, { trial_kind: t.trial_kind, trial_status: t.trial_status, trial_ends_at: t.trial_ends_at });
       }
     }
+    // ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı ("Pasif") rozeti için aynı desen — kolon yoksa (migration öncesi)
+    // alan eklenmez, liste aynen döner.
+    const { data: accessRows, error: accessErr } = await db
+      .from("users")
+      .select("id, access_restricted_at")
+      .in("id", ids);
+    if (!accessErr) {
+      const restricted = new Set(
+        ((accessRows ?? []) as Record<string, unknown>[]).filter((r) => r.access_restricted_at != null).map((r) => String(r.id)),
+      );
+      for (const u of users) u.access_restricted = restricted.has(String(u.id ?? ""));
+    }
   }
 
   return NextResponse.json(

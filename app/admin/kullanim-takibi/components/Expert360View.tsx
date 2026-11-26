@@ -240,7 +240,7 @@ export function Expert360View({ userId, period, refreshKey, nowMs }: { userId: s
           return (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                <StatTile label="Hesap durumu" value={d.account.active ? "Aktif" : "Pasif"} hint={d.account.approvalStatus ?? undefined} />
+                <StatTile label="Hesap durumu" value={d.account.archived === true ? "Arşivde" : !d.account.active ? "Giriş kapalı" : d.account.accessRestricted === true ? "Pasif · modüller kilitli" : "Aktif"} hint={d.account.approvalStatus ?? undefined} />
                 <StatTile label="Kayıt tarihi" value={d.account.createdAt ? formatDateTimeTr(d.account.createdAt) : "—"} hint={ageDays != null ? `hesap yaşı ${ageDays} gün` : undefined} />
                 <StatTile label="Onay tarihi" value={d.account.approvedAt ? formatDateTimeTr(d.account.approvedAt) : "Ölçülemiyor"} />
                 <StatTile label="Son giriş (auth)" value={d.account.lastLoginAt ? formatRelativeTr(d.account.lastLoginAt, nowMs) : "—"} />
