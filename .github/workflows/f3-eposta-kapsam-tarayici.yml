@@ -19,6 +19,7 @@ on:
       - "app/admin/eposta-durumu/**"
       - "app/api/admin/email-status/**"
       - "lib/auth/emailSelfService.ts"
+      - "lib/email/ownerTestRecipient.ts"
       - "lib/auth/securityNotice.ts"
       - "scripts/giris-guvenligi/f3-eposta-kapsam-ui.e2e.ts"
       - ".github/workflows/f3-eposta-kapsam-tarayici.yml"

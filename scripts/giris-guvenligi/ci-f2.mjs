@@ -101,6 +101,9 @@ const TSX = [
   // F3: gerçek gönderim öncesi SMTP kabul provası — production sağlayıcı yolu (env → smtpProvider → DB kota) + sahte TLS sunucusu;
   // Owner doğrulama → kitsiz red → kit → zorunluluk → e-posta koduyla giriş; süre / kesinti / kimlik / TLS hataları; uzman korunur.
   "scripts/giris-guvenligi/f3-smtp-kabul-provasi.harness.ts",
+  // F3: Owner test iletisinin kayıtlı test hesabı alıcısı (EMAIL_OWNER_TEST_RECIPIENT) — alıcı yalnız sunucu ayarından, yalnız Owner,
+  // saatte 5 + SMTP 50/saat, uygun olmayan hesap reddi, uzman kapsamı ve kayıtları değişmez.
+  "scripts/giris-guvenligi/f3-test-alici.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -157,6 +160,11 @@ const steps = [
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-eposta-kapsam.harness.ts"],
       env: { F3_KAPSAM_NEGATIF: "1" }, expectFail: true, passRe: /f3-eposta-kapsam: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL \(F3_KAPSAM_NEGATIF=1\)[\s\S]*FAIL uzman kod isteği → 403[\s\S]*FAIL Owner OLMAYAN yönetici de kapalı[\s\S]*FAIL uzmana bildirim GİTMEDİ/ },
+    // NEGATİF KONTROL (F3 test alıcısı): uygunluk denetimi kaldırılınca demo / pasif / arşiv / etkin değil maddeleri FAIL VERMELİ.
+    { label: "f3-test-alici NEGATİF (F3_ALICI_NEGATIF=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-test-alici.harness.ts"],
+      env: { F3_ALICI_NEGATIF: "1" }, expectFail: true, passRe: /f3-test-alici: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL \(F3_ALICI_NEGATIF=1\)[\s\S]*FAIL f3-alici-demo@test\.local → not_eligible[\s\S]*FAIL access_restricted_at = now\(\) → not_eligible/ },
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],

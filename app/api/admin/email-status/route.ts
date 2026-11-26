@@ -6,6 +6,7 @@ import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
 import { emailLimits, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 import { emailSelfServiceScope } from "@/lib/auth/emailSelfService";
 import { smtpHourlyLimit } from "@/lib/email/smtpQuota";
+import { resolveOwnerTestRecipient } from "@/lib/email/ownerTestRecipient";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,8 @@ const json = (body: Record<string, unknown>, status: number) => NextResponse.jso
  *
  * GET  → { configured, provider, limits, last_24h, last_failure, last_success_at, verified_users }
  * POST { action: "test" } → Owner'ın KENDİ adresine test iletisi (kod içermez; saatte ≤5).
+ * POST { action: "test", target: "test_account" } → F3: sunucu ayarındaki KAYITLI test hesabına (EMAIL_OWNER_TEST_RECIPIENT;
+ *      alıcı istekten ALINMAZ). Aynı Owner yetkisi, aynı saatlik 5 sınırı, aynı denetim kaydı ve SMTP 50/saat kapısı.
  * POST { action: "ack" }  → açık "e-posta uyarısı" bildirimlerini kapatır (sorun giderildikten sonra).
  */
 export async function GET(req: NextRequest) {
@@ -41,6 +44,11 @@ export async function GET(req: NextRequest) {
     // tanınmayan değerlerin yalnız SAYISI döner, değerleri dönmez).
     hourlyLimit: provider?.name === "smtp" ? smtpHourlyLimit() : null,
     selfServiceScope: emailSelfServiceScope(),
+    // F3: kayıtlı test hesabı alıcısı — yalnız maske ve durum kodu (tam adres DÖNMEZ).
+    testRecipient: await (async () => {
+      const t = await resolveOwnerTestRecipient(guard.db);
+      return t.ok ? { available: true, masked: t.masked, issue: null } : { available: false, masked: null, issue: t.issue };
+    })(),
     last24h: r.last_24h ?? null,
     lastFailure: r.last_failure ?? null,
     lastSuccessAt: r.last_success_at ?? null,
@@ -62,18 +70,28 @@ export async function POST(req: NextRequest) {
     return json({ ok: true, closed: Number(r.closed) || 0 }, 200);
   }
   if (body?.action !== "test") return json({ error: "Geçersiz işlem." }, 400);
+  const target = (body as { target?: unknown }).target;
+  if (target !== undefined && target !== "self" && target !== "test_account") return json({ error: "Geçersiz alıcı seçimi." }, 400);
   const provider = getEmailProvider();
   const pepper = otpPepper();
   if (!provider || !pepper) return json({ code: "NOT_CONFIGURED", error: "E-posta sağlayıcısı yapılandırılmamış." }, 503);
   const { data: me } = await guard.db.from("users").select("email, name").eq("id", guard.adminId).maybeSingle();
-  const email = typeof (me as { email?: unknown } | null)?.email === "string" ? String((me as { email: string }).email) : "";
+  let email = typeof (me as { email?: unknown } | null)?.email === "string" ? String((me as { email: string }).email) : "";
+  let name: string | null = (me as { name?: string } | null)?.name ?? null;
+  if (target === "test_account") {
+    // Alıcı YALNIZ sunucu ayarından; kayıtlı, etkin, demo / arşiv / pasif olmayan tek hesap şartı (fail-closed).
+    const t = await resolveOwnerTestRecipient(guard.db);
+    if (!t.ok) return json({ code: "TEST_RECIPIENT_UNAVAILABLE", issue: t.issue, error: "Kayıtlı test hesabı alıcısı kullanılamıyor." }, 409);
+    email = t.email;
+    name = null;
+  }
   if (!email) return json({ error: "Owner e-posta adresi yok." }, 400);
   const toHash = hashRecipient(email, pepper);
   const { data, error } = await guard.db.rpc("auth_email_owner_test_reserve", { p_actor_token: guard.sessionToken, p_to_hash: toHash, p_provider: provider.name });
   if (error) return json({ error: "Test başlatılamadı." }, 500);
   const r = (data ?? {}) as { ok?: unknown; code?: unknown; delivery_id?: unknown };
   if (r.ok !== true) return json({ error: r.code === "rate_limited" ? "Saatte en fazla 5 test gönderilebilir." : "Bu işlem yalnız Owner'a açıktır." }, r.code === "rate_limited" ? 429 : 403);
-  const mail = renderOtpEmail({ purpose: "owner_test", name: (me as { name?: string } | null)?.name ?? null });
+  const mail = renderOtpEmail({ purpose: "owner_test", name });
   const sent = await provider.send({ to: email, subject: mail.subject, text: mail.text, html: mail.html, category: "owner_test" });
   await guard.db.rpc("auth_email_delivery_result", {
     p_delivery_id: Number(r.delivery_id), p_ok: sent.ok, p_error_code: sent.ok ? null : sent.code, p_provider_message_id: sent.ok ? sent.providerMessageId : null,

@@ -92,6 +92,12 @@ yayını Vercel'de "Redeploy" ile yeniden yayınlanır (**Owner onayı**). Yeni 
    - Gelen kutusu + istenmeyen klasörü kontrol edilir.
    - İletinin **özgün başlıkları** (Gmail: "Orijinali göster") incelenir: `SPF: PASS`, `DKIM: PASS` (imzalayan alan
      `yasamsistemi.com`), `DMARC: PASS`. DKIM yoksa → Turhost panelinden DKIM etkinleştirilir / Turhost'tan istenir.
+   - **Owner'ın giriş adresi gerçek bir posta kutusu değilse** (ör. kurumsal alan adında kutusu açılmamış ad) test iletisi
+     alıcı aşamasında `rejected` ile reddedilir. Bu durumda Owner adresi DEĞİŞTİRİLMEZ; bunun yerine **kayıtlı test hesabı**
+     alıcısı kullanılır: Production'a `EMAIL_OWNER_TEST_RECIPIENT=<Owner'ın eriştiği, sistemde kayıtlı tek bir hesabın adresi>`
+     (gizli değil) → yeniden yayın → E-posta Durumu'nda "Kayıtlı test hesabına test iletisi" kartı: maskeli alıcıyı kontrol et,
+     onay kutusunu işaretle, gönder. Alıcı istekle değiştirilemez; hesap etkin, demo / arşiv / pasif değil olmalı; saatte 5
+     test sınırı iki alıcı için ortaktır; SMTP 50/saat kapısı geçerlidir; iletide kod yoktur. İş bitince değişken silinebilir.
 2. **İlk gerçek OTP:** Owner › Ayarlar › Hesap Güvenliği › Giriş Yöntemlerim › "Doğrulama kodu gönder".
    - Kod 3 dakika geçerli; önce bilerek **yanlış kod** (hata mesajı görünmeli), sonra doğru kod → "Doğrulandı".
    - 60 saniye dolmadan "yeni kod" istenirse bekleme mesajı görünmeli.
