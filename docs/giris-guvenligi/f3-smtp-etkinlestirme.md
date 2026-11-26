@@ -129,6 +129,22 @@ yayını Vercel'de "Redeploy" ile yeniden yayınlanır (**Owner onayı**). Yeni 
 4. Uzmanlar: `AUTH_EMAIL_SELF_SERVICE_ROLES=owner,expert` (e-posta doğrulama açılır) → uzman başına kurtarma kodu + yöntem
    → `AUTH_MFA_METHOD_SCOPE=all` ve `AUTH_MFA_EMAIL_ROLES=owner,expert` → uzman başına zorunluluk (Owner, MFA yönetim ekranı).
 
+### 8a. Tek hesaplık e-posta DOĞRULAMA pilotu (uzmanların tamamını açmadan)
+
+Yalnız Owner'ın seçtiği TEK uzman hesabı "e-posta adresimi doğrula" akışını kullanır (`lib/auth/emailVerifyPilot.ts`).
+Adres değişikliği, hesap kurtarma, güvenlik bildirimleri ve giriş (MFA) kodu bu pilotla **açılmaz**; MFA zorunluluğu değişmez.
+
+- Ortam (ikisi de zorunlu; biri eksik / geçersiz / birden fazla değer → pilot kapalı):
+  - `AUTH_EMAIL_VERIFY_PILOT_USER_ID` = hesabın kullanıcı kimliği (tek UUID; Supabase SQL konsolunda e-posta ile salt-okunur bulunur).
+  - `AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256` = kayıtlı adresin özeti. Üretim (yerelde; adres hiçbir yere yazılmaz):
+    `node -e "process.stdout.write(require('crypto').createHash('sha256').update(process.argv[1].trim().toLowerCase()).digest('hex'))" "<adres>"`
+- Sunucu her istekte veritabanından denetler: rol uzman, etkin, onaylı, arşivde / "Pasif" / demo değil ve kayıtlı adresin özeti
+  ayarla aynı. Adres değişirse pilot kendiliğinden kapanır (kod onaylanmamış adrese gitmez).
+- `AUTH_EMAIL_SELF_SERVICE_ROLES` **değiştirilmez** (varsayılan yalnız Owner kalır).
+- Yeniden yayın → Owner › E-posta Durumu'nda "E-posta doğrulama pilotu (tek hesap): açık" görünür.
+- Geri alma: iki değişkeni silmek + yeniden yayın (doğrulanmış durum korunur; başka kayıt değişmez).
+- İlk gerçek gönderim (kod içeren ileti) ayrı Owner onayıdır.
+
 ## 9. Owner onay noktaları (sırayla)
 
 1. F3 PR'ının `main`'e alınması (= production yayını).

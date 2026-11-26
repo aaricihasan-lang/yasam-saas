@@ -104,6 +104,9 @@ const TSX = [
   // F3: Owner test iletisinin kayıtlı test hesabı alıcısı (EMAIL_OWNER_TEST_RECIPIENT) — alıcı yalnız sunucu ayarından, yalnız Owner,
   // saatte 5 + SMTP 50/saat, uygun olmayan hesap reddi, uzman kapsamı ve kayıtları değişmez.
   "scripts/giris-guvenligi/f3-test-alici.harness.ts",
+  // F3 pilot (Owner 26.11): TEK uzman hesabında e-posta DOĞRULAMA pilotu — ayar (UUID + adres özeti) genişletilemez, uygunluk DB'den,
+  // yalnız verify_email (adres değişikliği / bildirim / MFA açılmaz), OTP kuralları aynen, IDOR/CSRF, diğer hesaplar aynen.
+  "scripts/giris-guvenligi/f3-eposta-pilot.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -160,6 +163,11 @@ const steps = [
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-eposta-kapsam.harness.ts"],
       env: { F3_KAPSAM_NEGATIF: "1" }, expectFail: true, passRe: /f3-eposta-kapsam: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL \(F3_KAPSAM_NEGATIF=1\)[\s\S]*FAIL uzman kod isteği → 403[\s\S]*FAIL Owner OLMAYAN yönetici de kapalı[\s\S]*FAIL uzmana bildirim GİTMEDİ/ },
+    // NEGATİF KONTROL (F3 pilot): pilot kararı "her zaman açık" yapılınca pilot dışı uzman / uygunluk / adres maddeleri FAIL VERMELİ.
+    { label: "f3-eposta-pilot NEGATİF (F3_PILOT_NEGATIF=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-eposta-pilot.harness.ts"],
+      env: { F3_PILOT_NEGATIF: "1" }, expectFail: true, passRe: /f3-eposta-pilot: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL \(F3_PILOT_NEGATIF=1\)[\s\S]*FAIL adres değişince[\s\S]*FAIL Pasif \(erişim kısıtı\) → pilot KAPALI[\s\S]*FAIL pilot dışı uzman: kapalı/ },
     // NEGATİF KONTROL (F3 test alıcısı): uygunluk denetimi kaldırılınca demo / pasif / arşiv / etkin değil maddeleri FAIL VERMELİ.
     { label: "f3-test-alici NEGATİF (F3_ALICI_NEGATIF=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-test-alici.harness.ts"],

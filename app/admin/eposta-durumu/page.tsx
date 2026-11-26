@@ -11,6 +11,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 
+const PILOT_REASON_LABEL: Record<string, string> = {
+  not_eligible: "rol / durum uygun değil",
+  email_mismatch: "kayıtlı adres onaylanan adresle eşleşmiyor",
+  lookup_failed: "hesap okunamadı",
+  other_user: "farklı hesap",
+};
+
 type Status = {
   configured: boolean;
   provider: string | null;
@@ -20,6 +27,8 @@ type Status = {
   hourlyLimit?: number | null;
   selfServiceScope?: { roles: string[]; ignored: number; isDefault: boolean };
   testRecipient?: { available: boolean; masked: string | null; issue: string | null };
+  /** F3 pilot: tek hesaplık e-posta doğrulama pilotu (yalnız durum kodu; kimlik / adres dönmez). */
+  verifyPilot?: { configured: boolean; eligible: boolean; reason: string };
   last24h: { sent: number; failed: number; reserved: number } | null;
   lastFailure: { code: string | null; at: string | null } | null;
   lastSuccessAt: string | null;
@@ -159,6 +168,16 @@ export default function EpostaDurumuPage() {
                   Kullanıcı e-posta işlemleri: {st.selfServiceScope.roles.map((r) => SCOPE_LABEL[r] ?? r).join(", ")}
                   {st.selfServiceScope.isDefault ? " (varsayılan)" : ""}
                   {st.selfServiceScope.ignored > 0 ? ` · tanınmayan ${st.selfServiceScope.ignored} değer yok sayıldı` : ""}
+                </p>
+              )}
+              {st.verifyPilot && (
+                <p className="mt-1 text-xs text-slate-500" data-testid="email-verify-pilot">
+                  E-posta doğrulama pilotu (tek hesap):{" "}
+                  {!st.verifyPilot.configured
+                    ? "kapalı"
+                    : st.verifyPilot.eligible
+                      ? "açık — yalnız kayıtlı adres doğrulaması"
+                      : `ayarlı ama hesap uygun değil (${PILOT_REASON_LABEL[st.verifyPilot.reason] ?? st.verifyPilot.reason})`}
                 </p>
               )}
               {st.configIssue && (

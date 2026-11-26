@@ -5,6 +5,7 @@ import { smtpConfigIssue } from "@/lib/email/smtpProvider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
 import { emailLimits, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 import { emailSelfServiceScope } from "@/lib/auth/emailSelfService";
+import { emailVerifyPilotConfig, emailVerifyPilotDecision } from "@/lib/auth/emailVerifyPilot";
 import { smtpHourlyLimit } from "@/lib/email/smtpQuota";
 import { resolveOwnerTestRecipient } from "@/lib/email/ownerTestRecipient";
 
@@ -44,6 +45,13 @@ export async function GET(req: NextRequest) {
     // tanınmayan değerlerin yalnız SAYISI döner, değerleri dönmez).
     hourlyLimit: provider?.name === "smtp" ? smtpHourlyLimit() : null,
     selfServiceScope: emailSelfServiceScope(),
+    // F3 pilot: tek hesaplık e-posta DOĞRULAMA pilotu — yalnız durum kodu (kimlik / adres / özet DÖNMEZ).
+    verifyPilot: await (async () => {
+      const cfg = emailVerifyPilotConfig();
+      if (!cfg) return { configured: false, eligible: false, reason: "not_configured" };
+      const d = await emailVerifyPilotDecision(guard.db, cfg.userId);
+      return { configured: true, eligible: d.allowed, reason: d.reason };
+    })(),
     // F3: kayıtlı test hesabı alıcısı — yalnız maske ve durum kodu (tam adres DÖNMEZ).
     testRecipient: await (async () => {
       const t = await resolveOwnerTestRecipient(guard.db);

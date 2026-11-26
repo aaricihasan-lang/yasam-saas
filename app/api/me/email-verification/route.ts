@@ -3,6 +3,7 @@ import { jsonNoStore, verifySelfSessionRequest } from "@/lib/auth/sessionModel";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { emailOtpConfigured, issueAndSendOtp, maskEmail, verifyOtp } from "@/lib/auth/emailOtp";
 import { EMAIL_NOT_IN_SCOPE_TEXT, emailSelfServiceAllowed } from "@/lib/auth/emailSelfService";
+import { emailVerifyPilotAllowed } from "@/lib/auth/emailVerifyPilot";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,9 @@ export const runtime = "nodejs";
  *
  * F3: kapsam AUTH_EMAIL_SELF_SERVICE_ROLES (varsayılan yalnız Owner; lib/auth/emailSelfService). Kapsam dışı hesapta
  * kod GÖNDERİLMEZ / doğrulanmaz (403 METHOD_NOT_IN_SCOPE) — yalnız arayüz gizlemesi değildir.
+ * F3 pilot (Owner 26.11): kapsam dışındaki TEK seçili uzman hesabı (lib/auth/emailVerifyPilot) YALNIZ bu doğrulama akışını
+ * kullanabilir — adres değişikliği (changeAvailable) / kurtarma / bildirim / MFA bu yoldan açılmaz. Alıcı her zaman oturum
+ * kullanıcısının DB'deki kayıtlı adresidir; pilot ayrıca bu adresin Owner'ın onayladığı özetle eşleşmesini ister.
  *
  * GET  → { email: maske, verified: boolean, available: boolean, changeAvailable: boolean }
  * POST { action: "send" } → kod gönderir · POST { action: "confirm", code } → doğrular
@@ -22,13 +26,15 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { data } = await guard.db.from("users").select("email, email_verified_at").eq("id", guard.userId).maybeSingle();
   const r = (data ?? {}) as { email?: unknown; email_verified_at?: unknown };
-  const available = emailOtpConfigured() && !guard.isDemo && (await emailSelfServiceAllowed(guard.db, guard.userId, guard.role));
+  const configured = emailOtpConfigured() && !guard.isDemo;
+  const inScope = configured && (await emailSelfServiceAllowed(guard.db, guard.userId, guard.role));
+  const pilot = configured && !inScope && (await emailVerifyPilotAllowed(guard.db, guard.userId));
   return jsonNoStore({
     email: typeof r.email === "string" ? maskEmail(r.email) : null,
     verified: r.email_verified_at != null,
-    available,
-    // F3: "e-posta adresimi değiştir" kartı da aynı kapsama bağlı (uç ayrıca kendisi denetler).
-    changeAvailable: available,
+    available: inScope || pilot,
+    // F3: "e-posta adresimi değiştir" kartı YALNIZ kapsama bağlı (pilot adres değişikliğini AÇMAZ; uç ayrıca kendisi denetler).
+    changeAvailable: inScope,
   }, 200);
 }
 
@@ -36,7 +42,7 @@ export async function POST(req: NextRequest) {
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.isDemo) return demoReadOnlyResponse();
-  if (!(await emailSelfServiceAllowed(guard.db, guard.userId, guard.role))) {
+  if (!(await emailSelfServiceAllowed(guard.db, guard.userId, guard.role)) && !(await emailVerifyPilotAllowed(guard.db, guard.userId))) {
     return jsonNoStore({ code: "METHOD_NOT_IN_SCOPE", error: EMAIL_NOT_IN_SCOPE_TEXT }, 403);
   }
   const body = (await req.json().catch(() => null)) as { action?: unknown; code?: unknown } | null;

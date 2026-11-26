@@ -22,6 +22,8 @@ on:
       - "lib/email/ownerTestRecipient.ts"
       - "lib/auth/securityNotice.ts"
       - "scripts/giris-guvenligi/f3-eposta-kapsam-ui.e2e.ts"
+      - "lib/auth/emailVerifyPilot.ts"
+      - "scripts/giris-guvenligi/f3-eposta-pilot-ui.e2e.ts"
       - ".github/workflows/f3-eposta-kapsam-tarayici.yml"
   workflow_dispatch:
 
@@ -95,6 +97,30 @@ jobs:
           } | tee "$RUNNER_TEMP/f3-ui/ozet.md" >> "$GITHUB_STEP_SUMMARY"
           exit $code
 
+      # F3 pilot (Owner 26.11): TEK uzman hesabında e-posta DOĞRULAMA pilotu — aynı build, ayrı port; pilot dışı uzman ve Owner aynen.
+      - name: E-posta doğrulama pilotu kabulü (Chrome + Edge; 320 / 390 / 1280)
+        if: always()
+        env:
+          F3_UI_REQUIRE_EDGE: "1"
+        run: |
+          mkdir -p "$RUNNER_TEMP/f3-pilot-ui"
+          set +e
+          npx tsx scripts/giris-guvenligi/f3-eposta-pilot-ui.e2e.ts "$RUNNER_TEMP/f3-pilot-ui" 2>&1 | tee "$RUNNER_TEMP/f3-pilot-ui/gunluk.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "3" ]; then echo "::error title=F3 e-posta pilotu::NOT TESTED (altyapı) — gerçek Edge ikilisi yok; gerçek FAIL DEĞİL"; fi
+          if [ "$code" = "1" ]; then echo "::error title=F3 e-posta pilotu::FAIL — ayrıntı günlükte"; fi
+          pass=$(grep -oE "f3-eposta-pilot-ui: [0-9]+ PASS" "$RUNNER_TEMP/f3-pilot-ui/gunluk.txt" | grep -oE "[0-9]+" | head -1)
+          if [ "$code" = "0" ] && [ "${pass:-0}" -lt 60 ]; then echo "::error title=F3 e-posta pilotu::asgari PASS 60, gözlenen ${pass:-0}"; code=1; fi
+          {
+            echo "## F3 e-posta doğrulama pilotu — tarayıcı kabulü"
+            echo ""
+            echo '```'
+            grep -E "^(══|f3-eposta-pilot-ui:|FAIL|NOT TESTED)|^s+FAIL" "$RUNNER_TEMP/f3-pilot-ui/gunluk.txt" || true
+            echo '```'
+          } | tee "$RUNNER_TEMP/f3-pilot-ui/ozet.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
       - name: Bellek / disk
         if: always()
         run: free -m && df -h . | tail -1
@@ -108,5 +134,8 @@ jobs:
             ${{ runner.temp }}/f3-ui/*.png
             ${{ runner.temp }}/f3-ui/gunluk.txt
             ${{ runner.temp }}/f3-ui/ozet.md
+            ${{ runner.temp }}/f3-pilot-ui/*.png
+            ${{ runner.temp }}/f3-pilot-ui/gunluk.txt
+            ${{ runner.temp }}/f3-pilot-ui/ozet.md
           retention-days: 14
           if-no-files-found: error
