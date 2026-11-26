@@ -19,11 +19,21 @@ type Status = {
   limits: { dailyLimit: number; warnAt: number };
   hourlyLimit?: number | null;
   selfServiceScope?: { roles: string[]; ignored: number; isDefault: boolean };
+  testRecipient?: { available: boolean; masked: string | null; issue: string | null };
   last24h: { sent: number; failed: number; reserved: number } | null;
   lastFailure: { code: string | null; at: string | null } | null;
   lastSuccessAt: string | null;
   verifiedUsers: number;
   openAlerts: { reason: string | null; at: string }[];
+};
+
+/** F3: kayıtlı test hesabı alıcısı kullanılamıyorsa nedeni (yalnız kod; adres sunucudan gelmez). */
+const TEST_RECIPIENT_ISSUE: Record<string, string> = {
+  invalid_address: "ayardaki adres geçersiz",
+  not_registered: "adres kayıtlı bir hesaba ait değil",
+  ambiguous: "adres birden çok hesapta kayıtlı",
+  not_eligible: "hesap etkin değil / demo / arşivde / pasif",
+  lookup_failed: "hesap kontrol edilemedi",
 };
 
 const SCOPE_LABEL: Record<string, string> = { owner: "yalnız Owner", admin: "bütün yöneticiler", expert: "bütün uzmanlar" };
@@ -68,7 +78,8 @@ export default function EpostaDurumuPage() {
   const [st, setSt] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"test" | "ack" | null>(null);
+  const [busy, setBusy] = useState<"test" | "test_account" | "ack" | null>(null);
+  const [testAccountConfirm, setTestAccountConfirm] = useState(false);
 
   const load = useCallback(async () => {
     const headers = ownerAdminHeaders();
@@ -89,16 +100,20 @@ export default function EpostaDurumuPage() {
     return () => window.clearTimeout(id);
   }, [load]);
 
-  async function act(action: "test" | "ack") {
+  async function act(action: "test" | "test_account" | "ack") {
     const headers = ownerAdminHeaders(true);
     if (!headers || busy) return;
     setBusy(action);
     setMsg(null);
     try {
-      const res = await fetch("/api/admin/email-status", { method: "POST", headers, body: JSON.stringify({ action }) });
+      const payload = action === "test_account" ? { action: "test", target: "test_account" } : { action };
+      const res = await fetch("/api/admin/email-status", { method: "POST", headers, body: JSON.stringify(payload) });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; closed?: number };
       if (res.ok && j.ok) {
-        setMsg(action === "test" ? "Test iletisi kendi adresinize gönderildi. Gelen kutunuzu (ve istenmeyen klasörünü) kontrol edin." : `${j.closed ?? 0} uyarı kapatıldı.`);
+        setMsg(action === "test" ? "Test iletisi kendi adresinize gönderildi. Gelen kutunuzu (ve istenmeyen klasörünü) kontrol edin."
+          : action === "test_account" ? "Test iletisi kayıtlı test hesabının adresine gönderildi. Gelen kutusunu (ve istenmeyen klasörünü) kontrol edin."
+            : `${j.closed ?? 0} uyarı kapatıldı.`);
+        if (action === "test_account") setTestAccountConfirm(false);
       } else {
         setMsg(`${j.error ?? "İşlem başarısız."}${j.code ? ` (${ERROR_LABEL[j.code] ?? j.code})` : ""}`);
       }
@@ -214,6 +229,35 @@ export default function EpostaDurumuPage() {
                 Yenile
               </button>
             </div>
+            {st.testRecipient && (st.testRecipient.available || st.testRecipient.issue !== "not_configured") && (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3" data-testid="email-test-account">
+                <p className="text-sm font-bold text-slate-800">Kayıtlı test hesabına test iletisi</p>
+                {st.testRecipient.available ? (
+                  <>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Alıcı (sunucu ayarından, değiştirilemez): <span className="font-mono" data-testid="email-test-account-masked">{st.testRecipient.masked}</span>
+                    </p>
+                    <label className="mt-2 flex items-start gap-2 text-xs text-slate-700">
+                      <input type="checkbox" data-testid="email-test-account-confirm" checked={testAccountConfirm} onChange={(e) => setTestAccountConfirm(e.target.checked)} className="mt-0.5" />
+                      Alıcının benim eriştiğim kayıtlı test hesabı olduğunu kontrol ettim. (Kod içermez; saatte en çok 5 test.)
+                    </label>
+                    <button
+                      type="button"
+                      data-testid="email-test-account-send"
+                      disabled={busy !== null || !st.configured || !testAccountConfirm}
+                      onClick={() => void act("test_account")}
+                      className="mt-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-60"
+                    >
+                      {busy === "test_account" ? "Gönderiliyor…" : "Test hesabına test iletisi gönder"}
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-xs font-semibold text-amber-700" data-testid="email-test-account-issue">
+                    Kullanılamıyor: {TEST_RECIPIENT_ISSUE[st.testRecipient.issue ?? ""] ?? st.testRecipient.issue}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}
