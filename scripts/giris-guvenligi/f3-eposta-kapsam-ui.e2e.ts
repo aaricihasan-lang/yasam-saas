@@ -73,6 +73,8 @@ async function main() {
     SUPABASE_SERVICE_ROLE_KEY: "zz-test-service-role-not-a-secret", SESSION_COOKIE_MODE: "primary", SESSION_COOKIE_ALLOWED_ORIGINS: BASE,
     RATE_LIMIT_SECRET: "f3-ui-rate-secret", LOGIN_IP_PEPPER: "f3-ui-ip-pepper", REQUIRE_DB_SUPER_ADMIN_MARKER: "true",
     EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", EMAIL_SYNTHETIC_SINK: SINK, AUTH_OTP_PEPPER: PEPPER, NEXT_TELEMETRY_DISABLED: "1",
+    // F3: Owner test iletisinin kayıtlı test hesabı alıcısı (sentetik uzman).
+    EMAIL_OWNER_TEST_RECIPIENT: EMAIL.exp,
   };
   delete env.AUTH_EMAIL_SELF_SERVICE_ROLES;
   const app: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "localhost"],
@@ -201,6 +203,21 @@ async function main() {
             const st = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
             ok(/yalnız Owner/.test(t) && /varsayılan/.test(t) && st, `${tag}: Owner e-posta durumu kapsamı gösterir ("${t.trim()}"), taşma yok`);
             ok(!(await page.content()).includes(PEPPER), `${tag}: durum ekranında pepper YOK`);
+            // Kayıtlı test hesabı: maskeli alıcı, onay kutusu işaretlenmeden düğme KAPALI, ileti yalnız test hesabına (kodsuz).
+            const box = page.getByTestId("email-test-account");
+            await box.waitFor({ timeout: 15000 });
+            const masked = await page.getByTestId("email-test-account-masked").innerText();
+            const sendBtn = page.getByTestId("email-test-account-send");
+            ok(masked.includes("*") && !masked.includes(EMAIL.exp) && !(await page.content()).includes(EMAIL.exp) && await sendBtn.isDisabled(),
+              `${tag}: test hesabı alıcısı maskeli ("${masked}"), tam adres DOM'da yok, onaysız düğme kapalı`);
+            await page.getByTestId("email-test-account-confirm").check();
+            ok(await sendBtn.isEnabled(), `${tag}: onay kutusu işaretlenince düğme açılır`);
+            const beforeT = mails().length;
+            await sendBtn.click();
+            await page.getByText(/kayıtlı test hesabının adresine gönderildi/).waitFor({ timeout: 20000 });
+            const got = mails().slice(beforeT);
+            ok(got.length === 1 && got[0].to === EMAIL.exp && !/^[0-9]{6} — /.test(got[0].subject ?? ""), `${tag}: tek kodsuz ileti yalnız kayıtlı test hesabına gitti`, got.map((x) => x.to));
+            await box.screenshot({ path: path.join(OUT, `${slug}-owner-test-hesabi.png`) });
             await page.screenshot({ path: path.join(OUT, `${slug}-owner-eposta-durumu.png`), fullPage: true });
           }
           await ctx.close();
@@ -238,7 +255,9 @@ async function main() {
         }
       }
     }
-    ok(mails().every((m) => m.to === EMAIL.owner), "bütün koşu boyunca iletiler YALNIZ Owner'a gitti", [...new Set(mails().map((m) => m.to))]);
+    // Uzmana giden tek tür: Owner'ın gönderdiği KODSUZ test iletisi (kayıtlı test hesabı). Uzmanın kendi e-posta işlemleri kapalı.
+    ok(mails().every((m) => m.to === EMAIL.owner || (m.to === EMAIL.exp && !/^[0-9]{6} — /.test(m.subject ?? ""))),
+      "bütün koşu boyunca kodlu iletiler YALNIZ Owner'a; uzmana yalnız Owner'ın kodsuz test iletisi", [...new Set(mails().map((m) => m.to))]);
   } finally {
     const nt = notTested.length ? ` · NOT TESTED: ${notTested.join(", ")}` : "";
     console.log(`\nf3-eposta-kapsam-ui: ${pass} PASS, ${fail} FAIL${nt}`);
