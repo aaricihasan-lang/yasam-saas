@@ -21,6 +21,7 @@ import {
   type TrialPhase,
 } from "@/lib/trial/trialCore";
 import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
+import { ACCESS_RESTRICTED_NOTICE, isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
 
 export const MEMBERSHIP_TIME_ZONE = "Europe/Istanbul";
 
@@ -35,7 +36,9 @@ export type MembershipViewKind =
   | "pro_active"
   | "no_package"
   | "pending"
-  | "unavailable";
+  | "unavailable"
+  /** ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı (giriş açık, modüller kilitli). */
+  | "access_restricted";
 
 export type MembershipTone = "ok" | "info" | "warn" | "danger" | "muted";
 
@@ -206,6 +209,23 @@ export function resolveMembershipView(input: {
         "Bu, sistemi tanımanız için açılmış ortak bir demo hesabıdır; kişisel bir üyelik paketi değildir. Kendi üyeliğiniz için yöneticiyle iletişime geçebilirsiniz.",
       rows: [],
       restrictions: ["Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır."],
+      contactCta: CONTACT_INFO,
+    };
+  }
+
+  // ÜYE PASİFLEŞTİRME F5: "Pasif" uzman — paket / deneme bilgisinden ÖNCE (erişim kararı bu; sunucu 403).
+  if (isAccessRestrictedRow(row)) {
+    return {
+      kind: "access_restricted",
+      packageLabel: "Pasif üyelik",
+      statusLabel: "Pasif",
+      tone: "danger",
+      summary: ACCESS_RESTRICTED_NOTICE,
+      rows: [],
+      restrictions: [
+        "Modüller kilitlidir: danışan kayıtları, analizler, hesaplamalar ve raporlar açılamaz.",
+        "Parola değiştirme, destek talebi ve oturum güvenliği işlemleri açıktır.",
+      ],
       contactCta: CONTACT_INFO,
     };
   }

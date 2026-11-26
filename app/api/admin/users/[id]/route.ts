@@ -89,8 +89,20 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     archivedAt: !archiveErr && archiveRow?.archived_at != null ? String(archiveRow.archived_at) : null,
   };
 
+  // ÜYE PASİFLEŞTİRME F4: bağımsız erişim kısıtı ("Pasif" = giriş açık, modüller kilitli) AYRI okunur — arşiv ile
+  // aynı desen; kolon yoksa (migration 20280126000000 öncesi) supported=false → istemci eski "Pasif Yap" davranışı.
+  const { data: accessRow, error: accessErr } = await db
+    .from("users")
+    .select("access_restricted_at")
+    .eq("id", id)
+    .maybeSingle();
+  const access = {
+    supported: !accessErr,
+    restrictedAt: !accessErr && accessRow?.access_restricted_at != null ? String(accessRow.access_restricted_at) : null,
+  };
+
   return NextResponse.json(
-    { user: data, paymentHistory: history ?? [], viewer: { isMainAdmin }, archive },
+    { user: data, paymentHistory: history ?? [], viewer: { isMainAdmin }, archive, access },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

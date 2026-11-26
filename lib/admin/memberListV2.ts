@@ -155,13 +155,14 @@ export const MEMBER_V2_RETURN_PREFIX = "v2:";
 // ── Gösterim ───────────────────────────────────────────────────────────────────
 
 export type MemberStageTone = "act" | "info" | "slate" | "warn" | "bad" | "ok" | "gold" | "muted";
-export function memberStageLabel(stage: MemberStage, opts: { exempt?: boolean; trialEndsAt?: string | null; nowMs: number }): { label: string; tone: MemberStageTone } {
+export function memberStageLabel(stage: MemberStage, opts: { exempt?: boolean; trialEndsAt?: string | null; nowMs: number; restricted?: boolean }): { label: string; tone: MemberStageTone } {
   switch (stage) {
     case "yonetici": return { label: "Yönetici", tone: "info" };
     case "demo": return { label: "Demo hesap", tone: "muted" };
     case "basvuru": return { label: "Başvuru · onay bekliyor", tone: "act" };
     case "red": return { label: "Reddedildi", tone: "muted" };
-    case "pasif": return { label: "Pasif · giriş kapalı", tone: "slate" };
+    // ÜYE PASİFLEŞTİRME: bağımsız kısıt (giriş açık, modüller kilitli) ile eski "giriş kapalı" ayrımı.
+    case "pasif": return opts.restricted ? { label: "Pasif · modüller kilitli", tone: "warn" } : { label: "Pasif · giriş kapalı", tone: "slate" };
     case "arsiv": return { label: "Arşivde", tone: "muted" };
     case "inceleme": return { label: "İncelemede", tone: "bad" };
     case "deneme_durdu": return { label: "Deneme durduruldu", tone: "slate" };
@@ -210,6 +211,8 @@ export type MemberV2Row = {
   last_login_at: string | null;
   pro_request_at: string | null;
   pay_check: boolean;
+  /** ÜYE PASİFLEŞTİRME (20280126000100): 'pasif' aşamasında bağımsız kısıt (giriş açık, modüller kilitli). Eski RPC'de yok. */
+  access_restricted?: boolean;
 };
 
 /** "Süre / tarih" sütunu — ödeme tarihinin geçmesi BORÇ olarak yazılmaz ("kontrol edin"). */

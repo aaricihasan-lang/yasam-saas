@@ -77,7 +77,9 @@ import HomeShell from "@/app/_premium/home/HomeShell";
 import HomeHero from "@/app/_premium/home/HomeHero";
 import HomeModuleGrid from "@/app/_premium/home/HomeModuleGrid";
 import HomeRightColumn from "@/app/_premium/home/HomeRightColumn";
-import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
+import { buildLockedModuleNavGroups, buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
+import { ACCESS_RESTRICTED_NOTICE, isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
+import { ACCESS_RESTRICTED_EVENT } from "@/lib/auth/accessRestrictionSignal";
 import { defaultDesign, usePersonalWorkspace } from "@/app/_premium/home/personal/usePersonalWorkspace";
 import { moduleLinkViews } from "@/app/_premium/home/personal/moduleLinks";
 import { filterHiddenCards, personalRootProps, usePrefersDark } from "@/app/_premium/home/personal/personalRoot";
@@ -1243,6 +1245,33 @@ export default function Home() {
   useEffect(() => {
     userRef.current = user;
   });
+  // ÜYE PASİFLEŞTİRME F5: pasif uzmanın sekmesi yeniden görünür olduğunda (ör. yönetici bu arada "Aktif Yap" dedi)
+  // güncel profil bir kez okunur; kilitler yeniden giriş GEREKMEDEN kalkar. Yoklama YOK; yalnız kısıtlı kullanıcıda.
+  const userIsRestricted =
+    !!user && !isAdminUser(user) && isAccessRestrictedRow(user as unknown as Record<string, unknown>);
+  useEffect(() => {
+    if (!userIsRestricted) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !userRef.current || !hasSessionCredential()) return;
+      void syncYasamUserFromDb(userRef.current, { force: true }).then((fresh) => {
+        if (fresh) setUser(fresh);
+      });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [userIsRestricted]);
+  // F5: ana sayfa açıkken yönetici uzmanı pasif yaparsa ilk ACCOUNT_RESTRICTED 403'ü (accessRestrictionSignal) güncel
+  // profili okutur → bant ve kilitler yeniden giriş gerekmeden gelir.
+  useEffect(() => {
+    const onRestricted = () => {
+      if (!userRef.current || !hasSessionCredential()) return;
+      void syncYasamUserFromDb(userRef.current, { force: true }).then((fresh) => {
+        if (fresh) setUser(fresh);
+      });
+    };
+    window.addEventListener(ACCESS_RESTRICTED_EVENT, onRestricted);
+    return () => window.removeEventListener(ACCESS_RESTRICTED_EVENT, onRestricted);
+  }, []);
   useEffect(() => {
     const restore = () => {
       if (userRef.current || readSessionToken()) return;
@@ -1312,6 +1341,9 @@ export default function Home() {
     const permissionsReady = isAdminUser(user) || profileSynced;
     const visibleDashboardModules = getVisibleDashboardModules(user);
     const membershipExpired = isExpertMembershipExpired(user);
+    // ÜYE PASİFLEŞTİRME F5: "Pasif" uzman (giriş açık) ana sayfayı, TÜM modül kutularını ve sol menüyü KİLİTLİ görür
+    // (genel "üyelik aktif değil" kutusu yerine). Erişim kararı sunucuda (403 ACCOUNT_RESTRICTED); bu yalnız görünüm.
+    const accessRestricted = !isAdminUser(user) && isAccessRestrictedRow(user as unknown as Record<string, unknown>);
     // Erişim yoksa doğru sebep: onay bekliyor mu, yoksa (genel) aktif değil mi?
     const membershipDenyReason: "pending" | "inactive" =
       !isAdminUser(user) &&
@@ -1382,8 +1414,24 @@ export default function Home() {
       }
     }
 
+    /**
+     * F5: pasif uzman kilitli modüle / menü merkezine tıklarsa modül AÇILMAZ; standart uyarı gösterilir. Yönetici bu
+     * arada hesabı aktif yaptıysa güncel profil (ek istek yalnız tıklamada) kilitleri yeniden giriş GEREKMEDEN kaldırır.
+     */
+    function handleRestrictedClick() {
+      showToast({ message: ACCESS_RESTRICTED_NOTICE, type: "error" });
+      if (!hasSessionCredential()) return;
+      void syncYasamUserFromDb(user, { force: true }).then((fresh) => {
+        if (fresh && !isAccessRestrictedRow(fresh as unknown as Record<string, unknown>)) setUser(fresh);
+      });
+    }
+
     function handleLockedModuleClick(reason: ModuleLockReason) {
       if (reason === "coming_soon") return;
+      if (accessRestricted) {
+        handleRestrictedClick();
+        return;
+      }
       showToast({
         message:
           reason === "permission"
@@ -1401,7 +1449,7 @@ export default function Home() {
       const item = visibleDashboardModules.find((m) => m.permissionKey === key);
       return !!item && item.href !== "#" && cardLock(item) === null;
     };
-    const menuReady = permissionsReady && !membershipExpired;
+    const menuReady = permissionsReady && (!membershipExpired || accessRestricted);
     // 2026-10-18 owner kararı: Ürün & Stok Merkezi kartı yedi merkezin EN SONUNDA (yalnız gösterim sırası; diğer altı kartın
     // kendi sırası, kart içeriği ve yetki kararı aynen).
     const orderedDashboardModules = [
@@ -1409,14 +1457,16 @@ export default function Home() {
       ...visibleDashboardModules.filter((m) => m.permissionKey === "stok"),
     ];
     // Sol menü "Tüm Modüller": kartlarla aynı sıra + aynı kilit kararı; alt modül görünürlüğü mevcut route kapısı ile.
-    const moduleNavGroups = menuReady
-      ? buildModuleNavGroups(
+    const moduleNavGroups = !menuReady
+      ? []
+      : accessRestricted
+      ? buildLockedModuleNavGroups(buildCenterNavHubs(user, false, (key) => t(`modules.${key}.title`)))
+      : buildModuleNavGroups(
           user,
           buildCenterNavHubs(user, panelAccess, (key) => t(`modules.${key}.title`)),
           moduleNavProbes,
           (key) => t(`premium.nav.${key}`),
-        )
-      : [];
+        );
     const heroDate = t("dashboard.heroDate", {
       day: effectiveNow.getDate(),
       month: effectiveNow.toLocaleDateString(bcp47, { month: "long" }),
@@ -1473,6 +1523,7 @@ export default function Home() {
           showClients={menuReady && isCardOpen("clients")}
           moduleGroups={moduleNavGroups}
           onModulesOpen={() => setModulesNavRequested(true)}
+          onLockedModuleClick={accessRestricted ? handleRestrictedClick : undefined}
           isAdmin={isAdminUser(user)}
           adminNavLoading={adminNavLoading}
           onAdminNav={() => { void handleAdminNav(); }}
@@ -1563,6 +1614,17 @@ export default function Home() {
 
           <div className={premium.content} data-pw-part={pwRoot ? "content" : undefined}>
             <div className={premium.center} data-pw-part={pwRoot ? "center" : undefined}>
+              {/* ÜYE PASİFLEŞTİRME F5: üst bölümde kırmızı, okunaklı, kibar uyarı (geçici standart metin). */}
+              {permissionsReady && accessRestricted ? (
+                <div
+                  role="alert"
+                  data-testid="home-access-restricted"
+                  className="mb-4 flex items-start gap-3 rounded-[18px] border-2 border-rose-300 bg-rose-50 px-4 py-3.5 text-rose-900 shadow-[0_2px_10px_rgba(190,18,60,0.08)] sm:px-5"
+                >
+                  <Lock className="mt-0.5 h-5 w-5 flex-none text-rose-600" strokeWidth={2.2} aria-hidden />
+                  <p className="text-[15px] font-bold leading-relaxed">{ACCESS_RESTRICTED_NOTICE}</p>
+                </div>
+              ) : null}
               {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih); kişisel tasarım varsa P0 A/B/C */}
               {pwDesign && homeView ? (
                 <PersonalHero
@@ -1630,7 +1692,7 @@ export default function Home() {
                     ))}
                   </div>
                 )
-              ) : membershipExpired ? (
+              ) : membershipExpired && !accessRestricted ? (
                 <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border border-rose-200 bg-rose-50 px-6 py-8 text-center">
                   {membershipDenyReason === "pending" ? (
                     <p className="text-base font-black text-rose-700">

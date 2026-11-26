@@ -119,8 +119,10 @@ console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
   ok((await page.locator("#unarchive-title").count()) === 0 && (await st(I.archivedOne)).archived_at !== null, "Escape kapatır; kayıt değişmez");
   await unBtn.click();
   await page.locator("[data-unarchive-dialog] input").first().fill("yanlis-parola");
+  // Sabit bekleme yerine GERÇEK yanıt (soğuk derlemede istek 1,5 sn'yi aşabilir; yanıtsız "değişmedi" kontrolü boş geçerdi).
+  const wrongRes = page.waitForResponse((r) => r.url().endsWith(`/api/admin/users/${I.archivedOne}/unarchive`) && r.request().method() === "POST", { timeout: 120_000 });
   await page.locator("[data-unarchive-submit]").click();
-  await page.waitForTimeout(1500);
+  ok(!(await wrongRes).ok(), "yanlış parola: sunucu isteği reddetti (yanıt alındı)");
   ok(await page.locator("#unarchive-title").isVisible() && (await st(I.archivedOne)).archived_at !== null, "yanlış parola → pencere açık kalır, arşiv durumu değişmez");
   await page.locator("[data-unarchive-dialog] input").first().fill("zz-owner-pass");
   await page.locator("[data-unarchive-submit]").click();
@@ -133,8 +135,11 @@ console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
   const aud = await q1(`select count(*)::int n from public.admin_audit_log where target_user_id=$1 and action='user_unarchived'`, [I.archivedOne]);
   ok(aud.n === 1, "yönetim geçmişine user_unarchived yazıldı");
   await shot(page, "04-arsivden-cikti-pasif");
+  // Sabit 1,5 sn yerine gerçek /status yanıtı: soğuk sunucuda rota derlemesi uzarsa istek sayfa kapanmadan tamamlanır.
+  const statusRes = page.waitForResponse((r) => r.url().endsWith(`/api/admin/users/${I.archivedOne}/status`) && r.request().method() === "POST", { timeout: 120_000 });
   await page.getByRole("button", { name: "Aktif Yap" }).click();
-  await page.waitForTimeout(1500);
+  const sr = await statusRes;
+  ok(sr.status() === 200, "“Aktif Yap” isteği tamamlandı (200)", sr.status());
   ok((await st(I.archivedOne)).active === true, "sonra “Aktif Yap” → hesap aktif (mevcut kural)");
   await page.close();
   await ctx.close();

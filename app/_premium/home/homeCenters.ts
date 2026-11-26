@@ -9,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import { Brain, Layers, Leaf, Package, Sparkles, UsersRound } from "lucide-react";
 import { isAdminUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
+import { isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
 import {
   getModuleLockReason,
   hasAnyModulePermissionFlag,
@@ -267,6 +268,11 @@ export function expertHasAnyGrantedModule(user: YasamUser): boolean {
 
 export function getVisibleDashboardModules(user: YasamUser): ModuleCard[] {
   if (isAdminUser(user)) return dashboardModules;
+  // ÜYE PASİFLEŞTİRME F5-R1 (Owner): "Pasif" uzman TÜM ürün merkezlerini görür (hakkı olmayanlar dahil) — YALNIZ görünüm;
+  // hepsi getCenterLock'ta kilitlidir (hasFullPanelAccess=false → "subscription"). module_permissions / paket / deneme
+  // hakları DEĞİŞMEZ; yeniden aktif olunca aşağıdaki normal (yalnız meşru haklar) kural geçerlidir. Kartların hiçbiri
+  // yönetici menüsü değildir (yönetim alanları ayrı ve isAdminUser korumalı).
+  if (isAccessRestrictedRow(user as unknown as Record<string, unknown>)) return dashboardModules;
   return dashboardModules.filter(
     (item) =>
       isExpertDashboardModuleVisible(user, item) ||

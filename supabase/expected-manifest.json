@@ -150,7 +150,10 @@
       "campaign_record_event",
       "campaign_purge_event_subjects",
       "campaign_event_unique_counts",
-      "expert_profile_row_guard"
+      "expert_profile_row_guard",
+      "admin_set_member_access_restriction",
+      "member_account_state",
+      "member_access_restriction_archived_guard_trg"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -216,7 +219,10 @@
       "campaign_record_event",
       "campaign_purge_event_subjects",
       "campaign_event_unique_counts",
-      "expert_profile_row_guard"
+      "expert_profile_row_guard",
+      "admin_set_member_access_restriction",
+      "member_account_state",
+      "member_access_restriction_archived_guard_trg"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
