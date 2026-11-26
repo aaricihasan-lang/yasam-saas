@@ -31,6 +31,7 @@ import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 import { legacyMethodNotes } from "../legacyMethod";
+import { ASTRO_ANALYSIS_MAX_PARTS } from "../config";
 import { PROGRESSION_POLAR_LATITUDE } from "../progressionNodesText";
 import { LOCAL_NATAL_INTERP_NOTE, localNatalMethodExtra, localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
 
@@ -502,6 +503,8 @@ export async function saveAnalysis(ctx: EngineCtx, raw: unknown, ownerPreviewHid
   const s = await buildSnapshot(ctx, raw, ownerPreviewHideInterp);
   if (!s.ok) return s.r;
   const v = s.v;
+  // Planlayıcı zaten engeller; yine de kayıt katmanı bağımsız olarak denetler (DB CHECK ile aynı sınır).
+  if (v.resultIds.length > ASTRO_ANALYSIS_MAX_PARTS) return fail(422, "ANALYSIS_TOO_MANY_PARTS", `Bu analiz ${v.resultIds.length} hesap parçasından oluşuyor; tek kayıtta en çok ${ASTRO_ANALYSIS_MAX_PARTS} parça saklanabilir.`);
   const { data, error } = await ctx.db.rpc("astro_analysis_save_v2", {
     p_tenant_id: ctx.tenantId,
     p_user_id: ctx.userId,
@@ -527,6 +530,19 @@ export async function saveAnalysis(ctx: EngineCtx, raw: unknown, ownerPreviewHid
     if (/ASTRO_PROFILE_NOT_FOUND/.test(String((error as { message?: string }).message ?? ""))) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
     const cap = recordCapOf(error);
     if (cap) return recordCapResponse(cap);
+    // Eşzamanlı aynı kayıt isteği (çift tıklama / iki sekme): veritabanı tek satır yazar, yarışı kaybeden 23505 alır →
+    // aynı uzmanın aynı istek kimliğiyle yazılmış kayıt varsa onu döndür (idempotent; 500 yok). Başka uzmanınki dönmez.
+    if ((error as { code?: string }).code === "23505" && /astro_an_request_key/.test(String((error as { message?: string }).message ?? ""))) {
+      const { data: won } = await ctx.db.from("astro_analyses").select("id").eq("tenant_id", ctx.tenantId).eq("owner_user_id", ctx.userId).eq("save_request_id", o.saveRequestId).maybeSingle();
+      const wid = (won as { id?: unknown } | null)?.id;
+      if (isUuid(wid)) return { status: 200, body: { ok: true, analysisId: wid, reused: true } };
+    }
+    // Veritabanı parça/parametre CHECK'i (ör. 20280128000000 migration'ı henüz uygulanmamış sunucuda 11–16 parçalı kayıt):
+    // 500 yerine açık, kalıcı hata. Hesaplanan sonuçlar sonuç önbelleğinde KORUNUR → aynı seçim yeniden ücretli istek üretmez.
+    if ((error as { code?: string }).code === "23514" && /astro_an_params_chk/.test(String((error as { message?: string }).message ?? ""))) {
+      logAstroDbError("analysis.save.params_chk", error);
+      return fail(409, "ANALYSIS_PARTS_LIMIT", `Bu analiz (${v.resultIds.length} hesap parçası) şu anda kayıt sınırını aşıyor. Hesaplanan sonuçlar korunuyor; yeniden hesaplama ücret oluşturmaz. Lütfen yöneticiye bildirin.`);
+    }
     return dbFail("analysis.save", error);
   }
   const d = data as { analysis_id?: unknown; reused?: unknown } | null;

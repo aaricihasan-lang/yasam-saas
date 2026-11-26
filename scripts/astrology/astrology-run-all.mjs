@@ -31,7 +31,7 @@ const jsonOut = arg("--json");
 const TIMEOUT_MS = 12 * 60 * 1000;
 const SECRET_ENV = /(SUPABASE|ROXY|SERVICE_ROLE|DATABASE_URL|POSTGRES_URL|API_KEY|_TOKEN|TOKEN_|SECRET|PASSWORD|ANTHROPIC|OPENAI|GEMINI|DEEPL|GOOGLE_|VERCEL|INNGEST|RESEND|SMTP|AWS_|STRIPE|IYZICO|GH_|GITHUB_TOKEN|NPM_TOKEN)/i;
 /** `test:astrology` zincirinde OLMAYAN ama ağsız/sırsız koşabilen astroloji betikleri. */
-const EXTRA_SCRIPTS = ["test:astrology:transit02", "test:astrology:transit03"];
+const EXTRA_SCRIPTS = ["test:astrology:transit02", "test:astrology:transit03", "test:astrology:analysis-parts-pg"];
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const chain = String(pkg.scripts?.["test:astrology"] ?? "")

@@ -7,6 +7,7 @@ import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { NatalHouseSystemOption } from "@/lib/astrology/model/natalHouseSystems";
 import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
+import { ASTRO_ANALYSIS_MAX_PARTS } from "@/lib/astrology/config";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
 import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
@@ -951,6 +952,8 @@ export function kpRangeIssue(p: TechniqueParams): string | null {
   if ((k.includes("sublord") || k.includes("rasi")) && (p.kpRangePlanets ?? []).length === 0) return "KP aralık gezegeni seçin";
   if (!Number.isInteger(p.kpRangeDays) || p.kpRangeDays < 1 || p.kpRangeDays > KP_TIMING_MAX_DAYS) return `KP aralığı en çok ${KP_TIMING_MAX_DAYS} gün olabilir`;
   if (k.includes("positions") && p.kpRangeDays > KP_POSITIONS_MAX_DAYS) return `KP konum tablosu en çok ${KP_POSITIONS_MAX_DAYS} gün olabilir`;
+  // Sunucu planlayıcısıyla aynı sınır (kayıt edilebilir en çok parça); bugünkü en büyük seçim 15 parça → tetiklenmez, ileriye dönük koruma.
+  if (kpRangeRequestCount(p) > ASTRO_ANALYSIS_MAX_PARTS) return `KP aralığı en çok ${ASTRO_ANALYSIS_MAX_PARTS} hesap parçası olabilir`;
   return null;
 }
 /** Tahmini istek sayısı (önbellek hariç): gezegen × (sub-lord + rasi) + konum tablosu. */

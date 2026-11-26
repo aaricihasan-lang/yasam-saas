@@ -5,7 +5,7 @@
 // bilinmeyen profilde return, karşı taraf yok) istek ÜRETMEZ ve nedeniyle raporlanır.
 // "Tümünü hesapla" YOKTUR; yalnız açıkça seçilen teknikler planlanır.
 
-import { ASTRO_CONFIRM_THRESHOLD, ASTRO_MAX_SELECTIONS_PER_RUN } from "../config";
+import { ASTRO_ANALYSIS_MAX_PARTS, ASTRO_CONFIRM_THRESHOLD, ASTRO_MAX_SELECTIONS_PER_RUN } from "../config";
 import { getTechnique, type CalcUnit, type TechniqueId, type UnitContext } from "./techniques";
 
 export type Selection = { technique: TechniqueId; options: Record<string, unknown> };
@@ -61,6 +61,11 @@ export function buildPlan(selections: PlannedSelection[], isCached: (inputHash: 
     const us = def.units(s.ctx, s.options);
     if (us.length === 0) {
       blocks.push({ code: "NO_UNIT", error: `${def.label}: ${def.noUnitsReason?.(s.ctx, s.options) ?? "hesap birimi oluşturulamadı."}` });
+      return;
+    }
+    // Kayıt edilemeyecek kadar çok parçalı seçim sağlayıcıya HİÇ gönderilmez (ücretli istek boşa gitmez; sessiz kesme yok).
+    if (us.length > ASTRO_ANALYSIS_MAX_PARTS) {
+      blocks.push({ code: "TOO_MANY_PARTS", error: `${def.label}: bu seçim ${us.length} hesap parçası gerektiriyor; tek analizde en çok ${ASTRO_ANALYSIS_MAX_PARTS} parça hesaplanıp kaydedilebilir. Seçimi daraltın.` });
       return;
     }
     blocks.push(null);

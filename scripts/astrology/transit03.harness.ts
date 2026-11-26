@@ -27,6 +27,7 @@ import { createAstroProfile } from "@/lib/astrology/profiles/service";
 import { planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getTechnique, KP_POSITIONS_INTERVALS as S_IV, KP_POSITIONS_MAX_DAYS as S_PMAX, KP_TIMING_MAX_DAYS as S_MAX } from "@/lib/astrology/engine/techniques";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
+import { ASTRO_ANALYSIS_MAX_PARTS } from "@/lib/astrology/config";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { buildAstroReport, kpTimingModeLabel } from "@/lib/astrology/report/model";
 import { KP_LEGEND, KP_TRANSIT_LEGEND, kpLegendFor } from "@/app/admin/astroloji/_lib/kpChart";
@@ -423,6 +424,144 @@ async function main() {
     }
     const rep = buildAstroReport(a);
     for (const b of rep.blocks) if (b.kind === "table") for (const row of b.table.rows) assert.equal(row.length, b.table.columns.length, "satır/sütun uyumsuz");
+  });
+
+  // ═══ P) PARÇA SINIRI (2026-11-25): 11–15 parçalı KP Transit hesaplanıyor ama KAYDEDİLEMİYORDU (DB CHECK result_ids ≤ 10) ═══
+  // Sahte DB, gerçek CHECK'i taklit eder (store.analysisPartsLimit; yeni şema 16, eski şema provası 10).
+  const ALL7 = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"];
+  const selOf = (planets: string[], kinds: string[], days = 7) => ({
+    technique: "kp.transit",
+    options: { range: { startDate: "2026-11-02", days, planets, kinds, ...(kinds.includes("positions") ? { intervalMinutes: 360 } : {}) }, ...base, displayTz: "Europe/Istanbul" },
+  });
+  const CASES: [string, ReturnType<typeof selOf>, number][] = [
+    ["1 parça (yalnız konum tablosu)", selOf([], ["positions"]), 1],
+    ["1 parça (tek gezegen Sub-Lord)", selOf(["moon"], ["sublord"], 30), 1],
+    ["10 parça (5 gezegen × Sub-Lord + Rasi)", selOf(ALL7.slice(0, 5), ["sublord", "rasi"]), 10],
+    ["11 parça (10 + konum tablosu)", selOf(ALL7.slice(0, 5), ["sublord", "rasi", "positions"]), 11],
+    ["14 parça (7 gezegen × 2)", selOf(ALL7, ["sublord", "rasi"], 30), 14],
+    ["15 parça (en büyük seçim: 7 × 2 + konum)", selOf(ALL7, ["sublord", "rasi", "positions"]), 15],
+  ];
+  const saved15: { id: string; technical: string } = { id: "", technical: "" };
+  for (const [label, sel, n] of CASES) {
+    await t(`P1 ${label}: plan = ${n} istek, hesap ${n} çağrı, KAYIT 201, result_ids = ${n}, arşivden aç 0 istek + teknik birebir, aynı istek kimliği → aynı kayıt`, async () => {
+      const st = createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
+      const c = ctxOf(st);
+      const pr2 = await createAstroProfile(c, { label: "Sentetik P", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: ISTANBUL.id }, (id) => (id === ISTANBUL.id ? ISTANBUL : null));
+      const pid2 = (pr2.body as J).profile.id;
+      const plan = await planAstrology(c, { profileId: pid2, selections: [sel] });
+      assert.equal((plan.body as J).plan.newRequestCount, n);
+      const before = calls.length;
+      const r = await runAstrology(c, { profileId: pid2, selections: [sel], ...(n > 10 ? { confirmNewRequests: n } : {}) }, deps, { ownerPreviewHideInterp: false });
+      assert.equal(r.status, 200, JSON.stringify(r.body).slice(0, 300));
+      assert.equal(calls.length - before, n, "her parça TEK ücretli istek");
+      const tech = (r.body as J).results[0].view.technical as KpTimingTechnical;
+      assert.deepEqual(tech.missing, [], "hiçbir parça düşürülmedi");
+      const sid = randomUUID();
+      const sv = await saveAnalysis(c, { profileId: pid2, revision: 1, ...sel, saveRequestId: sid }, false);
+      assert.equal(sv.status, 201, JSON.stringify(sv.body).slice(0, 300));
+      const row = st.tables.astro_analyses!.find((a) => a.id === (sv.body as J).analysisId)!;
+      assert.equal((row.result_ids as string[]).length, n);
+      const again = await saveAnalysis(c, { profileId: pid2, revision: 1, ...sel, saveRequestId: sid }, false);
+      assert.equal(again.status, 200);
+      assert.equal((again.body as J).analysisId, (sv.body as J).analysisId);
+      assert.equal(st.tables.astro_analyses!.length, 1, "art arda kayıt yeni satır üretmez");
+      const mid = calls.length;
+      const a = ((await getAnalysis(c, (sv.body as J).analysisId, false)).body as J).analysis;
+      assert.equal(JSON.stringify(a.technical), JSON.stringify(tech), "arşivden açılan teknik = hesaplanan teknik");
+      const rerun = await runAstrology(c, { profileId: pid2, selections: [sel] }, deps, { ownerPreviewHideInterp: false });
+      assert.equal(rerun.status, 200);
+      assert.equal(calls.length, mid, "arşivden açma + yeniden görüntüleme 0 istek");
+      if (n === 15) {
+        saved15.id = (sv.body as J).analysisId;
+        saved15.technical = JSON.stringify(a.technical);
+        // Word + PDF: 7 gezegenin Sub-Lord ve Rasi tabloları + konum tablosu; satır/sütun uyumu.
+        const dx = await buildAnalysisReport(c, saved15.id, "docx", false);
+        const px = await buildAnalysisReport(c, saved15.id, "pdf", false);
+        assert.ok(dx.ok && px.ok);
+        if (!dx.ok || !px.ok) return;
+        const d = await docxText(dx.bytes);
+        const pp = await pdfInfo(px.bytes);
+        for (const [lb, txt] of [["docx", d], ["pdf", pp.text]] as const) {
+          for (const needle of ["Sub-Lord değişimleri", "Rasi (burç) geçişleri", "KP konum tablosu", "Güneş", "Ay", "Mars", "Merkür", "Jüpiter", "Venüs", "Satürn"]) assert.ok(txt.includes(needle), `${lb}: "${needle}" yok`);
+          for (const bad of ["undefined", "NaN", "[object Object]"]) assert.ok(!txt.includes(bad), `${lb}: ${bad}`);
+        }
+        const rep = buildAstroReport(a);
+        for (const b of rep.blocks) if (b.kind === "table") for (const rr of b.table.rows) assert.equal(rr.length, b.table.columns.length);
+        const subRows = tech.sublord.reduce((x, s2) => x + s2.changes.length, 0);
+        const rasRows = tech.rasi.reduce((x, s2) => x + s2.changes.length, 0);
+        const tableRows = rep.blocks.filter((b) => b.kind === "table").reduce((x, b) => x + (b.kind === "table" ? b.table.rows.length : 0), 0);
+        assert.ok(tableRows >= subRows + rasRows + tech.positions!.rows.length, `rapor satırları eksik: ${tableRows} < ${subRows}+${rasRows}+${tech.positions!.rows.length}`);
+        assert.equal(calls.length, mid, "rapor üretimi 0 istek");
+        assert.ok(px.bytes.length < 4_000_000 && dx.bytes.length < 4_000_000, `rapor boyutu docx ${dx.bytes.length} pdf ${px.bytes.length}`);
+      }
+    });
+  }
+  await t("P2 en büyük seçim (7 gezegen × Sub-Lord + Rasi + konum) = 15 ≤ ASTRO_ANALYSIS_MAX_PARTS (16) — planlayıcı engellemez; sabit DB ile aynı", () => {
+    const def = getTechnique("kp.transit")!;
+    const opt = def.parseOptions({ range: { startDate: "2026-11-02", days: 7, planets: ALL7, kinds: ["sublord", "rasi", "positions"], intervalMinutes: 60 }, ...base }, NOW)!;
+    const units = def.units({ birth: BIRTH } as never, opt);
+    assert.equal(units.length, 15);
+    assert.equal(ASTRO_ANALYSIS_MAX_PARTS, 16);
+    const sql = readFileSync(join(__dirname, "..", "..", "supabase", "migrations", "20280128000000_astro_analysis_result_parts.sql"), "utf8");
+    assert.match(sql, /cardinality\(result_ids\) <= 16/, "migration sınırı = uygulama sabiti");
+    assert.equal(new Set(units.map((u) => u.inputHash)).size, 15, "parçalar ayrı önbellek anahtarı");
+    // Arayüz aynı sınırı uygular; en büyük geçerli seçim (15) engellenmez, istek tahmini 15.
+    const ui = { ...defaultParams(NOW), kpRangeStart: "2026-11-02", kpRangeDays: 7, kpRangePlanets: ALL7, kpRangeKinds: ["sublord", "rasi", "positions"], kpRangeInterval: 60 } as never;
+    assert.equal(kpRangeRequestCount(ui), 15);
+    assert.equal(kpRangeIssue(ui), null);
+  });
+  await t("P3 ESKİ ŞEMA (migration uygulanmamış, sınır 10): 15 parçalı kayıt 500 DEĞİL açık 409 ANALYSIS_PARTS_LIMIT; analiz yazılmaz; sonuçlar korunur → yeniden hesap 0 istek", async () => {
+    const st = createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
+    st.analysisPartsLimit = 10;
+    const c = ctxOf(st);
+    const pr2 = await createAstroProfile(c, { label: "Sentetik Eski", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: ISTANBUL.id }, (id) => (id === ISTANBUL.id ? ISTANBUL : null));
+    const pid2 = (pr2.body as J).profile.id;
+    const sel = CASES[CASES.length - 1][1];
+    await runAstrology(c, { profileId: pid2, selections: [sel], confirmNewRequests: 15 }, deps, { ownerPreviewHideInterp: false });
+    const sv = await saveAnalysis(c, { profileId: pid2, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 409, JSON.stringify(sv.body).slice(0, 200));
+    assert.equal((sv.body as J).code ?? (sv.body as J).error?.code, "ANALYSIS_PARTS_LIMIT");
+    assert.match(JSON.stringify(sv.body), /15 hesap parçası/);
+    assert.equal(st.tables.astro_analyses?.length ?? 0, 0);
+    const before = calls.length;
+    const r = await runAstrology(c, { profileId: pid2, selections: [sel] }, deps, { ownerPreviewHideInterp: false });
+    assert.equal(r.status, 200);
+    assert.equal(calls.length, before, "hesaplanmış parçalar önbellekte: yeni ücretli istek yok");
+    // Eski şemada 10 parça hâlâ kaydedilir (geriye dönük uyum).
+    const s10 = CASES[2][1];
+    await runAstrology(c, { profileId: pid2, selections: [s10] }, deps, { ownerPreviewHideInterp: false });
+    const ok10 = await saveAnalysis(c, { profileId: pid2, revision: 1, ...s10, saveRequestId: randomUUID() }, false);
+    assert.equal(ok10.status, 201);
+  });
+  await t("P4 tenant / uzman izolasyonu: 15 parçalı kayıt başka tenant'tan ve başka uzmandan 404", async () => {
+    assert.ok(saved15.id);
+    const other = { ...ctx, tenantId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" } as EngineCtx;
+    const otherUser = { ...ctx, userId: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c" } as EngineCtx;
+    assert.equal((await getAnalysis(other, saved15.id, false)).status, 404);
+    assert.equal((await getAnalysis(otherUser, saved15.id, false)).status, 404);
+  });
+
+  await t("P5 eşzamanlı aynı kayıt isteği: DB yarışı kaybeden çağrıya 23505 (astro_an_request_key) dönerse uygulama 500 DEĞİL aynı kaydı döndürür (reused)", async () => {
+    const st = createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
+    const real = createFakeClient(st);
+    const c = { ...ctxOf(st) };
+    const pr2 = await createAstroProfile(c, { label: "Sentetik Yarış", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: ISTANBUL.id }, (id) => (id === ISTANBUL.id ? ISTANBUL : null));
+    const pid2 = (pr2.body as J).profile.id;
+    const sel = CASES[CASES.length - 1][1];
+    await runAstrology(c, { profileId: pid2, selections: [sel], confirmNewRequests: 15 }, deps, { ownerPreviewHideInterp: false });
+    const sid = randomUUID();
+    // Rakip istek satırı ÖNCE yazar; bu çağrının RPC'si gerçek DB gibi 23505 alır.
+    const first = await saveAnalysis(c, { profileId: pid2, revision: 1, ...sel, saveRequestId: sid }, false);
+    assert.equal(first.status, 201);
+    const racing = { ...real, rpc: async (fn: string, args: unknown) => (fn === "astro_analysis_save_v2" ? { data: null, error: { code: "23505", message: 'duplicate key value violates unique constraint "astro_an_request_key"' } } : (real.rpc as unknown as (f: string, a: unknown) => Promise<unknown>)(fn, args)) } as unknown as EngineCtx["db"];
+    const lost = await saveAnalysis({ ...c, db: racing }, { profileId: pid2, revision: 1, ...sel, saveRequestId: sid }, false);
+    assert.equal(lost.status, 200, JSON.stringify(lost.body).slice(0, 200));
+    assert.equal((lost.body as J).reused, true);
+    assert.equal((lost.body as J).analysisId, (first.body as J).analysisId);
+    assert.equal(st.tables.astro_analyses!.length, 1);
+    // Başka istek kimliğinde 23505 (gerçekte olmaz) → mevcut kayıt UYDURULMAZ, açık hata.
+    const other = await saveAnalysis({ ...c, db: racing }, { profileId: pid2, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+    assert.equal(other.status, 500);
   });
 
   // ═══ U) KP UX düzeltmeleri (2026-10-18; yalnız sunum — hesap / anlar / veri aynı) ═══════════════════════════
