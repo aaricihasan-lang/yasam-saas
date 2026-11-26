@@ -72,6 +72,7 @@
     "test:astrology:transit02": "tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/transit02.harness.ts",
     "test:astrology:horary-western": "tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWestern.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWestern02.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWestern03.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWestern04.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWestern05.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWesternRun.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWesternReport.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWesternRecords.harness.ts",
     "test:astrology:horary-pg": "node scripts/astrology/pg/horary-questions.mjs",
+    "test:astrology:analysis-parts-pg": "node scripts/astrology/pg/analysis-parts.mjs",
     "test:astrology:horary-backup": "node scripts/astrology/pg/horary-backup-restore.mjs",
     "test:astrology:pro": "node scripts/astrology/pro-run-all.mjs",
     "test:astrology:ci": "node scripts/astrology/astrology-run-all.mjs",

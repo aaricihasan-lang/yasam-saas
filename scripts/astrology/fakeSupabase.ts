@@ -27,6 +27,8 @@ export type FakeStore = {
   /** Oran sınırı penceresinin başlangıcı (kova başına). */
   rateWindowStart: Map<string, number>;
   log: QueryLog[];
+  /** astro_analyses.astro_an_params_chk parça sınırı (gerçek DB: 20280126000000 sonrası 16; eski şema provası için 10 verilebilir). */
+  analysisPartsLimit?: number;
   /** Bu tablo/kolon seçildiğinde hata simülasyonu (ör. is_super_admin kolonu yok). */
   failSelect?: (table: string, select: string) => FakeErr;
   /** Bu RPC çağrıldığında hata simülasyonu (ör. migration uygulanmamış → PGRST202). */
@@ -353,7 +355,7 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
       if (partnerId !== null && !ownedProfile(store, { tenant_id: tenant, owner_user_id: args.p_user_id }, partnerId)) {
         return { data: null, error: { code: "23503", message: "insert or update violates foreign key constraint astro_an_partner_owner_fk" } };
       }
-      if (typeof params !== "object" || Array.isArray(params) || resultIds.length > 10) return { data: null, error: { code: "23514", message: "astro_an_params_chk" } };
+      if (typeof params !== "object" || Array.isArray(params) || resultIds.length > (store.analysisPartsLimit ?? 16)) return { data: null, error: { code: "23514", message: "new row for relation \"astro_analyses\" violates check constraint \"astro_an_params_chk\"" } };
     }
     const notes = Array.isArray(args.p_notes) ? (args.p_notes as { section_key: string; body: string }[]) : [];
     // Atomiklik: geçersiz not → hiçbir satır yazılmaz (DB CHECK + tek işlem davranışı).

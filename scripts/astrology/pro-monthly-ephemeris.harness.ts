@@ -785,7 +785,8 @@ async function main() {
   });
   await t("H2 rapor / kayıt / arşiv uçları sağlayıcı çağrısı BAŞLATAMAZ (allowProvider:true / callRoxy yok); uzman aynaları birebir", () => {
     for (const p of ["rapor/route.ts", "kayitlar/route.ts", "kayitlar/[id]/route.ts", "kayitlar/[id]/rapor/route.ts"]) {
-      const src = readFileSync(join(ROOT, "app/api/admin/astroloji/efemeris/aylik", p), "utf8");
+      // Satır sonu bağımsız: Windows checkout (core.autocrlf=true) dosyayı CRLF yazar, depo LF tutar → yalnız CRLF → LF; kural aynı.
+      const src = readFileSync(join(ROOT, "app/api/admin/astroloji/efemeris/aylik", p), "utf8").replace(/\r\n/g, "\n");
       assert.ok(!/allowProvider: true|callRoxy|monthlyDeps\(g\.ctx, true\)/.test(src), p);
       assert.match(src, /const gate = await requireAstrologyAccess\(req\);\n  if \(!gate\.ok\) return gate\.response;\n  const off = monthlyAfterGate\(gate\.ctx\);/, p);
       const mirror = readFileSync(join(ROOT, "app/api/astroloji/efemeris/aylik", p), "utf8").replace(/\r\n/g, "\n").replace(/^\s*\/\/.*$/gm, "").trim();

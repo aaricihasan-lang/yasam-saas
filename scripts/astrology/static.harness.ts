@@ -301,6 +301,8 @@ async function main() {
       // 2026-11-24 (Owner talimatı): aylık efemeris önbelleği + kayıtları (yalnız yerel; canlı uygulama ayrı onay) ve yeni iki tablonun
       // yedek sınıflandırması (backup.harness "migration tabloları sınıflandırılmış" kuralı) — yalnız bu tam yollar.
       /^supabase\/migrations\/20280125000000_astro_sky_monthly_ephemeris\.sql$/,
+      // KP Transit kayıt hatası (2026-11-25): astro_analyses parça sınırı 10 → 16 (yalnız bu CHECK).
+      /^supabase\/migrations\/20280126000000_astro_analysis_result_parts\.sql$/,
       /^lib\/backup\/registry\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       // Aynı gerekçe: gerçek DB yedek/geri yükleme + uzman yalıtımı testi (CI `guvenlik`) her yedeklenen astro_ tablosunu dolaşır →
