@@ -35,7 +35,9 @@ const ok = (c, l, d) => {
   if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; failures.push(l); console.error(`  ✗ ${l}${d === undefined ? "" : ` — ${JSON.stringify(d).slice(0, 300)}`}`); }
 };
 
-for (const m of ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
+// F7 sonrası yığında (audit CHECK 37 eylem) 20280126 ailesi yeniden uygulanmaz: ön koşulu bilinçli fail-closed (prod'da her migration bir kez çalışır).
+const f7Applied = (await db.query(`select to_regprocedure('public.admin_set_member_access_message(uuid,uuid,text,text)') is not null x`)).rows[0].x;
+for (const m of f7Applied ? [] : ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
   await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations", m), "utf8"));
 }
 const E = cfg.expert, O = cfg.owner;

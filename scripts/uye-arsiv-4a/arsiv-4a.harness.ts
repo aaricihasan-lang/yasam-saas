@@ -62,6 +62,9 @@ const AUDIT_ACTIONS_AT_4A: readonly string[] = [
 const AUDIT_ACTIONS_AFTER_4A: Readonly<Record<string, string>> = {
   user_access_restricted: "20280126000000_member_access_restriction.sql",
   user_access_unrestricted: "20280126000000_member_access_restriction.sql",
+  // ÜYE PASİFLEŞTİRME F7 (Owner onayı 26.11): kişiye özel üyelik uyarısı düzenle / kaldır.
+  user_access_message_set: "20280127000000_member_access_message.sql",
+  user_access_message_cleared: "20280127000000_member_access_message.sql",
 };
 
 const AUDIT_CHECK_RE = /ADD\s+CONSTRAINT\s+admin_audit_action_chk\s+CHECK\s*\(\s*action\s+IN\s*\(([\s\S]*?)\)\s*\)/i;

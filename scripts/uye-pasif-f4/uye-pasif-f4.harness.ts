@@ -257,7 +257,8 @@ async function main(): Promise<void> {
     // ── U) Arayüz ────────────────────────────────────────────────────────────
     console.log("\n[U] Arayüz");
     const page = readFileSync(path.join(process.cwd(), "app/admin/users/[id]/page.tsx"), "utf8");
-    ok(page.includes(`postStatus("set_access", { restricted: true, expectedRestricted: false })`)
+    // F7: Pasif Yap isteğe bağlı kişiye özel uyarıyı AYNI istekte taşır; bayat-ekran koruması (expectedRestricted) aynen.
+    ok(/postStatus\("set_access", \{ restricted: true, expectedRestricted: false(, \.\.\.\(message \? \{ message \} : \{\}\))? \}\)/.test(page)
       && page.includes(`postStatus("set_access", { restricted: false, expectedRestricted: true })`),
       "sayfa: Pasif Yap / Aktif Yap yeni set_access eylemini bayat-ekran korumasıyla çağırır");
     ok(/\{user\.active && !isRestricted \? \(/.test(page) && page.includes("|| (isRestricted && !isArchived) ? ("),

@@ -521,7 +521,7 @@ function ArchiveUserRow({
         </p>
         <div className="mt-2 grid gap-0.5 text-xs font-semibold text-slate-500">
           <span>
-            Pasife alınma: <span className="text-slate-700">{deactivation?.at ? formatDateTimeTr(deactivation.at) : "Kayıt bulunamadı"}</span>
+            Girişin kapatılması: <span className="text-slate-700">{deactivation?.at ? formatDateTimeTr(deactivation.at) : "Kayıt bulunamadı"}</span>
           </span>
           <span>
             İşlemi yapan: <span className="text-slate-700">{deactivation?.byName ?? "Kayıt bulunamadı"}</span>
@@ -1323,7 +1323,7 @@ function AdminUsersContent() {
                 <Archive className="h-4 w-4" aria-hidden />
                 {archive.kind === "ready" && archive.archiveModel
                   ? "Pasif ve arşivdeki onaylı uzmanlar"
-                  : "Arşiv — Onaylı ancak pasife alınmış uzmanlar"}
+                  : "Arşiv — Onaylı ve girişi kapalı uzmanlar"}
               </h2>
               <p className="mt-1 text-sm font-medium text-amber-900/80">
                 Hesap, veriler ve modül izinleri korunur. Açık oturumları kapatılmıştır;

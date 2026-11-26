@@ -50,6 +50,8 @@ export type YasamUser = {
   trial_status?: string;
   /** ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı ("Pasif" = giriş açık, modüller kilitli). Kısıt yoksa alan yok. */
   access_restricted_at?: string;
+  /** ÜYE PASİFLEŞTİRME F7: "Pasif" hesaba kişiye özel üyelik uyarısı (düz metin ≤500); yoksa alan yok → standart uyarı. */
+  access_restriction_message?: string;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
@@ -58,8 +60,9 @@ const LOCKED_SUBSCRIPTION_TOAST =
 export const PENDING_APPROVAL_MESSAGE =
   "Hesabınız yönetici onayı bekliyor.";
 
+// F7 (Owner): girişi tamamen kapalı (active=false / arşiv) hesap — "pasif" ifadesi KULLANILMAZ ("Pasif" = giriş açık).
 export const INACTIVE_ACCOUNT_MESSAGE =
-  "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin.";
+  "Hesabınızın sisteme girişi kapalı. Lütfen sistem yöneticisiyle iletişime geçin.";
 
 const STORAGE_KEY = "yasam_user";
 const SESSION_TOKEN_KEY = "yasam_session_token";
@@ -148,6 +151,10 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
     access_restricted_at:
       r.access_restricted_at != null && String(r.access_restricted_at).trim() !== ""
         ? String(r.access_restricted_at).trim()
+        : undefined,
+    access_restriction_message:
+      typeof r.access_restriction_message === "string" && r.access_restriction_message.trim() !== ""
+        ? r.access_restriction_message.slice(0, 2000)
         : undefined,
     approval_status: resolveApprovalStatus(r),
     active:

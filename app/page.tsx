@@ -80,6 +80,7 @@ import HomeRightColumn from "@/app/_premium/home/HomeRightColumn";
 import { buildLockedModuleNavGroups, buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
 import { ACCESS_RESTRICTED_NOTICE, isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
 import { ACCESS_RESTRICTED_EVENT } from "@/lib/auth/accessRestrictionSignal";
+import { accessRestrictionMessageOf } from "@/lib/auth/accessRestrictionMessage";
 import { defaultDesign, usePersonalWorkspace } from "@/app/_premium/home/personal/usePersonalWorkspace";
 import { moduleLinkViews } from "@/app/_premium/home/personal/moduleLinks";
 import { filterHiddenCards, personalRootProps, usePrefersDark } from "@/app/_premium/home/personal/personalRoot";
@@ -1344,6 +1345,8 @@ export default function Home() {
     // ÜYE PASİFLEŞTİRME F5: "Pasif" uzman (giriş açık) ana sayfayı, TÜM modül kutularını ve sol menüyü KİLİTLİ görür
     // (genel "üyelik aktif değil" kutusu yerine). Erişim kararı sunucuda (403 ACCOUNT_RESTRICTED); bu yalnız görünüm.
     const accessRestricted = !isAdminUser(user) && isAccessRestrictedRow(user as unknown as Record<string, unknown>);
+    // F7: yöneticinin bu uzmana yazdığı kişiye özel uyarı (yalnız kendi profilinden; yoksa standart metin). Düz metin.
+    const accessRestrictionMessage = accessRestricted ? accessRestrictionMessageOf(user as unknown as Record<string, unknown>) : null;
     // Erişim yoksa doğru sebep: onay bekliyor mu, yoksa (genel) aktif değil mi?
     const membershipDenyReason: "pending" | "inactive" =
       !isAdminUser(user) &&
@@ -1619,10 +1622,13 @@ export default function Home() {
                 <div
                   role="alert"
                   data-testid="home-access-restricted"
+                  data-custom-message={accessRestrictionMessage ? "1" : "0"}
                   className="mb-4 flex items-start gap-3 rounded-[18px] border-2 border-rose-300 bg-rose-50 px-4 py-3.5 text-rose-900 shadow-[0_2px_10px_rgba(190,18,60,0.08)] sm:px-5"
                 >
                   <Lock className="mt-0.5 h-5 w-5 flex-none text-rose-600" strokeWidth={2.2} aria-hidden />
-                  <p className="text-[15px] font-bold leading-relaxed">{ACCESS_RESTRICTED_NOTICE}</p>
+                  <p className="whitespace-pre-line break-words text-[15px] font-bold leading-relaxed">
+                    {accessRestrictionMessage ?? ACCESS_RESTRICTED_NOTICE}
+                  </p>
                 </div>
               ) : null}
               {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih); kişisel tasarım varsa P0 A/B/C */}

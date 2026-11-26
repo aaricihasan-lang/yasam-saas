@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
     //   active=false → herkes reddedilir · admin yalnız active · uzman active + onaylı.
     if (row.active !== true) {
       return json(
-        { code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." },
+        { code: "INACTIVE", error: "Hesabınızın sisteme girişi kapalı. Lütfen sistem yöneticisiyle iletişime geçin." },
         403,
       );
     }
@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
           );
         }
         if (begun.reason === "inactive") {
-          return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+          return json({ code: "INACTIVE", error: "Hesabınızın sisteme girişi kapalı. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
         }
         return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
       }
