@@ -72,3 +72,39 @@ export async function emailSelfServiceAllowedForUserId(db: SupabaseClient, userI
 }
 
 export const EMAIL_NOT_IN_SCOPE_TEXT = "E-posta ile doğrulama ve adres değişikliği bu hesap için henüz açılmadı.";
+
+/**
+ * F3 PİLOT — e-posta ADRES DOĞRULAMASI için tek hesaplık pilot (rol kapsamını GENİŞLETMEZ).
+ *
+ * AUTH_EMAIL_VERIFY_PILOT_USER_ID: TAM OLARAK BİR kullanıcı kimliği (UUID). Boş / biçimsiz / birden çok değer → pilot YOK.
+ * Pilot YALNIZ /api/me/email-verification (kendi kayıtlı adresini kodla doğrulama) için geçerlidir; adres değiştirme,
+ * güvenlik bildirimleri, kurtarma ve MFA bu pilotla AÇILMAZ (onlar emailSelfServiceAllowed'a bağlı kalır).
+ * Kimlik oturumun bağlı olduğu kullanıcıdır (istekten gelmez). Hesap DB'de etkin + uzman + demo değil + arşivde değil +
+ * "Pasif" değil olmalı; okuma hatası → KAPALI. Geri alma: değişkeni silmek + yeniden yayın.
+ */
+const PILOT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export function emailVerifyPilotUserId(env: Env = process.env): string | null {
+  const raw = String(env.AUTH_EMAIL_VERIFY_PILOT_USER_ID ?? "").trim().toLowerCase();
+  return PILOT_UUID_RE.test(raw) ? raw : null;
+}
+
+export async function emailVerifyPilotAllowed(db: SupabaseClient, userId: string, env: Env = process.env): Promise<boolean> {
+  const pilot = emailVerifyPilotUserId(env);
+  if (!pilot || String(userId ?? "").trim().toLowerCase() !== pilot) return false;
+  try {
+    const { data, error } = await db.from("users").select("*").eq("id", pilot).maybeSingle();
+    if (error || !data) return false;
+    const u = data as Record<string, unknown>;
+    return u.active === true && u.is_demo_account !== true && String(u.role ?? "").trim().toLowerCase() === "expert"
+      && (u.archived_at ?? null) === null && (u.access_restricted_at ?? null) === null;
+  } catch {
+    return false;
+  }
+}
+
+/** Kendi kayıtlı adresini doğrulama: rol kapsamı (emailSelfServiceAllowed) VEYA tek hesaplık pilot. */
+export async function emailVerificationAllowed(db: SupabaseClient, userId: string, role: string, env: Env = process.env): Promise<boolean> {
+  if (await emailSelfServiceAllowed(db, userId, role, env)) return true;
+  return emailVerifyPilotAllowed(db, userId, env);
+}
