@@ -20,6 +20,7 @@ type Status = {
   hourlyLimit?: number | null;
   selfServiceScope?: { roles: string[]; ignored: number; isDefault: boolean };
   testRecipient?: { available: boolean; masked: string | null; issue: string | null };
+  verifyPilot?: { configured: "none" | "invalid" | "set"; eligible: boolean };
   last24h: { sent: number; failed: number; reserved: number } | null;
   lastFailure: { code: string | null; at: string | null } | null;
   lastSuccessAt: string | null;
@@ -159,6 +160,11 @@ export default function EpostaDurumuPage() {
                   Kullanıcı e-posta işlemleri: {st.selfServiceScope.roles.map((r) => SCOPE_LABEL[r] ?? r).join(", ")}
                   {st.selfServiceScope.isDefault ? " (varsayılan)" : ""}
                   {st.selfServiceScope.ignored > 0 ? ` · tanınmayan ${st.selfServiceScope.ignored} değer yok sayıldı` : ""}
+                </p>
+              )}
+              {st.verifyPilot && st.verifyPilot.configured !== "none" && (
+                <p className={`mt-1 text-xs ${st.verifyPilot.eligible ? "text-slate-500" : "font-semibold text-amber-700"}`} data-testid="email-verify-pilot">
+                  Adres doğrulama pilotu: {st.verifyPilot.configured === "invalid" ? "ayar geçersiz (kapalı)" : st.verifyPilot.eligible ? "1 uzman hesabı (uygun)" : "hesap uygun değil (kapalı)"}
                 </p>
               )}
               {st.configIssue && (

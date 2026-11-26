@@ -77,7 +77,7 @@ jobs:
       - name: E-posta kapsamı kabulü (Chrome + Edge; 320 / 375 / 390 / 768 / 1280)
         env:
           F3_UI_REQUIRE_EDGE: "1"
-          F3_UI_MIN_PASS: "170"
+          F3_UI_MIN_PASS: "220"
         run: |
           mkdir -p "$RUNNER_TEMP/f3-ui"
           set +e
