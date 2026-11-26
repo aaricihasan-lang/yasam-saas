@@ -249,6 +249,19 @@ export async function verifyUserRequest(
   // bağlanır; yalnız deneme uzmanında ölçüm açılır. Bağlam yoksa etkisiz.
   bindTrialMeterIdentity(db, userId, includeProfile ? (data as Record<string, unknown>) : undefined);
 
+  // F7: kişiye özel üyelik uyarısı YALNIZ kendi profil isteğinde ve YALNIZ "Pasif" hesapta okunur (diğer isteklerde ek sorgu
+  // yok). Kısıt kararını etkilemez; kolon yoksa / hata → null (standart uyarı). Metin hiçbir loga yazılmaz.
+  let accessRestrictionMessage: string | null = null;
+  if (includeProfile && accessRestrictedAt !== null) {
+    const { data: msgRow, error: msgErr } = await db
+      .from("users")
+      .select("access_restriction_message")
+      .eq("id", userId)
+      .maybeSingle();
+    const m = msgErr ? null : (msgRow as { access_restriction_message?: unknown } | null)?.access_restriction_message;
+    accessRestrictionMessage = typeof m === "string" && m.trim() !== "" ? m : null;
+  }
+
   return {
     ok: true,
     userId,
@@ -258,7 +271,9 @@ export async function verifyUserRequest(
     db,
     // includeProfile=false ise undefined → diğer route'lar ek kolon/veri taşımaz.
     // F3: profile'a access_restricted_at eklenir (üyelik çekirdeği "Pasif" → none; ana sayfa minimum durum bilgisi).
-    profile: includeProfile ? { ...(data as Record<string, unknown>), access_restricted_at: accessRestrictedAt } : undefined,
+    profile: includeProfile
+      ? { ...(data as Record<string, unknown>), access_restricted_at: accessRestrictedAt, access_restriction_message: accessRestrictionMessage }
+      : undefined,
     sessionToken: session.status === "ok" ? session.token : undefined,
   };
 }

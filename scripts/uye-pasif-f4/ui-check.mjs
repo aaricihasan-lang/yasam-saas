@@ -27,7 +27,8 @@ const ok = (c, l, d) => {
   if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; failures.push(l); console.error(`  ✗ ${l}${d === undefined ? "" : ` — ${JSON.stringify(d).slice(0, 300)}`}`); }
 };
 
-await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20280126000000_member_access_restriction.sql"), "utf8"));
+// F7 sonrası yığında (audit CHECK 37 eylem) 20280126 ailesi yeniden uygulanmaz: ön koşulu bilinçli fail-closed (prod'da her migration bir kez çalışır).
+if (!(await db.query(`select to_regprocedure('public.admin_set_member_access_message(uuid,uuid,text,text)') is not null x`)).rows[0].x) await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20280126000000_member_access_restriction.sql"), "utf8"));
 
 const consoleErrors = [];
 const browser = await chromium.launch();
@@ -125,11 +126,13 @@ console.log("\n[3] Eski giriş kapalı hesap · arşiv · yönetici hesabı");
   ok((await access(p2).count()) === 0 && (await summary(p2).getAttribute("data-account-state")) === "archived", "arşivdeki hesap: Erişim düğmeleri yok (giriş tamamen kapalı)");
   await p2.close();
   const p3 = await openDetail(ctx, cfg.admin2.user.id);
-  await access(p3).getByRole("button", { name: "Pasif Yap" }).click();
+  // F7 (Owner 26.11): yönetici hesabında düğme adı "Girişi Kapat" (davranış aynı: tüm cihazlardan çıkış).
+  ok((await access(p3).getByRole("button", { name: "Pasif Yap", exact: true }).count()) === 0, "yönetici hesabında \"Pasif Yap\" yok (adı Girişi Kapat)");
+  await access(p3).getByRole("button", { name: "Girişi Kapat", exact: true }).click();
   const dlg = p3.locator('[role="dialog"][aria-labelledby="deactivate-title"]');
   await dlg.waitFor({ timeout: 15_000 });
   ok((await dlg.locator('[data-deactivate-mode="restrict"]').count()) === 0 && /tüm cihazlardaki oturumlarını kapatır/.test(await dlg.innerText()),
-    "yönetici hesabı: eski 'Pasif Yap' penceresi (tüm cihazlardan çıkış) — davranış değişmedi");
+    "yönetici hesabı: 'Girişi Kapat' penceresi (tüm cihazlardan çıkış) — davranış değişmedi");
   await dlg.getByRole("button", { name: "Vazgeç" }).click();
   ok((await st(cfg.admin2.user.id)).active === true, "Vazgeç: yönetici hesabı değişmedi");
   await p3.close();

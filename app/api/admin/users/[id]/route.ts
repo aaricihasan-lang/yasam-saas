@@ -96,9 +96,15 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     .select("access_restricted_at")
     .eq("id", id)
     .maybeSingle();
+  // F7: kişiye özel uyarı ayrı okunur — kolon yoksa (20280127000000 öncesi) messageSupported=false, uyarı seçeneği gizli.
+  const { data: msgRow, error: msgErr } = accessErr
+    ? { data: null, error: accessErr }
+    : await db.from("users").select("access_restriction_message").eq("id", id).maybeSingle();
   const access = {
     supported: !accessErr,
     restrictedAt: !accessErr && accessRow?.access_restricted_at != null ? String(accessRow.access_restricted_at) : null,
+    messageSupported: !msgErr,
+    message: !msgErr && typeof msgRow?.access_restriction_message === "string" ? msgRow.access_restriction_message : null,
   };
 
   return NextResponse.json(

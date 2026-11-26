@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const row = verified.row;
     const role = normalizeRole(row.role);
-    if (row.active !== true) return json({ code: "INACTIVE", error: "Hesabınız pasif durumda." }, 403);
+    if (row.active !== true) return json({ code: "INACTIVE", error: "Hesabınızın sisteme girişi kapalı." }, 403);
     if (role !== "admin" && role !== "expert") return json({ code: "NO_ROLE", error: "Hesabınız için geçerli bir rol tanımlı değil." }, 403);
     if (role === "expert" && !isExpertReady({ active: row.active, approval: resolveApprovalStatus(row as Record<string, unknown>) })) {
       return json({ code: "PENDING", error: "Hesabınız yönetici onayı bekliyor." }, 403);
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         key_in_use: ["KEY_IN_USE", 409, "Bu cihaz anahtarı zaten kayıtlı."],
         device_limit: ["DEVICE_LIMIT", 409, "En fazla 2 güvenilir cihaz eşleştirilebilir. Önce eski cihazı kaldırın."],
         bootstrap_invalid: ["BOOTSTRAP_INVALID", 400, "Yönetici ilk cihaz kodu geçersiz veya süresi dolmuş."],
-        inactive: ["INACTIVE", 403, "Hesabınız pasif durumda."],
+        inactive: ["INACTIVE", 403, "Hesabınızın sisteme girişi kapalı."],
       };
       const m = map[reason];
       return m ? json({ code: m[0], error: m[2] }, m[1]) : json({ code: "ERROR", error: "Eşleştirme şu anda yapılamıyor." }, 500);

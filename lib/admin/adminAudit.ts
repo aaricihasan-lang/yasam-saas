@@ -74,6 +74,10 @@ export const ADMIN_AUDIT_ACTIONS = [
   // Yalnız SQL RPC (admin_set_member_access_restriction) yazar; "Pasif" = giriş açık, modüller kilitli.
   "user_access_restricted",
   "user_access_unrestricted",
+  // ÜYE PASİFLEŞTİRME F7 — ⚠️ 20280127000000_member_access_message.sql CHECK süperseti ile BİREBİR.
+  // Yalnız SQL RPC (admin_set_member_access_message) yazar; tam metin yalnız bu kayıtta (genel log YOK).
+  "user_access_message_set",
+  "user_access_message_cleared",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

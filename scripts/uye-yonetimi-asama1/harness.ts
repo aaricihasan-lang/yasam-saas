@@ -133,7 +133,7 @@ ok(/Onaylayan: \{approverName \?\? "kayıt bulunamadı"\}/.test(detail), "detay:
 // Issue-2: onaylayan adı, korunan tarihle AYNI kayıttan türer (en-yeni user_approved find KALDIRILDI)
 ok(/approverForPreservedDate\(\s*auditFirstApproval/.test(detail), "detay: onaylayan approverForPreservedDate ile (tarih=kayıt eşleşmesi)");
 ok(!/auditRows\.find\(\(r\) => r\.action === "user_approved"\)/.test(detail), "detay: 'en yeni user_approved' seçimi KALDIRILDI (yeniden-onay uyuşmazlığı yok)");
-ok(/Pasife Al ve Arşivle/.test(detail) && !/savePackageMembership/.test(detail) && !/SİLMEYİ ONAYLIYORUM/.test(detail), "detay: 'Sil' düzeltildi + ayrı Premium butonu kaldırıldı");
+ok(/>\s*Arşivle\s*</.test(detail) && !/Pasife Al ve Arşivle/.test(detail) && !/savePackageMembership/.test(detail) && !/SİLMEYİ ONAYLIYORUM/.test(detail), "detay: 'Sil' düzeltildi + ayrı Premium butonu kaldırıldı");
 const list = read("app/admin/users/klasik/page.tsx");
 // Arşiv sekmesi: view-seçim OLAYINDA veri yükler (effect içinde senkron setState değil).
 // FAZ 2: arşiv sekmesi URL durumu (view=archive) ile yüklenir; setState yalnız fetch geri çağrısında.
