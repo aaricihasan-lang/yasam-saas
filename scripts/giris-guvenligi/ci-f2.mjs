@@ -104,6 +104,9 @@ const TSX = [
   // F3: Owner test iletisinin kayıtlı test hesabı alıcısı (EMAIL_OWNER_TEST_RECIPIENT) — alıcı yalnız sunucu ayarından, yalnız Owner,
   // saatte 5 + SMTP 50/saat, uygun olmayan hesap reddi, uzman kapsamı ve kayıtları değişmez.
   "scripts/giris-guvenligi/f3-test-alici.harness.ts",
+  // F3 pilot: tek uzman hesabı için adres doğrulaması (AUTH_EMAIL_VERIFY_PILOT_USER_ID) — diğer kullanıcılar aynen, OTP kuralları,
+  // IDOR/CSRF, adres değişikliği / bildirim / kurtarma / MFA açılmaz.
+  "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -165,6 +168,11 @@ const steps = [
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-test-alici.harness.ts"],
       env: { F3_ALICI_NEGATIF: "1" }, expectFail: true, passRe: /f3-test-alici: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL \(F3_ALICI_NEGATIF=1\)[\s\S]*FAIL f3-alici-demo@test\.local → not_eligible[\s\S]*FAIL access_restricted_at = now\(\) → not_eligible/ },
+    // NEGATİF KONTROL (F3 pilot): pilot hesap uygunluk denetimi kaldırılınca pasif / arşiv / yönetici maddeleri FAIL VERMELİ.
+    { label: "f3-dogrulama-pilotu NEGATİF (F3_PILOT_NEGATIF=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts"],
+      env: { F3_PILOT_NEGATIF: "1" }, expectFail: true, passRe: /f3-dogrulama-pilotu: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL \(F3_PILOT_NEGATIF=1\)[\s\S]*FAIL pilot hesap pasif → kapalı[\s\S]*FAIL pilot hesap arşiv → kapalı/ },
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],

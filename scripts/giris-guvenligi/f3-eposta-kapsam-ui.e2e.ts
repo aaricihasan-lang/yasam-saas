@@ -75,6 +75,8 @@ async function main() {
     EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", EMAIL_SYNTHETIC_SINK: SINK, AUTH_OTP_PEPPER: PEPPER, NEXT_TELEMETRY_DISABLED: "1",
     // F3: Owner test iletisinin kayıtlı test hesabı alıcısı (sentetik uzman).
     EMAIL_OWNER_TEST_RECIPIENT: EMAIL.exp,
+    // F3 pilot: tek uzman hesabı (sentetik "free") için adres doğrulaması; diğer uzman (exp) kapalı kalır.
+    AUTH_EMAIL_VERIFY_PILOT_USER_ID: U.free,
   };
   delete env.AUTH_EMAIL_SELF_SERVICE_ROLES;
   const app: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "localhost"],
@@ -93,7 +95,7 @@ async function main() {
   };
   try {
     for (let i = 0; i < 150; i++) { try { const r = await fetch(`${BASE}/`); if (r.status < 500) break; } catch { /* bekle */ } await sleep(1000); }
-    await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = ANY($1::uuid[])`, [[U.owner, U.exp]]);
+    await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = ANY($1::uuid[])`, [[U.owner, U.exp, U.free]]);
 
     /** Arayüzden parola girişi (bu testte MFA zorunluluğu yok). Ardışık girişler arasında zaman geçişi taklidi YALNIZ sentetik DB'de. */
     const login = async (page: Page, email: string) => {
@@ -223,6 +225,37 @@ async function main() {
           await ctx.close();
         }
 
+        // ── Pilot uzman (yalnız adres doğrulaması) ──
+        {
+          const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
+          const page = await ctx.newPage();
+          const l = await login(page, EMAIL.free);
+          ok(l.status === 200 && l.loggedIn, `${tag}: pilot uzman parola girişi`, l);
+          const card = await openSettings(page);
+          if ((await page.getByTestId("email-verified-badge").count()) === 0) {
+            const send = page.getByTestId("email-verify-send");
+            ok(await send.isVisible() && await send.isEnabled(), `${tag}: pilotta "Doğrulama kodu gönder" açık`);
+            const before = mails().length;
+            await send.click();
+            const code = await waitCode(EMAIL.free, before);
+            ok(/^[0-9]{6}$/.test(code) && mails().slice(before).every((m) => m.to === EMAIL.free), `${tag}: kod yalnız pilotun kayıtlı adresine`);
+            await page.getByTestId("email-verify-code").fill(code);
+            await page.getByTestId("email-verify-confirm").click();
+            await page.getByTestId("email-verified-badge").waitFor({ timeout: 20000 });
+            const v = (await q(`SELECT email_verified_at, mfa_required FROM public.users WHERE id = $1`, [U.free])).rows[0];
+            ok(v.email_verified_at !== null && v.mfa_required === false, `${tag}: pilot adresi doğrulandı; MFA zorunluluğu açılmadı`);
+          } else {
+            ok(true, `${tag}: pilot adresi doğrulanmış görünüyor (rozet)`);
+          }
+          const change = page.getByTestId("email-change-card");
+          await change.locator("summary").click();
+          await page.getByTestId("email-change-unavailable").waitFor({ timeout: 15000 });
+          ok((await page.getByTestId("email-change-new").count()) === 0, `${tag}: pilotta adres DEĞİŞTİRME formu yok (pilot yalnız doğrulama)`);
+          await layout(page, `${tag} pilot`, w, EMAIL.free);
+          await card.screenshot({ path: path.join(OUT, `${slug}-pilot-eposta.png`) });
+          await ctx.close();
+        }
+
         // ── Uzman (kapsam dışı) ──
         {
           const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
@@ -256,8 +289,8 @@ async function main() {
       }
     }
     // Uzmana giden tek tür: Owner'ın gönderdiği KODSUZ test iletisi (kayıtlı test hesabı). Uzmanın kendi e-posta işlemleri kapalı.
-    ok(mails().every((m) => m.to === EMAIL.owner || (m.to === EMAIL.exp && !/^[0-9]{6} — /.test(m.subject ?? ""))),
-      "bütün koşu boyunca kodlu iletiler YALNIZ Owner'a; uzmana yalnız Owner'ın kodsuz test iletisi", [...new Set(mails().map((m) => m.to))]);
+    ok(mails().every((m) => m.to === EMAIL.owner || m.to === EMAIL.free || (m.to === EMAIL.exp && !/^[0-9]{6} — /.test(m.subject ?? ""))),
+      "kodlu iletiler YALNIZ Owner'a ve pilota; kapsam dışı uzmana yalnız Owner'ın kodsuz test iletisi", [...new Set(mails().map((m) => m.to))]);
   } finally {
     const nt = notTested.length ? ` · NOT TESTED: ${notTested.join(", ")}` : "";
     console.log(`\nf3-eposta-kapsam-ui: ${pass} PASS, ${fail} FAIL${nt}`);
