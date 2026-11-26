@@ -84,6 +84,7 @@ import {
   SecurityExemptBadge,
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
+import AccessMessageEditor, { draftFromMessage, draftResult, type AccessMessageDraft } from "./AccessMessageEditor";
 import { HdEducationAccessSwitch } from "@/components/admin/members/HdEducationAccessSwitch";
 import { HdUnlimitedGrantPanel } from "@/components/admin/members/HdUnlimitedGrantPanel";
 import { AstrologyTechniqueAccess, AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
@@ -621,7 +622,7 @@ type UserDetailJson = {
   /** AŞAMA 4a — yönetim arşivi (users.archived_at). supported=false → migration öncesi (eski davranış). */
   archive?: { supported?: boolean; archivedAt?: string | null };
   /** ÜYE PASİFLEŞTİRME F4 — bağımsız erişim kısıtı (users.access_restricted_at). supported=false → migration öncesi. */
-  access?: { supported?: boolean; restrictedAt?: string | null };
+  access?: { supported?: boolean; restrictedAt?: string | null; messageSupported?: boolean; message?: string | null };
 };
 
 type UserDetailResult =
@@ -736,11 +737,17 @@ export default function AdminUserDetailPage() {
   const [logoutAllSubmitting, setLogoutAllSubmitting] = useState(false);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   // MEM-026: modallar — açılışta odak, Escape ile kapatma (işlem sürerken değil), odağı geri verme.
+  // F7: Pasif Yap penceresi — "Üyeye özel uyarı göster" (varsayılan KAPALI) + editör; sonradan düzenleme penceresi.
+  const [msgEnabled, setMsgEnabled] = useState(false);
+  const [msgDraft, setMsgDraft] = useState<AccessMessageDraft>(() => draftFromMessage(null));
+  const [msgEditOpen, setMsgEditOpen] = useState(false);
+  const [msgEditDraft, setMsgEditDraft] = useState<AccessMessageDraft>(() => draftFromMessage(null));
   const actionBusy = actionUserId !== null;
   const dialogRefs = {
     "approve-title": useDialogA11y(approveOpen, () => setApproveOpen(false), actionBusy),
     "reject-title": useDialogA11y(rejectOpen, () => setRejectOpen(false), actionBusy),
     "deactivate-title": useDialogA11y(deactivateOpen, () => setDeactivateOpen(false), actionBusy),
+    "access-msg-title": useDialogA11y(msgEditOpen, () => setMsgEditOpen(false), actionBusy),
     "logout-all-confirm-title": useDialogA11y(logoutAllStep === "confirm", () => closeLogoutAllModal(), logoutAllSubmitting),
     "logout-all-verify-title": useDialogA11y(logoutAllStep === "verify", () => closeLogoutAllModal(), logoutAllSubmitting),
     "delete-confirm-title": useDialogA11y(deleteModalStep === "confirm", () => closeDeleteModals(), deleteSubmitting),
@@ -759,9 +766,17 @@ export default function AdminUserDetailPage() {
   const [unarchiveOpen, setUnarchiveOpen] = useState(false);
   const isArchived = archiveInfo.archivedAt !== null;
   // ÜYE PASİFLEŞTİRME F4: "Pasif" = giriş açık, modüller kilitli (bağımsız kısıt). supported=false → eski davranış.
-  const [accessInfo, setAccessInfo] = useState<{ supported: boolean; restrictedAt: string | null }>({
+  const [accessInfo, setAccessInfo] = useState<{
+    supported: boolean;
+    restrictedAt: string | null;
+    /** F7: kişiye özel uyarı kolonu var mı (20280127000000) + mevcut metin. */
+    messageSupported: boolean;
+    message: string | null;
+  }>({
     supported: false,
     restrictedAt: null,
+    messageSupported: false,
+    message: null,
   });
   const isRestricted = accessInfo.restrictedAt !== null;
   // Owner kararı (12.11): arşivleme yalnız onaylı uzmana sunulur (sunucu + RPC de reddeder).
@@ -994,6 +1009,8 @@ export default function AdminUserDetailPage() {
     setAccessInfo({
       supported: json.access?.supported === true,
       restrictedAt: json.access?.supported === true && json.access.restrictedAt ? String(json.access.restrictedAt) : null,
+      messageSupported: json.access?.supported === true && json.access.messageSupported === true,
+      message: json.access?.messageSupported === true && typeof json.access.message === "string" ? json.access.message : null,
     });
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setLicenseDraft({ ...mapped.licenseSettings });
@@ -1128,7 +1145,7 @@ export default function AdminUserDetailPage() {
       title: "Başarılı",
       message: archiveInfo.supported
         ? "Uzman arşivlendi; giriş kapalı. Yeniden kullanım için önce ana yönetici arşivden çıkarır."
-        : "Uzman pasife alınıp arşivlendi. Arşiv sekmesinden yeniden aktifleştirilebilir.",
+        : "Uzman arşivlendi; sisteme girişi kapatıldı. Arşiv sekmesinden yeniden aktifleştirilebilir.",
       type: "success",
     });
     router.push(listHref);
@@ -1151,7 +1168,7 @@ export default function AdminUserDetailPage() {
     }
     showToast({
       title: "Arşivden çıkarıldı",
-      message: "Hesap pasif durumda; uzman henüz giriş yapamaz. Girişi açmak için “Aktif Yap” kullanın.",
+      message: "Hesabın sisteme girişi kapalı; uzman henüz giriş yapamaz. Girişi açmak için “Aktif Yap” kullanın.",
       type: "success",
     });
     await loadUser(currentAdminId);
@@ -1467,8 +1484,8 @@ export default function AdminUserDetailPage() {
       title: "Başvuru reddedildi",
       message:
         n > 0
-          ? `Hesap reddedildi ve pasife alındı; ${n} açık oturum kapatıldı.`
-          : "Hesap reddedildi ve pasife alındı.",
+          ? `Hesap reddedildi ve sisteme girişi kapatıldı; ${n} açık oturum kapatıldı.`
+          : "Hesap reddedildi ve sisteme girişi kapatıldı.",
       type: "success",
     });
   }
@@ -1486,6 +1503,8 @@ export default function AdminUserDetailPage() {
       return;
     }
     if (user.active && !isRestricted) {
+      setMsgEnabled(false); // F7: her açılışta varsayılan KAPALI; önceki taslak / eski mesaj taşınmaz
+      setMsgDraft(draftFromMessage(null));
       setDeactivateOpen(true); // pasife alma → onay ekranı (uzman: erişim kısıtı · yönetici: tüm cihazlardan çıkış)
     } else if (isRestricted) {
       void doLiftRestriction(); // F4: "Aktif Yap" erişim kısıtını kaldırır (gerekirse önce girişi açar)
@@ -1500,11 +1519,24 @@ export default function AdminUserDetailPage() {
   /** F4: Pasif Yap (uzman) — giriş açık kalır, modüller kilitlenir; oturumlar kapatılmaz, kayıt silinmez. */
   async function doRestrict(): Promise<boolean> {
     if (!user) return false;
-    const done = (await postStatus("set_access", { restricted: true, expectedRestricted: false })) !== null;
+    // F7: uyarı seçiliyse metin kısıtla AYNI istekte (sunucuda tek veritabanı işlemi) gönderilir.
+    let message: string | null = null;
+    if (msgEnabled && accessInfo.messageSupported) {
+      const r = draftResult(msgDraft);
+      if (!r.ok) {
+        showToast({ title: "Uyarı metni geçersiz", message: r.error, type: "error" });
+        return false;
+      }
+      message = r.value;
+    }
+    const done =
+      (await postStatus("set_access", { restricted: true, expectedRestricted: false, ...(message ? { message } : {}) })) !== null;
     if (done) {
       showToast({
         title: "Başarılı",
-        message: "Uzman pasif yapıldı: giriş açık, modüller kilitli. Oturumlar kapatılmadı; hiçbir kayıt silinmedi.",
+        message: message
+          ? "Uzman pasif yapıldı; ana sayfasında kişiye özel uyarı gösterilecek. Oturumlar kapatılmadı; hiçbir kayıt silinmedi."
+          : "Uzman pasif yapıldı: giriş açık, modüller kilitli. Oturumlar kapatılmadı; hiçbir kayıt silinmedi.",
         type: "success",
       });
     }
@@ -1538,7 +1570,7 @@ export default function AdminUserDetailPage() {
       showToast({
         title: "Başarılı",
         message: wasActive
-          ? "Kullanıcı pasif yapıldı ve tüm cihazlardan çıkarıldı."
+          ? "Kullanıcının girişi kapatıldı ve tüm cihazlardan çıkarıldı."
           : "Kullanıcı aktif yapıldı. Erişim için tekrar giriş yapmalı.",
         type: "success",
       });
@@ -1549,6 +1581,32 @@ export default function AdminUserDetailPage() {
   async function confirmDeactivate() {
     const done = usesAccessRestriction ? await doRestrict() : await doToggleActive();
     if (done) setDeactivateOpen(false);
+  }
+
+  /** F7: pasif uzmanın kişiye özel uyarısını düzenle (metin) veya kaldır (null) — bayat ekran korumalı. */
+  function openMessageEdit() {
+    setMsgEditDraft(draftFromMessage(accessInfo.message));
+    setMsgEditOpen(true);
+  }
+  async function saveAccessMessage(remove: boolean) {
+    let message: string | null = null;
+    if (!remove) {
+      const r = draftResult(msgEditDraft);
+      if (!r.ok) {
+        showToast({ title: "Uyarı metni geçersiz", message: r.error, type: "error" });
+        return;
+      }
+      message = r.value;
+    }
+    const done = (await postStatus("set_access_message", { message, expectedMessage: accessInfo.message })) !== null;
+    if (done) {
+      setMsgEditOpen(false);
+      showToast({
+        title: "Başarılı",
+        message: message ? "Kişiye özel uyarı kaydedildi." : "Kişiye özel uyarı kaldırıldı; standart uyarı gösterilecek.",
+        type: "success",
+      });
+    }
   }
 
   // ── Tüm cihazlardan çıkış (iki adımlı onay) ─────────────────────────────────
@@ -2116,8 +2174,10 @@ export default function AdminUserDetailPage() {
                       </button>
                     ) : null}
                     {user.active && !isRestricted ? (
+                      <span className="inline-flex flex-col items-start">
                       <button
                         type="button"
+                        data-access-restrict-open
                         disabled={actionUserId === user.id || !canManageAccountActions()}
                         title={
                           isSelf()
@@ -2132,8 +2192,12 @@ export default function AdminUserDetailPage() {
                         className={`${actionBtn} border-slate-300 bg-white text-slate-800 hover:bg-slate-100`}
                       >
                         <UserX className="h-4 w-4" aria-hidden />
-                        Pasif Yap
+                        {usesAccessRestriction ? "Pasif Yap" : "Girişi Kapat"}
                       </button>
+                      <span className="mt-1 block max-w-[15rem] text-[11px] font-bold leading-snug text-slate-500" data-hint-restrict>
+                        {usesAccessRestriction ? "Giriş açık, modüller kilitli" : "Giriş kapanır; tüm cihazlardan çıkış yapılır"}
+                      </span>
+                      </span>
                     ) : null}
                     <button
                       type="button"
@@ -2152,6 +2216,23 @@ export default function AdminUserDetailPage() {
                       Tüm Cihazlardan Çıkış
                     </button>
                   </div>
+                  {isRestricted && usesAccessRestriction && accessInfo.messageSupported ? (
+                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2" data-access-message-panel>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-rose-800">Ana sayfa üyelik uyarısı</p>
+                      <p className="mt-1 whitespace-pre-line break-words text-sm font-semibold text-rose-950" data-access-message-current>
+                        {accessInfo.message ?? "Standart uyarı gösteriliyor."}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={actionUserId === user.id || !canManageAccountActions()}
+                        onClick={openMessageEdit}
+                        data-access-message-edit
+                        className="mt-2 inline-flex h-9 items-center justify-center rounded-lg border-2 border-rose-300 bg-white px-3 text-xs font-black text-rose-900 transition hover:bg-rose-100 disabled:opacity-50"
+                      >
+                        {accessInfo.message ? "Uyarıyı düzenle / kaldır" : "Kişiye özel uyarı ekle"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
               {isSelf() || !(isArchived || canArchiveTarget) ? null : (
@@ -2173,16 +2254,21 @@ export default function AdminUserDetailPage() {
                         Arşivden Çıkar
                       </button>
                     ) : !canArchiveTarget ? null : canDeleteAsOwner ? (
+                      <span className="inline-flex flex-col items-start">
                       <button
                         type="button"
                         disabled={deleteSubmitting}
                         onClick={openDeleteConfirmModal}
+                        data-archive-open
                         className={`${actionBtn} border-rose-400 bg-white text-rose-900 hover:bg-rose-100`}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
-                        Pasife Al ve Arşivle
+                        Arşivle
                       </button>
+                      <span className="mt-1 block max-w-[15rem] text-[11px] font-bold leading-snug text-slate-500" data-hint-archive>Sisteme giriş tamamen kapanır. Kayıtlar korunur.</span>
+                      </span>
                     ) : (
+                      <span className="inline-flex flex-col items-start">
                       <button
                         type="button"
                         disabled
@@ -2190,8 +2276,10 @@ export default function AdminUserDetailPage() {
                         className={`${actionBtn} border-rose-200/60 bg-white/60 text-rose-400`}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
-                        Pasife Al ve Arşivle
+                        Arşivle
                       </button>
+                      <span className="mt-1 block max-w-[15rem] text-[11px] font-bold leading-snug text-slate-500" data-hint-archive>Sisteme giriş tamamen kapanır. Kayıtlar korunur.</span>
+                      </span>
                     )}
                   </div>
                   {!isSelf() && !canDeleteAsOwner && (isArchived || canArchiveTarget) ? (
@@ -2294,7 +2382,7 @@ export default function AdminUserDetailPage() {
                         ) : null}
                         {!user.active && deactivation ? (
                           <p className="text-xs font-semibold text-slate-600">
-                            Pasife alınma: {deactivation.createdAt ? formatDateTimeTr(deactivation.createdAt) : "—"} ·{" "}
+                            Girişin kapatılması: {deactivation.createdAt ? formatDateTimeTr(deactivation.createdAt) : "—"} ·{" "}
                             {deactivation.actorName ?? "kayıt bulunamadı"}
                           </p>
                         ) : null}
@@ -2456,7 +2544,7 @@ export default function AdminUserDetailPage() {
               })()}
               {isSelf() ? (
                 <p className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-900">
-                  Bu sizin yönetici hesabınız — pasife alma ve arşivleme devre dışı.
+                  Bu sizin yönetici hesabınız — giriş kapatma ve arşivleme devre dışı.
                 </p>
               ) : null}
             </section>
@@ -4121,15 +4209,15 @@ export default function AdminUserDetailPage() {
                     </>
                   ) : archiveInfo.supported ? (
                     <>
-                      <b>Pasif ile arşiv farkı:</b> ikisi de girişi ve bütün oturumları kapatır; kayıtlar silinmez.
-                      Pasif hesap normal üye listesinde kalır ve “Aktif Yap” ile açılır. Arşivlenen hesap (yalnız ana
+                      <b>Girişi kapatma ile arşiv farkı:</b> ikisi de girişi ve bütün oturumları kapatır; kayıtlar silinmez.
+                      Girişi kapatılan hesap normal üye listesinde kalır ve “Aktif Yap” ile açılır. Arşivlenen hesap (yalnız ana
                       yönetici, parola + onay metni) normal listeden çıkar; “Aktif Yap” ile açılamaz — önce ana yönetici
                       arşivden çıkarır.
                     </>
                   ) : (
                     <>
-                      <b>Pasif yap ile arşivleme farkı (bugünkü sistem):</b> ikisi de girişi ve bütün oturumları kapatır;
-                      onaylı uzman bugün her iki durumda da Arşiv listesinde görünür. “Pasife Al ve Arşivle” ayrıca
+                      <b>Girişi kapatma ile arşivleme farkı (bugünkü sistem):</b> ikisi de girişi ve bütün oturumları kapatır;
+                      onaylı uzman bugün her iki durumda da Arşiv listesinde görünür. “Arşivle” ayrıca
                       yönetici parolası ile onay metni ister ve yönetim geçmişine “arşivlendi” olarak yazılır.
                     </>
                   )}
@@ -4171,7 +4259,7 @@ export default function AdminUserDetailPage() {
               id="delete-confirm-title"
               className="pr-8 text-xl font-black text-rose-950 sm:text-2xl"
             >
-              Uzmanı pasife al ve arşivle
+              Uzmanı arşivle
             </h2>
             <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
               {archiveInfo.supported ? (
@@ -4183,7 +4271,7 @@ export default function AdminUserDetailPage() {
                 </>
               ) : (
                 <>
-                  Bu işlem <b>kalıcı silme değildir</b>. Uzman pasife alınır ve Arşiv
+                  Bu işlem <b>kalıcı silme değildir</b>. Uzmanın sisteme girişi kapanır ve Arşiv
                   sekmesinde görünür; hesap, dosyalar ve modül izinleri korunur ve daha sonra
                   yeniden aktifleştirilebilir. (Kalıcı silme ayrı bir işlemdir ve bu ekranda
                   yapılmaz.) Devam etmek istiyor musunuz?
@@ -4240,7 +4328,7 @@ export default function AdminUserDetailPage() {
               Admin doğrulaması gerekli
             </h2>
             <p className="mt-3 text-sm font-medium text-slate-700">
-              Pasife alma ve arşivleme işlemini tamamlamak için ana yönetici parolanızı girin.
+              Arşivleme işlemini tamamlamak için ana yönetici parolanızı girin.
             </p>
             <div className="mt-6 space-y-4">
               <label className="block">
@@ -4299,7 +4387,7 @@ export default function AdminUserDetailPage() {
                     İşleniyor…
                   </>
                 ) : (
-                  "Pasife Al ve Arşivle"
+                  "Arşivle"
                 )}
               </button>
             </div>
@@ -4631,6 +4719,68 @@ export default function AdminUserDetailPage() {
       ) : null}
 
       {/* ── P2: Pasife alma onayı (tüm cihazlardan çıkış uyarısı) ───────────── */}
+      {msgEditOpen && user ? (
+        <div
+          className={deleteModalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="access-msg-title"
+          ref={dialogRefs["access-msg-title"]}
+          tabIndex={-1}
+          data-access-message-dialog
+        >
+          <div className={deleteModalPanel}>
+            <button
+              type="button"
+              onClick={() => setMsgEditOpen(false)}
+              disabled={actionUserId === user.id}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="access-msg-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
+              Ana sayfa üyelik uyarısı
+            </h2>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
+              Mesaj yalnız bu uzmanın ana sayfasındaki kırmızı uyarı alanında gösterilir. Kaldırırsanız standart pasif üyelik
+              uyarısı görünür. “Aktif Yap” mesajı otomatik temizler.
+            </p>
+            <AccessMessageEditor draft={msgEditDraft} onChange={setMsgEditDraft} disabled={actionUserId === user.id} idPrefix="edit-msg" />
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setMsgEditOpen(false)}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              {accessInfo.message ? (
+                <button
+                  type="button"
+                  onClick={() => void saveAccessMessage(true)}
+                  disabled={actionUserId === user.id}
+                  data-access-message-remove
+                  className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-rose-300 bg-white px-5 text-sm font-black text-rose-900 transition hover:bg-rose-50 disabled:opacity-50"
+                >
+                  Uyarıyı kaldır
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void saveAccessMessage(false)}
+                disabled={actionUserId === user.id || (() => { const r = draftResult(msgEditDraft); return !r.ok || r.value === null; })()}
+                data-access-message-save
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700 disabled:opacity-50"
+              >
+                {actionUserId === user.id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {deactivateOpen && user ? (
         <div
           className={deleteModalOverlay}
@@ -4651,7 +4801,7 @@ export default function AdminUserDetailPage() {
               <X className="h-5 w-5" />
             </button>
             <h2 id="deactivate-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
-              Kullanıcıyı pasife almak üzeresiniz
+              {usesAccessRestriction ? "Uzmanı pasif yapmak üzeresiniz" : "Kullanıcının girişini kapatmak üzeresiniz"}
             </h2>
             {usesAccessRestriction ? (
               <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700" data-deactivate-mode="restrict">
@@ -4666,6 +4816,28 @@ export default function AdminUserDetailPage() {
                 yapana kadar sisteme erişemez.
               </p>
             )}
+            {usesAccessRestriction && accessInfo.messageSupported ? (
+              <div className="mt-5 rounded-2xl border-2 border-slate-200 bg-white/70 p-4" data-access-message-option>
+                <label className="flex cursor-pointer items-start gap-2 text-sm font-black text-slate-900">
+                  <input
+                    type="checkbox"
+                    checked={msgEnabled}
+                    onChange={(e) => setMsgEnabled(e.target.checked)}
+                    disabled={actionUserId === user.id}
+                    className="mt-0.5 h-4 w-4"
+                    data-msg-toggle
+                  />
+                  Üyeye özel uyarı göster
+                </label>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Kapalıysa uzmanın ana sayfasında standart pasif üyelik uyarısı görünür. Mesaj yalnız bu uzmana, ana sayfadaki
+                  kırmızı uyarı alanında gösterilir; mesajlaşma sistemine gönderilmez.
+                </p>
+                {msgEnabled ? (
+                  <AccessMessageEditor draft={msgDraft} onChange={setMsgDraft} disabled={actionUserId === user.id} idPrefix="restrict-msg" />
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -4678,7 +4850,8 @@ export default function AdminUserDetailPage() {
               <button
                 type="button"
                 onClick={() => void confirmDeactivate()}
-                disabled={actionUserId === user.id}
+                disabled={actionUserId === user.id || (usesAccessRestriction && msgEnabled && !draftResult(msgDraft).ok)}
+                data-restrict-confirm
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300 bg-rose-600 px-5 text-sm font-black text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionUserId === user.id ? (
@@ -4689,7 +4862,7 @@ export default function AdminUserDetailPage() {
                 ) : usesAccessRestriction ? (
                   "Pasif yap"
                 ) : (
-                  "Pasife al ve çıkış yaptır"
+                  "Girişi kapat ve çıkış yaptır"
                 )}
               </button>
             </div>

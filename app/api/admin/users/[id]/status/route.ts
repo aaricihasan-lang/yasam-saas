@@ -14,6 +14,7 @@ import {
   validateApprovalModules,
 } from "@/lib/admin/userManagement";
 import { isUuid, rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
+import { normalizeAccessMessage } from "@/lib/auth/accessRestrictionMessage";
 import { validateTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 import { TRIAL_DEFAULT_MODULE_PERMISSIONS } from "@/lib/trial/trialCore";
 import { trialClaimHash } from "@/lib/trial/trialServer";
@@ -40,6 +41,9 @@ function bad(error: string, status = 400) {
  *                                                        kayıt → Pro (yalnız ana yönetici; bayat ekran 409)
  *   { action: "reject" }                               — MEM-003: yalnız PENDING hedef
  *   { action: "toggle_active", currentActive: boolean }
+ *   { action: "set_access", restricted, expectedRestricted, message? }   — F4/F7: Pasif Yap (isteğe bağlı kişiye özel uyarı)
+ *   { action: "set_access_message", message: string | null, expectedMessage: string | null }
+ *                                                      — F7: pasif uzmanın uyarısını sonradan düzenle / kaldır
  *
  * Tüm durum değişiklikleri + ZORUNLU audit + oturum iptali TEK PostgreSQL transaction'ında,
  * hedef satır `FOR UPDATE` kilidi altında (migration 20270129235900):
@@ -255,7 +259,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       const status = rpcErrorStatus(error);
       return bad(
         status === 409
-          ? "Yalnız onay bekleyen başvurular reddedilebilir. Onaylı üye için “Pasif Yap” veya “Pasife Al ve Arşivle” kullanın."
+          ? "Yalnız onay bekleyen başvurular reddedilebilir. Onaylı üye için “Pasif Yap” veya “Arşivle” kullanın."
           : status === 400
             ? "Kullanıcı bulunamadı."
             : "Ret işlemi tamamlanamadı.",
@@ -280,14 +284,24 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (typeof body.restricted !== "boolean" || typeof body.expectedRestricted !== "boolean") {
       return bad("Geçerli istenen durum (restricted) ve mevcut durum (expectedRestricted) gerekli.");
     }
+    // F7: kişiye özel uyarı yalnız Pasif Yap ile; metin önce burada doğrulanır (DB aynı kuralı yeniden uygular).
+    // Mesaj YOKSA RPC çağrısı F4 ile birebir aynıdır (p_message gönderilmez → migration öncesi de çalışır).
+    const msg = normalizeAccessMessage(body.message);
+    if (!msg.ok) return bad(msg.error);
+    if (msg.value !== null && body.restricted !== true) return bad("Uyarı metni yalnız Pasif Yap ile birlikte verilebilir.");
     const { data, error } = await db.rpc("admin_set_member_access_restriction", {
       p_user_id: id,
       p_actor_admin_id: adminId,
       p_restricted: body.restricted,
       p_expected_restricted: body.expectedRestricted,
+      ...(msg.value !== null ? { p_message: msg.value } : {}),
     });
     if (error) {
       const code = (error as { code?: string }).code;
+      if (msg.value !== null && (code === "PGRST202" || code === "42883")) {
+        return bad("Kişiye özel uyarı henüz etkin değil (veritabanı güncellemesi bekleniyor); uyarısız deneyin.", 409);
+      }
+      if (msg.value !== null && code === "UY003") return bad("Uyarı metni geçersiz.");
       if (code === "UY001") return bad("Uzmanın erişim durumu bu sırada değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
       if (code === "UY005") return bad("Hesap arşivde. Önce ana yönetici arşivden çıkarmalıdır.", 409);
       if (code === "UY002") {
@@ -298,13 +312,42 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       // Migration öncesi (fonksiyon yok) veya beklenmeyen hata: ayrıntı sızdırılmaz.
       return bad("Erişim durumu değiştirilemedi.", 500);
     }
-    const result = (data ?? {}) as { restricted?: boolean; changed?: boolean };
-    return jsonNoStore({ ok: true, restricted: result.restricted === true, changed: result.changed === true });
+    const result = (data ?? {}) as { restricted?: boolean; changed?: boolean; message_set?: boolean };
+    return jsonNoStore({ ok: true, restricted: result.restricted === true, changed: result.changed === true, messageSet: result.message_set === true });
+  }
+
+  // ── ÜYE PASİFLEŞTİRME F7: KİŞİYE ÖZEL UYARIYI DÜZENLE / KALDIR ─────────────────────────────────────
+  // Yalnız "Pasif" uzman; tam metin yalnız admin_audit_log'a yazılır (genel uygulama loguna YAZILMAZ). Bayat ekran:
+  // expectedMessage (yöneticinin gördüğü mevcut metin) gerçek metinle aynı değilse 409.
+  if (body.action === "set_access_message") {
+    const msg = normalizeAccessMessage(body.message);
+    if (!msg.ok) return bad(msg.error);
+    if (body.expectedMessage !== null && body.expectedMessage !== undefined && typeof body.expectedMessage !== "string") {
+      return bad("Geçerli mevcut uyarı (expectedMessage) gerekli.");
+    }
+    const { data, error } = await db.rpc("admin_set_member_access_message", {
+      p_user_id: id,
+      p_actor_admin_id: adminId,
+      p_message: msg.value,
+      p_expected_message: typeof body.expectedMessage === "string" ? body.expectedMessage : null,
+    });
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "UY001") return bad("Uyarı bu sırada değiştirilmiş; sayfayı yenileyip tekrar deneyin.", 409);
+      if (code === "UY002") return bad("Uyarı yalnız pasif durumdaki uzman için düzenlenebilir.", 409);
+      if (code === "UY005") return bad("Hesap arşivde.", 409);
+      if (code === "42501") return bad("Yetki yok.", 403);
+      if (code === "UY003") return bad("Uyarı metni geçersiz.");
+      if (code === "PGRST202" || code === "42883") return bad("Kişiye özel uyarı henüz etkin değil (veritabanı güncellemesi bekleniyor).", 409);
+      return bad("Uyarı kaydedilemedi.", 500);
+    }
+    const result = (data ?? {}) as { changed?: boolean; message_set?: boolean };
+    return jsonNoStore({ ok: true, changed: result.changed === true, messageSet: result.message_set === true });
   }
 
   // ── PASİFE AL / AKTİFLEŞTİR (atomik + oturum iptali) ───────────────────────
   if (body.action !== "toggle_active") {
-    return bad("Geçersiz action. approve | approve_trial | repair_legacy_pro | reject | set_access | toggle_active bekleniyor.");
+    return bad("Geçersiz action. approve | approve_trial | repair_legacy_pro | reject | set_access | set_access_message | toggle_active bekleniyor.");
   }
 
   // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency).
