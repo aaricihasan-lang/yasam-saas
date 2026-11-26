@@ -29,7 +29,7 @@ export function checkPurgeEligibility(row: PurgeTargetRow): PurgeEligibility {
     return { ok: false, status: 400, error: "Yalnız uzman hesapları kalıcı olarak silinebilir." };
   }
   if (String(row.approval_status ?? "") !== "approved" || row.active !== false) {
-    return { ok: false, status: 409, error: "Yalnız arşivdeki (pasife alınmış) uzmanlar kalıcı olarak silinebilir." };
+    return { ok: false, status: 409, error: "Yalnız arşivdeki uzmanlar kalıcı olarak silinebilir." };
   }
   if (row.is_demo_account === true) {
     return { ok: false, status: 400, error: "Demo hesabı kalıcı olarak silinemez." };

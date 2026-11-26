@@ -105,7 +105,7 @@ console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
   ok((await purge.getAttribute("href")) === "/admin/users/klasik?view=archive" && (await page.getByRole("button", { name: /kalıcı/i }).count()) === 0, "kalıcı silme: yalnız Arşiv ekranı bağlantısı (doğrudan silme kısayolu YOK)");
   await tab(page, "hesap", "Hesap ve Güvenlik");
   ok((await page.getByRole("button", { name: "Aktif Yap" }).count()) === 0, "“Aktif Yap” YOK (arşivdeki hesap doğrudan açılmaz)");
-  ok((await danger(page).getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0, "arşivdeki hesapta “Pasife Al ve Arşivle” yok");
+  ok((await danger(page).getByRole("button", { name: "Arşivle", exact: true }).count()) === 0, "arşivdeki hesapta “Arşivle” yok");
   const unBtn = danger(page).getByRole("button", { name: "Arşivden Çıkar" });
   ok(await unBtn.isVisible() && await unBtn.isEnabled(), "“Arşivden Çıkar” görünür ve etkin (ana yönetici)");
   ok(await page.locator("[data-archived-note]").isVisible(), "açıklama: önce arşivden çıkarılır, hesap pasif kalır");
@@ -193,12 +193,13 @@ console.log("\n[2c] Arşivleme seçeneği yalnız onaylı uzmanda");
   const ctx = await ctxFor(O);
   for (const [k, label] of [["pending", "onay bekleyen"], ["rejected", "reddedilen"]]) {
     const page = await openDetail(ctx, I[k], "#gelismis");
-    ok((await page.getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0, `${label} başvuruda “Pasife Al ve Arşivle” sunulmaz`);
+    ok((await page.getByRole("button", { name: "Arşivle", exact: true }).count()) === 0, `${label} başvuruda “Arşivle” sunulmaz`);
     await page.close();
   }
   const page = await openDetail(ctx, A2.user.id, "#gelismis");
-  ok((await page.getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0 && (await page.getByRole("button", { name: "Pasif Yap" }).count()) === 1,
-    "yönetici hesabında arşivleme yok; ayrı “Pasif Yap” korunur");
+  ok((await page.getByRole("button", { name: "Arşivle", exact: true }).count()) === 0 && (await page.getByRole("button", { name: "Girişi Kapat", exact: true }).count()) === 1
+    && (await page.getByRole("button", { name: "Pasif Yap", exact: true }).count()) === 0,
+    "yönetici hesabında arşivleme yok; ayrı “Girişi Kapat” korunur (yöneticide “Pasif Yap” yok)");
   await page.close();
   await ctx.close();
 }
@@ -208,8 +209,8 @@ console.log("\n[3] Pasif hesap — detay");
   const ctx = await ctxFor(O);
   const page = await openDetail(ctx, I.passive, "#gelismis");
   ok(await access(page).getByRole("button", { name: "Aktif Yap" }).isVisible() && await access(page).getByRole("button", { name: "Tüm Cihazlardan Çıkış" }).isVisible() && (await page.getByRole("button", { name: "Pasif Yap" }).count()) === 0, "pasif hesapta hızlı işlemler: “Aktif Yap” + “Tüm Cihazlardan Çıkış” (Pasif Yap yok)");
-  ok((await danger(page).getByRole("button", { name: "Arşivden Çıkar" }).count()) === 0 && await danger(page).getByRole("button", { name: "Pasife Al ve Arşivle" }).isVisible(),
-    "pasif hesap arşivde sayılmaz: “Arşivden Çıkar” yok, “Pasife Al ve Arşivle” var");
+  ok((await danger(page).getByRole("button", { name: "Arşivden Çıkar" }).count()) === 0 && await danger(page).getByRole("button", { name: "Arşivle", exact: true }).isVisible(),
+    "giriş kapalı hesap arşivde sayılmaz: “Arşivden Çıkar” yok, “Arşivle” var");
   ok((await page.locator("header, [class*=head]").first().innerText()).includes("Pasif"), "başlık rozeti “Pasif”");
   await shot(page, "05-pasif-hesap-guvenlik");
   await page.close();
@@ -220,13 +221,13 @@ console.log("\n[4] Arayüzden arşivleme (onay metni + parola korunur)");
 {
   const ctx = await ctxFor(O);
   const page = await openDetail(ctx, I.toArchive, "#gelismis");
-  await danger(page).getByRole("button", { name: "Pasife Al ve Arşivle" }).click();
+  await danger(page).getByRole("button", { name: "Arşivle", exact: true }).click();
   ok((await page.locator("#delete-confirm-title").locator("..").innerText()).includes("normal üye listesinden"), "onay penceresi yeni davranışı anlatır");
   await shot(page, "06-arsivle-onay", false);
   await page.getByRole("button", { name: "Evet, devam et" }).click();
   await page.locator('[role="dialog"] input[type="password"], [role="dialog"] input[autocomplete="current-password"]').first().fill("zz-owner-pass");
   await page.locator('[role="dialog"] input[placeholder="PASİFE AL VE ARŞİVLE"]').fill("PASİFE AL VE ARŞİVLE");
-  await page.locator('[role="dialog"]').getByRole("button", { name: "Pasife Al ve Arşivle" }).last().click();
+  await page.locator('[role="dialog"]').getByRole("button", { name: "Arşivle", exact: true }).last().click();
   await page.waitForURL(/\/admin\/users(\?|$)/, { timeout: 60_000 });
   const s = await st(I.toArchive);
   ok(s.active === false && s.archived_at !== null, "arşivlendi: giriş kapalı + archived_at", s);

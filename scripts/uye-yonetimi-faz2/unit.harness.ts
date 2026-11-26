@@ -192,9 +192,9 @@ ok(/Tehlikeli İşlemler/.test(detailPage) && /Hesap Yönetimi/.test(detailPage)
 // V3: erişim + tehlikeli işlemler üstteki Hızlı Hesap İşlemleri alanında (onay grubundan SONRA, bölüm sonuna kadar).
 const dangerStart = detailPage.indexOf('aria-labelledby="actions-access"');
 const danger = dangerStart > 0 ? detailPage.slice(dangerStart, detailPage.indexOf("</section>", dangerStart)) : "";
-ok(/Pasif Yap/.test(danger) && /Tüm Cihazlardan Çıkış/.test(danger) && /Tehlikeli İşlemler/.test(danger) && /Pasife Al ve Arşivle/.test(danger) && /Arşivden Çıkar/.test(danger), "erişim + tehlikeli işlemler tek alanda (Hızlı Hesap İşlemleri)");
+ok(/Pasif Yap/.test(danger) && /Tüm Cihazlardan Çıkış/.test(danger) && /Tehlikeli İşlemler/.test(danger) && />\s*Arşivle\s*</.test(danger) && !/Pasife Al ve Arşivle/.test(danger) && /Arşivden Çıkar/.test(danger), "erişim + tehlikeli işlemler tek alanda (Hızlı Hesap İşlemleri)");
 ok(!/emerald/.test(danger), "tehlikeli işlemlerde yeşil stil YOK");
-ok((detailPage.match(/ref=\{dialogRefs\["/g) ?? []).length === 7 && /useDialogA11y/.test(detailPage), "7 modal: odak + Escape (useDialogA11y)");
+ok((detailPage.match(/ref=\{dialogRefs\["/g) ?? []).length === 8 && /useDialogA11y/.test(detailPage), "8 modal (F7 uyarı penceresi dahil): odak + Escape (useDialogA11y)");
 ok(/aria-describedby=\{descId\}/.test(read("components/admin/members/ModuleCheckboxGrid.tsx")), "modül onay kutuları açıklamaya bağlı (aria-describedby)");
 ok(/aria-pressed=\{value === o\.key\}/.test(listPage) && /aria-label="Sayfalama"/.test(listPage), "filtre düğmeleri aria-pressed; sayfalama etiketli");
 ok(!/Üye Profil İzleme/.test(detailPage) && !/Paket \/ Üyelik Yönetimi/.test(detailPage), "mükerrer modül/paket bölümleri kaldırıldı");

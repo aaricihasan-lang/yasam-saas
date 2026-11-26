@@ -19,7 +19,9 @@ const cfg = (await resolveUiConfig({ envVar: "UD2_CFG", prefixes: ["uye-detay-v2
 mkdirSync(SHOTS, { recursive: true });
 const db = new pg.Client({ host: "127.0.0.1", port: cfg.pg.port, user: "postgres", password: "testpw", database: "postgres" });
 await db.connect();
-for (const m of ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
+// F7 sonrası yığında (audit CHECK 37 eylem) 20280126 ailesi yeniden uygulanmaz: ön koşulu bilinçli fail-closed (prod'da her migration bir kez çalışır).
+const f7Applied = (await db.query(`select to_regprocedure('public.admin_set_member_access_message(uuid,uuid,text,text)') is not null x`)).rows[0].x;
+for (const m of f7Applied ? [] : ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
   await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations", m), "utf8"));
 }
 let pass = 0, fail = 0;
@@ -81,18 +83,24 @@ for (const [vp, tag] of [[{ width: 1280, height: 900 }, "masaüstü"], [{ width:
     await p.getByRole("tab", { name: "Uzmanlar" }).or(p.getByRole("button", { name: "Uzmanlar" })).first().click();
     const sel = p.getByLabel("Durum filtresi");
     await sel.waitFor({ timeout: 60_000 });
+    // Süzgeç değişince sabit bekleme yerine gerçek usage360/experts yanıtı (soğuk derlemede 1,5 sn yetmeyebilir).
+    const choose = async (v) => {
+      const res = p.waitForResponse((r) => r.url().includes("/usage360/experts") && r.url().includes(`status=${v}`), { timeout: 120_000 });
+      await sel.selectOption(v);
+      await res;
+    };
     const names = async () => {
       await p.waitForTimeout(1500);
       return (await p.locator("table tbody tr, ul li").allInnerTexts()).join("\n");
     };
-    await sel.selectOption("passive");
+    await choose("passive");
     ok((await names()).includes(E.full_name), "süzgeç 'Pasif · modüller kilitli': pasif uzman listede");
-    await sel.selectOption("active");
+    await choose("active");
     ok(!(await names()).includes(E.full_name), "süzgeç 'Aktif': pasif uzman YOK");
-    await sel.selectOption("login_closed");
+    await choose("login_closed");
     const lc = await names();
     ok(!lc.includes(E.full_name), "süzgeç 'Giriş kapalı': pasif uzman YOK");
-    await sel.selectOption("archive");
+    await choose("archive");
     ok(!(await names()).includes(E.full_name), "süzgeç 'Arşivde': pasif uzman YOK");
     await p.screenshot({ path: path.join(SHOTS, "uzmanlar-arsiv.png") });
   }

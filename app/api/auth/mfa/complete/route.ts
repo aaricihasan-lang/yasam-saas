@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     if (uErr) return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
     const row = u as Record<string, unknown> | null;
     if (!row || row.active !== true) {
-      return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+      return json({ code: "INACTIVE", error: "Hesabınızın sisteme girişi kapalı. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
     }
     const role = normalizeRole(row.role);
     if (role !== "admin" && role !== "expert") {
