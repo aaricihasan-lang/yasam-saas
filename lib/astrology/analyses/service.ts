@@ -537,7 +537,7 @@ export async function saveAnalysis(ctx: EngineCtx, raw: unknown, ownerPreviewHid
       const wid = (won as { id?: unknown } | null)?.id;
       if (isUuid(wid)) return { status: 200, body: { ok: true, analysisId: wid, reused: true } };
     }
-    // Veritabanı parça/parametre CHECK'i (ör. 20280127000000 migration'ı henüz uygulanmamış sunucuda 11–16 parçalı kayıt):
+    // Veritabanı parça/parametre CHECK'i (ör. 20280128000000 migration'ı henüz uygulanmamış sunucuda 11–16 parçalı kayıt):
     // 500 yerine açık, kalıcı hata. Hesaplanan sonuçlar sonuç önbelleğinde KORUNUR → aynı seçim yeniden ücretli istek üretmez.
     if ((error as { code?: string }).code === "23514" && /astro_an_params_chk/.test(String((error as { message?: string }).message ?? ""))) {
       logAstroDbError("analysis.save.params_chk", error);

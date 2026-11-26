@@ -1,4 +1,4 @@
-// GÖKYÜZÜ ATLASI — analiz parça sınırı migration'ı (20280127000000) GERÇEK PostgreSQL doğrulaması.
+// GÖKYÜZÜ ATLASI — analiz parça sınırı migration'ı (20280128000000) GERÇEK PostgreSQL doğrulaması.
 // YALNIZ yerel geçici embedded-postgres; production / uzak DB YOK. Sentetik satırlar; çalışma sonunda geçici dizin silinir.
 // Kapsam: ESKİ şemada 11 parça RED (hatanın DB kanıtı) · mevcut kayıtlar birebir korunur (md5) · migration 2× (idempotent) ·
 // yeni şemada 11/15/16 KABUL, 17 RED · diğer koşullar (params nesne + ≤16 KiB) aynen · en büyük gerçekçi KP Transit anlık
@@ -20,16 +20,16 @@ const BASE = [
   path.join(REPO, "scripts/astrology/pg/astrology-7b-fixture.sql"),
   ...["000000_astrology_foundation", "000100_astrology_kb_analyses", "000200_astrology_timing_relationship", "000300_astrology_owner_isolation", "000400_astrology_client_list", "000500_astrology_profile_delete", "000600_astrology_record_caps", "000700_astrology_kb_snapshot_cleanup", "000800_astrology_analysis_delete"].map((f) => MIG(`20271101${f}.sql`)),
 ];
-const PARTS_VERSION = "20280127000000";
+const PARTS_VERSION = "20280128000000";
 const PARTS = MIG(`${PARTS_VERSION}_astro_analysis_result_parts.sql`);
-// Production migration geçmişinde (salt-okunur, 2026-11-26) 2028 serisinde KAYITLI sürümler. Bu migration'ın sürümü bunlardan
-// biriyle ÇAKIŞAMAZ (ilk taslak 20280126000000 idi → production'da member_access_restriction'a ait; yeniden numaralandı).
+// Production migration geçmişinde (salt-okunur, 2026-11-26 son kontrol: 189 kayıt) 2028 serisinde KAYITLI sürümler. Bu migration'ın sürümü bunlardan
+// biriyle ÇAKIŞAMAZ (taslaklar 20280126000000 → member_access_restriction, 20280127000000 → member_access_message ile çakıştı).
 const PROD_LEDGER_2028 = [
   "20280101000000", "20280101000100", "20280101000200", "20280101000300", "20280101000400", "20280101000500", "20280101000600",
   "20280101000690", "20280101000700", "20280101000710", "20280102000000", "20280103000000", "20280103000100", "20280103000200",
   "20280103000300", "20280103000400", "20280103000500", "20280103000600", "20280103000700", "20280103000800", "20280103000900",
   "20280103001000", "20280103001100", "20280103001200", "20280103001300", "20280110000000", "20280110000100", "20280125000000",
-  "20280126000000", "20280126000100", "20280126000200",
+  "20280126000000", "20280126000100", "20280126000200", "20280127000000",
 ];
 // Anlık görüntü klasörü verilmezse üretici (sentetik sağlayıcı, ağ/ücret YOK) geçici klasöre çalıştırılır.
 let SNAP_DIR = process.argv[2] ?? "";
@@ -91,9 +91,9 @@ const check = (name, ok, detail = "") => {
   const files = fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
   const mine = files.filter((f) => f.endsWith("_astro_analysis_result_parts.sql"));
   const sameVersion = files.filter((f) => f.startsWith(`${PARTS_VERSION}_`));
-  check(`sürüm: parça migration'ı TEK dosya (${PARTS_VERSION}); eski 20280126000000 adıyla çift kopya yok`, mine.length === 1 && mine[0] === path.basename(PARTS), mine.join(","));
+  check(`sürüm: parça migration'ı TEK dosya (${PARTS_VERSION}); eski taslak adlarıyla (20280126 / 20280127) çift kopya yok`, mine.length === 1 && mine[0] === path.basename(PARTS), mine.join(","));
   check(`sürüm: ${PARTS_VERSION} depoda başka hiçbir migration'da kullanılmıyor`, sameVersion.length === 1, sameVersion.join(","));
-  check(`sürüm: production migration geçmişinde (2026-11-26 salt-okunur) ${PARTS_VERSION} YOK; 20280126000000–000200 Üye Erişim Kısıtlaması`, !PROD_LEDGER_2028.includes(PARTS_VERSION));
+  check(`sürüm: production migration geçmişinde (2026-11-26 salt-okunur) ${PARTS_VERSION} YOK; 20280126000000–000200 ve 20280127000000 Üye Erişim`, !PROD_LEDGER_2028.includes(PARTS_VERSION));
   const memberAccess = ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"];
   check("sürüm: Üye Erişim Kısıtlaması migration'ları depoda aynen (adları değişmedi)", memberAccess.every((f) => files.includes(f)));
   check(`sürüm: ${PARTS_VERSION} production'daki en son kayıtlı sürümden (${PROD_LEDGER_2028.at(-1)}) SONRA sıralanır`, PARTS_VERSION > PROD_LEDGER_2028.reduce((a, b) => (a > b ? a : b)));
