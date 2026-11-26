@@ -502,7 +502,7 @@ async function main() {
     const units = def.units({ birth: BIRTH } as never, opt);
     assert.equal(units.length, 15);
     assert.equal(ASTRO_ANALYSIS_MAX_PARTS, 16);
-    const sql = readFileSync(join(__dirname, "..", "..", "supabase", "migrations", "20280126000000_astro_analysis_result_parts.sql"), "utf8");
+    const sql = readFileSync(join(__dirname, "..", "..", "supabase", "migrations", "20280127000000_astro_analysis_result_parts.sql"), "utf8");
     assert.match(sql, /cardinality\(result_ids\) <= 16/, "migration sınırı = uygulama sabiti");
     assert.equal(new Set(units.map((u) => u.inputHash)).size, 15, "parçalar ayrı önbellek anahtarı");
     // Arayüz aynı sınırı uygular; en büyük geçerli seçim (15) engellenmez, istek tahmini 15.

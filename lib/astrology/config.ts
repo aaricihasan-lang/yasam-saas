@@ -68,7 +68,7 @@ export const ASTRO_CONFIRM_THRESHOLD = 10;
 
 /**
  * Bir analiz kaydının en çok kaç hesap parçasından (sağlayıcı sonucu) oluşabileceği. Veritabanında
- * `astro_analyses.astro_an_params_chk` → `cardinality(result_ids) <= 16` ile AYNI değer (migration 20280126000000).
+ * `astro_analyses.astro_an_params_chk` → `cardinality(result_ids) <= 16` ile AYNI değer (migration 20280127000000).
  * En çok parçalı teknik KP Transit zaman aralığıdır: 7 gezegen × (Sub-Lord + Rasi) + konum tablosu = 15.
  * Gerekçe (2026-11-25): eski sınır 10 (Aşama 3, en çok 5 parçalı transit takvimine göre) TRANSİT-03'te güncellenmemişti →
  * 11–15 parçalı KP Transit hesaplanıyor ama KAYDEDİLEMİYORDU. Planlayıcı bu sınırı aşan seçimi sağlayıcıya gitmeden engeller.

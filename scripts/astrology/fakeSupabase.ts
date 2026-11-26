@@ -27,7 +27,7 @@ export type FakeStore = {
   /** Oran sınırı penceresinin başlangıcı (kova başına). */
   rateWindowStart: Map<string, number>;
   log: QueryLog[];
-  /** astro_analyses.astro_an_params_chk parça sınırı (gerçek DB: 20280126000000 sonrası 16; eski şema provası için 10 verilebilir). */
+  /** astro_analyses.astro_an_params_chk parça sınırı (gerçek DB: 20280127000000 sonrası 16; eski şema provası için 10 verilebilir). */
   analysisPartsLimit?: number;
   /** Bu tablo/kolon seçildiğinde hata simülasyonu (ör. is_super_admin kolonu yok). */
   failSelect?: (table: string, select: string) => FakeErr;
