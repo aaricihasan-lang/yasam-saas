@@ -79,6 +79,23 @@ jobs:
             node scripts/ci/migration-naming-check.mjs
           fi
 
+      # DB-03 (2026-11-27): merkezi migration numarası. PR'a eklenen her migration merkezi defterde (migration-rezervasyon dalı)
+      # ayrılmış olmalı; base'deki migration'lar değiştirilemez / silinemez / yeniden adlandırılamaz. Migration içermeyen PR ağa
+      # çıkmadan PASS. Kip: scripts/migrations/numara/yapilandirma.json "zorunlu" (Owner onayıyla true) — o zamana dek UYARI kipi.
+      - name: Merkezi migration numarası (DB-03)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/ci/migration-reservation-check.mjs --base "origin/${{ github.base_ref }}"
+          else
+            echo "push olayı: PR karşılaştırması yok"
+          fi
+
+      - name: Merkezi migration numarası testleri (gerçek git eşzamanlılığı + CI kapısı + izole PostgreSQL uygulama kapısı)
+        run: |
+          git config --global user.name "ci"
+          git config --global user.email "ci@yasam.invalid"
+          npm run test:migration-numara
+
       - name: Güvenlik çekirdeği harness'ları
         run: npm run test:asama1
 
