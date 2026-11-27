@@ -147,6 +147,17 @@ const deleteModalOverlay =
 const deleteModalPanel =
   "relative w-full max-w-lg rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-rose-50/95 via-white to-violet-50/80 p-6 shadow-[0_24px_64px_rgba(15,23,42,0.22)] sm:p-8";
 
+/**
+ * F7-R1: uzun içerikli onay pencereleri (Pasif Yap + kişiye özel uyarı, uyarıyı düzenle) EKRAN YÜKSEKLİĞİNE SIĞAR:
+ * başlık üstte ve alt işlem düğmeleri altta SABİT, aradaki içerik pencerenin KENDİ İÇİNDE kayar. Görünüm deleteModalPanel ile aynı.
+ * Yükseklik: overlay p-4 (üst + alt 2rem) düşülür; dvh destekleyen tarayıcıda mobil adres çubuğu da hesaba katılır.
+ */
+const fitModalPanel =
+  "relative flex w-full max-w-lg max-h-[calc(100vh-2rem)] supports-[height:100dvh]:max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-rose-50/95 via-white to-violet-50/80 shadow-[0_24px_64px_rgba(15,23,42,0.22)]";
+const fitModalHeader = "relative shrink-0 px-6 pb-3 pt-6 sm:px-8 sm:pt-8";
+const fitModalBody = "min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-4 sm:px-8";
+const fitModalFooter = "shrink-0 border-t border-slate-200/80 bg-white/85 px-6 py-4 sm:px-8";
+
 // AŞAMA 2 · P1-7: istemci tarafı `isOwnerAdmin(currentAdminUser)` KALDIRILDI — canlıda
 // users.admin_level varsayılanı 'owner' olduğundan her admin "ana yönetici" görünüyordu.
 // Ana-yönetici kararı artık SUNUCUDAN gelir: GET /api/admin/users/[id] → viewer.isMainAdmin.
@@ -4729,25 +4740,29 @@ export default function AdminUserDetailPage() {
           tabIndex={-1}
           data-access-message-dialog
         >
-          <div className={deleteModalPanel}>
-            <button
-              type="button"
-              onClick={() => setMsgEditOpen(false)}
-              disabled={actionUserId === user.id}
-              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
-              aria-label="Kapat"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 id="access-msg-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
-              Ana sayfa üyelik uyarısı
-            </h2>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
+          <div className={fitModalPanel} data-fit-modal>
+            <div className={fitModalHeader} data-fit-modal-header>
+              <button
+                type="button"
+                onClick={() => setMsgEditOpen(false)}
+                disabled={actionUserId === user.id}
+                className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+                aria-label="Kapat"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 id="access-msg-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
+                Ana sayfa üyelik uyarısı
+              </h2>
+            </div>
+            <div className={fitModalBody} data-fit-modal-body>
+            <p className="text-sm font-medium leading-relaxed text-slate-700">
               Mesaj yalnız bu uzmanın ana sayfasındaki kırmızı uyarı alanında gösterilir. Kaldırırsanız standart pasif üyelik
               uyarısı görünür. “Aktif Yap” mesajı otomatik temizler.
             </p>
             <AccessMessageEditor draft={msgEditDraft} onChange={setMsgEditDraft} disabled={actionUserId === user.id} idPrefix="edit-msg" />
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            </div>
+            <div className={`${fitModalFooter} flex flex-col-reverse gap-3 sm:flex-row sm:justify-end`} data-fit-modal-footer>
               <button
                 type="button"
                 onClick={() => setMsgEditOpen(false)}
@@ -4790,27 +4805,30 @@ export default function AdminUserDetailPage() {
           ref={dialogRefs["deactivate-title"]}
           tabIndex={-1}
         >
-          <div className={deleteModalPanel}>
-            <button
-              type="button"
-              onClick={() => setDeactivateOpen(false)}
-              disabled={actionUserId === user.id}
-              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
-              aria-label="Kapat"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 id="deactivate-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
-              {usesAccessRestriction ? "Uzmanı pasif yapmak üzeresiniz" : "Kullanıcının girişini kapatmak üzeresiniz"}
-            </h2>
+          <div className={fitModalPanel} data-fit-modal>
+            <div className={fitModalHeader} data-fit-modal-header>
+              <button
+                type="button"
+                onClick={() => setDeactivateOpen(false)}
+                disabled={actionUserId === user.id}
+                className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+                aria-label="Kapat"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 id="deactivate-title" className="pr-8 text-xl font-black text-rose-950 sm:text-2xl">
+                {usesAccessRestriction ? "Uzmanı pasif yapmak üzeresiniz" : "Kullanıcının girişini kapatmak üzeresiniz"}
+              </h2>
+            </div>
+            <div className={fitModalBody} data-fit-modal-body>
             {usesAccessRestriction ? (
-              <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700" data-deactivate-mode="restrict">
+              <p className="text-sm font-medium leading-relaxed text-slate-700" data-deactivate-mode="restrict">
                 Uzman <span className="font-black">sisteme girebilir ve modülleri görür, ancak hiçbir modülü kullanamaz</span>:
                 danışan, analiz, rapor ve dosyalara erişim kapanır. Oturumlar kapatılmaz; hiçbir danışan, analiz veya rapor
                 kaydı silinmez. “Aktif Yap” ile önceki yetkiler aynen geri gelir.
               </p>
             ) : (
-              <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
+              <p className="text-sm font-medium leading-relaxed text-slate-700">
                 Bu işlem kullanıcının erişimini durdurur ve <span className="font-black">masaüstü, mobil ve tablet
                 dahil tüm cihazlardaki oturumlarını kapatır</span>. Kullanıcı yeniden aktif yapılana ve tekrar giriş
                 yapana kadar sisteme erişemez.
@@ -4838,7 +4856,8 @@ export default function AdminUserDetailPage() {
                 ) : null}
               </div>
             ) : null}
-            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            </div>
+            <div className={`${fitModalFooter} flex flex-col-reverse gap-3 sm:flex-row sm:justify-end`} data-fit-modal-footer>
               <button
                 type="button"
                 onClick={() => setDeactivateOpen(false)}
