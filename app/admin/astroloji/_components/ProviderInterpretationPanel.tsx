@@ -9,6 +9,7 @@
 import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
 import { LOCAL_NATAL_INTERP_NOTE } from "@/lib/astrology/model/natalHouseSystems";
 import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { relocationSummaryNote, relocationSummaryText, type RelocationAngleSigns } from "@/lib/astrology/relocationSummary";
 import { dayKeyInZone, formatInZone, isIanaZone } from "@/lib/astrology/transitDetail";
 import type { ReactNode } from "react";
 import type { NatalInterpretation } from "@/lib/astrology/model/western";
@@ -658,18 +659,30 @@ function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null 
   return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
 }
 
+/** 2026-11-28: Relocation özetinde burç değişmemişse "… burcuna geçer" kalıbı doğru anlatımla (Word/PDF raporuyla aynı). */
+function withRelocationSigns(content: unknown, signs: RelocationAngleSigns | null | undefined): { content: unknown; note: string | null } {
+  const c = content as { schema?: unknown; summary?: unknown } | null;
+  if (!signs || !c || c.schema !== "astro.western.relocation.interp.v1") return { content, note: null };
+  const note = relocationSummaryNote(c.summary, signs);
+  return note ? { content: { ...c, summary: relocationSummaryText(String(c.summary), signs) }, note } : { content, note: null };
+}
+
 export default function ProviderInterpretationPanel({
   interpretation,
   localSpace,
+  relocation,
   displayTz = null,
 }: {
   interpretation: InterpretationLayer;
   localSpace?: LocalSpaceCenter | null;
+  /** Relocation: kayıtlı natal ↔ relocation ASC/MC burçları (relocationAngleSigns). */
+  relocation?: RelocationAngleSigns | null;
   /** TRANSİT-01: analiz seçeneğindeki gösterim saat dilimi (Transit Takvimi olay açıklamalarında yerel saat). */
   displayTz?: string | null;
 }) {
   const title = interpretationTitle(interpretation);
   const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
+  const rl = ls ? withRelocationSigns(ls.content, relocation) : null;
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">
@@ -691,12 +704,17 @@ export default function ProviderInterpretationPanel({
               {LOCAL_NATAL_INTERP_NOTE}
             </p>
           )}
+          {rl?.note && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-relocation-sign-note">
+              {rl.note}
+            </p>
+          )}
           {ls?.note && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-ls-center-note">
               {ls.note}
             </p>
           )}
-          <Content content={ls ? ls.content : stripSystemKeys(interpretation.content)} displayTz={displayTz} />
+          <Content content={rl ? rl.content : ls ? ls.content : stripSystemKeys(interpretation.content)} displayTz={displayTz} />
         </div>
       )}
     </section>

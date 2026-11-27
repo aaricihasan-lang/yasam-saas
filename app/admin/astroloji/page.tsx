@@ -66,6 +66,7 @@ import { MOON_UNKNOWN_TEXT } from "@/lib/astrology/view/natalLabelLayout";
 import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { relocationAngleSigns } from "@/lib/astrology/relocationSummary";
 import { AtlasHeader, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
 import { ArrowLeft, CalendarDays, CheckCircle2, FileText, Loader2, Save, ScrollText, Settings2, Users, X } from "lucide-react";
 import { formatUtcOffset } from "./_lib/utcOffset";
@@ -2017,6 +2018,7 @@ export default function AstrologyWorkspacePage() {
                         <ProviderInterpretationPanel
                           interpretation={item.view.interpretation}
                           localSpace={item.technique === "western.local_space" ? localSpaceCenter(item.view.technical, item.view.options, birthplace) : null}
+                          relocation={item.technique === "western.relocation" ? relocationAngleSigns(item.view.technical) : null}
                           displayTz={typeof item.view.options.displayTz === "string" ? item.view.options.displayTz : null}
                         />
                       )}

@@ -27,6 +27,7 @@ import NatalTechnicalPanel, { NatalKeyPlacementCards } from "./NatalTechnicalPan
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { relocationAngleSigns } from "@/lib/astrology/relocationSummary";
 import { LEGACY_METHOD_LEAD } from "@/lib/astrology/legacyMethodText";
 import { COMBINED_REPORT_MAX } from "@/lib/astrology/report/limits";
 
@@ -591,6 +592,7 @@ export function SavedAnalysisView({
                   )
                 : null
             }
+            relocation={a.technique === "western.relocation" ? relocationAngleSigns(a.technical) : null}
             displayTz={typeof (a.params as { displayTz?: unknown }).displayTz === "string" ? ((a.params as { displayTz?: string }).displayTz ?? null) : null}
           />
         )}

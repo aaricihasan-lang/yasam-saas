@@ -46,6 +46,7 @@ import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHN
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
+import { relocationAngleSigns, relocationMcSignChanged, relocationSummaryNote, relocationSummaryText } from "../relocationSummary";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
 import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
 import { kpSplitFromLabel } from "../verify/kpSub";
@@ -1062,6 +1063,8 @@ function westernLocation(b: B, technique: string, t: O, opts: O) {
         ["Uzaklık", num(ch.distanceKm) !== null ? `${Math.round(num(ch.distanceKm)!).toLocaleString("tr-TR")} km` : DASH],
         ["Yön", typeof ch.direction === "string" ? (COMPASS[ch.direction] ?? ch.direction) : DASH],
         ["Yükselen burcu değişti mi", yesNo(ch.ascendantSignChanged)],
+        // 2026-11-28: kayıtlı natal ↔ relocation Tepe Noktası burcu (ekrandaki karşılaştırma tablosuyla aynı kaynak).
+        ["Tepe Noktası burcu değişti mi", yesNo(relocationMcSignChanged(t))],
         ["Yeni açılara yakın gezegenler", arr(ch.angularBodies).length ? list(ch.angularBodies, bodyL) : DASH],
         ["Ev sistemi", hsL(t.houseSystem)],
       ]);
@@ -2435,6 +2438,15 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
       if (note) b.p(note, "muted");
       const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls) } : x);
       content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls) } : {}) };
+    }
+    if (technique === "western.relocation" && tech) {
+      // 2026-11-28: burç değişmemişse kalıptaki "… burcuna geçer" ifadesi doğru anlatımla gösterilir (snapshot aynen; ekranla aynı).
+      const s = relocationAngleSigns(tech);
+      const note = relocationSummaryNote(content.summary, s);
+      if (note) {
+        b.p(note, "muted");
+        content = { ...content, summary: relocationSummaryText(String(content.summary), s) };
+      }
     }
     interpBlocks(b, technique, content, people, opts);
   }
