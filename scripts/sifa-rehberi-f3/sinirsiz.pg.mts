@@ -127,7 +127,7 @@ const key = (i: number) => `${(i + 1).toString(36).padStart(5, "0")}m`;
 try {
   section("B) Gerçek veritabanı: kalabalık kütüphane (sentetik)");
   await q("CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;");
-  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000000_sifa_rehberi_f3.sql"]) await q(MIG(f));
+  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await q(MIG(f));
   const roots = Array.from({ length: N }, (_, i) => topic({ id: id(), title: `Konu ${i}`, sort_key: key(i) }));
   for (const ch of chunks(roots, 1000)) await save({ topics: ch });
   const H = id();
@@ -170,7 +170,7 @@ try {
   ok(s2.notes[H][0].id === lastNote && s2.notes[H].length === N + 2, "yeniden yükleme: taşınan not başta, toplam not sayısı aynı");
 
   section("C) Kaynakta kota kalıntısı yok");
-  const files = execSync("git ls-files -co --exclude-standard -- lib/sifa-rehberi-v2 lib/sifa-rehberi-f3 components/sifa-rehberi-f3 app/api/sifa-rehberi-v2 app/sifa-rehberi supabase/migrations/20280130000000_sifa_rehberi_f3.sql supabase/migrations/20280130000100_yh_sifa_f3_kutu_yayilimi.sql", { encoding: "utf8" }).split("\n").filter(Boolean);
+  const files = execSync("git ls-files -co --exclude-standard -- lib/sifa-rehberi-v2 lib/sifa-rehberi-f3 components/sifa-rehberi-f3 app/api/sifa-rehberi-v2 app/sifa-rehberi supabase/migrations/20280130000200_sifa_rehberi_f3.sql supabase/migrations/20280130000300_yh_sifa_f3_kutu_yayilimi.sql", { encoding: "utf8" }).split("\n").filter(Boolean);
   const hits = files.filter((f) => /UPLOAD_QUOTA|SIFA_V2_QUOTA|upload_usage|uploadUsage|kotanız|depolama kotası/i.test(readFileSync(f, "utf8")));
   ok(hits.length === 0, `Şifa ürün kodu + F3 migration'larında kota sabiti / kodu / iletisi YOK (${files.length} dosya tarandı)`, hits);
   ok(!("maxSourcesPerBlock" in CHANGESET_LIMITS), "not başına kaynak sayısı sınırı kaldırıldı");

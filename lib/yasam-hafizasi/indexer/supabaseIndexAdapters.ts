@@ -442,7 +442,7 @@ const SIFA_V2_MAX_DEPTH = 25;
  * satır DÜŞÜRÜLÜR → indekslenmez (exact yolda "kaynak yok" → defensive deindex). Konular yalnız aynı
  * tenant + aynı sahip (owner_key) kapsamında okunur; başka uzmanın konusu zincire giremez (fail-closed).
  * F3: içerik kutusunun ANA NOTU (parent_block_id) çöpteyse veya aynı kapsamda bulunamıyorsa kutu da düşer
- * (not çöpü → migration 20280130000100 alt kutuları kuyruğa alır).
+ * (not çöpü → migration 20280130000300 alt kutuları kuyruğa alır).
  */
 async function filterSifaV2Live(db: IndexDbClient, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   const live = rows.filter((r) => r["deleted_at"] === null || r["deleted_at"] === undefined);

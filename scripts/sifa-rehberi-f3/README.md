@@ -2,7 +2,7 @@
 
 | Test | Ne sınar | Ortam | Çalıştırma |
 |---|---|---|---|
-| `db.pg.mts` | Migration (`20280130000000`) — mevcut kayıtların bayt bayt korunması, geriye uyum, kişisel okuma, hazır başlık kuralları, grup türü, not ↔ içerik kutusu, kalıcı kutu silme, galeri görselleri, yaşam döngüsü, yetkiler, kullanıcı kotası YOK, çakışma, izolasyon, **şema geri dönüşü** | Yerel geçici PostgreSQL (ağ yok) — **CI regresyon listesinde** | `npx tsx scripts/sifa-rehberi-f3/db.pg.mts` |
+| `db.pg.mts` | Migration (`20280130000200`) — mevcut kayıtların bayt bayt korunması, geriye uyum, kişisel okuma, hazır başlık kuralları, grup türü, not ↔ içerik kutusu, kalıcı kutu silme, galeri görselleri, yaşam döngüsü, yetkiler, kullanıcı kotası YOK, çakışma, izolasyon, **şema geri dönüşü** | Yerel geçici PostgreSQL (ağ yok) — **CI regresyon listesinde** | `npx tsx scripts/sifa-rehberi-f3/db.pg.mts` |
 | `counters.pg.mts` | Ana ekran (`/api/dashboard/summary`) ve Yönetim paneli (`/api/admin/expert-stats/modules`) Şifa sayacı = kişinin çöpte olmayan ana konuları; diğer sayaçlar değişmez | Yerel geçici PostgreSQL + gerçek route + PostgREST shim — **CI** | `npx tsx scripts/sifa-rehberi-f3/counters.pg.mts` |
 | `yh-kutu.pg.mts` | Yaşam Hafızası: ana not çöpe → kutuları kuyruğa → gerçek worker indeksten siler → gerçek aramada yok; geri alınınca döner; YH kapalıyken etkisiz; şema geri dönüşü | Yerel geçici PostgreSQL + gerçek YH worker + arama RPC — **CI** | `npx tsx scripts/sifa-rehberi-f3/yh-kutu.pg.mts` |
 | `geri-donus.pg.mts` | Geri dönüşte veri kaybı yok: F3 ÖNCESİ gerçek sunucu kodu (git `ee5c25aa`) + F3 şeması, şema geri dönüşü, yeniden ileri alma | Yerel geçici PostgreSQL — **CI** (tam git geçmişi gerekir) | `npx tsx scripts/sifa-rehberi-f3/geri-donus.pg.mts` |

@@ -103,7 +103,7 @@ const ROOT_T = id(), GRP = id(), H = id(), N = id(), K1 = id(), K2 = id(), N2 = 
 try {
   section("A) Kurulum: çekirdek + görsel yaşam döngüsü + F3 (+ eski kod git'ten: " + PRE_F3.slice(0, 8) + ")");
   await q("CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;");
-  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000000_sifa_rehberi_f3.sql"]) await q(MIG(f));
+  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await q(MIG(f));
   ok(files.length >= 5 && typeof oldService.saveChangeset === "function" && oldService.saveChangeset !== saveChangeset, `eski sunucu kodu yüklendi (${files.length} modül; yeni koddan AYRI)`);
 
   section("B) YENİ kodla F3 verisi");
@@ -211,7 +211,7 @@ try {
   const VRB = await newViewOldSafe();
 
   section("E) Yeniden ileri alma — F3 migration tekrar");
-  await q(MIG("20280130000000_sifa_rehberi_f3.sql"));
+  await q(MIG("20280130000200_sifa_rehberi_f3.sql"));
   const V2 = await newView();
   ok(V2 === VRB, "yeniden ileri alma sonrası yeni kodun gördüğü kütüphane, geri dönüşten önceki hâliyle BİREBİR (veri kaybı yok)");
   const struct = JSON.parse(V2);

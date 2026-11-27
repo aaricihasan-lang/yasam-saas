@@ -3,7 +3,7 @@
  * ağ / sır / production / test projesi YOK).
  *
  * Zincir uçtan uca gerçek: kayıt servisi (saveChangeset → sifa_v2_apply_changeset) → CDC tetikleyicileri
- * (20280110000100 + YENİ 20280130000100) → outbox → GERÇEK YH worker (runOutboxBatch +
+ * (20280110000100 + YENİ 20280130000300) → outbox → GERÇEK YH worker (runOutboxBatch +
  * createProfessionalOutboxBatchDeps; okuyucu kapısı filterSifaV2Live) → gerçek indeks → GERÇEK arama RPC'si
  * (yh_search_candidates_v3, SET ROLE service_role). PostgREST: test-only shim (scripts/usage360/pgrestShim).
  * Yaşam Hafızası ÜRÜNDE ETKİNLEŞTİRİLMEZ: aktivasyon yalnız bu geçici veritabanında açılır/kapanır.
@@ -35,7 +35,7 @@ import { pgDb } from "@/lib/sifa-rehberi-v2/server/dbAdapters";
 
 const ROOT = process.cwd();
 const M = (f: string) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8");
-const NEW_SQL = M("20280130000100_yh_sifa_f3_kutu_yayilimi.sql");
+const NEW_SQL = M("20280130000300_yh_sifa_f3_kutu_yayilimi.sql");
 // Gerçek YH çekirdek migration'ları — scripts/sifa-rehberi-v2/yh/yh-owner.pg.harness.mts YH_CORE ile aynı liste
 // (o dosya import edilmez: üst düzeyde kendi testini çalıştırır).
 const YH_CORE = [
@@ -125,7 +125,7 @@ try {
            create table public.stone_exclusions (tenant_id text, stone_id uuid);
            grant select on public.users, public.tenants, public.stone_exclusions to service_role;`);
   for (const f of YH_CORE) await q(M(f));
-  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280110000100_yh_owner_scope_sifa_v2.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000000_sifa_rehberi_f3.sql"]) await q(M(f));
+  for (const f of ["20280110000000_sifa_rehberi_v2_core.sql", "20280110000100_yh_owner_scope_sifa_v2.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await q(M(f));
   let migErr = "";
   try { await q(NEW_SQL); await q(NEW_SQL); } catch (e) { migErr = (e as Error).message; }
   ok(migErr === "", "yeni migration uygulandı ve İKİNCİ kez hatasız (idempotent)", migErr);

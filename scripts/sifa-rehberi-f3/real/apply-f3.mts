@@ -11,7 +11,7 @@ import { connectTestDb, installNetworkFence, loadTestTarget } from "../../sifa-r
 const T = loadTestTarget();
 installNetworkFence(T);
 const db = await connectTestDb();
-const SQL = readFileSync(path.resolve("supabase/migrations/20280130000000_sifa_rehberi_f3.sql"), "utf8");
+const SQL = readFileSync(path.resolve("supabase/migrations/20280130000200_sifa_rehberi_f3.sql"), "utf8");
 const sums = async () =>
   (
     await db.query(`select

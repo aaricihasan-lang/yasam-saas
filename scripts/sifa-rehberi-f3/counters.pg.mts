@@ -128,7 +128,7 @@ try {
   await su.query(DDL);
   await su.query(`alter table public.users add column if not exists trial_kind text, add column if not exists trial_status text;`);
   for (const m of U360_MIGS) await su.query(MIG(m));
-  for (const m of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000000_sifa_rehberi_f3.sql"]) await su.query(MIG(m));
+  for (const m of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await su.query(MIG(m));
   // Diğer sayaçların kaynak tabloları (asgari şema) — DEĞİŞMEDİKLERİ kanıtlansın.
   await su.query(`create table public.stones (id uuid primary key default gen_random_uuid(), tenant_id uuid, stone_name text, created_at timestamptz default now());
     create table public.dogaltas_inventory (id uuid primary key default gen_random_uuid(), tenant_id uuid, created_at timestamptz default now());

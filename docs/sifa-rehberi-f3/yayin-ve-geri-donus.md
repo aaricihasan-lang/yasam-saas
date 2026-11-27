@@ -36,8 +36,8 @@ production'da hiçbir adım uygulanmamıştır. Her adım **ayrı Owner onayı**
 |---|---|---|
 | 1 | PR + CI (bu dal, güncel main üzerine) | Merge Owner onayıyla. Merge **otomatik deploy** başlatır → migration'lar merge'den ÖNCE uygulanmalı (aşağıda "Neden"). |
 | 2 | Migration `20280124000000_sifa_v2_asset_lifecycle.sql` | Yalnız fonksiyon; tablo/veri değişmez. DB-03 defterinde "geçmiş, production'a uygulanmamış". |
-| 3 | Migration `20280130000000_sifa_rehberi_f3.sql` | Yalnız EKLEME: 3 sütun, 3 kısıt, 1 tetikleyici, fonksiyon güncellemeleri. Eski kod bu şemayla çalışır (§3 seviye 1, test kanıtı). |
-| 4 | Migration `20280130000100_yh_sifa_f3_kutu_yayilimi.sql` | Önkoşul: adım 3 + `20280110000100` (prod'da var). Yalnız EKLEME: not çöpe/geri → içerik kutuları YH kuyruğuna. **YH kapalıyken etkisiz.** Önkoşul eksikse açık hatayla durur. |
+| 3 | Migration `20280130000200_sifa_rehberi_f3.sql` | Yalnız EKLEME: 3 sütun, 3 kısıt, 1 tetikleyici, fonksiyon güncellemeleri. Eski kod bu şemayla çalışır (§3 seviye 1, test kanıtı). |
+| 4 | Migration `20280130000300_yh_sifa_f3_kutu_yayilimi.sql` | Önkoşul: adım 3 + `20280110000100` (prod'da var). Yalnız EKLEME: not çöpe/geri → içerik kutuları YH kuyruğuna. **YH kapalıyken etkisiz.** Önkoşul eksikse açık hatayla durur. |
 | 5 | Doğrulama (salt-okunur) | §1.3 sayıları DEĞİŞMEMİŞ; yeni sütunlar `node_kind`, `parent_block_id`, `content_updated_at` var; `yh_cdc_sifa_v2_note_trash_trg` var. |
 | 6 | Merge → deploy | `SIFA_REHBERI_V2_ENABLED=1` zaten tanımlı; yeni ekran açılır. Sayfa dinamik (ƒ): bayrak çalışma anında okunur. |
 | 7 | Canlı kabul (Owner izniyle, test hesabıyla) | Konu oluştur, not + içerik kutusu, görsel, kaynak, bağlantı, ⤢ pencere, kutu silme, Silinenler, mükerrer konu uyarısı, Word, Tümünü Oku; masaüstü + Android. Ana ekran ve Yönetim paneli Şifa sayacı. |

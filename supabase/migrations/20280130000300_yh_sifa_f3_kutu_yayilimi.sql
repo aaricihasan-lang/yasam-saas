@@ -2,7 +2,7 @@
 -- Şifa Rehberi F3 — Yaşam Hafızası: ANA NOT çöpe atıldı / geri alındı → İÇERİK KUTULARI kuyruğa
 -- ============================================================================================
 -- Önkoşul: 20280110000100_yh_owner_scope_sifa_v2.sql (yh_cdc_enqueue_sifa_v2, outbox, aktivasyon) +
---          20280130000000_sifa_rehberi_f3.sql (sifa_topic_blocks.parent_block_id).
+--          20280130000200_sifa_rehberi_f3.sql (sifa_topic_blocks.parent_block_id).
 --
 -- Neden: F3'te içerik kutusu, ana notun alt satırıdır (parent_block_id; aynı konu, tek seviye). Not çöpe
 -- atıldığında YALNIZ not satırı değişir → mevcut kutu tetikleyicisi yalnız NOT için olay üretir; kutular
@@ -30,7 +30,7 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                   WHERE table_schema = 'public' AND table_name = 'sifa_topic_blocks' AND column_name = 'parent_block_id') THEN
-    RAISE EXCEPTION 'önkoşul eksik: 20280130000000_sifa_rehberi_f3.sql uygulanmamış';
+    RAISE EXCEPTION 'önkoşul eksik: 20280130000200_sifa_rehberi_f3.sql uygulanmamış';
   END IF;
 END
 $pre$;

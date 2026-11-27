@@ -4,7 +4,7 @@
  * Çalıştır: npx tsx scripts/sifa-rehberi-f3/db.pg.mts
  *
  * Sınar (gerçek migration dosyaları + gerçek sunucu servisi lib/sifa-rehberi-v2/server/service.ts):
- *  A) Kurulum sırası: çekirdek (20280110000000) → yaşam döngüsü (20280124000000) → F3 (20280130000000);
+ *  A) Kurulum sırası: çekirdek (20280110000000) → yaşam döngüsü (20280124000000) → F3 (20280130000200);
  *     F3 ÖNCESİ yazılmış kayıtlar F3 SONRASI bayt bayt aynı (eski sütunlar); F3 iki kez uygulanabilir.
  *  B) Geriye uyum: eski (V2) değişiklik kümesi aynen çalışır; yeni alanlar eski güncellemede korunur.
  *  C) Kişisel okuma (kurum kayıtları gelmez) + yeni alanlar.
@@ -58,7 +58,7 @@ const db = pgDb(c);
 const MIG = (f: string) => readFileSync(path.resolve("supabase/migrations", f), "utf8");
 const CORE = MIG("20280110000000_sifa_rehberi_v2_core.sql");
 const LC = MIG("20280124000000_sifa_v2_asset_lifecycle.sql");
-const F3 = MIG("20280130000000_sifa_rehberi_f3.sql");
+const F3 = MIG("20280130000200_sifa_rehberi_f3.sql");
 
 const T1 = "11111111-1111-4111-8111-111111111111";
 const T2 = "22222222-2222-4222-8222-222222222222";

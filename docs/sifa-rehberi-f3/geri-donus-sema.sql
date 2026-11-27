@@ -6,7 +6,7 @@
 -- =============================================================================
 BEGIN;
 
--- 20280130000100 (YH: not çöpü → kutular kuyruğa) — aktivasyon kapalıyken zaten no-op; tam geri dönüş için kaldırılır.
+-- 20280130000300 (YH: not çöpü → kutular kuyruğa) — aktivasyon kapalıyken zaten no-op; tam geri dönüş için kaldırılır.
 DROP TRIGGER IF EXISTS yh_cdc_sifa_v2_note_trash_trg ON public.sifa_topic_blocks;
 DROP FUNCTION IF EXISTS public.yh_sifa_v2_note_trash_enqueue();
 DROP TRIGGER IF EXISTS sifa_blocks_guard_nest_trg ON public.sifa_topic_blocks;

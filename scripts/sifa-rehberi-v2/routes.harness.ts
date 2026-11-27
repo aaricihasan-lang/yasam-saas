@@ -52,7 +52,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 async function main(): Promise<void> {
   const port = 55000 + Math.floor(Math.random() * 900);
   // Gerçek şema sırası: çekirdek → görsel yaşam döngüsü → F3 (kişisel kütüphane, kutular).
-  const V2_SQL = ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000000_sifa_rehberi_f3.sql"].map((f) => readFileSync(path.resolve("supabase/migrations", f), "utf8"));
+  const V2_SQL = ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"].map((f) => readFileSync(path.resolve("supabase/migrations", f), "utf8"));
   const RPCS = ["sifa_v2_load", "sifa_v2_apply_changeset", "sifa_v2_copy_shared", "sifa_v2_register_upload", "sifa_v2_visible_assets", "sifa_v2_trash_candidates", "sifa_v2_trash_purge", "sifa_v2_import_legacy", "sifa_v2__apply"];
   const env: TestEnv = await startAnamnezTestEnv({ port, dirName: `sifa-v2-routes-${process.pid}`, httpPort: port + 1, rpcAllow: RPCS, extraSql: V2_SQL });
   // Anamnez shim'i genel RPC'yi `select * from fn()` ile çalıştırıp skaler sonucu [{fn: değer}] sarar —
