@@ -84,6 +84,7 @@ import {
   LOCAL_SPACE_TECHNICAL_SCHEMA,
   RELOCATION_INTERP_SCHEMA,
   RELOCATION_TECHNICAL_SCHEMA,
+  relocationAspectsOf,
   type RelocationTechnical,
 } from "../model/westernLocation";
 import type { NatalTechnical } from "../model/western";
@@ -889,7 +890,15 @@ const westernRelocation: TechniqueDefinition = {
     const natal = parts.find((x) => (x as { schema?: string })?.schema === NATAL_TECHNICAL_SCHEMA) as NatalTechnical | undefined;
     return {
       ...rel,
-      natal: natal ? { angles: natal.angles, houses: natal.houses, bodyHouses: natal.bodies.map((b) => ({ id: b.id, house: b.house })) } : null,
+      natal: natal
+        ? {
+            angles: natal.angles,
+            houses: natal.houses,
+            bodyHouses: natal.bodies.map((b) => ({ id: b.id, house: b.house })),
+            // 2026-11-27: çark açı çizgileri için natal açılar (aynı doğum anı; yalnız boylamı aynı gövdeler arası).
+            aspects: relocationAspectsOf(rel.bodies, natal.bodies, natal.aspects ?? []),
+          }
+        : null,
     };
   },
 };

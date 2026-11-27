@@ -8,7 +8,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { BodyId, SignId } from "@/lib/astrology/model/western";
-import type { AcgAngle, AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
+import { RELOCATION_NO_ASPECTS_NOTE, type AcgAngle, type AstrocartographyTechnical, type LocalSpaceTechnical, type RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 import { BODY_GLYPHS, BODY_LABELS, HOUSE_SYSTEM_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { ACG_ANGLE_LABEL, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, compassPoint, localSpaceMapLines, type MapLabel, type MapMarker } from "../_lib/locationMaps";
 import WorldMap from "./WorldMap";
@@ -147,7 +147,15 @@ export function RelocationPanel({ t, targetLabel, birthLabel }: { t: RelocationT
       </p>
       <p className="text-xs text-slate-500">Gezegenlerin burç/derecesi natal ile aynıdır; değişen yalnız Yükselen/MC, ev başlangıçları ve gezegenlerin evleridir.</p>
       <div className="grid gap-3 xl:grid-cols-2">
-        <NatalWheel technical={{ bodies: t.bodies, houses: t.houses, angles: t.angles, aspects: [] }} label="Relocation çarkı" />
+        <div className="min-w-0">
+          {/* 2026-11-27: açı çizgileri natal açı listesinden (aynı doğum anı; Word/PDF raporuyla aynı veri). */}
+          <NatalWheel technical={{ bodies: t.bodies, houses: t.houses, angles: t.angles, aspects: n?.aspects ?? [] }} label="Relocation çarkı" />
+          {n && !n.aspects && (
+            <p className="mt-1 text-xs text-slate-500" data-testid="astro-relocation-no-aspects">
+              {RELOCATION_NO_ASPECTS_NOTE}
+            </p>
+          )}
+        </div>
         <WorldMap lines={[]} markers={markers} ariaLabel="Relocation hedef haritası" />
       </div>
       <Section title="Natal ↔ Relocation (teknik karşılaştırma)">

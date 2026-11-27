@@ -56,7 +56,9 @@ import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "..
 import { figureTitle, type ReportFigure } from "./figures";
 import { GOCHARA_STRIP_LEGEND, GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "../gocharaSummary";
 import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpaceMapLines } from "@/app/admin/astroloji/_lib/locationMaps";
-import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
+import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, RELOCATION_ASPECTS_NOTE, RELOCATION_NO_ASPECTS_NOTE, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
+import { extraInnerBodies, extraOuterPoints, extraWheelLegendParts } from "../labels/extraPointsWheel";
+import type { ExtraNatalFrame, ExtraPointsTechnical } from "../model/westernExtraPoints";
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
@@ -132,7 +134,7 @@ export type WheelInput = {
    * 2026-10-12 (UAT 2. tur, madde L): çift halka (Transit: dış halka transit; Sinastri: dış halka 1. kişi). Yalnız
    * kayıtlı veriden; yoksa tek halka çizilir.
    */
-  outer?: { bodies: { id: string; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[] } | null;
+  outer?: { bodies: { id: string; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean; label?: string; color?: string }[] } | null;
   /**
    * 2026-10-15: çift halkada iki halka ARASI açılar (Transit: transit → natal; Sinastri: 1. kişi → 2. kişi). Uygulamadaki
    * Roxy çift halka bileşenleriyle aynı veri: kayıtlı teknik katmanın açı listesi (yeni hesap YOK). outer = dış halka gövdesi,
@@ -457,7 +459,42 @@ function synastryWheel(t: O): WheelInput | null {
   return { bodies: bb, houses: [], angles: null, aspects: [], outer: { bodies: a }, crossAspects };
 }
 
+/**
+ * Relocation çarkı (2026-11-27): relocation evleri / ASC-MC + gezegenler; açı çizgileri kayıtlı natal açı listesinden (aynı doğum
+ * anı → gezegenler arası açılar aynı; ekranla AYNI veri). Açı listesinden önce kaydedilmiş analizde açısız (aspectsMissing).
+ */
+function relocationWheel(t: O): { chart: WheelInput; aspectsMissing: boolean } | null {
+  const w = wheelOf(t, false);
+  if (!w) return null;
+  const natal = isObj(t.natal) ? t.natal : null;
+  const list = natal && Array.isArray(natal.aspects) ? arr(natal.aspects) : null;
+  if (list) w.aspects = list.map((x) => ({ a: String(x.a), b: String(x.b), type: String(x.type), nature: typeof x.nature === "string" ? x.nature : null }));
+  return { chart: w, aspectsMissing: !!natal && !list };
+}
+
+/**
+ * Ek noktalar çift halka (2026-11-27): iç halka kayıtlı natal çerçeve, dış halka asteroit / Lilith / lot — ekranla AYNI saf
+ * listeler (labels/extraPointsWheel.ts), aynı renk ve etiket. Ek noktalar için açı listesi yok → açı çizgisi yok. Çerçeve yoksa çizilmez.
+ */
+function extraPointsWheel(t: O): WheelInput | null {
+  const f = isObj(t.natalFrame) ? t.natalFrame : null;
+  if (!f || !isObj(f.angles) || !isObj(f.angles.ascendant) || !isObj(f.angles.midheaven) || num(f.angles.ascendant.longitude) === null || num(f.angles.midheaven.longitude) === null) return null;
+  if (!arr(f.bodies).length || arr(f.houses).length !== 12) return null;
+  const tech = t as unknown as ExtraPointsTechnical;
+  const frame = f as unknown as ExtraNatalFrame;
+  const inner = wheelOf({ bodies: extraInnerBodies(tech, frame), houses: frame.houses, angles: frame.angles } as unknown as O, false);
+  const outer = extraOuterPoints(tech).map((p) => ({ id: p.key, longitude: p.longitude, sign: p.sign, degreeInSign: p.degreeInSign, retrograde: p.retrograde, label: p.label, color: p.color }));
+  if (!inner || !inner.angles || !outer.length) return null;
+  return { ...inner, outer: { bodies: outer }, crossAspects: [] };
+}
+const EXTRA_WHEEL_LEGEND = (t: O) =>
+  `${WHEEL_LEGEND.replace(NATAL_ASPECT_LINES_SENTENCE, "")} Dış halka: ${extraWheelLegendParts(t as unknown as ExtraPointsTechnical)
+    .slice(1)
+    .map((p) => p.text)
+    .join(" · ")}. Ek noktalar için açı listesi olmadığından açı çizgisi çizilmez.`;
+
 function wheelCaption(technique: string, techLabel: string, people: { a: string; b: string }, bi = false): string {
+  if (technique === "western.extra_points") return "Natal + ek noktalar çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka: asteroitler, ortalama / gerçek Lilith ve Hermetik lotlar (renkler uygulamadaki çarkla aynı). Kayıtlı analiz verisinden çizilmiştir.";
   if (technique === "western.progression" && bi) return "Natal + ilerletilmiş (secondary progression) çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): ilerletilmiş gezegenler. Ortadaki çizgiler ilerletilmiş → natal majör açılardır (orb ≤ 1°; ilerletilmiş Yükselen/MC ve natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
   if (technique === "western.solar_arc") return "Natal + Solar Arc çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): Solar Arc noktaları. Ortadaki çizgiler Solar Arc → natal majör açılardır (orb ≤ 1°; Solar Arc Yükselen/MC ve natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
   if (technique === "western.transit") return "Transit çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): transit gezegenleri. Ortadaki çizgiler transit → natal açılarıdır (mor nokta transit gezegeni; natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
@@ -2250,9 +2287,14 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
 
   // 5. Harita görseli (yalnız sistemin kendi çarkı; kayıtlı veriden çizilir — yeni hesap YOK)
   let chart: WheelInput | null = null;
+  let relocationAspectsMissing = false;
   if (tech) {
     if (technique === "western.natal" || technique === "western.composite") chart = wheelOf(tech);
-    else if (technique === "western.relocation") chart = wheelOf(tech, false);
+    else if (technique === "western.relocation") {
+      const rw = relocationWheel(tech);
+      chart = rw?.chart ?? null;
+      relocationAspectsMissing = rw?.aspectsMissing ?? false;
+    } else if (technique === "western.extra_points") chart = extraPointsWheel(tech);
     else if (technique === "western.solar_return" || technique === "western.lunar_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
     else if (technique === "western.planetary_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
     else if (technique === "western.progression") chart = progressionWheel(tech);
@@ -2277,7 +2319,9 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   } else if (chart) {
     b.h(1, "Harita");
     b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people, !!chart.outer) });
-    b.p(WHEEL_LEGEND, "muted");
+    if (technique === "western.relocation") b.p(relocationAspectsMissing ? `${WHEEL_LEGEND.replace(NATAL_ASPECT_LINES_SENTENCE, "")} ${RELOCATION_NO_ASPECTS_NOTE}` : `${WHEEL_LEGEND} ${RELOCATION_ASPECTS_NOTE}`, "muted");
+    else if (technique === "western.extra_points" && tech) b.p(EXTRA_WHEEL_LEGEND(tech), "muted");
+    else b.p(WHEEL_LEGEND, "muted");
   }
   // 5b. Vedik D1 / Varga / KP haritası (2026-10-15): ekranda çizilen haritanın aynısı, kayıtlı teknik veriden.
   const rv0 = profile && isObj(profile.revision) ? profile.revision : null;
