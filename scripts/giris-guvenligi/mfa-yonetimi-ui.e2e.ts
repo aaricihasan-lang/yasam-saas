@@ -166,7 +166,14 @@ async function main() {
     };
     const openMember = async (page: Page, id: string) => {
       await page.goto(`${BASE}/admin/users/${id}#hesap`, { waitUntil: "domcontentloaded" });
-      await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 });
+      await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 }).catch((e: unknown) => {
+        // Tanı (assertion gevşetilmez; hata aynen fırlatılır): sayfa nerede kaldı? Yalnız yol, sorgu adları ve çerez ADLARI.
+        const u = new URL(page.url());
+        return page.context().cookies().then((cs) => {
+          console.error(`TANI openMember: yol=${u.pathname} sorgu=[${[...u.searchParams.keys()].join(",")}] çerez-adları=[${cs.map((c) => c.name).sort().join(",")}]`);
+          throw e;
+        });
+      });
     };
     const renderCheck = async (page: Page, tag: string, w: number) => {
       const panel = page.locator("[data-mfa-panel]");
