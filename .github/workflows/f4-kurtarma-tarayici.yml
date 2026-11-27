@@ -14,7 +14,7 @@ on:
       - "lib/auth/recoverySetup.ts"
       - "lib/auth/mfaAdminStatus.ts"
       - "lib/auth/mfaChallenge.ts"
-      - "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql"
+      - "supabase/migrations/20280129100100_auth_mfa_pilot_safety_f4.sql"
       - "scripts/giris-guvenligi/f4-kurtarma-ui.e2e.ts"
       - ".github/workflows/f4-kurtarma-tarayici.yml"
   workflow_dispatch:

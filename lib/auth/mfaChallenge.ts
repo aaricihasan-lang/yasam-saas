@@ -78,7 +78,7 @@ export async function resolveUserMfaMethods(
   // F4 (Risk B): kapsam "test_accounts" iken listeye alınıp zorunluluğu AÇILMIŞ hesap, liste kaydının SÜRESİ DOLUNCA (ör. 14 gün)
   // asıl yöntemini KAYBETMEZ (zorunluluk açık + yöntem yok = kilitlenme). Dar kural: yalnız kaydı süresi dolmuş (etkin kaydı
   // olmayan) VE zorunlu hesap — listeye hiç alınmamış hesaplarda yanlış kapsam ayarı yine asıl yöntem AÇMAZ (#833). Fonksiyon
-  // (taslak migration 20280129100000) yoksa / okunamazsa / zorunluluk okunamazsa genişletme YAPILMAZ (fail-closed).
+  // (taslak migration 20280129100100) yoksa / okunamazsa / zorunluluk okunamazsa genişletme YAPILMAZ (fail-closed).
   if (!args.isTestAccount && flags.length === 0 && resolveOfferedMfaMethods(true, env).length > 0) {
     const lapsed = await db.rpc("auth_mfa_test_account_lapsed", { p_user_id: args.userId }).then((r) => !r.error && r.data === true, () => false);
     if (lapsed) {

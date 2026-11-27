@@ -107,7 +107,7 @@ const TSX = [
   // F3 pilot: tek uzman hesabı için adres doğrulaması (AUTH_EMAIL_VERIFY_PILOT_USER_ID) — diğer kullanıcılar aynen, OTP kuralları,
   // IDOR/CSRF, adres değişikliği / bildirim / kurtarma / MFA açılmaz.
   "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts",
-  // F4: MFA pilotu kilitlenme güvenliği — MFA öncesi kurtarma kodu kurulumu (TASLAK migration 20280129100000 sentetik DB'de),
+  // F4: MFA pilotu kilitlenme güvenliği — MFA öncesi kurtarma kodu kurulumu (TASLAK migration 20280129100100 sentetik DB'de),
   // kurtarma kodu şartı, test listesi süre dolumu, acil SQL kapatma, yaşam döngüsü.
   "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts",
   // F4: MFA atlatma denetimi — bütün oturum oluşturan yollar (web / Android / tamamlama / doğrudan RPC), oturum sabitleme, replay,

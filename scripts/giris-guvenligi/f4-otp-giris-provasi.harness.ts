@@ -1,7 +1,7 @@
 /**
  * GİRİŞ GÜVENLİĞİ F4 — GİRİŞTE E-POSTA OTP PİLOTU: kontrollü canlı kabulün SENTETİK provası (tek uzman hesabı).
  * Gerçek route'lar + gerçek PostgreSQL (en güncel F2 zinciri) + sentetik e-posta. Production / Turhost / gerçek hesap YOK.
- * F4 kilitlenme güvenliği sırası (taslak migration 20280129100000 sentetik DB'de): kurtarma kodları zorunluluktan ÖNCE
+ * F4 kilitlenme güvenliği sırası (taslak migration 20280129100100 sentetik DB'de): kurtarma kodları zorunluluktan ÖNCE
  * (parola + e-posta kodu), zorunluluk kodsuz AÇILMAZ, acil geri dönüş denetimli SQL fonksiyonuyla. Pilot yapılandırması —
  *   AUTH_MFA_METHODS=email_otp · AUTH_MFA_METHOD_SCOPE=test_accounts · AUTH_MFA_EMAIL_ROLES=expert (varsayılan)
  *   + auth_mfa_test_accounts'ta YALNIZ pilot hesap (SQL konsolu, ≤ 90 gün) + pilotun doğrulanmış e-postası
@@ -50,7 +50,7 @@ async function main() {
   const { admin } = db;
   // Production şemasıyla eşlik: arşiv (20280101000600) ve "Pasif" (20280126000000) kolonları — taslak migration ön koşulu.
   await admin.query(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS archived_at timestamptz, ADD COLUMN IF NOT EXISTS access_restricted_at timestamptz`);
-  await admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql"), "utf8"));
+  await admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100100_auth_mfa_pilot_safety_f4.sql"), "utf8"));
   const sink = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "f4-pilot-")), "eposta.jsonl");
   try {
     Object.assign(process.env, {

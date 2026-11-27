@@ -1,3 +1,8 @@
+-- 20280129100100_auth_mfa_pilot_safety_f4.sql — modül: giris-guvenligi
+-- Numara merkezi defterden ayrıldı (npm run migration:numara -- yeni). Dosya adını / sürümü ELLE DEĞİŞTİRMEYİN.
+-- SQL bitince commit edin ve PR'a bağlayın: npm run migration:numara -- bagla --surum 20280129100100 --pr <PR no>
+-- (SQL her değiştiğinde commit + bagla tekrarlanır). Production'a yalnız uygulama kapısıyla (uygula-prod.mjs) uygulanır.
+-- onkosul: to_regprocedure('public.auth_mfa_is_test_account(uuid)') IS NOT NULL
 -- =============================================================================
 -- GİRİŞ GÜVENLİĞİ · F4 — MFA PİLOTU KİLİTLENME GÜVENLİĞİ (TASLAK; ayrı Owner onayı olmadan UYGULANMAZ)
 -- =============================================================================
@@ -31,6 +36,7 @@
 -- DOKUNULMAYAN: mevcut fonksiyonların gövdeleri, tablolar, kısıtlar, mevcut satırlar (DML YOK).
 -- ÖN KOŞUL: F2 zinciri (001300) — auth_session_actor, auth_email_otp_verify, auth_recovery_log, users.mfa_required + koruma.
 -- DEPLOY SIRASI: bu migration → kod (kod, fonksiyon yoksa kurulum seçeneğini kapalı gösterir; fail-closed).
+-- UYGULAMA: yalnız scripts/migrations/numara/uygula-prod.mjs (DB-03) ve Owner onayıyla.
 -- GERİ ALMA: DROP FUNCTION public.auth_recovery_codes_setup(text, text[], text);
 --            DROP FUNCTION public.auth_mfa_emergency_disable(uuid, text);
 --            DROP FUNCTION public.auth_mfa_test_account_lapsed(uuid);   (veri değişmez)

@@ -1,7 +1,7 @@
 /**
  * GİRİŞ GÜVENLİĞİ F4 — kurtarma kodu kurulumu (MFA öncesi) + Owner ekranında kurtarma kodu şartı: GERÇEK TARAYICI
  * (gerçek Google Chrome + gerçek Microsoft Edge; 320 / 375 / 390 / 768 / 1280 px). GERÇEK: Next.js production build, gerçek
- * route'lar, gerçek PostgreSQL (en güncel F2 zinciri + TASLAK migration 20280129100000), HttpOnly çerez birincil kip.
+ * route'lar, gerçek PostgreSQL (en güncel F2 zinciri + TASLAK migration 20280129100100), HttpOnly çerez birincil kip.
  * Production'a SIFIR temas; sentetik hesaplar; e-posta SENTETİK (yerel dosya; kanıta konmaz).
  *
  * Doğrulanan: pilot (test listesinde, e-postası doğrulanmış, zorunluluk kapalı) Ayarlar'da "önce kurtarma" formunu görür;
@@ -71,7 +71,7 @@ async function main() {
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2n: true });
   await db.admin.query(UYE_DETAY_SEMA);
-  await db.admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql"), "utf8"));
+  await db.admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100100_auth_mfa_pilot_safety_f4.sql"), "utf8"));
   const proxy = http.createServer((req, res) => {
     const target = new URL(req.url ?? "/", db.shimUrl);
     const up = http.request(target, { method: req.method, headers: req.headers }, (r) => { res.writeHead(r.statusCode ?? 502, r.headers); r.pipe(res); });

@@ -23,7 +23,7 @@
 ## Yayın ön koşulları (sırayla, her biri ayrı onay)
 Önerilen sıra **migration → kod** (her iki sıra da güvenli: eski kod yeni fonksiyonları çağırmaz; yeni kod fonksiyon yokken
 kurulumu ve Risk B uzatmasını KAPALI tutar — fail-closed; mevcut giriş davranışı değişmez).
-1. **Migration `20280129100000_auth_mfa_pilot_safety_f4.sql`** production'a (yalnız yeni fonksiyonlar; tablo / veri değişmez).
+1. **Migration `20280129100100_auth_mfa_pilot_safety_f4.sql`** production'a (yalnız yeni fonksiyonlar; tablo / veri değişmez).
    Ön koşul denetimi: F2 zinciri + `users.archived_at / access_restricted_at / approval_status` kolonları; eksikse migration DURUR.
    Geri alma: üç `DROP FUNCTION` (dosya başlığında).
 2. **PR (F4 kurtarma güvenliği) merge** → production kodu.

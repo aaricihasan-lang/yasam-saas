@@ -1,6 +1,6 @@
 /**
  * GİRİŞ GÜVENLİĞİ F4 — MFA pilotu kilitlenme güvenliği. Gerçek route'lar + gerçek PostgreSQL (en güncel F2 zinciri +
- * TASLAK migration 20280129100000) + sentetik e-posta. Production / gerçek hesap YOK.
+ * TASLAK migration 20280129100100) + sentetik e-posta. Production / gerçek hesap YOK.
  *
  * Kanıtlananlar:
  *   A) MFA ÖNCESİ kurtarma kodu kurulumu: migration yokken kapalı (fail-closed) · yalnız MFA kapsamındaki (test listesi),
@@ -52,7 +52,7 @@ type J = Record<string, unknown>;
 const ORIGIN = "https://www.yasamsistemi.com";
 const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 const PEPPER = "f4-kurtarma-pepper-0123456789abcdefghijklmn";
-const MIG = "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql";
+const MIG = "supabase/migrations/20280129100100_auth_mfa_pilot_safety_f4.sql";
 
 async function main() {
   const muts = installSourceMutations([
