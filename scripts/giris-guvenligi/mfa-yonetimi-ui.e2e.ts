@@ -158,6 +158,16 @@ async function main() {
         await page.getByRole("button", { name: /Doğrula ve giriş yap/ }).click();
       }
       const loggedIn = await page.waitForFunction(() => !!localStorage.getItem("yasam_user"), null, { timeout: 25000 }).then(() => true).catch(() => false);
+      // Yönetici hesabında arayüz /admin'e ANCAK admin kabuk çerezi (POST /api/auth/admin-session) yazıldıktan sonra geçer.
+      // localStorage çerezden ÖNCE dolar; test hemen /admin/* adresine giderse proxy ana sayfaya yönlendirir (tanı: yol=/,
+      // çerez bir an sonra geliyor — #868 bu kullanıcı yarışını ürün tarafında kapatır). Test, arayüzün beklediği sinyali bekler.
+      const isAdmin = loggedIn && await page.evaluate(() => {
+        try { return String((JSON.parse(localStorage.getItem("yasam_user") ?? "{}") as { role?: unknown }).role ?? "").toLowerCase().includes("admin"); } catch { return false; }
+      });
+      if (isAdmin) {
+        const deadline = Date.now() + 20000;
+        while (Date.now() < deadline && !(await page.context().cookies()).some((c) => c.name === "yasam_admin_session")) await page.waitForTimeout(200);
+      }
       return { status: r.status(), mfa, loggedIn };
     };
     const openMember = async (page: Page, id: string) => {
