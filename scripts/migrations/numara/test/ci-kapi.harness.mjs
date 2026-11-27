@@ -68,6 +68,14 @@ try {
   let r = kapi(A.d, olay(101, "work/kp-a"));
   ok("meşru PR: ayrıldı + PR #101'e bağlı + dal/depo + SHA eşleşti → PASS", r.kod === 0 && /OK .*PR #101/.test(r.out), r.out.split("\n").find((l) => /OK|FAIL/.test(l)));
 
+  // ── Güvenilir iş akışı kipi: çalışma kopyası BASE commit'te (PR kodu yok), PR ucu yalnız --head ile veri olarak.
+  {
+    sh(A.d, "checkout", "-q", "--detach", "origin/main");
+    const g = kapi(A.d, olay(101, "work/kp-a"), "--head", "work/kp-a");
+    const g2 = kapi(A.d, olay(999, "work/kp-a"), "--head", "work/kp-a");
+    sh(A.d, "checkout", "-q", "work/kp-a");
+    ok("--head kipi (base checkout + PR ucu veri): meşru PR PASS, yanlış PR no FAIL", g.kod === 0 && /OK .*PR #101/.test(g.out) && g2.kod === 1, g.out.split("\n").find((l) => /OK|FAIL/.test(l)));
+  }
   // ── SHA-256 bütünlüğü
   {
     const B = pr("work/sadece-ayrildi", (d) => ({ r: yeniMigration(d, "work/sadece-ayrildi", "baglanmamis_is") }));

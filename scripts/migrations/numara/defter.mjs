@@ -247,8 +247,10 @@ export function bilinenSurumler(cwd, olaylar, { refs = [], ek = [] } = {}) {
   for (const v of ek) if (/^\d{14}$/.test(v)) s.add(v);
   return s;
 }
+/** Takma ad: kişisel ad / bilgisayar adı deftere YAZILMAZ; yalnız (user.name@makine) özetinin ilk 12 hanesi (aynı oturumu tanımaya yeter). */
 export function kimlik(cwd) {
-  return `${git(cwd, ["config", "user.name"], { allowFail: true }).out.trim() || "bilinmiyor"}@${os.hostname()}`;
+  const ham = `${git(cwd, ["config", "user.name"], { allowFail: true }).out.trim() || "bilinmiyor"}@${os.hostname()}`;
+  return `oturum-${crypto.createHash("sha256").update(ham).digest("hex").slice(0, 12)}`;
 }
 /** origin URL'sinden "sahip/depo" (https / ssh / yerel yol). */
 export function depoKimligi(cwd, remote = "origin") {

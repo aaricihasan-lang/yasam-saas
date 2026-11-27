@@ -55,7 +55,8 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
 
 - **Defter:** uzak depoda ayrı dal `migration-rezervasyon`, tek dosya `rezervasyonlar.jsonl`. Olaylar: `gecmis` (main /
   production'da önceden kullanılmış), `ayir`, `bagla`, `uygula`, `iptal`. Satır silinmez / değiştirilmez; durum olaylardan
-  türetilir. Kişisel veri / sır yok (kimlik = git `user.name@makine`, işlem kimliği UUID).
+  türetilir. Kişisel veri / sır yok: `kimlik` = `oturum-<user.name@makine özetinin 12 hanesi>` (ad / makine adı yazılmaz),
+  işlem kimliği UUID.
 - **Durum makinesi (her okumada tüm geçmiş için zorunlu):** `ayir` yalnız bir kez, dosya adı sürümle aynı; `bagla` yalnız
   ayrılmış + uygulanmamış + iptal edilmemiş numaraya, PR (pozitif tamsayı) + SHA-256 (64 hex) + `sahip/depo` + dal zorunlu;
   sahip değişimi yalnız `devir` + `neden`; `uygula` yalnız bağlı numaraya ve bağlı SHA ile, proje kimliğiyle; `iptal` neden
@@ -79,6 +80,9 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
 - **CI kapısı** `scripts/ci/migration-reservation-check.mjs` (`guvenlik` işi, DB-02'den sonra). Kapı betiği ve
   `yapilandirma.json` **base daldan** alınır (`git archive` + `--yapilandirma-rev`): PR kapıyı, kipi ya da defter ref'ini
   değiştirerek denetimi kapatamaz. Okunan defter metni ile doğrulanan geçmiş aynı uç commit'ine aittir.
+  **Güvenilir kopya:** `.github/workflows/db03-guvenilir.yml` (`pull_request_target`) — iş akışı tanımı her zaman main'den
+  gelir; depo base commit'ten çekilir, PR ucu yalnız veri olarak (`--head refs/remotes/pr/head`) incelenir, PR kodu
+  çalıştırılmaz, yalnız `contents: read`. PR, `ci.yml`'yi değiştirerek bu kontrolü atlayamaz.
   - PR bağlamı (PR no, kaynak dal, kaynak/hedef depo) YALNIZ GitHub'ın olay dosyasından (`GITHUB_EVENT_PATH`); PR açıklaması
     ya da depo dosyası kanıt değildir. Olay `pull_request` değilse / dosya yoksa ve PR migration ekliyorsa → FAIL.
   - base'deki migration değiştirilemez / silinemez / yeniden adlandırılamaz; eklenen içerik base'deki bir migration'ın kopyası olamaz;

@@ -1,0 +1,42 @@
+# DB-03 GÜVENİLİR KAPI — merkezi migration numarası denetiminin PR tarafından değiştirilemeyen kopyası.
+#
+# `pull_request_target`: GitHub bu iş akışının TANIMINI her zaman base daldan (main) alır; PR bu dosyayı, ci.yml'yi ya da kapı
+# betiğini değiştirse bile burada çalışan, main'deki sürümdür. Güvenlik kuralları (pull_request_target):
+#   • PR kodu ÇALIŞTIRILMAZ: depo base commit'ten çekilir; PR ucu yalnız VERİ olarak (git nesneleri) alınır ve kapıya --head ile
+#     verilir. npm install / build / test YOK.
+#   • Yalnız contents:read. Sır kullanılmaz. Kabuk içine PR'dan gelen metin (dal adı, başlık) yazılmaz; yalnız sayısal PR no ve
+#     hex SHA kullanılır (betik enjeksiyonu yok). Bağlamı kapı GITHUB_EVENT_PATH'ten JSON olarak okur.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+name: DB-03 güvenilir kapı
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db03-guvenilir-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  db03-guvenilir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: PR ucunu yalnız veri olarak çek (çalıştırılmaz)
+        run: git fetch --quiet --no-tags origin "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/pr/head"
+
+      - name: Merkezi migration numarası (DB-03, main sürümü)
+        env:
+          MIGRATION_NUMARA_ROOT: ${{ github.workspace }}
+        run: node scripts/ci/migration-reservation-check.mjs --base "${{ github.event.pull_request.base.sha }}" --head refs/remotes/pr/head --yapilandirma-rev "${{ github.event.pull_request.base.sha }}"

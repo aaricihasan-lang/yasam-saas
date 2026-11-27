@@ -29,6 +29,9 @@ import { ayristir, blobIcerik, DEFAULTS, dogrulanmisOku, durum, git, NAME_RE } f
 const root = process.env.MIGRATION_NUMARA_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const args = process.argv.slice(2);
 const baseRef = args.includes("--base") ? args[args.indexOf("--base") + 1] : null;
+// İncelenen commit (varsayılan HEAD). Güvenilir pull_request_target iş akışı PR kodunu ÇALIŞTIRMADAN, yalnız veri olarak
+// çektiği PR ucunu burada verir (kapı betiği base daldan çalışır).
+const HEAD = args.includes("--head") ? args[args.indexOf("--head") + 1] : "HEAD";
 // Yapılandırma (kip / defter ref'i / çapa) GÜVENİLİR kaynaktan: `--yapilandirma-rev <ref>` verilirse o commit'ten (CI: base dal),
 // böylece PR kendi yapilandirma.json'unu değiştirerek kipi kapatamaz ya da defteri sahte bir dala yönlendiremez.
 const yapRev = args.includes("--yapilandirma-rev") ? args[args.indexOf("--yapilandirma-rev") + 1] : null;
@@ -102,7 +105,7 @@ if (!baseRef) {
     bulgular.push(`Merkezi defter doğrulanamadı: ${e.message}`);
     bitir();
   }
-  const dosyalar = git(root, ["ls-tree", "--name-only", "HEAD:supabase/migrations"]).out.split("\n").map((f) => f.trim()).filter((f) => NAME_RE.test(f));
+  const dosyalar = git(root, ["ls-tree", "--name-only", `${HEAD}:supabase/migrations`]).out.split("\n").map((f) => f.trim()).filter((f) => NAME_RE.test(f));
   for (const f of dosyalar) {
     const v = NAME_RE.exec(f)[1];
     const r = st.get(v);
@@ -110,14 +113,14 @@ if (!baseRef) {
     if (!r) bulgular.push(`main: ${f} merkezi defterde yok (ayırma olmadan main'e girmiş).`);
     else if (r.dosya !== f) bulgular.push(`main: ${f}: ${v} başka dosya için ayrılmış (${r.dosya}).`);
     else if (!["pr", "uygulandi"].includes(r.durum)) bulgular.push(`main: ${f}: PR'a bağlanmamış (durum ${r.durum}).`);
-    else if (blobIcerik(root, "HEAD", f)?.sha256 !== r.sha256) bulgular.push(`main: ${f}: içerik defterde bağlı SHA-256 ile aynı değil.`);
+    else if (blobIcerik(root, HEAD, f)?.sha256 !== r.sha256) bulgular.push(`main: ${f}: içerik defterde bağlı SHA-256 ile aynı değil.`);
   }
   bilgi(`DB-03 (main): ${dosyalar.length} migration denetlendi.`);
   bitir();
 }
 
 // ── pull_request olayı ─────────────────────────────────────────────────────────────────────────────────────────────────
-const diff = git(root, ["diff", "--name-status", "-M", `${baseRef}...HEAD`, "--", "supabase/migrations"], { allowFail: true });
+const diff = git(root, ["diff", "--name-status", "-M", `${baseRef}...${HEAD}`, "--", "supabase/migrations"], { allowFail: true });
 if (!diff.ok) bulgular.push(`Base ile fark alınamadı (${baseRef}): ${diff.err.trim().split("\n").at(-1)}`);
 const satirlar = diff.ok ? diff.out.split("\n").filter(Boolean) : [];
 const eklenen = [];
@@ -152,7 +155,7 @@ if (eklenen.length) {
     const m = NAME_RE.exec(f);
     if (!m) continue; // ad biçimi DB-02'de
     const v = m[1];
-    const blob = blobIcerik(root, "HEAD", f);
+    const blob = blobIcerik(root, HEAD, f);
     if (!blob) bulgular.push(`${f}: normal dosya değil (sembolik bağlantı / alt modül): içerik git'te bağlanamaz → RED.`);
     if (blob && baseBloblar.has(blob.blob)) bulgular.push(`${f}: içerik base'deki ${baseBloblar.get(blob.blob)} ile BİREBİR aynı (aynı SQL başka numarayla yayımlanamaz).`);
     if (!st) continue;
