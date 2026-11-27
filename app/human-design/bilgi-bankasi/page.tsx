@@ -143,7 +143,7 @@ export default function HdCanonicalBilgiBankasiPage() {
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
           {isAdmin
             ? "Üç ayrı yorum kaynağı: Merkezi Bilgi Bankası Yorumu (taslak dahil tüm merkezî kayıtlar; düzenleme ve toplu içerik silme), Uzman Bilgilerim (kendi kişisel kayıtlarınız) ve haritaya bağlı Sistem Yorumu."
-            : "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir."}
+            : "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir; Genel merkez kayıtları bu eşleşmeye ve otomatik raporlara dahil edilmez."}
         </p>
       </div>
 

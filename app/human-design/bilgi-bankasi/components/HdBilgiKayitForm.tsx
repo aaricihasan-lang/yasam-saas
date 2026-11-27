@@ -14,6 +14,7 @@ import {
   type StructuredOption,
 } from "@/lib/human-design/codeHelpers";
 import { insertHdKnowledgeRecord } from "../helpers/hdBilgiKayit";
+import { HD_GENERAL_CENTER_NOTE, isGeneralCenterKnowledgeCode } from "@/lib/human-design/knowledge/centerKnowledge";
 import {
   HdGateChannelNameField,
   hdComposeTitleFor,
@@ -192,6 +193,12 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
               className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
             />
           </div>
+
+          {isGeneralCenterKnowledgeCode(computeCode(form.category, form.title, form.structuredValue)) && (
+            <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800" data-hd-kb-general-center-note>
+              {HD_GENERAL_CENTER_NOTE}
+            </div>
+          )}
 
           <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
             Kayıtlar otomatik sıralanır (kapılar numaraya, kanallar kapı çiftine göre). Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Bilgi ve Açıklamalar tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
