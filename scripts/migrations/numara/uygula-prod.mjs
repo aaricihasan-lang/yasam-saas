@@ -3,6 +3,7 @@
 //
 //   node scripts/migrations/numara/uygula-prod.mjs --surum S --proje <supabase-ref> (--conn-mjs <yol> | --dsn <postgres-url>) [--rev origin/main] [--uygula]
 //   node scripts/migrations/numara/uygula-prod.mjs uzlastir --proje <ref> (--conn-mjs <yol> | --dsn <url>)
+//   node scripts/migrations/numara/uygula-prod.mjs denetle  --proje <ref> (--conn-mjs <yol> | --dsn <url>)   [SALT-OKUNUR sapma raporu]
 //
 // SQL yalnız ana daldan (varsayılan origin/main; --rev o dala ait olmalı) ve DOĞRULANMIŞ defterle uygulanır.
 // Varsayılan KURU ÇALIŞTIRMA: tüm kapılar denetlenir, uygulanacak korumalı SQL'in özeti yazılır, HİÇBİR şey çalıştırılmaz.
@@ -11,10 +12,10 @@
 //   --conn-mjs  production yardımcısı (owner arşivi conn.mjs: target() + psql(); parola yazdırılmaz). Proje kimliği oradan okunur.
 //   --dsn       yalnız yerel / izole test (host localhost / 127.0.0.1 değilse RED).
 import { depoKoku, DefterHatasi, dogrulanmisOku, git, yapilandirma } from "./defter.mjs";
-import { GECMIS_SQL, hazirla, korumaliSql, prodSatirlari, uygula, uzlastir } from "./prod-kapi.mjs";
+import { GECMIS_SQL, hazirla, korumaliSql, prodSatirlari, sapmaDenetimi, uygula, uzlastir } from "./prod-kapi.mjs";
 
 const argv = process.argv.slice(2);
-const altKomut = argv[0] === "uzlastir" ? "uzlastir" : "uygula";
+const altKomut = ["uzlastir", "denetle"].includes(argv[0]) ? argv[0] : "uygula";
 const opt = (k, d = null) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d);
 const root = depoKoku();
 const cfg = yapilandirma(root);
@@ -66,7 +67,14 @@ try {
   if (!beklenen) throw new DefterHatasi("GIRDI", "--proje <beklenen Supabase proje kimliği> zorunlu.");
   b = await baglanti();
   const prodGecmis = await b.gecmis(); // GÜNCEL geçmiş — her çağrıda yeniden okunur
-  if (altKomut === "uzlastir") {
+  if (altKomut === "denetle") {
+    if (b.proje !== beklenen) throw new DefterHatasi("PROJE", `Bağlanılan proje ${b.proje}, beklenen ${beklenen}.`);
+    const r = sapmaDenetimi({ prodGecmis, defterText: dogrulanmisOku(root, cfg, { capa: cfg.capa }).text });
+    console.log(`SAPMA DENETİMİ (salt-okunur): production ${r.prod} sürüm, defter ${r.defter} sürüm; kapı dışı ${r.kapiDisi.length}, kayıp ${r.kayip.length}`);
+    for (const x of r.kapiDisi) console.log(`  KAPI DIŞI ${x}`);
+    for (const x of r.kayip) console.log(`  KAYIP ${x}`);
+    process.exitCode = r.kapiDisi.length || r.kayip.length ? 3 : 0;
+  } else if (altKomut === "uzlastir") {
     if (b.proje !== beklenen) throw new DefterHatasi("PROJE", `Bağlanılan proje ${b.proje}, beklenen ${beklenen}.`);
     const r = uzlastir({ root, cfg, prodGecmis, beklenenProje: beklenen, capa: cfg.capa });
     console.log(`UZLAŞTIRMA: tamamlanan ${r.tamamlanan.length} (${r.tamamlanan.join(", ") || "-"}); sorun ${r.sorun.length}`);

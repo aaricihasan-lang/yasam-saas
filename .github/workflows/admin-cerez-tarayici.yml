@@ -1,0 +1,103 @@
+# Giriş Güvenliği — admin sayfasına doğrudan URL ile geliş (HttpOnly sonrası "ana sayfaya düşme" düzeltmesi): GERÇEK TARAYICI
+# (Chrome + Edge; 320 / 375 / 390 / 768 / 1280 px). Yol filtreli; sır KULLANMAZ; production'a istek ATMAZ.
+name: Admin çerez tarayıcı testleri
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "proxy.ts"
+      - "app/page.tsx"
+      - "app/admin/layout.tsx"
+      - "lib/auth/adminReturnPath.ts"
+      - "lib/auth/adminShellSession.ts"
+      - "app/api/auth/admin-session/**"
+      - "scripts/giris-guvenligi/admin-cerez-ui.e2e.ts"
+      - ".github/workflows/admin-cerez-tarayici.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-cerez-tarayici-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin-cerez-tarayici:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Playwright Chromium bağımlılıkları
+        run: npx playwright install --with-deps chromium
+
+      # Runner imajında Chrome / Edge hazır gelir; yoksa Playwright'ın kurucusu GERÇEK markalı ikiliyi kurar.
+      - name: Google Chrome + Microsoft Edge (gerçek ikililer)
+        run: |
+          [ -x /opt/google/chrome/chrome ] || npx playwright install chrome
+          [ -x /opt/microsoft/msedge/msedge ] || npx playwright install msedge || echo "::warning title=Edge::Microsoft Edge kurulamadı (test NOT TESTED raporlayacak)"
+          /opt/google/chrome/chrome --version
+          /opt/microsoft/msedge/msedge --version || true
+
+      # Tip denetimi zorunlu ana CI'da (ci.yml "typescript") yapılır; yalnız bu runner'ın geçici checkout'unda atlanır (bellek).
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: |
+          node scripts/campaign/ci-e2e-build-config.cjs
+          grep -n "ignoreBuildErrors" next.config.ts
+
+      - name: Yerel test önüne işaret eden build (webpack; sahte değerler)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54470
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+          SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx next build --webpack || (echo "::warning title=build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
+
+      - name: Admin çerez kabulü (Chrome + Edge; 320 / 375 / 390 / 768 / 1280)
+        env:
+          ADMIN_UI_REQUIRE_EDGE: "1"
+          ADMIN_UI_MIN_PASS: "60"
+        run: |
+          mkdir -p "$RUNNER_TEMP/admin-ui"
+          set +e
+          npx tsx scripts/giris-guvenligi/admin-cerez-ui.e2e.ts "$RUNNER_TEMP/admin-ui" 2>&1 | tee "$RUNNER_TEMP/admin-ui/gunluk.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "3" ]; then echo "::error title=Admin çerez::NOT TESTED (altyapı) — gerçek Edge ikilisi yok; gerçek FAIL DEĞİL"; fi
+          if [ "$code" = "1" ]; then echo "::error title=Admin çerez::FAIL — ayrıntı günlükte"; fi
+          {
+            echo "## Admin çerez — tarayıcı kabulü"
+            echo ""
+            echo '```'
+            grep -E "^(══|admin-cerez-ui:|FAIL|NOT TESTED)|^\s+FAIL" "$RUNNER_TEMP/admin-ui/gunluk.txt" || true
+            echo '```'
+          } | tee "$RUNNER_TEMP/admin-ui/ozet.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+      - name: Bellek / disk
+        if: always()
+        run: free -m && df -h . | tail -1
+
+      - name: Kanıtlar (ekran görüntüleri + günlük + özet; sentetik veri)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-cerez-tarayici-kanit
+          path: |
+            ${{ runner.temp }}/admin-ui/*.png
+            ${{ runner.temp }}/admin-ui/gunluk.txt
+            ${{ runner.temp }}/admin-ui/ozet.md
+          retention-days: 14
+          if-no-files-found: error

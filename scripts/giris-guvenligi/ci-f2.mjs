@@ -116,6 +116,10 @@ const TSX = [
   // F4: girişte e-posta OTP pilotu (tek uzman) — planlanan production yapılandırmasının uçtan uca provası; diğer hesaplar
   // değişmez, OTP / CSRF / kilit / kurtarma kodu / e-posta kesintisi / QR uyumu / acil geri dönüş.
   "scripts/giris-guvenligi/f4-otp-giris-provasi.harness.ts",
+  // Admin doğrudan URL geri dönüşü: güvenli yol kuralı (açık yönlendirme yok) + gerçek proxy yönlendirmesi.
+  "scripts/giris-guvenligi/admin-cerez-donus.check.ts",
+  // OTP e-postasında kod konu satırında YOK (bildirim önizlemesi / günlük sızıntısı), gövdede VAR.
+  "scripts/giris-guvenligi/otp-konu.check.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,

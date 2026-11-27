@@ -27,7 +27,7 @@ const lines = () => { try { return fs.readFileSync(SINK, "utf8").split("\n").fil
 async function waitCode(to: string, after: number): Promise<string> {
   for (let i = 0; i < 60; i++) {
     const m = lines().slice(after).filter((x) => x.to === to);
-    const c = /^([0-9]{6}) — /.exec(m[m.length - 1]?.subject ?? "")?.[1];
+    const c = /\b([0-9]{6})\b/.exec(m[m.length - 1]?.text ?? "")?.[1];
     if (c) return c;
     await sleep(250);
   }

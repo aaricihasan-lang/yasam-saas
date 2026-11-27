@@ -4,6 +4,7 @@ import { buildEnforcedCsp } from "./lib/security/securityHeaders";
 import { cspOptionsFromEnv, documentRequestHeaders, resolveDocumentCsp } from "./lib/security/documentCsp";
 import { isProEphemerisEnabled } from "./lib/astrology/pro/ephemeris/flags";
 import { isTurnstileDocumentPath, withTurnstileCsp } from "./lib/security/campaignCsp";
+import { ADMIN_RETURN_PARAM, safeAdminReturnPath } from "./lib/auth/adminReturnPath";
 
 /**
  * 1) /admin/* rotalarını korur (hızlı ret).
@@ -53,7 +54,12 @@ export function proxy(request: NextRequest) {
   }
 
   if (isAdminPath(request.nextUrl.pathname) && !request.cookies.get(ADMIN_SESSION_COOKIE)?.value) {
-    const redirect = NextResponse.redirect(new URL("/", request.url));
+    // Admin kabuk çerezi yok (süresi dolmuş / başka siteden gelindi) → ana sayfa; geçerli oturum SUNUCUDA doğrulanırsa ana sayfa
+    // çerezi yeniden kurup istenen admin yoluna döner (lib/auth/adminReturnPath). Yetki kararı burada VERİLMEZ.
+    const home = new URL("/", request.url);
+    const back = safeAdminReturnPath(`${request.nextUrl.pathname}${request.nextUrl.search}`);
+    if (back) home.searchParams.set(ADMIN_RETURN_PARAM, back);
+    const redirect = NextResponse.redirect(home);
     redirect.headers.set("Content-Security-Policy", policy);
     return redirect;
   }
