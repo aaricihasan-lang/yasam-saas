@@ -1,0 +1,7 @@
+{
+  "remote": "origin",
+  "ref": "refs/heads/migration-rezervasyon",
+  "file": "rezervasyonlar.jsonl",
+  "zorunlu": false,
+  "capa": null
+}
