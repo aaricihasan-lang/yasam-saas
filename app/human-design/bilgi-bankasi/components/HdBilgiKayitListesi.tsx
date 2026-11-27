@@ -56,7 +56,6 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"" | "active" | "passive">("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const bulkRef = useRef(false);
@@ -97,8 +96,6 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
     const q = search.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((row) => {
       if (categoryFilter && row.category !== categoryFilter) return false;
-      if (activeFilter === "active" && !row.is_active) return false;
-      if (activeFilter === "passive" && row.is_active) return false;
       if (q) {
         const hay = [row.title, row.category, row.code, row.content]
           .join(" ")
@@ -107,14 +104,14 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
       }
       return true;
     });
-  }, [rows, search, categoryFilter, activeFilter]);
+  }, [rows, search, categoryFilter]);
 
   // P2-12: seçim YALNIZ ekranda görünen (filtreye uyan) kayıtlar üzerinden çalışır. Filtre/
   // arama değişince seçim temizlenir → gizli satırlar asla toplu silinmez.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(new Set());
-  }, [search, categoryFilter, activeFilter]);
+  }, [search, categoryFilter]);
 
   const visibleSelectedIds = useMemo(
     () => filtered.filter((r) => selected.has(r.id)).map((r) => r.id),
@@ -211,16 +208,6 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
             </option>
           ))}
         </select>
-        <select
-          value={activeFilter}
-          onChange={(e) => setActiveFilter(e.target.value as "" | "active" | "passive")}
-          aria-label="Durum filtresi"
-          className="h-9 w-full rounded-xl border border-indigo-200/90 bg-white px-3 text-sm shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 sm:w-auto"
-        >
-          <option value="">Tüm Durumlar</option>
-          <option value="active">Aktif</option>
-          <option value="passive">Pasif</option>
-        </select>
         <button
           type="button"
           onClick={loadRows}
@@ -282,9 +269,6 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 md:table-cell">
                   Kod
                 </th>
-                <th className="hidden px-3 py-3 text-center text-xs font-black uppercase tracking-wide text-slate-600 sm:table-cell">
-                  Aktif
-                </th>
                 <th className="hidden px-3 py-3 text-left text-xs font-black uppercase tracking-wide text-slate-600 lg:table-cell">
                   Güncelleme
                 </th>
@@ -339,13 +323,6 @@ export function HdBilgiKayitListesi({ onAddNew }: { onAddNew?: () => void } = {}
                     <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
                       {row.code}
                     </code>
-                  </td>
-                  <td className="hidden px-3 py-3 text-center sm:table-cell">
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full ${
-                        row.is_active ? "bg-emerald-500" : "bg-slate-300"
-                      }`}
-                    />
                   </td>
                   <td className="hidden px-3 py-3 text-xs text-slate-500 lg:table-cell">
                     {formatDate(row.updated_at)}

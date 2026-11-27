@@ -1157,13 +1157,20 @@ function run(): void {
   ok(!/addProtocolSafety\(/.test(rSec.slice(rSec.indexOf("entity: \"technique\""), rSec.indexOf("entity: \"safety\""))),
     "faz4c-boundary: teknik ekleme akışı safety'yi OTO-eklemez");
 
-  // ══ FAZ 4 / AŞAMA 2D — inactive-picker contract (owner-locked) ══════════════════
-  // Pasif teknik YENİ attach picker'ında sunulmaz; ekli pasif relation'da kalır; global
-  // listTechniques DEĞİŞMEZ (ekli pasif çözümlensin); otomatik detach/arşiv YOK.
-  ok(/kind === "technique"[\s\S]{0,120}master\.filter\(\(m\) =>[\s\S]{0,60}is_active !== false\)/.test(rSec),
-    "faz4d-inactive: teknik picker aday kümesi is_active !== false ile filtrelenir");
+  // ══ FAZ 4 / AŞAMA 2D — picker contract; Owner kararı 28.11.2026: aktif/pasif seçimi kaldırıldı ══
+  // Kayıtlı tüm teknikler (eski pasifler dahil) picker adayıdır; global listTechniques DEĞİŞMEZ;
+  // otomatik detach/arşiv YOK. Kupa arayüzünde Aktif kutusu / Pasif rozeti / durum filtresi YOK.
+  ok(/const pickerMaster = master;/.test(rSec) && !/is_active/.test(rSec),
+    "faz4d-inactive: teknik picker aday kümesi aktif/pasife göre filtrelenmez (eski pasif teknik de seçilebilir)");
   ok(/const items: PickerItem\[\] = pickerMaster\.map/.test(rSec),
-    "faz4d-inactive: picker items filtrelenmiş pickerMaster'dan (master DEĞİL) türetilir");
+    "faz4d-inactive: picker items pickerMaster'dan türetilir");
+  ok(["app/kupa/bilgi-kutuphanesi/page.tsx", "app/kupa/noktalar/page.tsx", "app/kupa/guvenlik/page.tsx", "app/kupa/protokoller/page.tsx",
+      "app/kupa/protokoller/components/BasicInfoEditor.tsx", "app/kupa/protokoller/components/ProtocolListCard.tsx", "app/kupa/protokoller/[id]/ProtocolDocumentClient.tsx",
+      "app/kupa/teknikler/components/TechniqueEditor.tsx", "app/kupa/teknikler/components/TechniqueList.tsx", "app/kupa/teknikler/components/TechniqueProtocolsSection.tsx",
+      "app/kupa/teknikler/components/TechniqueReadView.tsx"].every((p) => { const s = read(p); return !/>\s*Pasif\s*</.test(s) && !/"Aktif"/.test(s) && !/>\s*Aktif\s*</.test(s) && !/setIsActive/.test(s); }),
+    "aktif/pasif kaldırma: Kupa ekranlarında Aktif kutusu / Pasif rozeti / Aktif-Pasif filtresi YOK");
+  ok(/is_active: true,/.test(read("app/kupa/teknikler/components/TechniqueEditor.tsx")) && /is_active: true,/.test(read("app/kupa/protokoller/components/BasicInfoEditor.tsx")),
+    "aktif/pasif kaldırma: teknik / protokol kaydedilince otomatik aktif (is_active: true)");
   const apiSrc = read("lib/cupping/api.ts");
   ok(!/is_active/.test(apiSrc),
     "faz4d-inactive: global listEntity/listTechniques'e is_active filtresi EKLENMEDİ (ekli pasif çözümlenir)");

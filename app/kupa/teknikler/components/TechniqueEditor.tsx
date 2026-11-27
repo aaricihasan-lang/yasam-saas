@@ -14,7 +14,7 @@ import { useReportDirty } from "../../protokoller/hooks/protocolDirty";
  *
  * Alanlar: name (zorunlu), technique_type, movement_style, description ("Bu teknik nedir?"),
  * application_info ("Genel Uygulama Yaklaşımı" — description'dan AYRI), safety_note,
- * practitioner_note ("Uzman Notum"), is_active. GÖNDERİLMEZ: kind / source_note / sort_order.
+ * practitioner_note ("Uzman Notum"); kayıt daima is_active=true (Owner 28.11.2026, seçim yok). GÖNDERİLMEZ: kind / source_note / sort_order.
  * PATCH yalnız bu form alanlarını yollar → legacy kind/source_note DEĞİŞMEZ (null'lanmaz).
  */
 
@@ -40,7 +40,6 @@ export function TechniqueEditor({
   const [applicationInfo, setApplicationInfo] = useState(initial?.application_info ?? "");
   const [safetyNote, setSafetyNote] = useState(initial?.safety_note ?? "");
   const [practitionerNote, setPractitionerNote] = useState(initial?.practitioner_note ?? "");
-  const [isActive, setIsActive] = useState(initial?.is_active ?? true);
 
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
@@ -54,8 +53,7 @@ export function TechniqueEditor({
     description !== (initial?.description ?? "") ||
     applicationInfo !== (initial?.application_info ?? "") ||
     safetyNote !== (initial?.safety_note ?? "") ||
-    practitionerNote !== (initial?.practitioner_note ?? "") ||
-    isActive !== (initial?.is_active ?? true);
+    practitionerNote !== (initial?.practitioner_note ?? "");
   // FINAL-A1: sayfa geneli çıkış koruması (KupaUnsavedGuardScope; link / geri / yenileme).
   useReportDirty("technique-editor", dirty);
 
@@ -90,7 +88,7 @@ export function TechniqueEditor({
       application_info: applicationInfo.trim() || null,
       safety_note: safetyNote.trim() || null,
       practitioner_note: practitionerNote.trim() || null,
-      is_active: isActive,
+      is_active: true,
     };
     try {
       const saved = isEdit
@@ -213,16 +211,6 @@ export function TechniqueEditor({
           </button>
         </div>
       </div>
-
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
-          aria-label="Aktif"
-        />
-        <span className="text-[13px] font-semibold text-slate-600">Aktif</span>
-      </label>
 
       {error ? <p className="text-[13px] font-medium text-rose-600">{error}</p> : null}
 

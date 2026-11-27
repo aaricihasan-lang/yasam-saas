@@ -143,9 +143,6 @@ function ProtocolDocumentInner({ id }: { id: string }) {
         </>
       }
     >
-      {!p.is_active ? (
-        <p className="mb-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">Pasif</p>
-      ) : null}
 
       {doc.error ? (
         // Bölümlerden biri yüklenemedi: bölümleri BOŞ gibi gösterme (uzman verisi silindi sanıp

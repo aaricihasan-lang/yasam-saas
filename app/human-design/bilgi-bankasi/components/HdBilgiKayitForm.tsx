@@ -81,9 +81,9 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
       related_centers: [],
       related_channels: [],
       related_gates: [],
-      // Taslak: yeni kayıt daima pasif oluşturulur. "Bilgi ve Açıklamalar" tamamlanınca
-      // düzenleme sayfasından aktif edilir ("Ya doğru bilgi ya hiç").
-      is_active: false,
+      // Owner kararı (28.11.2026): kayıt otomatik aktif (sunucu yazar). İçeriği boş kayıt
+      // otomatik yoruma / rapora girmez ("Ya doğru bilgi ya hiç").
+      is_active: true,
       expert_notes: null,
     });
     setSaving(false);
@@ -201,7 +201,7 @@ export function HdBilgiKayitForm({ onSuccess }: Props) {
           )}
 
           <div className="sm:col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
-            Kayıtlar otomatik sıralanır (kapılar numaraya, kanallar kapı çiftine göre). Kayıt <span className="font-bold">taslak</span> olarak oluşturulur. Bilgi ve Açıklamalar tamamlandıktan sonra düzenleme sayfasından aktif edebilirsiniz. <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
+            Kayıtlar otomatik sıralanır (kapılar numaraya, kanallar kapı çiftine göre). <span className="font-bold">Bilgi ve Açıklamalar, Özel Çalışma Notları, Kaynaklar ve İlişkiler</span> açılan tam sayfa editörde girilir.
           </div>
         </div>
       </section>

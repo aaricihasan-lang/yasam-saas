@@ -18,7 +18,6 @@ export function BasicInfoEditor({ doc, onClose }: { doc: ProtocolDocument; onClo
   const [category, setCategory] = useState(p?.category ?? "");
   const [summary, setSummary] = useState(p?.summary ?? "");
   const [tags, setTags] = useState((p?.tags ?? []).join(", "));
-  const [isActive, setIsActive] = useState(p?.is_active ?? true);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const confirmLeave = useConfirmLeave();
@@ -27,8 +26,7 @@ export function BasicInfoEditor({ doc, onClose }: { doc: ProtocolDocument; onClo
     title !== (p?.title ?? "") ||
     category !== (p?.category ?? "") ||
     summary !== (p?.summary ?? "") ||
-    tags.split(",").map((t) => t.trim()).filter(Boolean).join(",") !== (p?.tags ?? []).join(",") ||
-    isActive !== (p?.is_active ?? true);
+    tags.split(",").map((t) => t.trim()).filter(Boolean).join(",") !== (p?.tags ?? []).join(",");
   useReportDirty("basic", dirty);
   async function requestClose() {
     if (busyRef.current) return;
@@ -57,7 +55,8 @@ export function BasicInfoEditor({ doc, onClose }: { doc: ProtocolDocument; onClo
         category: category.trim() || null,
         summary: summary.trim() || null,
         tags: parseTagsInput(tags),
-        is_active: isActive,
+        // Owner kararı (28.11.2026): kaydedilen kayıt otomatik aktif (aktif/pasif seçimi yok).
+        is_active: true,
       });
       await doc.reload.protocol();
       showToast({ message: "Kaydedildi.", type: "success" });
@@ -99,10 +98,6 @@ export function BasicInfoEditor({ doc, onClose }: { doc: ProtocolDocument; onClo
             <p id="pf-tags-help" className="mb-1 text-[11px] leading-snug text-slate-400">{TAGS_HELP}</p>
             <input id="pf-tags" aria-describedby="pf-tags-help" className={kupaInput} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={TAGS_PLACEHOLDER} />
           </div>
-          <label className="flex items-center gap-2 pt-1 text-sm text-slate-700">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4" />
-            Aktif
-          </label>
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
           <button type="button" className={kupaBtnGhost} onClick={() => void requestClose()}>Vazgeç</button>

@@ -175,13 +175,13 @@ async function main() {
     const r = await insertKnowledge(kb.db, T_A, U_A, { category: "Merkezler", title: label, code, content: active ? `GENEL-ICERIK-${c}` : "", expert_notes: `GENEL-NOT-${c}`, is_active: active });
     if (r.id && !r.error) { created++; ids[c] = r.id; }
   }
-  ok("B1 9/9 genel kayıt oluşturuldu (5 aktif + 4 taslak)", created === 9, ids);
+  ok("B1 9/9 genel kayıt oluşturuldu (5 içerikli + 4 boş içerikli)", created === 9, ids);
   let reopened = 0;
-  for (const [i, [c, label]] of EXPECTED_GENERAL.entries()) {
+  for (const [c, label] of EXPECTED_GENERAL) {
     const { row } = await getKnowledgeById(kb.db, T_A, ids[c]);
-    if (row && row.code === `merkez_genel_${c}` && row.title === label && row.category === "Merkezler" && row.is_active === (i < 5) && row.expert_notes === `GENEL-NOT-${c}`) reopened++;
+    if (row && row.code === `merkez_genel_${c}` && row.title === label && row.category === "Merkezler" && row.is_active === true && row.expert_notes === `GENEL-NOT-${c}`) reopened++;
   }
-  ok("B2 9/9 yeniden açılır: kod / başlık / kategori / durum / özel not aynen", reopened === 9);
+  ok("B2 9/9 yeniden açılır: kod / başlık / kategori / özel not aynen; kaydedilen kayıt otomatik AKTİF (Owner 28.11)", reopened === 9);
   ok("B3 yeniden açılan kaydın yapısal değeri düzenleyicide seçili", EXPECTED_GENERAL.every(([c]) => deriveStructuredValue("Merkezler", `merkez_genel_${c}`) === `genel_${c}`));
   let edited = 0;
   for (const [c] of EXPECTED_GENERAL) {
@@ -191,10 +191,11 @@ async function main() {
   }
   ok("B4 9/9 düzenlenir ve kaydedilir (taslak → aktif dahil; kod değişmez)", edited === 9);
   const toDraft = await updateKnowledge(kb.db, T_A, ids.root, { is_active: false });
-  ok("B5 aktif genel kayıt yeniden taslağa alınabilir", toDraft.ok && (await getKnowledgeById(kb.db, T_A, ids.root)).row?.is_active === false);
+  ok("B5 istemci is_active=false gönderse de kayıt AKTİF kalır (aktif/pasif seçimi yok)", toDraft.ok && (await getKnowledgeById(kb.db, T_A, ids.root)).row?.is_active === true);
   await updateKnowledge(kb.db, T_A, ids.root, { is_active: true });
-  const blankActive = await insertKnowledge(kb.db, T_B, U_B, { category: "Merkezler", title: "Genel — Baş Merkezi (Head)", code: "merkez_genel_head", content: "  ", is_active: true });
-  ok("B6 mevcut kural korunur: içeriği boş kayıt AKTİF kaydedilemez", !blankActive.id && !!blankActive.error);
+  const blankActive = await insertKnowledge(kb.db, T_B, U_B, { category: "Tipler", title: "Generator", code: "tip_generator", content: "  ", is_active: true });
+  const blankMatch = await listKnowledgeForReport(kb.db, T_B, ["tip_generator"]);
+  ok("B6 içeriği boş kayıt kaydedilir ama otomatik rapor okumasına GİRMEZ", !!blankActive.id && blankMatch.rows.length === 0 && !blankMatch.error);
   const dup = await insertKnowledge(kb.db, T_A, U_A, { category: "Merkezler", title: "x", code: "merkez_genel_head", content: "y", is_active: true });
   ok("B7 mükerrer genel kod (aynı kullanıcı) → red + mevcut kayıt id", !dup.id && dup.existingId === ids.head);
   const existingAfter = JSON.stringify(kb.tables.human_design_knowledge_records.filter((r) => seedPrecise.some((s) => s.id === r.id)));

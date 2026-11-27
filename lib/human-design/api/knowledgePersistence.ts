@@ -58,13 +58,17 @@ function pick(input: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-// Taslak güvenliği (server savunması, "Ya doğru bilgi ya hiç"): AKTİF bir kaydın
-// "Bilgi ve Açıklamalar" (content) alanı boş OLAMAZ. Pasif (taslak) kayıt boş içerikle olur.
-const ACTIVE_CONTENT_ERROR =
-  "Kaydı aktif etmek için Bilgi ve Açıklamalar alanını doldurun.";
-
+// Owner kararı (28.11.2026): kaydedilen her not AKTİF kabul edilir; aktif/pasif seçimi yoktur.
+// is_active kolonu geriye uyum için korunur ve sunucu her yazımda TRUE yazar. Otomatik eşleşme /
+// rapor okumaları is_active'e DEĞİL içeriğe bakar: "Bilgi ve Açıklamalar" boş kayıt ("Ya doğru
+// bilgi ya hiç") otomatik yoruma / rapora girmez; içerikli eski pasif/taslak kayıtlar kullanılır.
 function isBlank(v: unknown): boolean {
   return typeof v !== "string" || v.trim() === "";
+}
+
+/** Otomatik eşleşme / rapor için: içeriği boş kayıtları eler (sıra korunur). */
+function withContent<T extends { content?: unknown }>(rows: readonly T[]): T[] {
+  return rows.filter((r) => !isBlank(r.content));
 }
 
 export const IDENTITY_LOCKED_CODE = "HD_IDENTITY_LOCKED";
@@ -136,20 +140,19 @@ export async function listKnowledgeByCodes(
 ): Promise<{ rows: HumanDesignKnowledgeRecord[]; error: string | null }> {
   if (codes.length === 0) return { rows: [], error: null };
   const { data, error } = await withTenant(db.from(TABLE).select("*"), tenantId, "listKnowledgeByCodes")
-    .eq("is_active", true)
     .in("code", codes)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledgeByCodes", error) };
   // HD-UZMAN-01: kesin Tanımsız/Açık kaydı olan merkezde eski genel (merkez_acik_*) kayıt elenir.
   // Genel merkez kayıtları (merkez_genel_*) haritayla otomatik eşleşmez → her durumda elenir.
-  return { rows: dedupeCenterKnowledge(excludeGeneralCenterKnowledge((data ?? []) as HumanDesignKnowledgeRecord[])), error: null };
+  return { rows: dedupeCenterKnowledge(excludeGeneralCenterKnowledge(withContent((data ?? []) as HumanDesignKnowledgeRecord[]))), error: null };
 }
 
 /**
  * DANIŞAN RAPORU (Word v2) için Bilgi Bankası okuması — YALNIZ rapora girebilecek kolonlar.
  * "Özel Çalışma Notları" (expert_notes) bu sorguda HİÇ OKUNMAZ → hiçbir seçim/istek onu rapora
- * taşıyamaz. Yalnız bu tenant, yalnız aktif kayıt, yalnız haritanın kodları.
+ * taşıyamaz. Yalnız bu tenant, yalnız içeriği dolu kayıt, yalnız haritanın kodları.
  */
 export const KNOWLEDGE_REPORT_COLUMNS = "id, category, title, code, content, is_active, sort_order, created_at";
 export type KnowledgeReportRow = Pick<HumanDesignKnowledgeRecord, "id" | "category" | "title" | "code" | "content" | "is_active">;
@@ -161,12 +164,11 @@ export async function listKnowledgeForReport(
 ): Promise<{ rows: KnowledgeReportRow[]; error: string | null }> {
   if (codes.length === 0) return { rows: [], error: null };
   const { data, error } = await withTenant(db.from(TABLE).select(KNOWLEDGE_REPORT_COLUMNS), tenantId, "listKnowledgeForReport")
-    .eq("is_active", true)
     .in("code", codes)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) return { rows: [], error: hdSafeDbError("listKnowledgeForReport", error) };
-  return { rows: dedupeCenterKnowledge(excludeGeneralCenterKnowledge((data ?? []) as unknown as KnowledgeReportRow[])), error: null };
+  return { rows: dedupeCenterKnowledge(excludeGeneralCenterKnowledge(withContent((data ?? []) as unknown as KnowledgeReportRow[]))), error: null };
 }
 
 export async function insertKnowledge(
@@ -176,11 +178,7 @@ export async function insertKnowledge(
   input: Record<string, unknown>,
 ): Promise<{ id: string | null; error: string | null; existingId?: string }> {
   const picked = pick(input);
-  // is_active verilmezse DB default TRUE → aktif kabul edilir.
-  const activeEffective = picked.is_active === undefined ? true : picked.is_active === true;
-  if (activeEffective && isBlank(picked.content)) {
-    return { id: null, error: ACTIVE_CONTENT_ERROR };
-  }
+  picked.is_active = true; // kaydedilen not daima aktif (istemci değeri yok sayılır)
   const structErr = applyStructuredTitle(picked, { category: picked.category, code: picked.code, title: picked.title });
   if (structErr) return { id: null, error: structErr };
   // Mükerrer kod (UNIQUE(tenant_id, code)) → anlaşılır red + mevcut kaydın id'si.
@@ -208,24 +206,7 @@ export async function updateKnowledge(
   opts: { expectedUpdatedAt?: string } = {},
 ): Promise<{ ok: boolean; error: string | null; status?: number; code?: string; updatedAt?: string | null }> {
   const picked = pick(input);
-  // Kısmi payload'da nihai durumu değerlendir: eksik alanlar mevcut kayıttan alınır.
-  let activeEffective: boolean;
-  let contentEffective: unknown;
-  if (picked.is_active === undefined || picked.content === undefined) {
-    const { data: existing } = await withTenant(db.from(TABLE).select("is_active, content"), tenantId, "updateKnowledge.existing")
-      .eq("id", id)
-      .maybeSingle();
-    const ex = (existing ?? null) as { is_active?: boolean; content?: string } | null;
-    activeEffective =
-      picked.is_active === undefined ? ex?.is_active === true : picked.is_active === true;
-    contentEffective = picked.content === undefined ? (ex?.content ?? "") : picked.content;
-  } else {
-    activeEffective = picked.is_active === true;
-    contentEffective = picked.content;
-  }
-  if (activeEffective && isBlank(contentEffective)) {
-    return { ok: false, error: ACTIVE_CONTENT_ERROR };
-  }
+  picked.is_active = true; // kaydedilen not daima aktif (istemci değeri yok sayılır)
 
   // Kapı/kanal TEKNİK KİMLİK KİLİDİ (sunucu garantisi; arayüzdeki disabled'a güvenilmez):
   // kimlik alanlarından biri istekte varsa kayıtlı category/code/title VERİTABANINDAN okunur.

@@ -57,9 +57,6 @@ export function TechniqueProtocolsSection({ techniqueId }: { techniqueId: string
                       ) : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      {p.is_active === false ? (
-                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">Pasif</span>
-                      ) : null}
                       <span className="text-sm font-semibold text-amber-700 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
                     </span>
                   </Link>

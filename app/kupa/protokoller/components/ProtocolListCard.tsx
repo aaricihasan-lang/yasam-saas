@@ -17,9 +17,6 @@ export function ProtocolListCard({ protocol, onDelete }: { protocol: CuppingProt
         <Link href={href} className="min-w-0 no-underline">
           <h3 className="truncate text-base font-black tracking-tight text-slate-800 transition hover:text-amber-700">{protocol.title}</h3>
         </Link>
-        {protocol.is_active === false ? (
-          <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Pasif</span>
-        ) : null}
       </div>
       {protocol.category ? (
         <span className="mt-1 inline-flex w-fit rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">

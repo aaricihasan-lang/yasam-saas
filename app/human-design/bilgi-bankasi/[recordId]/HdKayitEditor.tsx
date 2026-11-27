@@ -103,7 +103,6 @@ type FormState = {
   related_gates: number[];
   /** Kapılar/Kanallar: kişisel görünen ad (numarasız). Diğer kategorilerde kullanılmaz. */
   displayName: string;
-  is_active: boolean;
 };
 
 /** Kaydın başlığındaki kişisel ad; yoksa (hazır/eski hazır ad) güncel hazır ad. */
@@ -140,7 +139,6 @@ function rowToForm(row: HdKnowledgeRow): FormState {
     related_channels: row.related_channels ?? [],
     related_gates: row.related_gates ?? [],
     displayName: displayNameFromRow(row),
-    is_active: row.is_active,
   };
 }
 
@@ -364,16 +362,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       setSection("content");
       return;
     }
-    // Taslak güvenliği: aktif kayıt boş "Bilgi ve Açıklamalar" (content) ile kaydedilemez.
-    // Pasif (taslak) kayıt boş içerikle kaydedilebilir.
-    if (form.is_active && !form.content.trim()) {
-      showToast({
-        message: `Kaydı aktif etmek için ${KB_CONTENT_LABEL} alanını doldurun.`,
-        type: "warning",
-      });
-      setSection("content");
-      return;
-    }
+    // Owner kararı (28.11.2026): kaydedilen not otomatik aktiftir (seçim yok). İçeriği boş kayıt
+    // kaydedilebilir; otomatik yoruma / rapora girmez (sunucu içerik doluluğuna bakar).
     setSaving(true);
     // Kapı/kanal: başlık = sabit numara + görünen ad (boş ad → hazır ad). Kod numaradan.
     const title = gateChannel
@@ -392,7 +382,6 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       related_channels: form.related_channels,
       related_gates: form.related_gates,
       // sort_order GÖNDERİLMEZ: sıralama otomatik; eski değer DB'de dokunulmadan kalır.
-      is_active: form.is_active,
     }, recordVersionRef.current);
     setSaving(false);
     if (error) {
@@ -570,16 +559,6 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               <span className="hidden truncate text-[11px] font-black uppercase tracking-widest text-indigo-500 sm:inline">
                 {form.category || "Kategori seçilmedi"}
               </span>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                  form.is_active
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-200 text-slate-600"
-                }`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${form.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
-                {form.is_active ? "Aktif" : "Pasif"}
-              </span>
               {dirty && (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">
                   Kaydedilmemiş
@@ -711,18 +690,6 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
                   readOnly
                   className={`h-9 ${fieldBase} cursor-not-allowed bg-slate-50/80 text-slate-400`}
                 />
-              </div>
-              <div className="flex items-center gap-2.5 sm:col-span-2">
-                <input
-                  id="hd-editor-active"
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={(e) => patch({ is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-indigo-300 accent-indigo-600"
-                />
-                <label htmlFor="hd-editor-active" className="text-sm font-semibold text-slate-700">
-                  Aktif kayıt
-                </label>
               </div>
               <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
                 {isHdGateChannelCategory(form.category) ? (

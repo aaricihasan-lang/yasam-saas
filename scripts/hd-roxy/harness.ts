@@ -309,7 +309,8 @@ async function main(): Promise<void> {
       ],
     });
     const { rows } = await listKnowledgeByCodes(kb.db, T_A, expertCodes);
-    ok("I uçtan uca: tenant A eşleşmeleri (tip+kanal)", rows.map((r) => r.id).sort().join() === "k1,k2", rows.map((r) => r.id));
+    // Owner kararı (28.11.2026): içerikli eski pasif kayıt (k4) da eşleşir; B tenant (k3) asla.
+    ok("I uçtan uca: tenant A eşleşmeleri (tip+kanal+içerikli eski pasif profil)", rows.map((r) => r.id).sort().join() === "k1,k2,k4", rows.map((r) => r.id));
   }
   // Eski motor computed kaydı (RAW) → aynı kod uzayı
   const legacy = computeHumanDesignChart({ date: "2018-07-20", time: "19:00", timezone: "Europe/Istanbul", location: { lat: 0, lon: 0 } });

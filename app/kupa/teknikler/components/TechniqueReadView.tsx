@@ -170,9 +170,6 @@ export function TechniqueReadView({ id }: { id: string }) {
                 {movementStyleLabel(technique.movement_style)}
               </span>
             ) : null}
-            {technique.is_active === false ? (
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-400">Pasif</span>
-            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">

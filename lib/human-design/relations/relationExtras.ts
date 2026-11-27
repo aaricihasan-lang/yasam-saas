@@ -143,7 +143,7 @@ export async function relationKnowledge(ctx: RelationCtx, a: RelationAnalysisVie
     content: r.content,
     ...(opts.forReport ? {} : { expertNotes: r.expert_notes ?? null }),
   });
-  const pick = (codes: string[]) => codes.flatMap((c) => rows.filter((r) => r.code === c && r.is_active !== false && (r.content ?? "").trim())).map(toEntry);
+  const pick = (codes: string[]) => codes.flatMap((c) => rows.filter((r) => r.code === c && (r.content ?? "").trim())).map(toEntry);
   const groups: KnowledgeGroup[] = [
     ...plan.general.map((g) => ({ key: g.key, title: g.title, scope: "general" as const, entries: pick(g.codes) })),
     ...plan.individual.map((g) => ({ key: g.key, title: g.title, scope: "individual" as const, person: g.person, entries: pick(g.codes) })),

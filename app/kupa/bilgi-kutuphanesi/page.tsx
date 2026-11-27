@@ -15,7 +15,6 @@ const FIELDS: FieldDef[] = [
   { key: "keyword", label: "Anahtar Kelime", type: "text" },
   { key: "notes", label: "Notlar", type: "textarea" },
   { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
 ];
 
 export default function BilgiKutuphanesiPage() {
