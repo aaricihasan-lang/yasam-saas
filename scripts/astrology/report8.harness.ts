@@ -900,6 +900,35 @@ async function main() {
     const s2 = reportTexts(r2).join("\n");
     assert.ok(s2.includes(RELOCATION_NO_ASPECTS_NOTE) && !s2.includes("Açı çizgileri: mavi uyumlu"), "eski kayıt açıklaması");
   });
+  // 2026-11-28: Relocation otomatik yorumu — Yükselen / Tepe Noktası burcu değişmediyse "… burcuna geçer" kalıbı doğru anlatılır.
+  await t("relocation yorumu: burç değişmediyse 'kalır' (not + Word/PDF metni); iki burç da değiştiyse sağlayıcı metni aynen; tabloda Tepe Noktası satırı", async () => {
+    const a = await full(saved.get("western.relocation")!);
+    const tech = a.technical as J;
+    const summary = (a.interpretation as J)?.content?.summary as string;
+    assert.ok(typeof summary === "string" && /Yükselen (\S+) burcuna, Tepe Noktası ise (\S+) burcuna geçer/.test(summary), "kurulum: sağlayıcı kalıbı yok");
+    // Golden: natal ↔ relocation iki burç da farklı → metin AYNEN, not yok.
+    const s1 = reportTexts(buildAstroReport(a)).join("\n");
+    assert.notEqual(tech.natal.angles.ascendant.sign, tech.angles.ascendant.sign);
+    assert.notEqual(tech.natal.angles.midheaven.sign, tech.angles.midheaven.sign);
+    assert.ok(s1.includes(summary), "burç değiştiğinde sağlayıcı özeti aynen olmalı");
+    assert.ok(!s1.includes("burç aynı"), "burç değiştiğinde not olmamalı");
+    assert.ok(s1.includes("Tepe Noktası burcu değişti mi"), "tablo satırı");
+    // Natal burçlar relocation ile AYNI (canlı kabul örneğinin eşdeğeri; konumlar / dereceler aynen) → cümle düzeltilir + not.
+    const same = { ...a, technical: { ...tech, natal: { ...tech.natal, angles: { ascendant: { ...tech.natal.angles.ascendant, sign: tech.angles.ascendant.sign }, midheaven: { ...tech.natal.angles.midheaven, sign: tech.angles.midheaven.sign } } } } };
+    const r2 = buildAstroReport(same);
+    const s2 = reportTexts(r2).join("\n");
+    const A = summary.match(/Yükselen (\S+) burcuna/)![1];
+    const M = summary.match(/Tepe Noktası ise (\S+) burcuna/)![1];
+    assert.ok(s2.includes(`Yükselen ${A}, Tepe Noktası ${M} burcunda kalır (yalnız dereceleri ve gezegenlerin ev yerleşimleri değişir)`), "düzeltilmiş cümle yok");
+    assert.ok(!s2.includes(`Yükselen ${A} burcuna, Tepe Noktası ise ${M} burcuna geçer`), "yanlış kalıp raporda kaldı");
+    assert.ok(s2.includes(`Yükselen ${A} → ${A} (burç aynı)`), "açıklama notu yok");
+    // Word ve PDF aynı metni taşır.
+    const zip = await JSZip.loadAsync(await renderAstroReportDocx(r2, null, symbolFontBuffers()));
+    const xml = (await zip.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, "");
+    assert.ok(xml.includes("burcunda kalır") && !xml.includes(`${A} burcuna, Tepe Noktası ise`), "Word metni");
+    const pdfTxt = norm((await pdfText(Buffer.from(buildAstroReportPdf(r2, null, fontB64, symbolFontsBase64())))).text);
+    assert.ok(pdfTxt.includes(norm("burcunda kalır")) && !pdfTxt.includes(norm(`${A} burcuna, Tepe Noktası ise`)), "PDF metni");
+  });
   await t("harita aktarımı: görsel üretilemezse rapor boş/yanlış yer tutucu yerine açık not verir (Word + PDF)", async () => {
     const r = buildAstroReport(await full(saved.get("western.natal")!));
     const docx = await renderAstroReportDocx(r, null, symbolFontBuffers());
