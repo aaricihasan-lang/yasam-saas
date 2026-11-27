@@ -21,11 +21,8 @@ import {
   FORTUNE_SINGLE_SOURCE_NOTE,
   LILITH_COLORS,
   LILITH_LABELS,
-  LILITH_SHORT,
-  LOT_COLOR,
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
-  LOT_SHORT,
   LOT_VICTORY_LOCAL_NOTE,
   LOT_VICTORY_NOTE,
   LOT_WITHHELD_CELL,
@@ -35,7 +32,8 @@ import {
   lotFormulaText,
 } from "@/lib/astrology/labels/extraPoints";
 import { ASTEROID_MISSING_NOTE } from "@/lib/astrology/model/asteroidDateLimit";
-import { EXTRA_POINTS_INTERP_NOTE, lotPositionWithheld, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant, type LotId } from "@/lib/astrology/model/westernExtraPoints";
+import { extraInnerBodies, extraOuterPoints, extraWheelLegendParts } from "@/lib/astrology/labels/extraPointsWheel";
+import { EXTRA_POINTS_INTERP_NOTE, lotPositionWithheld, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant } from "@/lib/astrology/model/westernExtraPoints";
 
 const pos = (sign: SignId, d: number) => `${SIGN_GLYPHS[sign]} ${SIGN_LABELS[sign]} ${formatDegree(d)}`;
 const fx = (n: number, d = 4) => n.toFixed(d).replace(".", ",");
@@ -260,23 +258,15 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
   );
 }
 
-const LOT_LEGEND_WORD: Record<LotId, string> = { fortune: "Şans", spirit: "Ruh", eros: "Eros", necessity: "Zorunluluk", courage: "Cesaret", victory: "Zafer", nemesis: "Nemesis" };
-
+/** Açıklama — Word/PDF raporuyla AYNI parçalar (labels/extraPointsWheel.ts). */
 function Legend({ t }: { t: ExtraPointsTechnical }) {
   return (
     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
-      <span>İç halka: natal harita</span>
-      {t.asteroids && <span style={{ color: ASTEROID_COLOR }}>⚳⚴⚵⚶ asteroitler</span>}
-      {t.lilith && <span style={{ color: LILITH_COLORS.mean }}>{LILITH_SHORT.mean}: ortalama Lilith</span>}
-      {t.lilith && <span style={{ color: LILITH_COLORS.true }}>{LILITH_SHORT.true}: gerçek Lilith</span>}
-      {t.lots && (
-        <span style={{ color: LOT_COLOR }}>
-          {t.lots.lots
-            .filter((l) => !lotPositionWithheld(l))
-            .map((l) => `${LOT_SHORT[l.id]} ${LOT_LEGEND_WORD[l.id]}`)
-            .join(" · ")}
+      {extraWheelLegendParts(t).map((p) => (
+        <span key={p.text} style={p.color ? { color: p.color } : undefined}>
+          {p.text}
         </span>
-      )}
+      ))}
     </div>
   );
 }
@@ -291,8 +281,6 @@ const R_HOUSE_IN = 110;
 const RING = 58;
 const ELEMENT_COLOR: Record<string, string> = { fire: "#dc2626", earth: "#15803d", air: "#ca8a04", water: "#2563eb" };
 const norm = (x: number) => ((x % 360) + 360) % 360;
-
-type OuterPoint = { key: string; longitude: number; label: string; color: string; title: string };
 
 function spread<T extends { key: string; longitude: number }>(items: T[], minSep: number): Map<string, number> {
   const disp = new Map(items.map((i) => [i.key, i.longitude]));
@@ -316,17 +304,7 @@ function spread<T extends { key: string; longitude: number }>(items: T[], minSep
   return disp;
 }
 
-export function extraOuterPoints(t: ExtraPointsTechnical): OuterPoint[] {
-  const out: OuterPoint[] = [];
-  for (const b of t.asteroids?.bodies ?? []) out.push({ key: `a:${b.id}`, longitude: b.longitude, label: ASTEROID_GLYPHS[b.id], color: ASTEROID_COLOR, title: `${ASTEROID_LABELS[b.id]} — ${pos(b.sign, b.degreeInSign)}${b.retrograde ? " ℞" : ""}` });
-  if (t.lilith)
-    for (const v of ["mean", "true"] as LilithVariant[]) {
-      const x = t.lilith[v];
-      out.push({ key: `l:${v}`, longitude: x.longitude, label: LILITH_SHORT[v], color: LILITH_COLORS[v], title: `${LILITH_LABELS[v]} — ${pos(x.sign, x.degreeInSign)}${x.retrograde ? " ℞" : ""}` });
-    }
-  for (const l of (t.lots?.lots ?? []).filter((x) => !lotPositionWithheld(x))) out.push({ key: `o:${l.id}`, longitude: l.longitude, label: LOT_SHORT[l.id], color: LOT_COLOR, title: `${LOT_LABELS[l.id]} — ${pos(l.sign, l.degreeInSign)}` });
-  return out;
-}
+export { extraOuterPoints };
 
 export function ExtraPointsWheel({ t, frame }: { t: ExtraPointsTechnical; frame: ExtraNatalFrame }) {
   const asc = frame.angles.ascendant.longitude;
@@ -335,7 +313,8 @@ export function ExtraPointsWheel({ t, frame }: { t: ExtraPointsTechnical; frame:
     return { x: C + r * Math.cos(a), y: C - r * Math.sin(a) };
   };
   // Natal iç halka: ortalama Lilith natalde de var → ek noktalar katmanında çizildiği için iç halkada tekrar ÇİZİLMEZ (karışmasın).
-  const inner = frame.bodies.filter((b) => (t.lilith ? b.id !== "lilith" : true) && (b.id as string) in BODY_GLYPHS);
+  // İç / dış halka listeleri Word/PDF raporuyla ORTAK (labels/extraPointsWheel.ts).
+  const inner = extraInnerBodies(t, frame);
   const innerDisp = spread(inner.map((b) => ({ key: b.id, longitude: b.longitude })), 7);
   const outer = extraOuterPoints(t);
   const outerDisp = spread(outer, 6.5);

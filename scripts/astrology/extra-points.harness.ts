@@ -41,6 +41,13 @@ import {
 import { EXTRA_SECTIONS, extraSectionsOf, LOT_DAY_FORMULA, lotFormulaFor, n360, type ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
+import { buildWheelSvg } from "@/lib/astrology/report/wheelSvg";
+import { renderWheelPng } from "@/lib/astrology/report/chartPng";
+import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
+import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
+import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
+import { extraInnerBodies, extraOuterPoints, extraWheelLegendParts } from "@/lib/astrology/labels/extraPointsWheel";
+import JSZip from "jszip";
 import { interpretationKindOfSchema } from "@/lib/astrology/interpretationKind";
 import { topicsForTechnique } from "@/lib/astrology/topics/index";
 import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
@@ -493,6 +500,58 @@ async function main() {
     assert.equal(a.interpretation.content.schema, "astro.western.extra_points.interp.v1");
     assert.equal(a.interpretation.content.asteroids.items[0].text, G["extra-asteroids"].response.asteroids[0].interpretation);
     assert.equal(a.interpretation.content.lilith.items[1].note, G["extra-lilith"].response.lilith[1].note);
+  });
+
+  // ═══ H2) RAPOR ÇARKI (2026-11-27) — ekrandaki çarkla AYNI veri: iç halka natal çerçeve, dış halka ek noktalar ═══
+  await t("H2: Word/PDF rapor çarkı — iç halka = ekrandaki natal gövdeler, dış halka = ekrandaki ek noktalar (anahtar/boylam/etiket/renk aynı), 12 ev + ASC/MC, açı çizgisi yok; PNG 1200² Word = PDF; çerçeve yoksa çark yok", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    await run(ctx, pa, [NATAL_SEL, EP()], rx.deps);
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...EP(), saveRequestId: randomUUID() }, false);
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    const t0 = a.technical as ExtraPointsTechnical;
+    assert.ok(t0.natalFrame, "kurulum: natal çerçeve olmalı");
+    const r = buildAstroReport(a);
+    const ch = r.blocks.find((b) => b.kind === "chart") as J;
+    assert.ok(ch && ch.chart, "rapor: ek noktalar çarkı yok");
+    const w = ch.chart as J;
+    // Ekranın kullandığı saf listelerle BİREBİR (ExtraPointsWheel aynı fonksiyonları çağırır).
+    const scrOuter = extraOuterPoints(t0);
+    const scrInner = extraInnerBodies(t0, t0.natalFrame!);
+    assert.deepEqual(w.outer.bodies.map((b: J) => [b.id, b.longitude, b.label, b.color]), scrOuter.map((p) => [p.key, p.longitude, p.label, p.color]), "dış halka ekranla aynı değil");
+    assert.deepEqual(w.bodies.map((b: J) => [b.id, b.longitude]), scrInner.map((b) => [b.id, b.longitude]), "iç halka ekranla aynı değil");
+    assert.ok(scrOuter.length >= 4 + 2 + 6, `dış halka: asteroit + Lilith + lot (${scrOuter.length})`);
+    assert.ok(!w.bodies.some((b: J) => b.id === "lilith"), "ortalama Lilith iç halkada tekrar çizilmemeli (ekranla aynı)");
+    assert.equal(w.houses.length, 12);
+    assert.deepEqual(w.houses.map((h: J) => h.longitude), t0.natalFrame!.houses.map((h) => h.longitude));
+    assert.equal(w.angles.ascendant.longitude, t0.natalFrame!.angles.ascendant.longitude);
+    assert.equal(w.angles.midheaven.longitude, t0.natalFrame!.angles.midheaven.longitude);
+    assert.deepEqual(w.aspects, []);
+    assert.deepEqual(w.crossAspects, []);
+    const svg = buildWheelSvg(w);
+    for (const p of scrOuter) assert.ok(svg.includes(`fill="${p.color}">${p.label.replace(/&/g, "&amp;")}<`), `çarkta ${p.key} etiketi/rengi yok`);
+    assert.equal((svg.match(/<line [^>]*opacity="0\.75"/g) ?? []).length, 0, "ek noktalarda açı çizgisi olmamalı");
+    for (const lbl of ["ASC", "DSC", "MC", "IC"]) assert.ok(svg.includes(`>${lbl}<`), lbl);
+    for (let i = 1; i <= 12; i++) assert.ok(svg.includes(`>${i}</text>`), `ev ${i}`);
+    const s = reportTexts(r).join("\n");
+    assert.ok(s.includes("Natal + ek noktalar çift halka"), "çark başlığı");
+    for (const part of extraWheelLegendParts(t0).slice(1)) assert.ok(s.includes(part.text), `açıklama: ${part.text}`);
+    assert.ok(s.includes("açı çizgisi çizilmez") && !s.includes("Açı çizgileri: mavi uyumlu"), "açıklama açı renklerini anlatmamalı");
+    const png = renderWheelPng(w);
+    assert.ok(png, "PNG üretilemedi");
+    assert.equal(png!.png.readUInt32BE(16), 1200);
+    assert.equal(png!.png.readUInt32BE(20), 1200);
+    const zip = await JSZip.loadAsync(await renderAstroReportDocx(r, png!.png, symbolFontBuffers()));
+    const media = await Promise.all(Object.keys(zip.files).filter((n) => n.startsWith("word/media/") && !zip.files[n].dir).map((n) => zip.file(n)!.async("nodebuffer")));
+    assert.ok(media.some((b) => b.equals(png!.png)), "Word'deki çark üretilen PNG ile aynı değil");
+    const fontB64 = readFileSync(join(__dirname, "..", "..", "public", "fonts", "Geist-Regular.ttf")).toString("base64");
+    const pdf = Buffer.from(buildAstroReportPdf(r, png, fontB64, symbolFontsBase64())).toString("latin1");
+    assert.ok(/\/Width 1200[\s\S]{0,200}?\/Height 1200/.test(pdf), "PDF'te 1200×1200 çark görseli yok");
+    // Natal çerçevesiz kayıt: çark çizilmez (ekranla aynı; tablo ve not kalır).
+    const noFrame = { ...a, technical: { ...a.technical, natalFrame: null } };
+    assert.ok(!buildAstroReport(noFrame).blocks.some((b) => b.kind === "chart"), "çerçeve yokken çark çizilmemeli");
   });
 
   // ═══ H) RAPOR ═══════════════════════════════════════════════════════════════════
