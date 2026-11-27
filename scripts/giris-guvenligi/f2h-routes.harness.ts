@@ -70,7 +70,7 @@ async function main() {
     };
     const L = "http://localhost";
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
-    const lastCode = (to: string) => /^([0-9]{6}) — /.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.subject ?? "")?.[1] ?? "";
+    const lastCode = (to: string) => /\b([0-9]{6})\b/.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.text ?? "")?.[1] ?? "";
     const web = (bind: string) => ({ "sec-fetch-site": "same-origin", cookie: `__Host-yasam_mfa=${bind}` });
 
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id = $1`, [U.owner]);

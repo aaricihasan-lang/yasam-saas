@@ -107,6 +107,8 @@ const TSX = [
   // F3 pilot: tek uzman hesabı için adres doğrulaması (AUTH_EMAIL_VERIFY_PILOT_USER_ID) — diğer kullanıcılar aynen, OTP kuralları,
   // IDOR/CSRF, adres değişikliği / bildirim / kurtarma / MFA açılmaz.
   "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts",
+  // OTP e-postasında kod konu satırında YOK (bildirim önizlemesi / günlük sızıntısı), gövdede VAR.
+  "scripts/giris-guvenligi/otp-konu.check.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,

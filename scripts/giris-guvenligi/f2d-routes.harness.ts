@@ -93,7 +93,7 @@ async function main() {
     const count = async (sql: string, args: unknown[] = []) => Number((await admin.query(sql, args)).rows[0].n);
     const lastCode = (to: string): string => {
       const m = [...syntheticOutbox()].reverse().find((x) => x.to === to);
-      return /^([0-9]{6}) — /.exec(m?.subject ?? "")?.[1] ?? "";
+      return /\b([0-9]{6})\b/.exec(m?.text ?? "")?.[1] ?? "";
     };
     const age = (userId: string, secs = 61) =>
       admin.query(`UPDATE public.auth_email_otps SET created_at = created_at - make_interval(secs => $2), expires_at = expires_at - make_interval(secs => $2) WHERE user_id = $1`, [userId, secs]);

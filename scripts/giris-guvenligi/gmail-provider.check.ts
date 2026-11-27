@@ -164,7 +164,8 @@ async function main() {
     ok(/\r\nSubject: =\?UTF-8\?B\?[^\r\n]+\?=\r\n =\?UTF-8/.test(mm), "F2-I: katlanmış Subject başlığı (devam satırı boşlukla)");
   }
   const m = renderOtpEmail({ purpose: "login", code: "042917", name: "Ayşe", minutes: 3 });
-  ok(m.subject.startsWith("042917 — ") && /giriş/i.test(m.text) && /3 dakika/.test(m.text) && /kimseyle paylaşmayın/i.test(m.text), "giriş şablonu (TR)", m.subject);
+  // Kod konu satırında YOK (bildirim önizlemesi / günlük); yalnız gövdede.
+  ok(!m.subject.includes("042917") && m.text.includes("042917") && /giriş/i.test(m.text) && /3 dakika/.test(m.text) && /kimseyle paylaşmayın/i.test(m.text), "giriş şablonu (TR): kod gövdede, konuda değil", m.subject);
   ok(!/https?:\/\//.test(m.text + m.html) && !/<script|<img/i.test(m.html), "şablonda bağlantı / görsel / betik YOK");
   const v = renderOtpEmail({ purpose: "verify_email", code: "000001", name: null });
   ok(/doğrula/i.test(v.text) && v.text.includes("000001"), "e-posta doğrulama şablonu");
