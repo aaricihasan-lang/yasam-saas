@@ -1,12 +1,12 @@
-// MERKEZİ MIGRATION NUMARASI — GERÇEK GIT eşzamanlılık testleri (mock YOK). Geçici bare depo + klonlar; ağ / GitHub / DB YOK.
-// Her işçi AYRI node süreci (= ayrı oturum); hepsi aynı anda (engel zamanı) numara ister.
+// MERKEZİ MIGRATION NUMARASI — GERÇEK GIT eşzamanlılık / bütünlük testleri (mock YOK). Geçici bare depolar + klonlar +
+// ayrı node süreçleri (= ayrı oturumlar, aynı engel zamanında). Ağ / GitHub / DB YOK.
 // Çalıştırma: node scripts/migrations/numara/test/git-eszamanlilik.harness.mjs
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { ayir, ayristir, durum, ekle, gecmisiDogrula, git, okuUzak, olayEkle, DEFAULTS } from "../defter.mjs";
+import { ayir, ayristir, durum, ekle, aralikDogrula, git, okuUzak, olayEkle, onbellekRef, DEFAULTS } from "../defter.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(HERE, "..", "cli.mjs");
@@ -15,32 +15,34 @@ const KOK = fs.mkdtempSync(path.join(os.tmpdir(), "mig-numara-git-"));
 let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) pass++; else fail++; console.log(`${c ? "PASS" : "FAIL"} ${n}${x ? ` — ${x}` : ""}`); };
 const sh = (cwd, ...a) => git(cwd, a);
-const UZAK = path.join(KOK, "uzak.git");
-spawnSync("git", ["init", "--quiet", "--bare", "-b", "main", UZAK]);
-const klon = (ad) => {
+const kod = (fn) => { try { fn(); return null; } catch (e) { return e.kod ?? String(e.message).slice(0, 60); } };
+const cli = (cwd, args, env = {}) => spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: "utf8", env: { ...process.env, ...env } });
+const PROD = path.join(KOK, "prod.txt");
+fs.writeFileSync(PROD, ["20270101000000|a", "20280126000000|member_access_restriction", "20280127000000|member_access_message", "20280128000000|astro_analysis_result_parts", "20280129000000|sadece_prodda"].join("\n") + "\n");
+
+// Ana depo: aynı önekli eski dosyalar dahil.
+const yeniUzak = (ad) => {
+  const u = path.join(KOK, `${ad}.git`);
+  spawnSync("git", ["init", "--quiet", "--bare", "-b", "main", u]);
+  const k = path.join(KOK, `${ad}-kurulum`);
+  spawnSync("git", ["clone", "--quiet", u, k]);
+  sh(k, "config", "user.name", "kurulum"); sh(k, "config", "user.email", "k@t");
+  fs.mkdirSync(path.join(k, "supabase", "migrations"), { recursive: true });
+  for (const f of ["20270101000000_a.sql", "20270101000000_b.sql", "20280126000000_member_access_restriction.sql", "20280127000000_member_access_message.sql", "20280128000000_astro_analysis_result_parts.sql"]) fs.writeFileSync(path.join(k, "supabase", "migrations", f), `-- ${f}\nBEGIN;\nCOMMIT;\n`);
+  sh(k, "add", "-A"); sh(k, "commit", "-q", "-m", "ana"); sh(k, "push", "-q", "origin", "main");
+  return { u, k };
+};
+const klonla = (uzak, ad) => {
   const d = path.join(KOK, ad);
-  spawnSync("git", ["clone", "--quiet", UZAK, d]);
-  sh(d, "config", "user.name", `test-${ad}`);
-  sh(d, "config", "user.email", `${ad}@test`);
+  spawnSync("git", ["clone", "--quiet", uzak, d]);
+  sh(d, "config", "user.name", `oturum-${ad}`); sh(d, "config", "user.email", `${ad}@t`);
   return d;
 };
-// Ana dal: gerçek depodakine benzer geçmiş (aynı önekli eski dosyalar dahil).
-const K0 = path.join(KOK, "kurulum");
-spawnSync("git", ["init", "--quiet", "-b", "main", K0]);
-sh(K0, "config", "user.name", "kurulum");
-sh(K0, "config", "user.email", "k@test");
-fs.mkdirSync(path.join(K0, "supabase", "migrations"), { recursive: true });
-for (const f of ["20270101000000_a.sql", "20270101000000_b.sql", "20280126000000_member_access_restriction.sql", "20280127000000_member_access_message.sql", "20280128000000_astro_analysis_result_parts.sql"]) fs.writeFileSync(path.join(K0, "supabase", "migrations", f), `-- ${f}\nBEGIN;\nCOMMIT;\n`);
-sh(K0, "add", "-A");
-sh(K0, "commit", "-q", "-m", "ana");
-sh(K0, "remote", "add", "origin", UZAK);
-sh(K0, "push", "-q", "origin", "main");
-const cli = (cwd, ...a) => spawnSync(process.execPath, [CLI, ...a], { cwd, encoding: "utf8" });
 const defter = (cwd) => durum(ayristir(okuUzak(cwd).text));
 const isciler = (liste) => {
   const basla = Date.now() + 2500;
-  return Promise.all(liste.map(([d, modul, ad, dal]) => new Promise((res) => {
-    const p = spawn(process.execPath, [ISCI, d, modul, ad, String(basla), dal ?? ""], { stdio: ["ignore", "pipe", "pipe"] });
+  return Promise.all(liste.map((a) => new Promise((res) => {
+    const p = spawn(process.execPath, [ISCI, ...a.slice(0, 4), String(basla), ...a.slice(4)], { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     p.stdout.on("data", (b) => (out += b));
     p.on("close", () => { try { res(JSON.parse(out)); } catch { res({ ok: false, hata: out.slice(0, 200) }); } });
@@ -48,147 +50,174 @@ const isciler = (liste) => {
 };
 
 try {
-  // ── 0) Tohum: uzak defter dalı yok → CLI 'tohumla' oluşturur; ikinci tohum değişiklik yapmaz.
-  const t1 = cli(K0, "tohumla", "--prod-gecmis", writeProd(["20280126000000", "20280127000000", "20280128000000", "20280129000000"]));
+  const { u: U, k: K0 } = yeniUzak("ana");
+
+  // ── Tohumsuz defterde tahsis YOK; tohum zorunlu ve raporlu.
+  ok("tohumlanmamış defter: 'yeni' numara VERMEZ (TOHUMSUZ), dosya yazılmaz", /TOHUMSUZ/.test(cli(K0, ["yeni", "--modul", "xx", "--ad", "tohumsuz"]).stderr) && !fs.readdirSync(path.join(K0, "supabase", "migrations")).some((f) => f.includes("tohumsuz")));
+  ok("tohumla: --prod-gecmis zorunlu", /prod-gecmis/.test(cli(K0, ["tohumla"]).stderr));
+  const t1 = cli(K0, ["tohumla", "--prod-gecmis", PROD, "--rapor", path.join(KOK, "rapor.json")]);
+  const rap = JSON.parse(fs.readFileSync(path.join(KOK, "rapor.json"), "utf8"));
   const st0 = defter(K0);
-  ok("tohumla: main'deki tüm sürümler (aynı önekli eski dosyalar tek kayıtta) + production'a özgü sürüm 'gecmis' olarak işlendi", t1.status === 0 && st0.size === 5 && st0.get("20270101000000").dosyalar.length === 2 && st0.get("20280129000000").prod === true, (t1.stdout + t1.stderr).trim().split("\n").at(-1));
-  ok("tohumla tekrar: yeni satır yok (idempotent)", /güncel/.test(cli(K0, "tohumla").stdout));
+  ok("tohum: main'deki sürümler (aynı önekli iki dosya tek kayıtta, GİZLENMEDİ) + yalnız production'da olan sürüm; ilk yeni numara doğru", t1.status === 0 && st0.size === 5 && st0.get("20270101000000").dosyalar.length === 2 && st0.get("20280129000000").prod && rap.ayni_surum_birden_cok_dosya.length === 1 && rap.prodda_var_mainde_yok.includes("20280129000000|sadece_prodda") && rap.ilk_yeni_numara === "20280129000100", t1.stdout.trim().split("\n")[0]);
+  ok("tohum tekrar: yeni satır yok", /güncel/.test(cli(K0, ["tohumla", "--prod-gecmis", PROD]).stdout));
 
-  // ── 1) Ham CAS kanıtı: aynı uçtan türetilmiş iki commit → ilki kabul, ikincisi SUNUCUDA reddedilir (force yok).
+  // ── (1) Ham CAS: aynı uçtan iki commit → ikincisi sunucuda RED (ayrı test uzak deposu).
   {
-    const a = klon("cas-a"), b = klon("cas-b");
-    sh(a, "fetch", "-q", "origin", `+${DEFAULTS.ref}:refs/x`);
+    const { u } = yeniUzak("cas");
+    const a = klonla(u, "cas-a"), b = klonla(u, "cas-b");
+    const tohum = (d) => { const blob = git(d, ["hash-object", "-w", "--stdin"], { input: "x\n" }).out.trim(); const tr = git(d, ["mktree"], { input: `100644 blob ${blob}\t${DEFAULTS.file}\n` }).out.trim(); return git(d, ["commit-tree", tr, "-m", "k"]).out.trim(); };
+    const c0 = tohum(a); sh(a, "push", "-q", "origin", `${c0}:${DEFAULTS.ref}`);
     sh(b, "fetch", "-q", "origin", `+${DEFAULTS.ref}:refs/x`);
-    const yap = (d, metin) => {
-      const tip = sh(d, "rev-parse", "refs/x").out.trim();
-      const blob = git(d, ["hash-object", "-w", "--stdin"], { input: sh(d, "show", `${tip}:${DEFAULTS.file}`).out + metin }).out.trim();
-      const tree = git(d, ["mktree"], { input: `100644 blob ${blob}\t${DEFAULTS.file}\n` }).out.trim();
-      return git(d, ["commit-tree", tree, "-p", tip, "-m", metin]).out.trim();
-    };
-    const ca = yap(a, "a\n"), cb = yap(b, "b\n");
-    const pa = git(a, ["push", "origin", `${ca}:${DEFAULTS.ref}`], { allowFail: true });
-    const pb = git(b, ["push", "origin", `${cb}:${DEFAULTS.ref}`], { allowFail: true });
-    ok("CAS: aynı ebeveynli ikinci commit sunucu tarafından REDDEDİLDİ (non-fast-forward); defter yalnız birincisini içerir", pa.ok && !pb.ok && /rejected|fetch first|non-fast-forward/i.test(pb.err), pb.err.trim().split("\n").at(-1));
-    // Test satırını geri almak için ileri-sarma commit (geçmiş korunur, silme YOK değil → bu test dalını ayrı ref'e taşı):
+    const yap = (d, m) => { const blob = git(d, ["hash-object", "-w", "--stdin"], { input: `x\n${m}\n` }).out.trim(); const tr = git(d, ["mktree"], { input: `100644 blob ${blob}\t${DEFAULTS.file}\n` }).out.trim(); return git(d, ["commit-tree", tr, "-p", c0, "-m", m]).out.trim(); };
+    const pa = git(a, ["push", "origin", `${yap(a, "a")}:${DEFAULTS.ref}`], { allowFail: true });
+    const pb = git(b, ["push", "origin", `${yap(b, "b")}:${DEFAULTS.ref}`], { allowFail: true });
+    ok("CAS: aynı ebeveynli ikinci commit SUNUCU tarafından reddedildi (force yok)", pa.ok && !pb.ok && /rejected|fetch first|non-fast-forward/i.test(pb.err));
   }
-  // CAS testi defteri bozdu (ham 'a' satırı) → ayrı, temiz bir uzak defter ref'i ile devam (gerçek akışta ham yazım yapılmaz).
-  const CFG = { ...DEFAULTS, ref: "refs/heads/migration-rezervasyon-test" };
-  ekle(K0, (o) => (o.length ? null : [...st0.values()].map((x) => ({ v: 1, olay: "gecmis", surum: x.surum, dosyalar: x.dosyalar, prod: x.prod, zaman: new Date().toISOString() }))), { cfg: CFG });
-  ok("bozuk (JSON olmayan) defter satırı okunurken açık hata verir; üzerine yazılmaz", (() => { try { defter(K0); return false; } catch (e) { return e.kod === "BOZUK"; } })());
 
-  // İşçiler varsayılan ref'i kullanır → test için varsayılan ref'i temiz defter olarak YENİDEN kur (yeni uzak depo).
-  const UZAK2 = path.join(KOK, "uzak2.git");
-  spawnSync("git", ["clone", "--quiet", "--bare", "--single-branch", "-b", "main", UZAK, UZAK2]);
-  sh(K0, "remote", "set-url", "origin", UZAK2);
-  cli(K0, "tohumla", "--prod-gecmis", path.join(KOK, "prod.txt"));
-
-  const klon2 = (ad) => {
-    const d = path.join(KOK, ad);
-    spawnSync("git", ["clone", "--quiet", UZAK2, d]);
-    sh(d, "config", "user.name", `oturum-${ad}`);
-    return d;
-  };
-
-  // ── 2) İki oturum aynı anda.
-  const k = Array.from({ length: 60 }, (_, i) => klon2(`o${i}`));
-  let r = await isciler([[k[0], "atlas", "kp_bir"], [k[1], "uye-yonetimi", "uye_bir"]]);
-  ok("2 eşzamanlı oturum → iki farklı numara, ikisi de başarılı", r.every((x) => x.ok) && new Set(r.map((x) => x.surum)).size === 2, r.map((x) => `${x.surum}(d${x.deneme})`).join(" "));
-  ok("numaralar main + production'daki en büyük sürümden (20280129000000) büyük ve geçerli ızgarada", r.every((x) => x.surum > "20280129000000" && /00$/.test(x.surum)));
-
-  // ── 3) Beş bağımsız işlem.
-  r = await isciler(k.slice(2, 7).map((d, i) => [d, "modul-" + i, `bes_${i}`]));
-  ok("5 eşzamanlı işlem → 5 benzersiz numara", r.every((x) => x.ok) && new Set(r.map((x) => x.surum)).size === 5, `yeniden deneme toplamı ${r.reduce((a, x) => a + (x.deneme - 1), 0)}`);
-
-  // ── 4) Onlarca talep: 40 ayrı klon + 10 süreç AYNI klonu paylaşır (aynı depo/ref alanı = aynı makinedeki iki worktree).
-  const ortak = k[59];
-  const liste = [...k.slice(7, 47).map((d, i) => [d, "toplu", `toplu_${i}`]), ...Array.from({ length: 10 }, (_, i) => [ortak, "ortak", `ortak_${i}`])];
-  r = await isciler(liste);
+  // ── Eşzamanlı ayırmalar (ayrı klonlar = farklı bilgisayarlar; ortak klon = aynı çalışma klasörü)
+  const k = Array.from({ length: 64 }, (_, i) => klonla(U, `o${i}`));
+  let r = await isciler([[k[0], "ayir", "atlas", "kp_bir"], [k[1], "ayir", "uye-yonetimi", "uye_bir"]]);
+  ok("(2a) iki oturum, farklı modüller, aynı anda → iki farklı numara", r.every((x) => x.ok) && new Set(r.map((x) => x.surum)).size === 2, r.map((x) => `${x.surum}(d${x.deneme})`).join(" "));
+  ok("numaralar main + production'ın en büyüğünden (20280129000000) büyük, geçerli ızgara", r.every((x) => x.surum > "20280129000000" && /00$/.test(x.surum)));
+  r = await isciler(k.slice(2, 7).map((d) => [d, "ayir", "ayni-modul", "ayni_is", "work/ayni"]));
+  ok("(2b) AYNI modül + ad + dal, 5 oturum aynı anda → TEK numara, defterde TEK ayırma (idempotent)", r.every((x) => x.ok) && new Set(r.map((x) => x.surum)).size === 1 && [...defter(K0).values()].filter((x) => x.modul === "ayni-modul").length === 1, `${r.filter((x) => x.mevcut).length} oturum mevcut ayırmayı aldı`);
+  const ortak = k[63];
+  r = await isciler([...k.slice(7, 47).map((d, i) => [d, "ayir", "toplu", `toplu_${i}`]), ...Array.from({ length: 10 }, (_, i) => [ortak, "ayir", "ortak", `ortak_${i}`])]);
   const basarili = r.filter((x) => x.ok);
-  const st = defter(K0);
-  const ayrilan = [...st.values()].filter((x) => !x.gecmis);
-  ok(`50 eşzamanlı talep (40 ayrı klon + 10 aynı klon) → hepsi başarılı, hepsi benzersiz`, basarili.length === 50 && new Set(basarili.map((x) => x.surum)).size === 50, `başarısız ${r.length - basarili.length}: ${r.filter((x) => !x.ok).map((x) => x.kod + " " + (x.hata ?? "")).join(" | ").slice(0, 400)}; en uzun ${Math.max(...r.map((x) => x.ms ?? 0))} ms`);
-  ok("rekabet gerçekten oluştu (en az bir CAS reddi + yeniden deneme) ve çözüldü", r.some((x) => x.deneme > 1), `en çok deneme ${Math.max(...basarili.map((x) => x.deneme))}`);
-  ok("defterdeki ayırma sayısı = başarılı talep sayısı (2+5+50); hiçbir sürüm iki kez yok", ayrilan.length === 57 && new Set(ayrilan.map((x) => x.surum)).size === 57);
-  const g = gecmisiDogrula(K0, (sh(K0, "fetch", "-q", "origin", `+${DEFAULTS.ref}:refs/dd`), "refs/dd"));
-  ok("defter geçmişi: doğrusal, yalnız ekleme, her ara durum tutarlı", g.commit >= 58, `${g.commit} commit / ${g.olay} olay`);
+  ok("(3)(4)(5) 50 eşzamanlı talep (40 ayrı klon + 10 aynı klasör) → hepsi başarılı, hepsi benzersiz", basarili.length === 50 && new Set(basarili.map((x) => x.surum)).size === 50, `başarısız ${r.length - basarili.length}: ${r.filter((x) => !x.ok).map((x) => x.kod).join(",")}; en çok deneme ${Math.max(...basarili.map((x) => x.deneme))}`);
+  ok("rekabet gerçekten oluştu ve çözüldü (yeniden deneme > 1)", basarili.some((x) => x.deneme > 1));
+  const tumAyir = [...defter(K0).values()].filter((x) => !x.gecmis);
+  ok("defterde 53 ayırma, hiçbir sürüm iki kez yok", tumAyir.length === 53 && new Set(tumAyir.map((x) => x.surum)).size === 53, String(tumAyir.length));
+  sh(K0, "fetch", "-q", "origin", `+${DEFAULTS.ref}:refs/dd`);
+  const g = aralikDogrula(K0, null, "refs/dd");
+  ok("defter geçmişi: doğrusal, yalnız ekleme, her ara durum geçerli", g.commit >= 54, `${g.commit} commit / ${g.olay} olay`);
 
-  // ── 5) Aynı migration ikinci kez (aynı modül + ad + dal) → yeni numara VERİLMEZ (idempotent).
-  const once = defter(K0).size;
-  const tek = ayir(k[0], { modul: "atlas", ad: "kp_bir", dal: "work/kp_bir", refs: ["origin/main"] });
-  ok("aynı migration ikinci kez → mevcut ayırma döner, defter büyümez", tek.mevcut === true && defter(K0).size === once, tek.surum);
-
-  // ── 6) Eski dal üzerinden: klon hiç fetch etmemiş + yerel main geride → numara yine GÜNCEL defterden.
-  const eski = klon2("eski");
-  sh(K0, "fetch", "-q", "origin");
-  const yeniMain = path.join(K0, "supabase", "migrations", "20290101000000_ileri.sql");
-  sh(K0, "checkout", "-q", "main");
-  sh(K0, "pull", "-q", "origin", "main");
-  fs.writeFileSync(yeniMain, "BEGIN;\nCOMMIT;\n");
-  sh(K0, "add", "-A");
-  sh(K0, "commit", "-q", "-m", "ileri");
-  sh(K0, "push", "-q", "origin", "main");
-  const rEski = ayir(eski, { modul: "eski", ad: "eski_dal", dal: "work/eski", refs: [(git(eski, ["fetch", "-q", "origin", "+refs/heads/main:refs/remotes/origin/main"]), "origin/main")] });
-  ok("eski dal: main'e sonradan giren 20290101000000 dahil, numara GÜNCEL en büyükten büyük", rEski.surum > "20290101000000", rEski.surum);
-
-  // ── 7) İptal edilmiş numara yeniden istenemez; otomatik tahsis de geri vermez.
-  const iptalEdilecek = rEski.surum;
-  olayEkle(eski, { olay: "iptal", surum: iptalEdilecek, neden: "test" });
-  let red = null;
-  try { ayir(eski, { modul: "eski", ad: "baska_is", dal: "work/x", surum: iptalEdilecek, refs: ["origin/main"] }); } catch (e) { red = e.kod; }
-  const sonra = ayir(eski, { modul: "eski", ad: "baska_is", dal: "work/x", refs: ["origin/main"] });
-  ok("iptal edilmiş numara elle istenince RED (IPTAL); otomatik tahsis daha büyük yeni numara verir", red === "IPTAL" && sonra.surum > iptalEdilecek, `${red} / ${sonra.surum}`);
-  let red2 = null;
-  try { ayir(eski, { modul: "eski", ad: "elle", dal: "work/y", surum: "20280126000000", refs: ["origin/main"] }); } catch (e) { red2 = e.kod; }
-  ok("başka işe / production'a ait numara elle istenince RED", red2 === "DOLU", red2);
-  let red3 = null;
-  try { olayEkle(eski, { olay: "uygula", surum: iptalEdilecek }); } catch (e) { red3 = e.kod; }
-  ok("iptal edilmiş numaraya sonradan 'uygula' olayı eklenemez", red3 === "IPTAL", red3);
-
-  // ── 8) Bağlantı kopması / ağ hatası: CLI 'yeni' numara alamazsa HİÇBİR dosya yazmaz.
-  const ag = klon2("ag");
-  const once8 = fs.readdirSync(path.join(ag, "supabase", "migrations")).length;
-  const y = cli(ag, "yeni", "--modul", "ag", "--ad", "ag_testi", "--uzak", "yok-boyle-uzak");
-  ok("ağ yok / uzak erişilemez → Türkçe hata, çıkış≠0, migration dosyası OLUŞMAZ", y.status !== 0 && /HATA \[AG\]|okunamadı/.test(y.stderr) && fs.readdirSync(path.join(ag, "supabase", "migrations")).length === once8, y.stderr.trim().split("\n").at(-1));
-
-  // ── 9) Sunucu push'u reddediyor (pre-receive kancası her zaman RED) → CEKISME, dosya yok, defter değişmez.
-  const UZAK3 = path.join(KOK, "uzak3.git");
-  spawnSync("git", ["clone", "--quiet", "--bare", UZAK2, UZAK3]);
-  fs.writeFileSync(path.join(UZAK3, "hooks", "pre-receive"), "#!/bin/sh\necho 'politika: reddedildi' >&2\nexit 1\n", { mode: 0o755 });
-  const rd = klon2("red");
-  sh(rd, "remote", "set-url", "origin", UZAK3);
-  const once9 = fs.readdirSync(path.join(rd, "supabase", "migrations")).length;
-  const defterOnce9 = okuUzak(rd).text;
-  const yr = spawnSync(process.execPath, [CLI, "yeni", "--modul", "red", "--ad", "red_testi"], { cwd: rd, encoding: "utf8", env: { ...process.env, MIGRATION_NUMARA_DENEME: "3" } });
-  ok("push sürekli reddedilirse: açık hata (CEKISME), dosya OLUŞMAZ, uzak defter değişmez", yr.status !== 0 && /CEKISME/.test(yr.stderr) && fs.readdirSync(path.join(rd, "supabase", "migrations")).length === once9 && okuUzak(rd).text === defterOnce9, yr.stderr.trim().split("\n").at(-1));
-
-  // ── 10) Belirsiz sonuç (bağlantı push'tan SONRA koptu): aynı işlem kimliğiyle tekrar → çift kayıt YOK.
-  const islem = "11111111-2222-4333-8444-555555555555";
-  const uret = () => [{ v: 1, olay: "ayir", surum: "20991231000000", dosya: "20991231000000_belirsiz.sql", modul: "belirsiz", dal: "w", zaman: new Date().toISOString() }];
-  const e1 = ekle(K0, uret, { islem });
-  const e2 = ekle(K0, uret, { islem });
-  ok("belirsiz sonuçtan sonra yeniden deneme: işlem kimliği defterde → başarı, ikinci satır YAZILMAZ", e1.tamam && e2.yeniden === true && [...defter(K0).values()].filter((x) => x.surum === "20991231000000").length === 1);
-
-  // ── 11) Rezervasyon var, dosya yok → 'liste' işaretler (CI'yı engellemez; yalnız PR'daki dosyalar denetlenir).
-  const ls = cli(k[1], "liste");
-  ok("dosyası henüz olmayan ayırma 'liste'de işaretli", /\[dosya bu kopyada yok\]/.test(ls.stdout) && ls.status === 0);
-
-  // ── 12) Defter kurcalama: bir satırı silen (ileri-sarma) commit → geçmiş doğrulaması RED.
+  // ── (6) Push SUNUCUDA kabul edildi ama istemci hata gördü (bağlantı koptu) → işlem kimliğiyle çözüm, çift kayıt YOK.
   {
-    const d = klon2("kurcala");
-    const { tip, text } = okuUzak(d);
-    const kirpik = text.split("\n").slice(1).join("\n");
-    const blob = git(d, ["hash-object", "-w", "--stdin"], { input: kirpik }).out.trim();
-    const tree = git(d, ["mktree"], { input: `100644 blob ${blob}\t${DEFAULTS.file}\n` }).out.trim();
-    const c = git(d, ["commit-tree", tree, "-p", tip, "-m", "kurcala"]).out.trim();
-    git(d, ["fetch", "-q", "origin", `+${DEFAULTS.ref}:refs/once`]);
-    let kod = null;
-    try { gecmisiDogrula(d, c); } catch (e) { kod = e.kod; }
-    ok("satır silen commit geçmiş doğrulamasında yakalanır (SILME)", kod === "SILME", kod);
+    const d = klonla(U, "kopma");
+    const once = [...defter(d).values()].length;
+    const out = spawnSync(process.execPath, ["-e", `import("file:///${path.resolve(HERE, "..", "defter.mjs").replace(/\\/g, "/")}").then(({ayir})=>{const r=ayir(${JSON.stringify(d)},{modul:"kopma",ad:"kopma_testi",dal:"work/kopma",refs:["origin/main"]});process.stdout.write(JSON.stringify(r))})`], { encoding: "utf8", env: { ...process.env, MIGRATION_NUMARA_TEST_KOPMA: "1" } });
+    const rr = JSON.parse(out.stdout || "{}");
+    const satir = [...defter(d).values()].filter((x) => x.modul === "kopma");
+    ok("(6) push kabul + bağlantı koptu → ikinci tur işlem kimliğini defterde bulur; TEK satır, aynı numara", rr.surum && satir.length === 1 && satir[0].surum === rr.surum && [...defter(d).values()].length === once + 1, `${rr.surum} deneme ${rr.deneme}`);
   }
-  // ── 13) Aynı sürüm iki kez 'ayir' içeren defter → tutarsız (CIFT); bunun üzerine yazma yapılmaz.
-  let kod13 = null;
-  try { durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"a.sql"}\n{"olay":"ayir","surum":"20300101000000","dosya":"b.sql"}\n`)); } catch (e) { kod13 = e.kod; }
-  ok("aynı sürümün ikinci ayırması tutarsızlık olarak reddedilir (CIFT)", kod13 === "CIFT");
+  // ── (7) Sunucu geçici hata (pre-receive ilk 3 push'u reddeder) → sonra başarı.
+  {
+    const { u } = yeniUzak("gecici");
+    const d = klonla(u, "gecici-k"); cli(d, ["tohumla", "--prod-gecmis", PROD]);
+    const sayac = path.join(KOK, "sayac.txt"); fs.writeFileSync(sayac, "0");
+    fs.writeFileSync(path.join(u, "hooks", "pre-receive"), `#!/bin/sh\nn=$(cat "${sayac.replace(/\\/g, "/")}")\nn=$((n+1))\necho $n > "${sayac.replace(/\\/g, "/")}"\nif [ $n -le 3 ]; then echo 'gecici hata' >&2; exit 1; fi\nexit 0\n`, { mode: 0o755 });
+    const y = cli(d, ["yeni", "--modul", "gecici", "--ad", "gecici_hata"]);
+    ok("(7) sunucu 3 kez geçici hata → 4. denemede ayrıldı, dosya oluştu", y.status === 0 && /AYRILDI/.test(y.stdout) && fs.existsSync(path.join(d, "supabase", "migrations", (/→ (\S+\.sql)/.exec(y.stdout) ?? [])[1] ?? "yok")), y.stdout.trim().split("\n")[0]);
+  }
+  // ── (8) Sunucuya hiç bağlanılamıyor → hata, dosya yok.
+  {
+    const d = klonla(U, "ag");
+    const once = fs.readdirSync(path.join(d, "supabase", "migrations")).length;
+    const y = cli(d, ["yeni", "--modul", "ag", "--ad", "ag_testi", "--uzak", "yok-boyle-uzak"], { MIGRATION_NUMARA_OKUMA_DENEME: "2" });
+    ok("(8) uzak erişilemez → Türkçe hata [AG], migration dosyası OLUŞMAZ", y.status !== 0 && /HATA \[AG\]/.test(y.stderr) && fs.readdirSync(path.join(d, "supabase", "migrations")).length === once);
+  }
+  // ── (9) Push sürekli reddediliyor → CEKISME, dosya yok, defter değişmez.
+  {
+    const u3 = path.join(KOK, "red.git");
+    spawnSync("git", ["clone", "--quiet", "--bare", U, u3]);
+    fs.writeFileSync(path.join(u3, "hooks", "pre-receive"), "#!/bin/sh\necho 'politika: reddedildi' >&2\nexit 1\n", { mode: 0o755 });
+    const d = klonla(u3, "red-k");
+    const once = okuUzak(d).text;
+    const y = cli(d, ["yeni", "--modul", "red", "--ad", "red_testi"], { MIGRATION_NUMARA_DENEME: "3" });
+    ok("(9) push sürekli RED → [CEKISME], dosya OLUŞMAZ, defter değişmez", y.status !== 0 && /CEKISME/.test(y.stderr) && !fs.readdirSync(path.join(d, "supabase", "migrations")).some((f) => f.includes("red_testi")) && okuUzak(d).text === once);
+  }
+  // ── (10)(11) Yarıda kesilme + yeniden başlatma / aynı işlemin tekrarı → aynı numara, dosya bir kez.
+  {
+    const d = klonla(U, "yarida");
+    sh(d, "checkout", "-q", "-b", "work/yarida");
+    const a1 = ayir(d, { modul: "yarida", ad: "yarida_kalan", dal: "work/yarida", refs: ["origin/main"] }); // dosya yazılmadan "kesildi"
+    const y = cli(d, ["yeni", "--modul", "yarida", "--ad", "yarida_kalan"]);
+    const y2 = cli(d, ["yeni", "--modul", "yarida", "--ad", "yarida_kalan"]);
+    ok("(10)(11) ayırma sonrası kesinti → 'yeni' aynı numarayı döndürür ve dosyayı oluşturur; tekrar → değişiklik yok", /MEVCUT AYIRMA/.test(y.stdout) && y.stdout.includes(a1.surum) && /OLUŞTURULDU/.test(y.stdout) && /zaten var/.test(y2.stdout) && [...defter(d).values()].filter((x) => x.modul === "yarida").length === 1);
+  }
+  // ── (13) Eski dal: main'e sonradan giren migration da hesaba katılır.
+  {
+    const eski = klonla(U, "eski");
+    const z = klonla(U, "ileri");
+    fs.writeFileSync(path.join(z, "supabase", "migrations", "20290101000000_ileri.sql"), "BEGIN;\nCOMMIT;\n");
+    sh(z, "add", "-A"); sh(z, "commit", "-q", "-m", "ileri"); sh(z, "push", "-q", "origin", "main");
+    sh(eski, "fetch", "-q", "origin", "+refs/heads/main:refs/remotes/origin/main");
+    const re = ayir(eski, { modul: "eski", ad: "eski_dal", dal: "work/eski", refs: ["origin/main"] });
+    ok("(13) eski dal → numara GÜNCEL main'den (20290101000000) büyük", re.surum > "20290101000000", re.surum);
+  }
+  // ── (19) Aynı anda numara alma + iptal.
+  {
+    const hedef = tumAyir[0].surum;
+    r = await isciler([[k[47], "iptal", hedef, "eşzamanlı iptal testi"], ...k.slice(48, 53).map((d, i) => [d, "ayir", "iptal-yarisi", `yaris_${i}`])]);
+    const st = defter(K0);
+    ok("(19) iptal + 5 ayırma aynı anda → iptal kalıcı, iptal edilen numara hiçbir yeni ayırmaya verilmedi", r.every((x) => x.ok) && st.get(hedef).durum === "iptal" && !r.filter((x) => x.surum).some((x) => x.surum === hedef));
+    ok("iptal edilmiş numara elle istenince RED (IPTAL)", kod(() => ayir(k[0], { modul: "xx", ad: "elle_iptal", dal: "w", surum: hedef, refs: ["origin/main"] })) === "IPTAL");
+  }
+  // ── (20) Aynı anda numara alma + production geçmişi ilerliyor (prod listesi işçiye ek sürüm olarak verilir).
+  {
+    r = await isciler([[k[53], "ayir", "prod-ilerledi", "p_bir", "w1", "20300101000000"], [k[54], "ayir", "prod-ilerledi", "p_iki", "w2"]]);
+    const p1 = r[0], p2 = r[1];
+    ok("(20) production ileri sürüm görünen oturum numarayı onun da ötesinden alır; diğeriyle çakışma yok", p1.ok && p2.ok && p1.surum > "20300101000000" && p1.surum !== p2.surum, `${p1.surum} / ${p2.surum}`);
+  }
+  // ── (15)(16) Yanlış SHA / PR / sahiplik → durum makinesi RED.
+  {
+    const d = klonla(U, "bagla");
+    const a = ayir(d, { modul: "bagla", ad: "bagla_testi", dal: "work/bagla", refs: ["origin/main"] });
+    ok("(15) biçimsiz SHA-256 ile bağlama → RED (GECIS)", kod(() => olayEkle(d, { olay: "bagla", surum: a.surum, pr: 5, dal: "work/bagla", depo: "o/r", sha256: "abc" })) === "GECIS");
+    ok("(16) geçersiz PR numarası ile bağlama → RED", kod(() => olayEkle(d, { olay: "bagla", surum: a.surum, pr: -1, dal: "work/bagla", depo: "o/r", sha256: "a".repeat(64) })) === "GECIS");
+    olayEkle(d, { olay: "bagla", surum: a.surum, pr: 5, dal: "work/bagla", depo: "o/r", sha256: "a".repeat(64) });
+    ok("aynı PR yeniden bağlama (SQL değişti) → kabul", kod(() => olayEkle(d, { olay: "bagla", surum: a.surum, pr: 5, dal: "work/bagla", depo: "o/r", sha256: "b".repeat(64) })) === null);
+    ok("başka PR / dal sahiplenmesi (devirsiz) → RED", kod(() => olayEkle(d, { olay: "bagla", surum: a.surum, pr: 9, dal: "work/baska", depo: "o/r", sha256: "b".repeat(64) })) === "GECIS");
+    ok("açık devir (devir + neden) → kabul ve geçmişte görünür", kod(() => olayEkle(d, { olay: "bagla", surum: a.surum, pr: 9, dal: "work/baska", depo: "o/r", sha256: "b".repeat(64), devir: true, neden: "PR #5 kapatıldı, iş #9'a taşındı" })) === null && defter(d).get(a.surum).pr === 9);
+    ok("bağlanmadan / farklı içerikle 'uygula' → RED", kod(() => olayEkle(d, { olay: "uygula", surum: a.surum, sha256: "c".repeat(64), proje: "p" })) === "GECIS");
+    olayEkle(d, { olay: "uygula", surum: a.surum, sha256: "b".repeat(64), proje: "p" });
+    ok("uygulanmış numaraya yeni olay (bağla / iptal) → RED; numara yeniden tahsis edilemez", kod(() => olayEkle(d, { olay: "iptal", surum: a.surum, neden: "deneme" })) === "UYGULANMIS" && kod(() => ayir(d, { modul: "xx", ad: "uyg", dal: "w", surum: a.surum, refs: ["origin/main"] })) === "DOLU");
+  }
+  // ── (17)(18) Dosyasız ayırma 'liste'de işaretli; ayırmasız dosya CI kapısında (ci-kapi harness).
+  ok("(17) dosyası henüz olmayan ayırma 'liste'de işaretli", /\[dosya bu kopyada yok\]/.test(cli(k[1], ["liste"]).stdout));
+  // ── Belirsiz sonuç: aynı işlem kimliğiyle tekrar → çift kayıt yok.
+  {
+    const islem = "11111111-2222-4333-8444-555555555555";
+    const uret = () => [{ v: 2, olay: "ayir", surum: "20991231000000", dosya: "20991231000000_belirsiz.sql", modul: "belirsiz", dal: "w", zaman: "t" }];
+    ekle(K0, uret, { islem });
+    const e2 = ekle(K0, uret, { islem });
+    ok("aynı işlem kimliğiyle ikinci gönderim → 'yeniden' başarı, ikinci satır YOK", e2.yeniden === true && [...defter(K0).values()].filter((x) => x.surum === "20991231000000").length === 1);
+  }
+  // ── (14) Defter dalının silinmesi / geçmişin yeniden yazılması → yeni tahsis DURUR.
+  {
+    const d = klonla(U, "koruma");
+    ayir(d, { modul: "koruma", ad: "koruma_once", dal: "w", refs: ["origin/main"] }); // bu makine ucu doğruladı
+    const { tip, text } = okuUzak(d);
+    // (a) yeniden yazma: son satırı silip FORCE push (yerel test deposu; gerçek GitHub'da kural seti bunu engeller)
+    const kirp = text.split("\n").filter(Boolean).slice(0, -1).join("\n") + "\n";
+    const blob = git(d, ["hash-object", "-w", "--stdin"], { input: kirp }).out.trim();
+    const tr = git(d, ["mktree"], { input: `100644 blob ${blob}\t${DEFAULTS.file}\n` }).out.trim();
+    const ebeveyn = git(d, ["rev-parse", `${tip}^`]).out.trim();
+    const yeniden = git(d, ["commit-tree", tr, "-p", ebeveyn, "-m", "kurcala"]).out.trim();
+    sh(d, "push", "-q", "--force", "origin", `${yeniden}:${DEFAULTS.ref}`);
+    ok("(14a) geçmiş force ile yeniden yazıldı → bu makinede tahsis DURUR (YENIDEN_YAZILDI)", kod(() => ayir(d, { modul: "koruma", ad: "koruma_sonra", dal: "w", refs: ["origin/main"] })) === "YENIDEN_YAZILDI");
+    ok("ilk kez gören makine, satır silen commit'i aralık doğrulamasında yakalar? (ileri-sarmalı silme)", (() => { const t2 = klonla(U, "koruma2"); const { tip: tp } = okuUzak(t2); const bl = git(t2, ["hash-object", "-w", "--stdin"], { input: okuUzak(t2).text.split("\n").slice(1).join("\n") }).out.trim(); const trr = git(t2, ["mktree"], { input: `100644 blob ${bl}\t${DEFAULTS.file}\n` }).out.trim(); const c = git(t2, ["commit-tree", trr, "-p", tp, "-m", "sil"]).out.trim(); sh(t2, "push", "-q", "origin", `${c}:${DEFAULTS.ref}`); return kod(() => ayir(klonla(U, "koruma3"), { modul: "xx", ad: "silme_sonrasi", dal: "w", refs: ["origin/main"] })) === "SILME"; })());
+    // (b) dal silindi
+    sh(d, "push", "-q", "origin", `:${DEFAULTS.ref}`);
+    git(d, ["update-ref", onbellekRef(DEFAULTS), tip]);
+    ok("(14b) defter dalı silindi → bu makinede tahsis DURUR (DEFTER_SILINDI), boş defterle yeniden başlamaz", kod(() => ayir(d, { modul: "koruma", ad: "koruma_silindi", dal: "w", refs: ["origin/main"] })) === "DEFTER_SILINDI");
+    ok("(14c) dal silindi + ilk kez gören makine → TOHUMSUZ (yeni numara verilmez)", kod(() => ayir(klonla(U, "koruma4"), { modul: "xx", ad: "ilk_kez", dal: "w", refs: ["origin/main"] })) === "TOHUMSUZ");
+  }
+  // ── (14d) Çapa: depoda (main'de) sabitlenmiş güvenilir defter commit'i yeni uçta yoksa → CAPA (ilk kez gören makine de durur).
+  {
+    const { u } = yeniUzak("capa");
+    const d = klonla(u, "capa-k");
+    cli(d, ["tohumla", "--prod-gecmis", PROD]);
+    const capa = okuUzak(d).tip;
+    ok("(14d) çapa uçta var → tahsis normal", kod(() => ayir(klonla(u, "capa-k2"), { modul: "capa", ad: "capa_var", dal: "w", refs: ["origin/main"], capa })) === null);
+    const yabanci = git(d, ["rev-parse", "origin/main"]).out.trim(); // defter geçmişinde olmayan bir commit
+    ok("(14d) çapa yeni uçta YOK (geçmiş başka kökten yeniden kurulmuş) → ilk kez gören makinede bile CAPA", kod(() => ayir(klonla(u, "capa-k3"), { modul: "capa", ad: "capa_yok", dal: "w", refs: ["origin/main"], capa: yabanci })) === "CAPA");
+  }
+  // ── Kurcalanmış durum: aynı sürüm iki 'ayir' / iptal sonrası olay → tutarsız (geçmiş doğrulamasında yakalanır).
+  ok("aynı sürümün ikinci 'ayir'ı → CIFT", kod(() => durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_a.sql","modul":"mm"}\n{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_b.sql","modul":"mm"}\n`))) === "CIFT");
+  ok("iptal sonrası 'bagla' → IPTAL_SONRASI", kod(() => durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_a.sql","modul":"mm"}\n{"olay":"iptal","surum":"20300101000000","neden":"yok"}\n{"olay":"bagla","surum":"20300101000000","dosya":"20300101000000_a.sql","pr":1,"dal":"d","depo":"o/r","sha256":"${"a".repeat(64)}"}\n`))) === "IPTAL_SONRASI");
+  ok("dosya adı sürümle uyuşmayan 'ayir' → GECIS", kod(() => durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"20300101000100_a.sql","modul":"mm"}\n`))) === "GECIS");
 } catch (e) {
   fail++;
   console.log(`FAIL beklenmeyen hata: ${e.stack?.split("\n").slice(0, 4).join(" | ")}`);
@@ -197,9 +226,3 @@ try {
 }
 console.log(`\nmigration-numara git-eşzamanlılık harness: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
-
-function writeProd(list) {
-  const p = path.join(KOK, "prod.txt");
-  fs.writeFileSync(p, list.join("\n") + "\n");
-  return p;
-}

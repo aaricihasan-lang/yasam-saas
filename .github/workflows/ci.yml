@@ -80,14 +80,17 @@ jobs:
           fi
 
       # DB-03 (2026-11-27): merkezi migration numarası. PR'a eklenen her migration merkezi defterde (migration-rezervasyon dalı)
-      # ayrılmış olmalı; base'deki migration'lar değiştirilemez / silinemez / yeniden adlandırılamaz. Migration içermeyen PR ağa
-      # çıkmadan PASS. Kip: scripts/migrations/numara/yapilandirma.json "zorunlu" (Owner onayıyla true) — o zamana dek UYARI kipi.
+      # ayrılmış VE bu PR'a bağlanmış olmalı (PR no + dal + depo + git blob SHA-256). PR bağlamı yalnız GitHub'ın olay dosyasından
+      # (GITHUB_EVENT_PATH, otomatik) okunur. base'deki migration'lar değiştirilemez / silinemez / yeniden adlandırılamaz.
+      # Migration içermeyen PR ağa çıkmadan PASS. push (main): main'deki her yeni migration bağlı + SHA eşleşmeli (zorunlu kipte).
+      # Kip: scripts/migrations/numara/yapilandirma.json "zorunlu" (Owner onayıyla true) — o zamana dek UYARI kipi.
+      # Defter okumak için yalnız contents:read (GITHUB_TOKEN) gerekir; CI deftere YAZMAZ, production sırrı KULLANMAZ.
       - name: Merkezi migration numarası (DB-03)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             node scripts/ci/migration-reservation-check.mjs --base "origin/${{ github.base_ref }}"
           else
-            echo "push olayı: PR karşılaştırması yok"
+            node scripts/ci/migration-reservation-check.mjs
           fi
 
       - name: Merkezi migration numarası testleri (gerçek git eşzamanlılığı + CI kapısı + izole PostgreSQL uygulama kapısı)
