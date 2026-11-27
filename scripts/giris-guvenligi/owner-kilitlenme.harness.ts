@@ -34,8 +34,10 @@ import { installSourceMutations } from "./sourceMutation";
 
 const MUTATIONS = installSourceMutations([
   { envVar: "OWNER_KILIT_ESKI_COZUMLEME", file: "lib/auth/mfaChallenge.ts", label: "eski yöntem çözümlemesi (bayraklar boşsa kurtarma da gizlenir)",
-    anchor: `  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);\n  const { data, error } = await db.rpc("auth_mfa_user_methods"`,
-    replacement: `  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);\n  if (flags.length === 0) return [];\n  const { data, error } = await db.rpc("auth_mfa_user_methods"` },
+    // F4: çözümlemede Risk B (test listesi süre dolumu) bloğu araya girdi; mutasyon artık DB okumasından hemen önce aynı eski
+    // kuralı ("bayraklar boşsa liste boş → kurtarma da gizlenir") uygular.
+    anchor: `  const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });`,
+    replacement: `  if (flags.length === 0) return [];\n  const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });` },
   { envVar: "OWNER_KIT_KORUMASIZ", file: "app/api/admin/users/[id]/mfa/route.ts", label: "Owner kit koruması kaldırıldı",
     anchor: `if (st.status.isOwnerAccount && st.status.ownerSelfRecoveryReady !== true) {`, replacement: `if (false) {` },
   { envVar: "OWNER_AYAR_KORUMASIZ", file: "app/api/admin/users/[id]/mfa/route.ts", label: "MFA ayar biçim koruması kaldırıldı",
