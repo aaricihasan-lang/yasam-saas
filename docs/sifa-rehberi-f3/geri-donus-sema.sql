@@ -6,6 +6,9 @@
 -- =============================================================================
 BEGIN;
 
+-- 20280130000400: yayın hazırlık işareti kaldırılır → F3 kodu Şifa'yı açmaz ("bakımda"). Yaşam döngüsü fonksiyonları aşağıda
+-- F3 öncesi (çekirdek + 20280124) tanımlarına döner.
+DROP FUNCTION IF EXISTS public.sifa_v2_f3_hazir();
 -- 20280130000300 (YH: not çöpü → kutular kuyruğa) — aktivasyon kapalıyken zaten no-op; tam geri dönüş için kaldırılır.
 DROP TRIGGER IF EXISTS yh_cdc_sifa_v2_note_trash_trg ON public.sifa_topic_blocks;
 DROP FUNCTION IF EXISTS public.yh_sifa_v2_note_trash_enqueue();

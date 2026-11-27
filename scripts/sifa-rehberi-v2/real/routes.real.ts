@@ -310,7 +310,7 @@ async function main(): Promise<void> {
     const { existsSync } = await import("node:fs");
     ok(!existsSync("app/sifa-rehberi/[id]/page.tsx") && !existsSync("app/api/sifa-rehberi"), "F3: V1 detay ekranı ve V1 API'si kaldırıldı");
     const layoutSrc = readFileSync("app/sifa-rehberi/layout.tsx", "utf8");
-    ok(/sifaScreen\(sifaV2EnabledFromEnv\(\)\) === "v2"\) return <SifaRehberi \/>/.test(layoutSrc) && /bakımda/.test(layoutSrc), "layout: bayrak açıkken F3 ekranı, kapalıyken 'bakımda' iletisi (kaynak doğrulaması)");
+    ok(/if \(await sifaEkranAcik\(getServerDb\(\)\)\) return <SifaRehberi \/>/.test(layoutSrc) && /bakımda/.test(layoutSrc), "layout: bayrak AÇIK + üç migration tamam → F3 ekranı; aksi hâlde 'bakımda' iletisi (kaynak doğrulaması)");
   } finally {
     await env.su.end().catch(() => {});
   }

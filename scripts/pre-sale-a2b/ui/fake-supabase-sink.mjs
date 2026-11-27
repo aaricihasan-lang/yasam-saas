@@ -25,6 +25,8 @@ http
         const row = { id: ADMIN_ID, role: "admin", active: true };
         return send(200, String(req.headers.accept ?? "").includes("vnd.pgrst.object") ? row : [row]);
       }
+      // Şifa F4-R2: yayın hazırlık işareti (üç F3 migration'ı tamam) — varsayılan hazır; FAKE_SIFA_HAZIR=0 → hazır değil.
+      if (!fromBrowser && u.pathname === "/rest/v1/rpc/sifa_v2_f3_hazir") return send(200, process.env.FAKE_SIFA_HAZIR !== "0");
       return send(401, { code: "42501", message: "permission denied (fake)" });
     });
   })

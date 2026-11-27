@@ -41,13 +41,13 @@ dağıtımı bakımda açılır.
 
 | # | Adım | Kim | Başarı ölçütü | Başarısız olursa (güvenli geri dönüş) |
 |---|---|---|---|---|
-| 0 | DB-03: `20280124000000` için kapılı uygulama yolu (DB-03 oturumunun düzeltmesi; §2.1) merge edildi | DB-03 oturumu + Owner | `uygula-prod.mjs --surum 20280124000000` KURU çalıştırma RED vermez | Yayın başlamaz (hiçbir şey değişmedi). |
+| 0 | PR #875 üç migration'ı içerir ve DB-03 defterinde PR'a BAĞLI: `20280130000200`, `20280130000300`, `20280130000400` | Claude | CI'da DB-03 kapısı yeşil | Yayın başlamaz. |
 | 1 | PR #875 CI güncel main üzerinde yeşil; DB-03 kapısı yeşil | Claude | 18/18 | Yayın başlamaz. |
 | 2 | Vercel Production ortam değişkeni `SIFA_REHBERI_V2_ENABLED=0` (yeniden dağıtım YOK; mevcut dağıtım kendi değeriyle sürer) | Owner | Değişken kayıtlı | Değeri `1`'e geri al (etkisi yok). |
 | 3 | Owner **merge** → otomatik dağıtım (F3 kodu, bayrak 0 → Şifa bakımda) | Owner | Dağıtım hazır; `/sifa-rehberi` "bakımda"; tüm `/api/sifa-rehberi-v2/*` 404; ana sayfa / giriş / diğer modüller 200 | Vercel'de önceki dağıtımı **Promote** (eski kod + eski şema = bugünkü hâl) ve değişkeni `1` yap. Veri değişmemiştir. |
 | 4 | **Manuel yedek + geri yükleme provası** (§1) | Claude/Owner | §1.3 eşleşmeleri birebir | DUR: migration UYGULANMAZ; Şifa bakımda kalır (veya adım 3'ün geri dönüşü). |
-| 5 | `uygula-prod.mjs` KURU çalıştırma ×3 (`20280124000000`, `20280130000200`, `20280130000300`) + `denetle` | Claude | Üçü de hazır; kapı dışı 0 / kayıp 0 | DUR; neden raporlanır. |
-| 6 | Sırayla `--uygula`: `20280124000000` → `20280130000200` → `20280130000300`; her birinden ÖNCE ve SONRA salt-okunur kontrol (§2.2) | Claude | Her biri kapıdan geçti; §2.2 kontrolleri PASS | Kapı tek işlemdedir: hata = tam geri alma → sonrakiler uygulanmaz, Şifa bakımda kalır. `UYGULAMA_BELIRSIZ` → önce `uzlastir`; yeniden deneme YOK. Felakette §1 yedeği (Owner kararı). |
+| 5 | `uygula-prod.mjs` KURU çalıştırma ×3 (`20280130000200`, `20280130000300`, `20280130000400`) + `denetle` | Claude | Üçü de hazır; kapı dışı 0 / kayıp 0 | DUR; neden raporlanır. |
+| 6 | Sırayla `--uygula`: `20280130000200` (F3) → `20280130000300` (YH kutu yayılımı) → `20280130000400` (ileri yaşam döngüsü + yayın hazırlık işareti); her birinden ÖNCE ve SONRA salt-okunur kontrol (§2.2). `20280124000000` UYGULANMAZ (§2.1) | Claude | Her biri kapıdan geçti; §2.2 PASS | Kapı tek işlemdedir: hata = tam geri alma → sonrakiler uygulanmaz, Şifa bakımda kalır. Ön koşullar sırayı zorlar (YH yoksa 000400 YSM02). `UYGULAMA_BELIRSIZ` → önce `uzlastir`; yeniden deneme YOK. Felakette §1 yedeği (Owner kararı). |
 | 7 | Salt-okunur son doğrulama (§2.2) + `denetle` | Claude | PASS | Şifa bakımda kalır; sorun incelenir. |
 | 8 | `SIFA_REHBERI_V2_ENABLED=1` + aynı commit'in **yeniden dağıtımı** (Redeploy) | Owner | Şifa F3 ekranı açık | Değişkeni `0` yap + yeniden dağıtım (seviye 2 bakım). |
 | 9 | Canlı kabul (Owner izniyle, test hesabıyla; masaüstü + Android) | Owner + Claude | Kabul listesi | Seviye 2 bakım (§3). |
@@ -63,18 +63,27 @@ dağıtımı bakımda açılır.
 - Bakımdan ÖNCE alınmış imzalı yükleme bağlantısı (en fazla ~2 saat geçerli) Storage'a dosya bırakabilir; kesinleştirme 404 →
   **kayıt oluşmaz**, dosya sahipsiz kalır (veriye bağlanmaz; sonradan Owner onaylı temizlikle silinebilir).
 
-### 2.1 `20280124000000` — DB-03 engeli
-Merkezi defterde 253 sürüm "geçmiş, production'da değil" olarak dondurulmuştur ve kapı bunları uygulamaz (`AYIRMA`). `20280124000000`'ın
-nesneleri production'da GERÇEKTEN yoktur (salt-okunur kontrol 27.11.2026: `sifa_v2__asset_in_use`, `sifa_v2_gc_candidates`,
-`sifa_v2__block_dead` yok). F3 migration'ı bu fonksiyonlara dayandığından önce o uygulanmalıdır. Kapı atlatılmaz; DB-03 sistemine
-kapılı bir yol eklenir (DB-03 oturumu; teknik talimat Owner'da). O yol merge edilmeden yayın başlamaz.
+### 2.1 `20280124000000` — UYGULANMAZ; yerine ileri yönlü `20280130000400`
+`20280124000000` production'a hiç uygulanmadı (gerçek şema karşılaştırması: production'daki 6 yaşam döngüsü fonksiyonu "yalnız
+çekirdek" ile birebir). DB-03 onu "gecmis prod:false" olarak dondurdu; kapı onu uygulamaz (`AYIRMA`) ve dosya kapının SQL yapı
+kuralına da uymaz (`SQL_YAPI`). DB-03 GEVŞETİLMEDİ, defter elle değiştirilmedi: gereken değişiklik merkezi defterden yeni numara
+alan ileri migration `20280130000400_sifa_v2_asset_lifecycle_ileri.sql` ile yapılır (`scripts/sifa-rehberi-f3/gen-lc-ileri.mjs`
+üretir — 20280124'ün F3 ile çakışmayan 4 fonksiyonu AYNEN; `__block_dead` / `__asset_in_use` F3'te). Kanıt:
+`scripts/sifa-rehberi-f3/lc-ileri.pg.mjs` (gerçek defter + kapı, izole). `20280124000000` dondurulmuş hâliyle main'de kalır.
+
+### 2.1b Yayın hazırlık işareti — üç migration bitmeden Şifa AÇILAMAZ
+`20280130000400` son adımda `sifa_v2_f3_hazir()` fonksiyonunu kurar (kapı ön koşulu: F3 + YH uygulanmış). Uygulama Şifa ekranını
+ve 7 API işleyicisini **bayrak açık olsa bile** yalnız bu işaret `true` dönerse açar (`lib/sifa-rehberi-v2/server/realRoute.ts`
+`sifaV2Ready` / `sifaEkranAcik`; işaret yok / hata → "bakımda", API 404; sonuç 30 sn önbellek). Böylece adım 8'deki bayrak yanlışlıkla
+erken açılsa bile eksik şemayla yazma olmaz. Şema geri dönüşü (`geri-donus-sema.sql`) işareti kaldırır → Şifa kapanır.
+Kanıt: `scripts/sifa-rehberi-v2/routes.harness.ts` bölüm 1b (işaret yokken 7 işleyici 404, ekran kapalı; işaret gelince açık).
 
 ### 2.2 Migration öncesi / sonrası salt-okunur kontroller
 - Öncesi: proje kimliği `wctopfooajbpupeyukpd`; migration geçmişinde hedef sürüm YOK; §1.2 sayımları; `sifa_*` fonksiyon listesi.
-- `20280124000000` sonrası: `sifa_v2__asset_in_use`, `sifa_v2_gc_candidates`, `sifa_v2_gc_purge`, `sifa_v2_trash_purge` var; satır sayıları aynı.
 - `20280130000200` sonrası: `node_kind`, `parent_block_id`, `content_updated_at` sütunları + `sifa_blocks_guard_nest_trg` var;
   eski sütunların satır md5'i öncesiyle BİREBİR; `sifa_v2_upload_usage` YOK (kullanıcı kotası yok).
-- `20280130000300` sonrası: `yh_cdc_sifa_v2_note_trash_trg` var; `yh_source_activation('sifa_rehberi_v2:notes')` kaydı YOK (YH kapalı).
+- `20280130000300` sonrası: `yh_cdc_sifa_v2_note_trash_trg` var; `yh_source_activation('sifa_rehberi_v2:notes')` kaydı YOK (YH kapalı); `sifa_v2_f3_hazir()` HENÜZ YOK (Şifa kapalı).
+- `20280130000400` sonrası: `sifa_v2_gc_candidates`, `sifa_v2_gc_purge`, `sifa_v2_trash_candidates`, `sifa_v2_trash_purge` 20280124 gövdeleriyle; `sifa_v2_f3_hazir()` = true (yalnız service_role); `sifa_v2__block_dead` / `__asset_in_use` F3 tanımında.
 - Her adımda: diğer modüllerin tablo sayıları değişmez; `denetle` kapı dışı 0 / kayıp 0.
 
 **Migration uygulama yöntemi (DB-03, zorunlu):** yalnız `scripts/migrations/numara/uygula-prod.mjs` (önce kuru çalıştırma, sonra
@@ -122,6 +131,7 @@ okuma önerilir. Kullanıcı başına kota YOKTUR (Owner kararı F3-R1); geri d�
 - `scripts/sifa-rehberi-f3/yh-kutu.pg.mts` — YH: çöpteki notun kutuları aramada yok; YH kapalıyken etkisiz; geri dönüşte yalnız yeni tetikleyici kalkar (CI).
 - `scripts/sifa-rehberi-f3/counters.pg.mts` — ana ekran + Yönetim paneli Şifa sayacı (CI).
 - `scripts/sifa-rehberi-f3/sinirsiz.pg.mts` — kullanıcı kotası / içerik sayısı sınırı YOK (CI).
+- `scripts/sifa-rehberi-f3/lc-ileri.pg.mjs` — ileri yaşam döngüsü migration'ı: yanlış seçim, sıra, SHA-256, tekrar, eşzamanlılık, production uyumu, hazırlık işareti (CI).
 - `scripts/sifa-rehberi-f3/real/bakim.real.mts` — bakım modu (bayrak 0): ekran kapalı, açık sekme / Android yazamaz, veri birebir, diğer modüller çalışır.
 - `scripts/sifa-rehberi-f3/real/*` — gerçek sunucu + izole test projesi: 613 kabul kontrolü, API/güvenlik.
 

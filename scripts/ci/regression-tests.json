@@ -582,6 +582,10 @@
    "timeoutSec": 300
   },
   {
+   "file": "scripts/sifa-rehberi-f3/lc-ileri.pg.mjs",
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/yh-m6/client-outbox-e2e.pg.harness.ts",
    "tsx": true,
    "timeoutSec": 300

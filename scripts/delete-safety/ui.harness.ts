@@ -108,6 +108,8 @@ async function main() {
   try {
     dbEnv = await startTestDb(54423, "delete-safety-ui-db");
     await dbEnv.su.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20271009100000_admin_purge_archived_expert.sql"), "utf8"));
+    // Şifa F4-R2: ekran yalnız yayın hazırlık işareti varsa açılır (üç F3 migration'ı tamam) — bu test ortamında "tamam".
+    await dbEnv.su.query("CREATE OR REPLACE FUNCTION public.sifa_v2_f3_hazir() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$; GRANT EXECUTE ON FUNCTION public.sifa_v2_f3_hazir() TO service_role;");
     shim = await startPgrestShim(dbEnv.pool);
     proxy = await startProxy(shim.url, dbEnv.su, 54398);
     app = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "127.0.0.1"], {

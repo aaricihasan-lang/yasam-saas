@@ -52,8 +52,9 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 async function main(): Promise<void> {
   const port = 55000 + Math.floor(Math.random() * 900);
   // Gerçek şema sırası: çekirdek → görsel yaşam döngüsü → F3 (kişisel kütüphane, kutular).
-  const V2_SQL = ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"].map((f) => readFileSync(path.resolve("supabase/migrations", f), "utf8"));
-  const RPCS = ["sifa_v2_load", "sifa_v2_apply_changeset", "sifa_v2_copy_shared", "sifa_v2_register_upload", "sifa_v2_visible_assets", "sifa_v2_trash_candidates", "sifa_v2_trash_purge", "sifa_v2_import_legacy", "sifa_v2__apply"];
+  // + 20280130000400 (ileri yaşam döngüsü + yayın hazırlık işareti; YH 000300 bu ortamda yok — onkosul yalnız kapıda denetlenir).
+  const V2_SQL = ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql", "20280130000400_sifa_v2_asset_lifecycle_ileri.sql"].map((f) => readFileSync(path.resolve("supabase/migrations", f), "utf8"));
+  const RPCS = ["sifa_v2_load", "sifa_v2_apply_changeset", "sifa_v2_copy_shared", "sifa_v2_register_upload", "sifa_v2_visible_assets", "sifa_v2_trash_candidates", "sifa_v2_trash_purge", "sifa_v2_import_legacy", "sifa_v2__apply", "sifa_v2_f3_hazir"];
   const env: TestEnv = await startAnamnezTestEnv({ port, dirName: `sifa-v2-routes-${process.pid}`, httpPort: port + 1, rpcAllow: RPCS, extraSql: V2_SQL });
   // Anamnez shim'i genel RPC'yi `select * from fn()` ile çalıştırıp skaler sonucu [{fn: değer}] sarar —
   // GERÇEK PostgREST skaler değeri DOĞRUDAN döndürür (scripts/stone-library/realPostgrest.ts uyarısı).
@@ -80,7 +81,8 @@ async function main(): Promise<void> {
         `select p.proargnames n, (select array_agg(format_type(t, null) order by i) from unnest(p.proargtypes) with ordinality a(t, i)) t
            from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = $1`, [fn]);
       if (sig.rowCount !== 1) return send(404, { code: "PGRST202", message: `fn ${fn}`, details: null, hint: null });
-      const types = new Map<string, string>((sig.rows[0].n as string[]).map((n, i) => [n, (sig.rows[0].t as string[])[i]]));
+      // Argümansız fonksiyonda (ör. sifa_v2_f3_hazir) proargnames / proargtypes NULL döner — gerçek PostgREST gibi boş kabul edilir.
+      const types = new Map<string, string>(((sig.rows[0].n ?? []) as string[]).map((n, i) => [n, ((sig.rows[0].t ?? []) as string[])[i]]));
       const vals: unknown[] = [];
       const parts: string[] = [];
       for (const [k, v] of Object.entries(args)) {
@@ -211,6 +213,34 @@ async function main(): Promise<void> {
     process.env.SIFA_REHBERI_V2_ENABLED = "0";
     ok((await call(ws.GET, "GET", "workspace", as(U.U1))).status === 404, "sürüm bayrağı kapalı → 404 (V2 API yok)");
     process.env.SIFA_REHBERI_V2_ENABLED = "1";
+
+    section("1b. Yayın hazırlığı (F4-R2): bayrak AÇIK ama üç F3 migration'ı tamam değil → Şifa KAPALI");
+    const rr = await import("../../lib/sifa-rehberi-v2/server/realRoute");
+    const disc = await import("../../app/api/sifa-rehberi-v2/assets/discard/route");
+    const svcDb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    rr.sifaV2ReadyReset();
+    ok(await rr.sifaEkranAcik(svcDb), "üç migration tamam (hazırlık işareti var) + bayrak açık → ekran AÇIK");
+    await env.su.query("DROP FUNCTION public.sifa_v2_f3_hazir()");
+    rr.sifaV2ReadyReset();
+    ok(!(await rr.sifaEkranAcik(svcDb)), "hazırlık işareti YOK (son migration uygulanmamış) → ekran KAPALI ('bakımda')");
+    const kapali = [
+      await call(ws.GET, "GET", "workspace", as(U.U1)),
+      await call(ws.POST, "POST", "workspace", as(U.U1), { topics: [], blocks: [], links_add: [], links_remove: [] }),
+      await call(word.POST, "POST", "word", as(U.U1), { rootId: randomUUID() }),
+      await call(prep.POST, "POST", "assets/prepare", as(U.U1), { mimeType: "image/png", size: 10 }),
+      await call(fin.POST, "POST", "assets/finalize", as(U.U1), { assetId: randomUUID(), path: "x" }),
+      await call(disc.POST, "POST", "assets/discard", as(U.U1), { assetId: randomUUID(), path: "x" }),
+      await call(urls.POST, "POST", "assets/signed-urls", as(U.U1), { ids: [] }),
+    ].map((r) => r.status);
+    ok(kapali.every((s) => s === 404), "hazırlık işareti yokken 7 Şifa API işleyicisinin TAMAMI → 404 (bayrak açık olsa da yazma YOK)", kapali);
+    ok((await call(ws.GET, "GET", "workspace", {})).status === 401, "kimlik kapısı hazırlık denetiminden ÖNCE çalışmaya devam eder (oturumsuz → 401)");
+    await env.su.query(readFileSync(path.resolve("supabase/migrations/20280130000400_sifa_v2_asset_lifecycle_ileri.sql"), "utf8"));
+    rr.sifaV2ReadyReset();
+    ok((await rr.sifaEkranAcik(svcDb)) && (await call(ws.GET, "GET", "workspace", as(U.U1))).status === 200, "son migration uygulanınca → ekran ve API AÇIK");
+    process.env.SIFA_REHBERI_V2_ENABLED = "0";
+    ok(!(await rr.sifaEkranAcik(svcDb)), "bayrak KAPALI → hazırlık işareti olsa da ekran KAPALI (bakım modu)");
+    process.env.SIFA_REHBERI_V2_ENABLED = "1";
+
     const g1 = await call(ws.GET, "GET", "workspace", as(U.U1));
     ok(g1.status === 200, "Uzman 1 (T1) → 200", g1.json);
 
@@ -358,7 +388,7 @@ async function main(): Promise<void> {
     const { existsSync } = await import("node:fs");
     ok(!existsSync("app/sifa-rehberi/[id]/page.tsx") && !existsSync("app/api/sifa-rehberi"), "F3: V1 detay ekranı ve V1 API'si kaldırıldı");
     const layoutSrc = readFileSync("app/sifa-rehberi/layout.tsx", "utf8");
-    ok(/sifaScreen\(sifaV2EnabledFromEnv\(\)\) === "v2"\) return <SifaRehberi \/>/.test(layoutSrc) && /bakımda/.test(layoutSrc), "layout: bayrak açıkken F3 ekranı, kapalıyken 'bakımda' iletisi (kaynak doğrulaması)");
+    ok(/if \(await sifaEkranAcik\(getServerDb\(\)\)\) return <SifaRehberi \/>/.test(layoutSrc) && /bakımda/.test(layoutSrc), "layout: bayrak AÇIK + üç migration tamam → F3 ekranı; aksi hâlde 'bakımda' iletisi (kaynak doğrulaması)");
   } finally {
     proxy.closeAllConnections();
     rpcServer.closeAllConnections();
