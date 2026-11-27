@@ -110,6 +110,9 @@ const TSX = [
   // F4: MFA pilotu kilitlenme güvenliği — MFA öncesi kurtarma kodu kurulumu (TASLAK migration 20280129100000 sentetik DB'de),
   // kurtarma kodu şartı, test listesi süre dolumu, acil SQL kapatma, yaşam döngüsü.
   "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts",
+  // F4: MFA atlatma denetimi — bütün oturum oluşturan yollar (web / Android / tamamlama / doğrudan RPC), oturum sabitleme, replay,
+  // hesap keşfi; pozitif kontrollerle (imza hatası ≠ koruma).
+  "scripts/giris-guvenligi/f4-mfa-atlatma.harness.ts",
   // F4: girişte e-posta OTP pilotu (tek uzman) — planlanan production yapılandırmasının uçtan uca provası; diğer hesaplar
   // değişmez, OTP / CSRF / kilit / kurtarma kodu / e-posta kesintisi / QR uyumu / acil geri dönüş.
   "scripts/giris-guvenligi/f4-otp-giris-provasi.harness.ts",
