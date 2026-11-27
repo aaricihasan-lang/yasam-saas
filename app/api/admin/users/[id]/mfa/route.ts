@@ -103,6 +103,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
         if (!st.status.ready) {
           return json({ code: "NO_USABLE_METHOD", error: MFA_REASON_TEXT.no_usable_method, status: withReasonText(st) }, 409);
         }
+        // F4 (Risk A): Owner DIŞI hesapta kullanılmamış kurtarma kodu yoksa açılmaz (e-posta / telefon erişimi kaybolursa kilitlenme).
+        if (!st.status.isOwnerAccount && st.status.memberRecoveryReady !== true) {
+          return json({ code: "RECOVERY_REQUIRED", error: MFA_REASON_TEXT.recovery_codes_missing, status: withReasonText(st) }, 409);
+        }
         // Owner hesabı (yalnız kendisi olabilir): kurtarma kiti yoksa / okunamazsa açılmaz.
         if (st.status.isOwnerAccount && st.status.ownerSelfRecoveryReady !== true) {
           const reason = isSelf && st.status.ownerOfflineKitLeft !== null ? "owner_kit_missing" : "owner_recovery_unreadable";

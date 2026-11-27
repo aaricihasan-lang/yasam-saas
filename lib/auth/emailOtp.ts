@@ -103,15 +103,26 @@ export type OtpSendOutcome =
  * F2-J (L1): adres doğrulama kodu, kodun GÖNDERİLDİĞİ adrese bağlıdır (kapsam: verify:<kullanıcı>:<adres>). Adres, kod
  * üretimi ile onay arasında değişirse (yönetici düzenlemesi ile yarış) eski adrese giden kod yeni adresi doğrulayamaz.
  */
-function otpScope(purpose: "login" | "verify_email", userId: string, challengeId: string | null, email?: string | null): string | null {
+/**
+ * F4: "recovery_setup" — MFA öncesi kurtarma kodu kurulumu için posta kutusu kanıtı. Veritabanında purpose='verify_email'
+ * olarak saklanır (CHECK değişmez) ama HMAC kapsamı AYRIDIR (recovery-setup:<kullanıcı>:<adres>): bu kod adres doğrulamasında,
+ * adres doğrulama kodu da kurtarma kurulumunda GEÇMEZ. Tüketim auth_recovery_codes_setup içinde (aynı işlem).
+ */
+type OtpFlow = "login" | "verify_email" | "recovery_setup";
+
+function otpScope(purpose: OtpFlow, userId: string, challengeId: string | null, email?: string | null): string | null {
   if (purpose === "login") return `login:${challengeId}`;
+  if (purpose === "recovery_setup") {
+    const e = String(email ?? "").trim().toLowerCase();
+    return e ? `recovery-setup:${userId}:${e}` : null;
+  }
   const e = String(email ?? "").trim().toLowerCase();
   return e ? `verify:${userId}:${e}` : null;
 }
 
 export async function issueAndSendOtp(
   db: SupabaseClient,
-  args: { userId: string; email: string; name?: string | null; purpose: "login" | "verify_email"; challengeId: string | null },
+  args: { userId: string; email: string; name?: string | null; purpose: OtpFlow; challengeId: string | null },
   env: Env = process.env,
   providerOverride?: EmailProvider | null,
 ): Promise<OtpSendOutcome> {
@@ -124,7 +135,7 @@ export async function issueAndSendOtp(
   const { dailyLimit, warnAt } = emailLimits(env);
   const { data, error } = await db.rpc("auth_email_otp_issue", {
     p_user_id: args.userId,
-    p_purpose: args.purpose,
+    p_purpose: args.purpose === "recovery_setup" ? "verify_email" : args.purpose,
     p_challenge_id: args.challengeId,
     p_code_hash: hashOtp(scope, code, pepper),
     p_to_hash: hashRecipient(args.email, pepper),
@@ -144,7 +155,7 @@ export async function issueAndSendOtp(
     };
   }
   const mail = renderOtpEmail({ purpose: args.purpose, code, name: args.name ?? null, minutes: 3 });
-  const sent = await provider.send({ to: args.email, subject: mail.subject, text: mail.text, html: mail.html, category: args.purpose });
+  const sent = await provider.send({ to: args.email, subject: mail.subject, text: mail.text, html: mail.html, category: args.purpose === "recovery_setup" ? "verify_email" : args.purpose });
   await db.rpc("auth_email_delivery_result", {
     p_delivery_id: Number(r.delivery_id),
     p_ok: sent.ok,
@@ -182,4 +193,12 @@ export async function verifyOtp(
     code: (known as readonly string[]).includes(reason) ? (reason as (typeof known)[number]) : "error",
     ...(Number.isFinite(Number(r.attempts_left)) ? { attemptsLeft: Number(r.attempts_left) } : {}),
   };
+}
+
+/** F4: kurtarma kurulumu kodunun özeti (auth_recovery_codes_setup'a gider; düz kod DB'ye / loga yazılmaz). */
+export function recoverySetupOtpHash(userId: string, email: string, code: string, env: Env = process.env): string | null {
+  const pepper = otpPepper(env);
+  const scope = otpScope("recovery_setup", userId, null, email);
+  if (!pepper || !scope || !/^[0-9]{6}$/.test(code)) return null;
+  return hashOtp(scope, code, pepper);
 }

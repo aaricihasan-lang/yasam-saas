@@ -131,6 +131,10 @@ async function main() {
     const mob = await login(MOB1.email);
     const a3 = await setMfa(MOB1.id, mob.sid, MOB1.id, ENABLE());
     ok(a3.res.status >= 401 && a3.res.status <= 403 && (await required(MOB1.id)).mfa_required === false, "uzman kendi isteğiyle açamaz (yönetici değil)", { s: a3.res.status });
+    // F4: Owner dışı hesapta zorunluluk için kurtarma kodu şartı (gerçek akış: üye kodlarını ÖNCE oluşturur). Sentetik özet satırları;
+    // kural ayrıca f4-kurtarma-guvenligi'nde (kodsuz → 409 RECOVERY_REQUIRED) sınanır.
+    await q(`INSERT INTO public.auth_recovery_codes (user_id, kind, batch_id, code_hash)
+             SELECT u, 'user', gen_random_uuid(), md5(random()::text) || md5(random()::text) FROM unnest($1::uuid[]) u`, [[MOB1.id, U.and1, EXC.id]]);
     const a4 = await setMfa(U.owner, adm2.sid, MOB1.id, ENABLE());
     ok(a4.res.status >= 401 && a4.res.status <= 403 && (await required(MOB1.id)).mfa_required === false, "başka yöneticinin oturumu + Owner kimliği (x-admin-id) → RED", { s: a4.res.status });
     const a5 = await setMfa(U.owner, owner0.sid, MOB1.id, ENABLE(), { "sec-fetch-site": "cross-site", origin: "https://evil.example" });
@@ -175,8 +179,10 @@ async function main() {
     await withEnv({ EMAIL_PROVIDER: undefined }, async () => {
       const raw0 = (await q(`SELECT public.auth_mfa_set_required($1, $2, true, 'API atlanarak (negatif kontrol)') AS r`, [owner0.sid, AND1.id])).rows[0] as { r: J };
       const lockedLogin = await login(AND1.email);
-      ok(raw0.r.ok === true && lockedLogin.status === 202 && !lockedLogin.sid && (lockedLogin.json.methods as unknown[]).length === 0,
-        "NEGATİF KONTROL: ortam kontrolü atlanırsa üye KİLİTLENİR (DB kabul etti, girişte yöntem yok) — API kontrolünün gerekçesi", { raw0: raw0.r, login: lockedLogin.json.methods });
+      // F4: üyenin kurtarma kodu (fikstür) olduğu için tam kilitlenme yerine YALNIZ kurtarma kodu kalır — asıl yöntem yok,
+      // parolayla oturum yok. API kontrolünün gerekçesi değişmez (asıl yöntemsiz zorunluluk).
+      ok(raw0.r.ok === true && lockedLogin.status === 202 && !lockedLogin.sid && JSON.stringify(lockedLogin.json.methods) === '["recovery_code"]',
+        "NEGATİF KONTROL: ortam kontrolü atlanırsa üyenin ASIL yöntemi kalmaz (DB kabul etti; yalnız kurtarma kodu) — API kontrolünün gerekçesi", { raw0: raw0.r, login: lockedLogin.json.methods });
     });
 
     section("D) Açma — onay, gerekçe, atomik oturum kapatma, tekrar / eşzamanlılık");
@@ -280,7 +286,7 @@ async function main() {
     section("G) E-posta servisi sonradan kapanırsa");
     await withEnv({ EMAIL_PROVIDER: undefined }, async () => {
       const g1 = await login(MOB1.email);
-      ok(g1.status === 202 && !g1.sid && Array.isArray(g1.json.methods) && (g1.json.methods as unknown[]).length === 0, "zorunlu üye parolaya DÜŞMEZ (oturum yok, güvenli taraf)", g1.json);
+      ok(g1.status === 202 && !g1.sid && JSON.stringify(g1.json.methods) === '["recovery_code"]', "zorunlu üye parolaya DÜŞMEZ (oturum yok); e-posta yöntemi kalkar, KURTARMA KODU kalır (F4: kilitlenme yok)", g1.json.methods);
       const g2 = await getStatus(U.owner, owner.sid, MOB1.id);
       const gs = (g2.json.status ?? {}) as J;
       ok(gs.mfaRequired === true && gs.ready === false && JSON.stringify(gs.methods).includes("email_provider_missing"), "Owner ekranı riski gösterir (zorunlu + yöntem yok)", gs);

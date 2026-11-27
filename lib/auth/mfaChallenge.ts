@@ -74,7 +74,18 @@ export async function resolveUserMfaMethods(
   args: { userId: string; role: string; isTestAccount: boolean; emailConfigured: boolean; emailRoleAllowed: boolean },
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
-  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);
+  let flags = resolveOfferedMfaMethods(args.isTestAccount, env);
+  // F4 (Risk B): kapsam "test_accounts" iken listeye alınıp zorunluluğu AÇILMIŞ hesap, liste kaydının SÜRESİ DOLUNCA (ör. 14 gün)
+  // asıl yöntemini KAYBETMEZ (zorunluluk açık + yöntem yok = kilitlenme). Dar kural: yalnız kaydı süresi dolmuş (etkin kaydı
+  // olmayan) VE zorunlu hesap — listeye hiç alınmamış hesaplarda yanlış kapsam ayarı yine asıl yöntem AÇMAZ (#833). Fonksiyon
+  // (taslak migration 20280129100000) yoksa / okunamazsa / zorunluluk okunamazsa genişletme YAPILMAZ (fail-closed).
+  if (!args.isTestAccount && flags.length === 0 && resolveOfferedMfaMethods(true, env).length > 0) {
+    const lapsed = await db.rpc("auth_mfa_test_account_lapsed", { p_user_id: args.userId }).then((r) => !r.error && r.data === true, () => false);
+    if (lapsed) {
+      const req = await readMfaRequirement(db, args.userId);
+      if (req.status === "required") flags = resolveOfferedMfaMethods(true, env);
+    }
+  }
   const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });
   // 000400 henüz uygulanmamışsa (veya okuma hatası) F2-C davranışı: yalnız QR (cihaz imzası yine şart;
   // e-posta asla bu yoldan sunulmaz). Kod migration'dan önce yayına çıksa da zorunlu kullanıcı kilitlenmez.
