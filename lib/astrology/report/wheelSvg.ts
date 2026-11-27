@@ -199,9 +199,12 @@ export function buildWheelSvg(w: WheelInput, fontFamily = WHEEL_FONT_STACK): str
       const t2 = pt(R_OUT + 7, b.longitude);
       const g = pt(R_OUT + 22, d);
       const dg = pt(R_OUT + 41, d);
-      out.push(`<line x1="${f(t1.x)}" y1="${f(t1.y)}" x2="${f(t2.x)}" y2="${f(t2.y)}" stroke="${OUTER_INK}" stroke-width="1.4"/>`);
-      out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="13" font-weight="700" fill="${OUTER_INK}">${esc(WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2))}</text>`);
-      out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="${OUTER_INK}">${Math.floor(b.degreeInSign)}°${b.retrograde ? "℞" : ""}</text>`);
+      // Ek noktalar (2026-11-27): nokta kendi etiketini / rengini taşıyabilir (asteroit, Lilith türü, lot); yoksa gövde glifi + mor.
+      const ink = b.color ?? OUTER_INK;
+      const label = b.label ?? WHEEL_BODY_ABBR[b.id] ?? b.id.slice(0, 2);
+      out.push(`<line x1="${f(t1.x)}" y1="${f(t1.y)}" x2="${f(t2.x)}" y2="${f(t2.y)}" stroke="${ink}" stroke-width="1.4"/>`);
+      out.push(`<text x="${f(g.x)}" y="${f(g.y + 5)}" text-anchor="middle" font-size="${[...label].length > 2 ? 9 : 13}" font-weight="700" fill="${ink}">${esc(label)}</text>`);
+      out.push(`<text x="${f(dg.x)}" y="${f(dg.y + 3)}" text-anchor="middle" font-size="9" fill="${ink}">${Math.floor(b.degreeInSign)}°${b.retrograde ? "℞" : ""}</text>`);
     }
   }
   out.push("</svg>");

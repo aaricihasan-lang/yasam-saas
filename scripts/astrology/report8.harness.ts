@@ -36,6 +36,7 @@ import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/sym
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { __resetRateLimitStore } from "@/lib/rateLimit";
 import { COMBINED_REPORT_MAX_BYTES, combinedReportTooLarge } from "@/lib/astrology/report/service";
+import { RELOCATION_ASPECTS_NOTE, RELOCATION_NO_ASPECTS_NOTE } from "@/lib/astrology/model/westernLocation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -844,7 +845,7 @@ async function main() {
       const ras = raster(svg, [GEIST, ...SYM]);
       assert.equal(ras.width, 1200);
       assert.equal(ras.height, 1200, "çark kare olmalı");
-      // Açısız çarklar (relocation, progression) daha seyrektir; ölçülen en düşük ≈%1,6 → eşik %1.
+      // Açısız çarklar (tek halka progression) daha seyrektir; ölçülen en düşük ≈%1,6 → eşik %1. (Relocation 2026-11-27'den beri açılı.)
       assert.ok(ras.dark > 1200 * 1200 * 0.01, `harita neredeyse boş (${ras.dark} koyu piksel)`);
       assert.ok(ras.bbox.minX >= 2 && ras.bbox.minY >= 2 && ras.bbox.maxX <= 1197 && ras.bbox.maxY <= 1197, `içerik kenara değiyor (kırpılma): ${JSON.stringify(ras.bbox)}`);
       // Sembol glifleri GERÇEKTEN sembol fontundan çizilir: çarktaki her glif, font listesiyle ve sembol fontu AÇIKÇA
@@ -874,6 +875,31 @@ async function main() {
       assert.ok(/\/Subtype \/Image[\s\S]{0,200}?\/Width 1200[\s\S]{0,60}?\/Height 1200|\/Width 1200[\s\S]{0,200}?\/Height 1200[\s\S]{0,200}?\/Subtype \/Image/.test(pdf), "PDF'te 1200×1200 harita görseli yok");
     });
   }
+  // 2026-11-27: Relocation çarkında açı çizgileri — kayıtlı natal açı listesi (aynı doğum anı); ekranla aynı veri.
+  await t("relocation çarkı: açı çizgileri = natal açı listesi (boylamlar aynı); açıklama kaynağı söyler; açı listesiz eski kayıt açısız çizilir ve nedeni yazılır", async () => {
+    const a = await full(saved.get("western.relocation")!);
+    const n = await full(saved.get("western.natal")!);
+    const tech = a.technical as J;
+    assert.ok(Array.isArray(tech.natal?.aspects) && tech.natal.aspects.length > 0, "kayıtta natal açı listesi yok");
+    assert.deepEqual(tech.natal.aspects, (n.technical as J).aspects, "relocation açıları natal açılarla aynı olmalı");
+    const nb = new Map(((n.technical as J).bodies as J[]).map((b) => [b.id, b.longitude]));
+    for (const b of tech.bodies as J[]) if (nb.has(b.id)) assert.equal(b.longitude, nb.get(b.id), `${b.id}: relocation boylamı natal ile aynı olmalı`);
+    const r = buildAstroReport(a);
+    const ch = r.blocks.find((b) => b.kind === "chart") as J;
+    assert.equal(ch.chart.aspects.length, tech.natal.aspects.length);
+    const lines = (buildWheelSvg(ch.chart).match(/<line [^>]*opacity="0\.75"/g) ?? []).length;
+    assert.equal(lines, tech.natal.aspects.length, "relocation çarkında her açı bir çizgi");
+    const s = reportTexts(r).join("\n");
+    assert.ok(s.includes(RELOCATION_ASPECTS_NOTE), "açıklama: açıların kaynağı");
+    // Açı listesinden önce kaydedilmiş analiz (alan yok): çark çizilir, açı çizgisi yok, açıklama nedenini söyler.
+    const eski = { ...a, technical: { ...tech, natal: { angles: tech.natal.angles, houses: tech.natal.houses, bodyHouses: tech.natal.bodyHouses } } };
+    const r2 = buildAstroReport(eski);
+    const ch2 = r2.blocks.find((b) => b.kind === "chart") as J;
+    assert.ok(ch2, "eski kayıtta da çark çizilmeli");
+    assert.equal(ch2.chart.aspects.length, 0);
+    const s2 = reportTexts(r2).join("\n");
+    assert.ok(s2.includes(RELOCATION_NO_ASPECTS_NOTE) && !s2.includes("Açı çizgileri: mavi uyumlu"), "eski kayıt açıklaması");
+  });
   await t("harita aktarımı: görsel üretilemezse rapor boş/yanlış yer tutucu yerine açık not verir (Word + PDF)", async () => {
     const r = buildAstroReport(await full(saved.get("western.natal")!));
     const docx = await renderAstroReportDocx(r, null, symbolFontBuffers());
