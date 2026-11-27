@@ -108,8 +108,8 @@ async function main() {
     const cookieVal = (set: string[], name: string) => (set.find((c) => c.startsWith(`${name}=`)) ?? "").split(";")[0].split("=").slice(1).join("=");
     const login = async (email: string) => cookieVal((await call(sessionRoute.POST, "/api/auth/session", "POST", { email, password: pw(email) })).set, "__Host-yasam_sid");
     const self = (id: string, sid: string) => ({ "x-user-id": id, cookie: `__Host-yasam_sid=${sid}` });
-    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string }); } catch { return []; } };
-    const lastCode = (to: string) => { const m = mails().filter((x) => x.to.toLowerCase() === to.toLowerCase()); return /([0-9]{6})/.exec(m[m.length - 1]?.subject ?? "")?.[1] ?? ""; };
+    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string; text?: string }); } catch { return []; } };
+    const lastCode = (to: string) => { const m = mails().filter((x) => x.to.toLowerCase() === to.toLowerCase()); return /\b([0-9]{6})\b/.exec(m[m.length - 1]?.text ?? "")?.[1] ?? ""; };
     const n = async (sql: string, a: unknown[] = []) => Number((await q(sql, a)).rows[0].n);
     const otps = (id: string) => n(`SELECT count(*)::int n FROM public.auth_email_otps WHERE user_id = $1`, [id]);
     const deliveries = (id: string) => n(`SELECT count(*)::int n FROM public.auth_email_deliveries WHERE user_id = $1`, [id]);

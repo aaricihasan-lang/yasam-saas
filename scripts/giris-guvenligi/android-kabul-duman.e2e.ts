@@ -125,7 +125,7 @@ async function main() {
       let code = "";
       for (let i = 0; i < 60 && !code; i++) {
         await sleep(500);
-        try { const l = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).slice(before); code = /^([0-9]{6}) — /.exec((JSON.parse(l[l.length - 1] ?? "{}") as { subject?: string }).subject ?? "")?.[1] ?? ""; } catch { /* */ }
+        try { const l = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).slice(before); code = /\b([0-9]{6})\b/.exec((JSON.parse(l[l.length - 1] ?? "{}") as { subject?: string; text?: string }).text ?? "")?.[1] ?? ""; } catch { /* */ }
       }
       ok(code.length === 6, "sentetik e-posta kodu üretildi");
       await page.getByTestId("mfa-email-code").fill(code);

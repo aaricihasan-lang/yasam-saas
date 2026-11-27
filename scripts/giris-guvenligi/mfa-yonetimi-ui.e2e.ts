@@ -114,8 +114,8 @@ async function main() {
     for (let i = 0; i < 60; i++) {
       let lines: string[] = [];
       try { lines = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean); } catch { /* yok */ }
-      const m = lines.slice(after).map((l) => JSON.parse(l) as { to?: string; subject?: string }).reverse().find((x) => x.to === to);
-      const c = /^([0-9]{6}) — /.exec(m?.subject ?? "")?.[1];
+      const m = lines.slice(after).map((l) => JSON.parse(l) as { to?: string; subject?: string; text?: string }).reverse().find((x) => x.to === to);
+      const c = /\b([0-9]{6})\b/.exec(m?.text ?? "")?.[1];
       if (c) return c;
       await sleep(500);
     }

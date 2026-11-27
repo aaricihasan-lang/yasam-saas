@@ -48,7 +48,7 @@ function sinkLines(): { to: string; subject: string; text: string; html: string 
 async function waitCode(to: string, after: number): Promise<string> {
   for (let i = 0; i < 60; i++) {
     const mails = sinkLines().slice(after).filter((m) => m.to === to);
-    const code = /^([0-9]{6}) — /.exec(mails[mails.length - 1]?.subject ?? "")?.[1];
+    const code = /\b([0-9]{6})\b/.exec(mails[mails.length - 1]?.text ?? "")?.[1];
     if (code) return code;
     await sleep(250);
   }

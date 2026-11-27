@@ -147,7 +147,7 @@ async function main() {
   setInterval(() => {
     let lines: string[] = [];
     try { lines = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean); } catch { return; }
-    for (const l of lines.slice(seen)) { try { const m = JSON.parse(l) as { to: string; subject: string }; console.log(`[e-posta] ${m.to}: ${m.subject}`); } catch { /* */ } }
+    for (const l of lines.slice(seen)) { try { const m = JSON.parse(l) as { to: string; subject: string; text?: string }; console.log(`[e-posta] ${m.to}: ${m.subject}${/\b([0-9]{6})\b/.exec(m.text ?? "") ? ` · kod ${/\b([0-9]{6})\b/.exec(m.text ?? "")?.[1]}` : ""}`); } catch { /* */ } }
     seen = lines.length;
   }, 1000);
 

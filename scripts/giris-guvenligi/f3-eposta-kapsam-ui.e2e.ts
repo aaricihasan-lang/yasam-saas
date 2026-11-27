@@ -83,11 +83,11 @@ async function main() {
     { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore", detached: process.platform !== "win32" });
   const browsers: Browser[] = [];
   const q = (sql: string, a: unknown[] = []) => db.admin.query(sql, a);
-  const mails = () => { try { return fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to?: string; subject?: string }); } catch { return []; } };
+  const mails = () => { try { return fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to?: string; subject?: string; text?: string }); } catch { return []; } };
   const waitCode = async (to: string, after: number) => {
     for (let i = 0; i < 60; i++) {
       const m = mails().slice(after).reverse().find((x) => x.to === to);
-      const c = /^([0-9]{6}) — /.exec(m?.subject ?? "")?.[1];
+      const c = /\b([0-9]{6})\b/.exec(m?.text ?? "")?.[1];
       if (c) return c;
       await sleep(500);
     }
@@ -218,7 +218,7 @@ async function main() {
             await sendBtn.click();
             await page.getByText(/kayıtlı test hesabının adresine gönderildi/).waitFor({ timeout: 20000 });
             const got = mails().slice(beforeT);
-            ok(got.length === 1 && got[0].to === EMAIL.exp && !/^[0-9]{6} — /.test(got[0].subject ?? ""), `${tag}: tek kodsuz ileti yalnız kayıtlı test hesabına gitti`, got.map((x) => x.to));
+            ok(got.length === 1 && got[0].to === EMAIL.exp && !/\b[0-9]{6}\b/.test(got[0].text ?? ""), `${tag}: tek kodsuz ileti yalnız kayıtlı test hesabına gitti`, got.map((x) => x.to));
             await box.screenshot({ path: path.join(OUT, `${slug}-owner-test-hesabi.png`) });
             await page.screenshot({ path: path.join(OUT, `${slug}-owner-eposta-durumu.png`), fullPage: true });
           }
@@ -289,7 +289,7 @@ async function main() {
       }
     }
     // Uzmana giden tek tür: Owner'ın gönderdiği KODSUZ test iletisi (kayıtlı test hesabı). Uzmanın kendi e-posta işlemleri kapalı.
-    ok(mails().every((m) => m.to === EMAIL.owner || m.to === EMAIL.free || (m.to === EMAIL.exp && !/^[0-9]{6} — /.test(m.subject ?? ""))),
+    ok(mails().every((m) => m.to === EMAIL.owner || m.to === EMAIL.free || (m.to === EMAIL.exp && !/\b[0-9]{6}\b/.test(m.text ?? ""))),
       "kodlu iletiler YALNIZ Owner'a ve pilota; kapsam dışı uzmana yalnız Owner'ın kodsuz test iletisi", [...new Set(mails().map((m) => m.to))]);
   } finally {
     const nt = notTested.length ? ` · NOT TESTED: ${notTested.join(", ")}` : "";

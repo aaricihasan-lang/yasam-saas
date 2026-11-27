@@ -54,7 +54,7 @@ async function main() {
       const res = await route.POST(new NextRequest("http://localhost/api/me/email-verification", { method: "POST", headers: H, body: JSON.stringify(body) }));
       return { status: res.status, json: (await res.clone().json().catch(() => ({}))) as J };
     };
-    const codeTo = (to: string) => /^([0-9]{6}) — /.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.subject ?? "")?.[1] ?? "";
+    const codeTo = (to: string) => /\b([0-9]{6})\b/.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.text ?? "")?.[1] ?? "";
 
     // Yarış: rota adresi A olarak okudu; yönetici adresi B yaptı (değişiklik tetikleyicisi o anda bekleyen kod
     // bulamaz); ardından kod A için üretildi ve A'ya gitti.
