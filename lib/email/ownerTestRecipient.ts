@@ -46,6 +46,7 @@ export async function resolveOwnerTestRecipient(db: SupabaseClient, env: Env = p
     const u = rows[0];
     const role = String(u.role ?? "").trim().toLowerCase();
     const eligible = u.active === true && u.is_demo_account !== true && (role === "expert" || role === "admin")
+      && String(u.approval_status ?? "").trim().toLowerCase() === "approved"
       && (u.archived_at ?? null) === null && (u.access_restricted_at ?? null) === null;
     if (!eligible || typeof u.id !== "string") return { ok: false, issue: "not_eligible" };
     return { ok: true, userId: u.id, email: raw, masked: maskEmail(raw) };
