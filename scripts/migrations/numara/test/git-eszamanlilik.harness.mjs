@@ -214,6 +214,18 @@ try {
     const yabanci = git(d, ["rev-parse", "origin/main"]).out.trim(); // defter geçmişinde olmayan bir commit
     ok("(14d) çapa yeni uçta YOK (geçmiş başka kökten yeniden kurulmuş) → ilk kez gören makinede bile CAPA", kod(() => ayir(klonla(u, "capa-k3"), { modul: "capa", ad: "capa_yok", dal: "w", refs: ["origin/main"], capa: yabanci })) === "CAPA");
   }
+  // ── (14e) Geri sarma: uzak defter force ile daha ESKİ bir ata commit'e alındı (son ayırmalar silindi) → eski okuma sanılmaz,
+  //     yeniden okumalardan sonra da geride kalınca YENIDEN_YAZILDI (silinen numaralar yeniden verilmez).
+  {
+    const { u } = yeniUzak("gerisarma");
+    const d = klonla(u, "gs-k");
+    cli(d, ["tohumla", "--prod-gecmis", PROD]);
+    const tohumUcu = okuUzak(d).tip;
+    const a1 = ayir(d, { modul: "gs", ad: "silinecek_ayirma", dal: "w", refs: ["origin/main"] });
+    sh(d, "push", "-q", "--force", "origin", `${tohumUcu}:${DEFAULTS.ref}`);
+    const k2 = kod(() => ayir(d, { modul: "gs", ad: "geri_sarma_sonrasi", dal: "w", refs: ["origin/main"] }));
+    ok("(14e) defter force ile eski ataya geri sarıldı → bu makinede YENIDEN_YAZILDI; silinen numara yeniden verilmedi", k2 === "YENIDEN_YAZILDI" && !okuUzak(d).text.includes(`"${a1.surum}"`), k2);
+  }
   // ── Kurcalanmış durum: aynı sürüm iki 'ayir' / iptal sonrası olay → tutarsız (geçmiş doğrulamasında yakalanır).
   ok("aynı sürümün ikinci 'ayir'ı → CIFT", kod(() => durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_a.sql","modul":"mm"}\n{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_b.sql","modul":"mm"}\n`))) === "CIFT");
   ok("iptal sonrası 'bagla' → IPTAL_SONRASI", kod(() => durum(ayristir(`{"olay":"ayir","surum":"20300101000000","dosya":"20300101000000_a.sql","modul":"mm"}\n{"olay":"iptal","surum":"20300101000000","neden":"yok"}\n{"olay":"bagla","surum":"20300101000000","dosya":"20300101000000_a.sql","pr":1,"dal":"d","depo":"o/r","sha256":"${"a".repeat(64)}"}\n`))) === "IPTAL_SONRASI");

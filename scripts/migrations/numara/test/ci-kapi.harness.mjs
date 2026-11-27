@@ -169,6 +169,29 @@ try {
     ok("production'a uygulanmış içerik değişti → FAIL ('DEĞİŞTİRİLEMEZ')", r.kod === 1 && /DEĞİŞTİRİLEMEZ/.test(r.out));
     ok("uygulanmış numara yeniden bağlanamaz (defter RED)", (() => { try { bagla(U.d, U.r.surum, 401); return false; } catch (e) { return e.kod === "UYGULANMIS"; } })());
   }
+  // ── Sembolik bağlantı migration (içerik git'te değil, dışarıdaki dosyayı gösterir) → RED.
+  {
+    const L = pr("work/sembolik", (d) => {
+      const r = ayir(d, { modul: "test", ad: "sembolik_baglanti", dal: "work/sembolik", refs: ["origin/main"] });
+      yaz(d, "disarida.sql", "BEGIN;\nSELECT 1;\nCOMMIT;\n");
+      return { r };
+    });
+    const hedef = git(L.d, ["hash-object", "-w", "--stdin"], { input: "../../disarida.sql" }).out.trim();
+    sh(L.d, "update-index", "--add", "--cacheinfo", `120000,${hedef},supabase/migrations/${L.r.dosya}`);
+    sh(L.d, "commit", "-q", "-m", "sembolik baglanti");
+    olayEkle(L.d, { olay: "bagla", surum: L.r.surum, pr: 601, dal: "work/sembolik", depo: DEPO, sha256: "a".repeat(64) });
+    r = kapi(L.d, olay(601, "work/sembolik"));
+    ok("sembolik bağlantı olarak eklenen migration → FAIL ('normal dosya değil')", r.kod === 1 && /normal dosya değil/.test(r.out));
+  }
+  // ── PR kendi yapilandirma.json'unda kipi kapatıyor: güvenilir yapılandırma base'den okunur → yine ZORUNLU.
+  {
+    yaz(K, "scripts/migrations/numara/yapilandirma.json", JSON.stringify({ ...DEFAULTS, zorunlu: true }));
+    sh(K, "add", "-A"); sh(K, "commit", "-q", "-m", "zorunlu kip"); sh(K, "pull", "-q", "--rebase", "origin", "main"); sh(K, "push", "-q", "origin", "HEAD:main");
+    const Z = pr("work/kip-kapat", (d) => { yaz(d, "scripts/migrations/numara/yapilandirma.json", JSON.stringify({ ...DEFAULTS, zorunlu: false })); yaz(d, "supabase/migrations/20300202000000_kipsiz.sql", sql); });
+    const calis = (...ek) => spawnSync(process.execPath, [KAPI, "--base", "origin/main", ...ek], { cwd: Z.d, encoding: "utf8", env: { ...process.env, ...olay(701, "work/kip-kapat"), MIGRATION_NUMARA_ROOT: Z.d } });
+    const korumasiz = calis(), korumali = calis("--yapilandirma-rev", "origin/main");
+    ok("PR yapilandirma.json'da zorunlu:false yaptı → korumasız okumada UYARI (saldırı gösterimi), base'den okumada ZORUNLU FAIL", korumasiz.status === 0 && korumali.status === 1 && /kaynağı: origin\/main/.test(korumali.stdout));
+  }
   // ── Defter erişimi / bütünlüğü
   {
     const G = pr("work/defter-yok", (d) => ({ r: yeniMigration(d, "work/defter-yok", "defter_yok") }));
@@ -212,6 +235,12 @@ try {
     sh(T, "add", "-A"); sh(T, "commit", "-q", "-m", "kacak"); sh(T, "push", "-q", "origin", "main");
     const p = spawnSync(process.execPath, [KAPI, "--zorunlu"], { cwd: T, encoding: "utf8", env: { ...process.env, GITHUB_EVENT_NAME: "push", MIGRATION_NUMARA_ROOT: T } });
     ok("main push kipi: ayırmasız main'e girmiş migration → FAIL", p.status === 1 && /kacak\.sql merkezi defterde yok/.test(p.stdout + p.stderr));
+  }
+  // ── Merge sonrası yeniden bağlama → RED (main'deki içerik donmuştur).
+  {
+    sh(A.d, "fetch", "-q", "origin"); sh(A.d, "merge", "-q", "--no-edit", "origin/main"); sh(A.d, "push", "-q", "origin", "HEAD:main");
+    const b = spawnSync(process.execPath, [CLI, "bagla", "--surum", A.r.surum, "--pr", "101"], { cwd: A.d, encoding: "utf8" });
+    ok("ana dala merge edilmiş migration yeniden bağlanamaz → [MAINDE]", b.status === 2 && /MAINDE/.test(b.stderr), b.stderr.trim().slice(0, 120));
   }
 } catch (e) {
   fail++;

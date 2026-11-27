@@ -85,12 +85,25 @@ jobs:
       # Migration içermeyen PR ağa çıkmadan PASS. push (main): main'deki her yeni migration bağlı + SHA eşleşmeli (zorunlu kipte).
       # Kip: scripts/migrations/numara/yapilandirma.json "zorunlu" (Owner onayıyla true) — o zamana dek UYARI kipi.
       # Defter okumak için yalnız contents:read (GITHUB_TOKEN) gerekir; CI deftere YAZMAZ, production sırrı KULLANMAZ.
+      # Kapı betiği + yapilandirma.json PR'dan DEĞİL base daldan alınır: PR kendi kapısını / kipini / defter ref'ini değiştirip
+      # denetimi kapatamaz (base'de henüz yoksa — ilk kurulum — PR sürümü çalışır). Bu iş akışı dosyasının kendisi PR ile
+      # değiştirilebilir; bunu yalnız zorunlu inceleme / CODEOWNERS engeller (Owner kararı, belgede).
       - name: Merkezi migration numarası (DB-03)
         run: |
+          KAPI=scripts/ci/migration-reservation-check.mjs
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            node scripts/ci/migration-reservation-check.mjs --base "origin/${{ github.base_ref }}"
+            B="origin/${{ github.base_ref }}"
+            if git cat-file -e "$B:scripts/ci/migration-reservation-check.mjs" 2>/dev/null && git cat-file -e "$B:scripts/migrations/numara/defter.mjs" 2>/dev/null; then
+              D="$RUNNER_TEMP/db03-base"; mkdir -p "$D"
+              git archive "$B" scripts/ci/migration-reservation-check.mjs scripts/migrations/numara | tar -x -C "$D"
+              KAPI="$D/scripts/ci/migration-reservation-check.mjs"
+              echo "DB-03 kapısı base daldan ($B) çalıştırılıyor"
+            else
+              echo "DB-03 kapısı base dalda yok (ilk kurulum) → PR sürümü"
+            fi
+            MIGRATION_NUMARA_ROOT="$GITHUB_WORKSPACE" node "$KAPI" --base "$B" --yapilandirma-rev "$B"
           else
-            node scripts/ci/migration-reservation-check.mjs
+            MIGRATION_NUMARA_ROOT="$GITHUB_WORKSPACE" node "$KAPI" --yapilandirma-rev HEAD
           fi
 
       - name: Merkezi migration numarası testleri (gerçek git eşzamanlılığı + CI kapısı + izole PostgreSQL uygulama kapısı)

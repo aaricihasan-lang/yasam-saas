@@ -77,7 +77,7 @@ export function ayristir(text) {
     } catch {
       throw new DefterHatasi("BOZUK", `Defter satırı ${i + 1} geçerli JSON değil`);
     }
-    if (!o || typeof o !== "object" || !OLAYLAR.has(o.olay) || !/^\d{14}$/.test(String(o.surum))) throw new DefterHatasi("BOZUK", `Defter satırı ${i + 1} geçersiz (olay/sürüm)`);
+    if (!o || typeof o !== "object" || !OLAYLAR.has(o.olay) || typeof o.surum !== "string" || !/^\d{14}$/.test(o.surum)) throw new DefterHatasi("BOZUK", `Defter satırı ${i + 1} geçersiz (olay/sürüm)`);
     olaylar.push(o);
   });
   return olaylar;
@@ -175,11 +175,42 @@ export function ucuDogrula(cwd, tip, cfg = DEFAULTS, { capa = null } = {}) {
     if (!git(cwd, ["merge-base", "--is-ancestor", capa, tip], { allowFail: true }).ok) throw new DefterHatasi("CAPA", `Defter ucu güvenilir çapa commit'ini (${capa.slice(0, 9)}) içermiyor: geçmiş yeniden yazılmış. Tahsis DURDURULDU.`);
   }
   if (once && once !== tip) {
-    if (!git(cwd, ["merge-base", "--is-ancestor", once, tip], { allowFail: true }).ok) throw new DefterHatasi("YENIDEN_YAZILDI", `Defter geçmişi yeniden yazılmış (bu makinenin doğruladığı ${once.slice(0, 9)} yeni uçta yok). Tahsis DURDURULDU.`);
+    const ileri = git(cwd, ["merge-base", "--is-ancestor", once, tip], { allowFail: true }).ok;
+    if (!ileri) {
+      // Okunan uç, önbellekteki ucun ATASI: aynı klasördeki başka bir süreç önbelleği daha yeni bir uca taşımış olabilir (eski
+      // okuma) — ya da uzak defter GERİ SARILMIŞTIR. Ayırt etmek için çağıran yeniden okur (ESKI_UC); ısrar ederse geri sarmadır.
+      if (git(cwd, ["merge-base", "--is-ancestor", tip, once], { allowFail: true }).ok) throw new DefterHatasi("ESKI_UC", `Okunan defter ucu (${tip.slice(0, 9)}) bu makinenin doğruladığı uçtan (${once.slice(0, 9)}) geride.`);
+      throw new DefterHatasi("YENIDEN_YAZILDI", `Defter geçmişi yeniden yazılmış (bu makinenin doğruladığı ${once.slice(0, 9)} yeni uçta yok). Tahsis DURDURULDU.`);
+    }
     aralikDogrula(cwd, once, tip, cfg);
   } else if (!once) aralikDogrula(cwd, null, tip, cfg);
-  git(cwd, ["update-ref", ref, tip]);
+  onbellekIlerlet(cwd, cfg, tip);
   return tip;
+}
+/** Doğrulanmış uç önbelleğini yalnız İLERİ taşır (karşılaştır-ve-değiştir; aynı klasördeki eşzamanlı süreçler geri almaz). */
+export function onbellekIlerlet(cwd, cfg, yeni) {
+  const ref = onbellekRef(cfg);
+  for (let n = 0; n < 8; n++) {
+    const cur = git(cwd, ["rev-parse", "--verify", "--quiet", ref], { allowFail: true }).out.trim();
+    if (cur === yeni) return;
+    if (cur && git(cwd, ["merge-base", "--is-ancestor", yeni, cur], { allowFail: true }).ok) return; // önbellek zaten ileride
+    if (git(cwd, ["update-ref", ref, yeni, cur || "0000000000000000000000000000000000000000"], { allowFail: true }).ok) return;
+  }
+}
+
+/** Uzak ucu çeker ve AYNI uç üzerinde tüm geçmişi (+ çapa) doğrular; metin o doğrulanmış commit'ten okunur (okuma/doğrulama arası yarış yok). */
+export function dogrulanmisOku(cwd, cfg = DEFAULTS, { capa = null } = {}) {
+  const { tip, text } = okuUzak(cwd, cfg);
+  if (!tip) {
+    if (capa) throw new DefterHatasi("DEFTER_SILINDI", "Merkezi defter dalı yok ama depoda çapa commit'i var: dal silinmiş.");
+    return { tip: null, text: "" };
+  }
+  aralikDogrula(cwd, null, tip, cfg);
+  if (capa) {
+    if (!git(cwd, ["cat-file", "-e", `${capa}^{commit}`], { allowFail: true }).ok) git(cwd, ["fetch", "--quiet", "--no-tags", "--no-write-fetch-head", cfg.remote, capa], { allowFail: true });
+    if (!git(cwd, ["merge-base", "--is-ancestor", capa, tip], { allowFail: true }).ok) throw new DefterHatasi("CAPA", `Defter ucu güvenilir çapa commit'ini (${capa.slice(0, 9)}) içermiyor: geçmiş yeniden yazılmış.`);
+  }
+  return { tip, text };
 }
 
 // ─── Numara hesaplama ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -232,6 +263,7 @@ export function depoKimligi(cwd, remote = "origin") {
  * Force push YOK. `bosIzinli`: yalnız tohumlama boş/olmayan defterle başlayabilir; diğer işlemler tohumsuz defterde DURUR.
  */
 export function ekle(cwd, uret, { cfg = DEFAULTS, denemeMax = Number(process.env.MIGRATION_NUMARA_DENEME) || 200, bekle = (n) => 20 + Math.floor(Math.random() * 60 * Math.min(n, 10)), islem = crypto.randomUUID(), log = () => {}, bosIzinli = false, capa = null } = {}) {
+  let eskiUc = 0;
   for (let n = 1; n <= denemeMax; n++) {
     let okunan;
     try {
@@ -243,7 +275,16 @@ export function ekle(cwd, uret, { cfg = DEFAULTS, denemeMax = Number(process.env
       continue;
     }
     const { tip, text } = okunan;
-    ucuDogrula(cwd, tip, cfg, { capa }); // silinmiş / yeniden yazılmış / bozuk defter → DURUR
+    try {
+      ucuDogrula(cwd, tip, cfg, { capa }); // silinmiş / yeniden yazılmış / bozuk defter → DURUR
+    } catch (e) {
+      if (!(e instanceof DefterHatasi) || e.kod !== "ESKI_UC") throw e;
+      if (++eskiUc > 8) throw new DefterHatasi("YENIDEN_YAZILDI", `Uzak defter, bu makinenin doğruladığı uçtan sürekli geride: geçmiş GERİ SARILMIŞ. Tahsis DURDURULDU. (${e.message})`);
+      log(`deneme ${n}: eski uç okundu → yeniden`);
+      uyu(bekle(n));
+      continue;
+    }
+    eskiUc = 0;
     const olaylar = ayristir(text);
     if (!bosIzinli && !olaylar.some((o) => o.olay === "gecmis")) throw new DefterHatasi("TOHUMSUZ", "Merkezi defter tohumlanmamış (main + production geçmişi işlenmemiş). Numara verilemez; etkinleştirme adımlarına bakın.");
     const yazilmis = olaylar.filter((o) => o.islem === islem);
@@ -266,7 +307,7 @@ export function ekle(cwd, uret, { cfg = DEFAULTS, denemeMax = Number(process.env
     const kopma = p.ok && process.env.MIGRATION_NUMARA_TEST_KOPMA === "1" && !globalThis.__mnKopmaYapildi;
     if (kopma) globalThis.__mnKopmaYapildi = true;
     if (p.ok && !kopma) {
-      git(cwd, ["update-ref", onbellekRef(cfg), commit], { allowFail: true });
+      onbellekIlerlet(cwd, cfg, commit);
       return { tamam: true, olaylar: yeni.map((o) => ({ ...o, islem })), deneme: n, commit };
     }
     log(`deneme ${n}: ${kopma ? "bağlantı koptu (sonuç belirsiz)" : /rejected|non-fast-forward|fetch first|stale info|failed to update ref|cannot lock ref/i.test(p.out + p.err) ? "uç değişmiş (rakip yazdı)" : "push hatası"} → durum yeniden okunacak`);
@@ -331,6 +372,10 @@ export function olayEkle(cwd, { olay, surum, cfg = DEFAULTS, log, capa = null, .
 
 /** Bir commit'teki migration blob'unun HAM içeriği, SHA-256'sı ve git blob kimliği (satır sonu dönüşümü YOK). */
 export function blobIcerik(cwd, rev, dosya) {
+  // Yalnız normal dosya (100644/100755). Sembolik bağlantı (120000) / alt modül (160000) → içerik git'te değil: null.
+  const ls = ham(cwd, ["ls-tree", rev, "--", `supabase/migrations/${dosya}`]);
+  const mod = String(ls.stdout).split(/\s/)[0];
+  if (ls.status !== 0 || !["100644", "100755"].includes(mod)) return null;
   const r = ham(cwd, ["show", `${rev}:supabase/migrations/${dosya}`]);
   if (r.status !== 0) return null;
   const id = ham(cwd, ["rev-parse", `${rev}:supabase/migrations/${dosya}`]);

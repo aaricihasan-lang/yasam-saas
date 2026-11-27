@@ -24,17 +24,29 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { aralikDogrula, ayristir, blobIcerik, durum, git, NAME_RE, okuUzak, yapilandirma } from "../migrations/numara/defter.mjs";
+import { ayristir, blobIcerik, DEFAULTS, dogrulanmisOku, durum, git, NAME_RE } from "../migrations/numara/defter.mjs";
 
 const root = process.env.MIGRATION_NUMARA_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const args = process.argv.slice(2);
 const baseRef = args.includes("--base") ? args[args.indexOf("--base") + 1] : null;
-const cfg = yapilandirma(root);
+// Yapılandırma (kip / defter ref'i / çapa) GÜVENİLİR kaynaktan: `--yapilandirma-rev <ref>` verilirse o commit'ten (CI: base dal),
+// böylece PR kendi yapilandirma.json'unu değiştirerek kipi kapatamaz ya da defteri sahte bir dala yönlendiremez.
+const yapRev = args.includes("--yapilandirma-rev") ? args[args.indexOf("--yapilandirma-rev") + 1] : null;
+const YAP_YOL = "scripts/migrations/numara/yapilandirma.json";
+function guvenliYapilandirma() {
+  if (yapRev) {
+    const r = git(root, ["show", `${yapRev}:${YAP_YOL}`], { allowFail: true });
+    if (r.ok) return { ...DEFAULTS, zorunlu: false, capa: null, ...JSON.parse(r.out), kaynak: yapRev };
+  }
+  const p = path.join(root, YAP_YOL);
+  return { ...DEFAULTS, zorunlu: false, capa: null, ...(fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : {}), kaynak: "çalışma kopyası" };
+}
+const cfg = guvenliYapilandirma();
 const zorunlu = args.includes("--zorunlu") || cfg.zorunlu === true || process.env.MIGRATION_NUMARA_ZORUNLU === "1";
 const bulgular = [];
 const bilgi = (m) => console.log(m);
 const bitir = () => {
-  bilgi(`DB-03: kip ${zorunlu ? "ZORUNLU" : "UYARI (etkinleştirme Owner onayında)"}`);
+  bilgi(`DB-03: kip ${zorunlu ? "ZORUNLU" : "UYARI (etkinleştirme Owner onayında)"}; yapılandırma kaynağı: ${cfg.kaynak}`);
   for (const h of bulgular) console.error(`${zorunlu ? "FAIL" : "UYARI"} ${h}`);
   if (bulgular.length && zorunlu) process.exit(1);
   bilgi(bulgular.length ? "RESULT: PASS (UYARI kipi — bulgular yukarıda)" : "RESULT: PASS");
@@ -68,15 +80,9 @@ const bag = olayBaglami();
 let defter = null;
 function defteriOku() {
   if (defter) return defter;
-  const { tip, text } = okuUzak(root, cfg);
+  // Okunan metin ile doğrulanan geçmiş AYNI uç commit'ine aittir (iki ayrı fetch yok).
+  const { tip, text } = dogrulanmisOku(root, cfg, { capa: cfg.capa });
   if (!tip) throw new Error("merkezi defter dalı yok (sistem etkinleştirilmemiş)");
-  git(root, ["fetch", "--quiet", "--no-tags", cfg.remote, `+${cfg.ref}:refs/migration-numara/ci`]);
-  try {
-    aralikDogrula(root, null, "refs/migration-numara/ci", cfg);
-    if (cfg.capa && !git(root, ["merge-base", "--is-ancestor", cfg.capa, "refs/migration-numara/ci"], { allowFail: true }).ok) throw new Error(`defter, depodaki çapa commit'ini (${cfg.capa.slice(0, 9)}) içermiyor: geçmiş yeniden yazılmış`);
-  } finally {
-    git(root, ["update-ref", "-d", "refs/migration-numara/ci"], { allowFail: true });
-  }
   defter = durum(ayristir(text));
   return defter;
 }
@@ -84,7 +90,7 @@ const shaBaskaNumarada = (st, sha, surum) => [...st.values()].find((x) => x.suru
 
 // ── push olayı (main) ──────────────────────────────────────────────────────────────────────────────────────────────────
 if (!baseRef) {
-  if (!cfg.zorunlu && !args.includes("--zorunlu")) {
+  if (!zorunlu) {
     bilgi("DB-03: push olayı; defter henüz zorunlu değil → main denetimi atlandı.");
     bilgi("RESULT: PASS");
     process.exit(0);
@@ -147,6 +153,7 @@ if (eklenen.length) {
     if (!m) continue; // ad biçimi DB-02'de
     const v = m[1];
     const blob = blobIcerik(root, "HEAD", f);
+    if (!blob) bulgular.push(`${f}: normal dosya değil (sembolik bağlantı / alt modül): içerik git'te bağlanamaz → RED.`);
     if (blob && baseBloblar.has(blob.blob)) bulgular.push(`${f}: içerik base'deki ${baseBloblar.get(blob.blob)} ile BİREBİR aynı (aynı SQL başka numarayla yayımlanamaz).`);
     if (!st) continue;
     const r = st.get(v);

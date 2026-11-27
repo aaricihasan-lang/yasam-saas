@@ -82,7 +82,9 @@ try {
       const st = durum(ayristir(okuUzak(root, cfg).text)).get(surum);
       if (!st || st.gecmis) throw new DefterHatasi("YOK", `${surum} merkezi defterde ayrılmamış.`);
       const blob = blobIcerik(root, "HEAD", st.dosya);
-      if (!blob) throw new DefterHatasi("DOSYA_YOK", `${st.dosya} HEAD commit'inde yok; önce SQL'i commit edin.`);
+      if (!blob) throw new DefterHatasi("DOSYA_YOK", `${st.dosya} HEAD commit'inde normal dosya olarak yok; önce SQL'i commit edin (sembolik bağlantı kabul edilmez).`);
+      tazeMain();
+      if (blobIcerik(root, "origin/main", st.dosya)) throw new DefterHatasi("MAINDE", `${st.dosya} ana dala merge edilmiş: içerik donmuştur, yeniden bağlanamaz (yeni migration ekleyin).`);
       const depo = depoKimligi(root, cfg.remote);
       if (!depo) throw new DefterHatasi("DEPO", `Depo kimliği ${cfg.remote} adresinden çıkarılamadı.`);
       const commit = git(root, ["rev-parse", "HEAD"]).out.trim();

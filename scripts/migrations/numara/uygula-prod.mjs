@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 // TEK GÜVENLİ UYGULAMA YOLU — bir migration'ı production'a (ya da izole test veritabanına) kapıdan geçirerek uygular.
 //
-//   node scripts/migrations/numara/uygula-prod.mjs --surum S --proje <supabase-ref> (--conn-mjs <yol> | --dsn <postgres-url>) [--rev <commit>] [--uygula]
+//   node scripts/migrations/numara/uygula-prod.mjs --surum S --proje <supabase-ref> (--conn-mjs <yol> | --dsn <postgres-url>) [--rev origin/main] [--uygula]
 //   node scripts/migrations/numara/uygula-prod.mjs uzlastir --proje <ref> (--conn-mjs <yol> | --dsn <url>)
 //
+// SQL yalnız ana daldan (varsayılan origin/main; --rev o dala ait olmalı) ve DOĞRULANMIŞ defterle uygulanır.
 // Varsayılan KURU ÇALIŞTIRMA: tüm kapılar denetlenir, uygulanacak korumalı SQL'in özeti yazılır, HİÇBİR şey çalıştırılmaz.
 // `--uygula` verilmedikçe veritabanına yazılmaz. Toplu `supabase db push` YOK; her çağrı TEK sürüm.
 // Bağlantı:
 //   --conn-mjs  production yardımcısı (owner arşivi conn.mjs: target() + psql(); parola yazdırılmaz). Proje kimliği oradan okunur.
 //   --dsn       yalnız yerel / izole test (host localhost / 127.0.0.1 değilse RED).
-import { depoKoku, DefterHatasi, okuUzak, yapilandirma } from "./defter.mjs";
-import { hazirla, korumaliSql, prodSatirlari, uygula, uzlastir } from "./prod-kapi.mjs";
+import { depoKoku, DefterHatasi, dogrulanmisOku, git, yapilandirma } from "./defter.mjs";
+import { GECMIS_SQL, hazirla, korumaliSql, prodSatirlari, uygula, uzlastir } from "./prod-kapi.mjs";
 
 const argv = process.argv.slice(2);
 const altKomut = argv[0] === "uzlastir" ? "uzlastir" : "uygula";
 const opt = (k, d = null) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d);
 const root = depoKoku();
 const cfg = yapilandirma(root);
-const GECMIS_SQL = "SELECT version||'|'||coalesce(name,'')||'|'||coalesce(created_by,'') AS s FROM supabase_migrations.schema_migrations ORDER BY version";
 
 async function baglanti() {
   if (opt("conn-mjs")) {
@@ -32,7 +32,7 @@ async function baglanti() {
       },
       calistir: async (sql) => {
         const r = psql(t, sql, { timeoutMs: 400000 });
-        if (r.code !== 0) throw new DefterHatasi("UYGULAMA", `Uygulama hatası (işlem geri alındı; yeniden deneme YOK): ${r.err.slice(0, 600)}`);
+        if (r.code !== 0) throw new DefterHatasi("UYGULAMA_BELIRSIZ", `psql hatası / zaman aşımı: işlem geri alınmış OLABİLİR ya da COMMIT olmuş olabilir. Yeniden deneme YOK; önce 'uzlastir' ile production geçmişini kontrol edin. ${r.err.slice(0, 600)}`);
       },
       kapat: async () => {},
     };
@@ -74,23 +74,22 @@ try {
     process.exitCode = r.sorun.length ? 3 : 0;
   } else {
     const surum = opt("surum");
-    const rev = opt("rev", "HEAD");
+    const anaRef = opt("ana-ref", "origin/main");
+    const rev = opt("rev", anaRef);
+    if (anaRef === "origin/main") git(root, ["fetch", "--quiet", "--no-tags", cfg.remote, "+refs/heads/main:refs/remotes/origin/main"]);
     if (!argv.includes("--uygula")) {
-      const p = hazirla({ root, surum, defterText: okuUzak(root, cfg).text, beklenenProje: beklenen, gercekProje: b.proje, prodGecmis, rev });
+      const p = hazirla({ root, surum, defterText: dogrulanmisOku(root, cfg, { capa: cfg.capa }).text, beklenenProje: beklenen, gercekProje: b.proje, prodGecmis, rev, anaRef });
       const sql = korumaliSql(p);
       console.log(`KURU ÇALIŞTIRMA PASS: ${p.dosya} (PR #${p.pr}, SHA-256 ${p.sha256.slice(0, 16)}…), proje ${b.proje}, production geçmişi ${prodGecmis.length} kayıt, ön koşul ${p.onkosul.length}; korumalı SQL ${sql.length} bayt. Uygulamak için --uygula.`);
     } else {
-      const r = await uygula({ root, surum, cfg, beklenenProje: beklenen, gercekProje: b.proje, prodGecmis, calistir: b.calistir, rev, capa: cfg.capa }).catch((e) => {
-        if (e instanceof DefterHatasi && e.kod !== "UYGULAMA") throw e;
-        throw e;
-      });
+      const r = await uygula({ root, surum, cfg, beklenenProje: beklenen, gercekProje: b.proje, prodGecmis, calistir: b.calistir, rev, anaRef, capa: cfg.capa });
       console.log(`UYGULANDI: ${r.dosya} → ${b.proje}; geçmiş kaydı aynı işlemde; defter 'uygula' yazıldı.`);
     }
   }
 } catch (e) {
   if (e instanceof DefterHatasi) {
     console.error(`HATA [${e.kod}]${e.pgKod ? ` (pg ${e.pgKod})` : ""}: ${e.message}`);
-    if (e.kod === "AG" || e.kod === "CEKISME") console.error("Not: veritabanı işlemi başarılıysa defter güncellenememiş olabilir → 'uzlastir' alt komutunu çalıştırın.");
+    if (["AG", "CEKISME", "UYGULAMA_BELIRSIZ"].includes(e.kod)) console.error("Not: veritabanı işlemi başarılıysa defter güncellenememiş olabilir → 'uzlastir' alt komutunu çalıştırın.");
     process.exitCode = 2;
   } else throw e;
 } finally {

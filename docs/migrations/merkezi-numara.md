@@ -48,6 +48,8 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
 - **İşlem içinde çalışamayan SQL (`CREATE INDEX CONCURRENTLY`, `ALTER TYPE … ADD VALUE`, `VACUUM` …).** Uygulama kapısı RED eder;
   Owner onaylı ayrı planla uygulanır.
 - **Uygulama sırasında bağlantı koptu.** Veritabanı işlemi tamamsa defter `pr` kalmış olabilir → `uygula-prod.mjs uzlastir`.
+- **PR merge oldu, SQL'de hata gördüm.** Merge edilmiş migration yeniden bağlanamaz (`MAINDE`); yeni migration ekleyin.
+- **Sembolik bağlantı / alt modül olarak migration?** RED: içerik git'te değildir, bağlanamaz.
 
 ## Mimari
 
@@ -68,11 +70,15 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
     öneki + geçerli yeni satırlar). Doğrulanan uç yerelde `refs/migration-numara/dogrulanmis/*` altında tutulur.
   - **dal silindi** (`DEFTER_SILINDI`), **geçmiş yeniden yazıldı** (`YENIDEN_YAZILDI`), **satır silindi / değişti**
     (`SILME`), **birleştirme / doğrusal olmayan geçmiş** (`BIRLESTIRME` / `DOGRUSAL_DEGIL`), **çapa yok** (`CAPA`) → tahsis DURUR; boş defterle yeniden başlamaz.
+  - **geri sarma** (uç, doğrulanan ucun atasına force ile alındı): önce eski okuma sayılır ve yeniden okunur (aynı klasördeki
+    eşzamanlı süreçler); uzak taraf ısrarla gerideyse `YENIDEN_YAZILDI`. Önbellek yalnız ileri taşınır (karşılaştır-ve-değiştir).
   - tohumlanmamış defter (`TOHUMSUZ`) numara vermez.
   - `yapilandirma.json` → `"capa"`: etkinleştirmede main'e yazılan güvenilir defter commit'i. CI ve araç, defter ucunun bu
     commit'i içerdiğini denetler → ilk kez gören makine / CI de yeniden kurulmuş bir defteri reddeder.
 - **Numara kuralı:** bilinen en büyük sürüm (defter, iptaller dahil + main + çekilen dallar + production) + 1 dakika ızgarası.
-- **CI kapısı** `scripts/ci/migration-reservation-check.mjs` (`guvenlik` işi, DB-02'den sonra):
+- **CI kapısı** `scripts/ci/migration-reservation-check.mjs` (`guvenlik` işi, DB-02'den sonra). Kapı betiği ve
+  `yapilandirma.json` **base daldan** alınır (`git archive` + `--yapilandirma-rev`): PR kapıyı, kipi ya da defter ref'ini
+  değiştirerek denetimi kapatamaz. Okunan defter metni ile doğrulanan geçmiş aynı uç commit'ine aittir.
   - PR bağlamı (PR no, kaynak dal, kaynak/hedef depo) YALNIZ GitHub'ın olay dosyasından (`GITHUB_EVENT_PATH`); PR açıklaması
     ya da depo dosyası kanıt değildir. Olay `pull_request` değilse / dosya yoksa ve PR migration ekliyorsa → FAIL.
   - base'deki migration değiştirilemez / silinemez / yeniden adlandırılamaz; eklenen içerik base'deki bir migration'ın kopyası olamaz;
@@ -82,38 +88,50 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
   - push (main): main'deki `gecmis` olmayan her migration bağlı/uygulanmış ve SHA eşleşmeli (yalnız zorunlu kipte);
   - migration içermeyen PR ağa çıkmadan PASS. CI deftere YAZMAZ, production sırrı kullanmaz (yalnız `contents: read`).
   - **CI'ın doğrulayamadıkları:** defter imzasızdır — depoya yazma yetkisi olan biri olay ekleyebilir (geçmişi değiştiremez, kural
-    setiyle force/silme de engellenir). Kimlik alanı (`user.name@makine`) beyandır, kanıt değildir.
+    setiyle force/silme de engellenir). Kimlik alanı (`user.name@makine`) beyandır, kanıt değildir. İş akışı dosyasının
+    (`ci.yml`) kendisi PR ile değiştirilebilir; bunu yalnız zorunlu inceleme / CODEOWNERS engeller (tek admin hesabıyla
+    teknik olarak zorlanamaz → Owner incelemesi). Çapa (`capa`) ayarlanana dek, tutarlı biçimde baştan yeniden kurulmuş
+    bir defteri ilk kez gören makine / CI ayırt edemez.
   - Kip: `yapilandirma.json` → `"zorunlu": false` (UYARI: bulgular yazılır, çıkış 0). Owner onayıyla `true` → bulgu = FAIL.
 - **Production uygulama kapısı** `prod-kapi.mjs` + tek uygulama yolu `uygula-prod.mjs`:
-  - kapılar: proje kimliği · GÜNCEL production geçmişi okunmuş · defterde ayırma, `pr` durumunda, bağlı PR + SHA · commit'teki
-    blob SHA-256 = bağlı SHA · production geçmişindeki her sürüm defterde (yoksa `UZLASMA`: kapı dışı uygulama, dur) · sürüm
-    production'da yok · SQL yapısı;
-  - SQL yapısı: sözcük çözümleyici (yorum, iç içe blok yorum, dizge, `E''`, tırnaklı ad, `$etiket$` gövdeleri) → ilk deyim
-    `BEGIN`, son deyim `COMMIT`; arada hiçbir işlem denetim deyimi (`commit`, `rollback`, `savepoint`, `begin`, … büyük/küçük harf)
-    ve işlem dışı komut yok; `COMMIT` sonrası deyim yok; psql meta-komutu (`\i` …) yok;
+  - kapılar: proje kimliği · DOĞRULANMIŞ defter (tüm geçmiş + çapa) · GÜNCEL production geçmişi okunmuş · uygulanan commit
+    **`origin/main` içinde** (`MAIN_DEGIL`: incelenip merge edilmemiş SQL uygulanmaz) · defterde ayırma, `pr` durumunda, bağlı
+    PR + SHA · o commit'teki blob SHA-256 = bağlı SHA · production geçmişindeki her sürüm defterde `gecmis`/`uygulandi`
+    (değilse `UZLASMA`: kapı dışı uygulama ya da uzlaştırma bekliyor, dur) · sürüm production'da yok · SQL yapısı;
+  - SQL yapısı: sözcük çözümleyici (yorum, iç içe blok yorum, dizge, yalnız bitişik `E''` kaçışı, tırnaklı ad, `$etiket$`
+    gövdeleri; Türkçe karakter / `$` içeren tanımlayıcılar dolar-tırnak sanılmaz; `standard_conforming_strings` işlem içinde
+    `on` yapılır ve gövdede değiştirilemez) → ilk deyim `BEGIN`, son deyim `COMMIT`; arada hiçbir işlem denetim deyimi
+    (`commit`, `end`, `rollback`, `savepoint`, `begin`, … büyük/küçük harf; `BEGIN ATOMIC` gövdeleri de) ve işlem dışı komut
+    yok; `COMMIT` sonrası deyim yok; dizge dışında ters eğik çizgi (psql `\gexec`, `\!`, `\i` …) yok;
+  - ön koşullar yalnız beyaz liste: `to_regclass|to_regtype|to_regprocedure|…('ad') IS [NOT] NULL`, `AND`/`OR`/`NOT` ile;
   - TEK İŞLEM: `lock_timeout` → `pg_advisory_xact_lock(7314202811)` → kilit altında geçmiş (doluysa `YSM01`) → şema ön koşulları
     (`-- onkosul: <boolean SQL>`; sağlanmazsa `YSM02`) → gövde → `supabase_migrations.schema_migrations` kaydı (Supabase CLI
-    biçimi: `version`, `name`, `statements`, `created_by = "migration-numara pr#N sha256:…"`) → `COMMIT`;
+    biçimi: `version`, `name`, `statements` = dosyanın tam metni, `created_by = "migration-numara pr#N sha256:…"`) → `COMMIT`;
   - varsayılan **kuru çalıştırma**; `--uygula` olmadan yazma yok; production bağlantısı yalnız `--conn-mjs` (owner arşivi), `--dsn`
     yalnız localhost;
-  - **atomik OLMAYAN nokta:** DB COMMIT ile defter `uygula` olayı iki sistemdir. Defter yazılamazsa production'daki imza
-    (PR + SHA) üzerinden `uygula-prod.mjs uzlastir` olayı tamamlar; imzasız / defter dışı sürümler yalnız RAPOR edilir.
+  - **atomik OLMAYAN nokta:** DB COMMIT ile defter `uygula` olayı iki sistemdir. Defter yazılamazsa (ya da psql zaman aşımı:
+    `UYGULAMA_BELIRSIZ`, yeniden deneme yok) production'daki imza (PR + SHA) **ve kayıtlı metnin SHA-256'sı** bağlı SHA ile
+    eşleşirse `uygula-prod.mjs uzlastir` olayı tamamlar; diğer her uyumsuzluk yalnız RAPOR edilir.
+  - **Sınırlar:** imza ve kayıtlı metin DB'ye yazabilen biri tarafından taklit edilebilir (uzlaştırma kanıt değil tutarlılık
+    denetimidir); proje kimliği `conn.mjs`'in bildirdiği değerdir (sunucudan sorgulanmaz); gövdeden dblink / pg_background
+    gibi eklentilerle işlem dışı iş yapılabilir (production'da kurulu değillerse risk yok).
   - Tekrar uygulama: defter (`UYGULANMIS`), kapı (`PROD_DOLU`) ve işlem içi kilit (`YSM01`) üç ayrı katmanda engellenir.
 
 ## Doğrulama (otomatik, `npm run test:migration-numara`)
 
-- `git-eszamanlilik.harness.mjs` (39) — gerçek git + ayrı süreçler: tohumsuz defter; tohum raporu; ham CAS; farklı / aynı modül;
+- `git-eszamanlilik.harness.mjs` (40) — gerçek git + ayrı süreçler: tohumsuz defter; tohum raporu; ham CAS; farklı / aynı modül;
   50 eşzamanlı (40 klon + 10 ortak klasör); push kabul + bağlantı kopması; geçici sunucu hatası; erişilemeyen sunucu; sürekli
   push reddi; yarıda kesilip yeniden başlama + tekrar gönderim; eski dal; iptal + ayırma yarışı; production ilerlerken ayırma;
   yanlış SHA / PR / sahiplenme / devir; uygulanmış numaraya olay; belirsiz sonuç; force ile yeniden yazma; satır silme; dal
-  silme; çapa; kurcalanmış durum.
-- `ci-kapi.harness.mjs` (31) — GitHub olay dosyasıyla: meşru PR; bağlanmamış; bağlamadan sonra SQL değişti + yeniden bağlama;
+  silme; geri sarma; çapa; kurcalanmış durum.
+- `ci-kapi.harness.mjs` (34) — GitHub olay dosyasıyla: meşru PR; bağlanmamış; bağlamadan sonra SQL değişti + yeniden bağlama;
   yeni commit; CRLF; aynı dosya iki PR; aynı numara farklı dosya; yanlış PR no; fork; yanlış olay; sahte/eksik bağlam;
   başka dala bağlanmış; ana dal ilerledi; eski migration yeniden adlandırma / silip yeniden oluşturma / silme / içeriği yeni
   numarayla kopyalama; aynı SQL iki numarada; production numarası; ayırmasız dosya; iptal; uygulanmış içerik değişti; defter
-  erişilemez (zorunlu / uyarı / yapılandırmadan zorunlu); migration içermeyen PR; kurcalanmış defter; main push kipi.
-- `prod-kapi-pg.harness.mjs` (32) — izole PostgreSQL: Supabase biçimi; tekrar; yarış (YSM01); kapı dışı sürüm (UZLASMA);
-  geçmiş okunmadan; aynı sürüme eşzamanlı iki uygulama; danışma kilidi sırası; DDL hatası tam geri alma; ön koşul (YSM02);
+  erişilemez (zorunlu / uyarı / yapılandırmadan zorunlu); sembolik bağlantı; PR'ın kipi kapatması (base yapılandırması);
+  migration içermeyen PR; kurcalanmış defter; main push kipi; merge sonrası yeniden bağlama.
+- `prod-kapi-pg.harness.mjs` (36) — izole PostgreSQL: Supabase biçimi; tekrar; yarış (YSM01); kapı dışı sürüm (UZLASMA);
+  geçmiş okunmadan; ana dalda olmayan commit (MAIN_DEGIL); deftere yazılmamış uygulama + uzlaştırma; sahte imza; aynı sürüme eşzamanlı iki uygulama; danışma kilidi sırası; DDL hatası tam geri alma; ön koşul (YSM02);
   DB commit + defter kopması + uzlaştırma; küçük harf `commit;`, gövdede ROLLBACK/BEGIN, COMMIT sonrası deyim, `$f$` içi metin,
   CONCURRENTLY; `uygula-prod.mjs` kuru çalıştırma / yanlış proje / uzak DSN reddi / `--uygula` / tekrar / uzlaştırma.
 

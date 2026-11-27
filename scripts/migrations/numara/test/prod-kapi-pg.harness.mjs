@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 import { ayir, blobIcerik, git, okuUzak, olayEkle, ayristir, durum, DEFAULTS } from "../defter.mjs";
-import { hazirla, korumaliSql, prodSatirlari, uygula, uzlastir, IMZA_RE } from "../prod-kapi.mjs";
+import { GECMIS_SQL, hazirla, korumaliSql, prodSatirlari, uygula, uzlastir, IMZA_RE } from "../prod-kapi.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.resolve(HERE, "..", "cli.mjs");
@@ -91,25 +91,26 @@ try {
   await a.query("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20280128000000','astro_analysis_result_parts')");
   const varMi = async (t) => (await a.query("SELECT to_regclass($1) r", [`public.${t}`])).rows[0].r !== null;
   const gecmis = async (v) => (await a.query("SELECT count(*)::int n FROM supabase_migrations.schema_migrations WHERE version=$1", [v])).rows[0].n;
-  const prodGecmis = async () => prodSatirlari((await a.query("SELECT version||'|'||coalesce(name,'')||'|'||coalesce(created_by,'') s FROM supabase_migrations.schema_migrations ORDER BY 1")).rows.map((r) => r.s).join("\n"));
+  const prodGecmis = async () => prodSatirlari((await a.query(GECMIS_SQL)).rows.map((r) => r.s).join("\n"));
+  const YEREL = { rev: "HEAD", anaRef: "HEAD" }; // izole test: PR dalı "ana dal" yerine geçer (production'da origin/main zorunlu)
   // Gerçek uygulayıcı (psql -v ON_ERROR_STOP=1) hata anında oturumu kapatır → açık işlem geri alınır; pg istemcisinde bunu ROLLBACK taklit eder.
   const calistirIle = (c) => async (sql) => { try { await c.query(sql); } catch (err) { await c.query("ROLLBACK").catch(() => {}); throw err; } };
   const hata = async (fn) => { try { await fn(); return null; } catch (e) { return e; } };
   const durumu = (v) => durum(ayristir(okuUzak(K).text)).get(v);
-  const uyg = async (ad, ek = {}) => uygula({ root: K, surum: R[ad].surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), ...ek });
+  const uyg = async (ad, ek = {}) => uygula({ root: K, surum: R[ad].surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), ...YEREL, ...ek });
 
   // 1) Mutlu yol + Supabase biçimi
   const u = await uyg("mutlu");
   const satir = (await a.query("SELECT * FROM supabase_migrations.schema_migrations WHERE version=$1", [R.mutlu.surum])).rows[0];
   ok("mutlu yol: DDL + geçmiş kaydı aynı işlemde; defter 'uygulandi' + SHA + proje", (await varMi("t_mutlu")) && (await gecmis(R.mutlu.surum)) === 1 && durumu(R.mutlu.surum).durum === "uygulandi" && durumu(R.mutlu.surum).sha256 === u.sha256 && durumu(R.mutlu.surum).proje === PROJE);
-  ok("Supabase schema_migrations biçimi: version + name (dosya adından) + statements text[] + created_by imzası (PR + SHA-256)", satir.name === "mutlu" && Array.isArray(satir.statements) && IMZA_RE.exec(satir.created_by)?.[2] === u.sha256 && IMZA_RE.exec(satir.created_by)?.[1] === "900");
+  ok("Supabase schema_migrations biçimi: version + name (dosya adından) + statements = dosyanın tam metni + created_by imzası (PR + SHA-256)", satir.name === "mutlu" && satir.statements.length === 1 && satir.statements[0] === fs.readFileSync(path.join(K, "supabase/migrations", R.mutlu.dosya), "utf8") && IMZA_RE.exec(satir.created_by)?.[2] === u.sha256 && IMZA_RE.exec(satir.created_by)?.[1] === "900");
   let e = await hata(() => uyg("mutlu"));
   ok("aynı sürüm ikinci kez → RED (UYGULANMIS); DB'ye gidilmez", e?.kod === "UYGULANMIS");
 
   // 2) Production geçmişi kapı okumasından SONRA doldu (yarış) → işlem içi YSM01, DDL çalışmaz.
   const eskiGecmis = await prodGecmis();
   await a.query("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ($1,'baska_is')", [R.prod_degisti.surum]);
-  e = await hata(() => uygula({ root: K, surum: R.prod_degisti.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: eskiGecmis, calistir: calistirIle(a) }));
+  e = await hata(() => uygula({ root: K, surum: R.prod_degisti.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: eskiGecmis, calistir: calistirIle(a), ...YEREL }));
   const ad2 = (await a.query("SELECT name FROM supabase_migrations.schema_migrations WHERE version=$1", [R.prod_degisti.surum])).rows[0].name;
   ok("geçmiş okumadan sonra doldu → işlem içi YSM01; tablo OLUŞMADI; başkasının kaydı korundu; defter 'uygulandi' YAZILMADI", e?.code === "YSM01" && !(await varMi("t_prod_degisti")) && ad2 === "baska_is" && durumu(R.prod_degisti.surum).durum !== "uygulandi", e?.message);
   await a.query("DELETE FROM supabase_migrations.schema_migrations WHERE version=$1", [R.prod_degisti.surum]); // izole test: sentetik satır geri alındı
@@ -119,12 +120,15 @@ try {
   const uzSorun = uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE });
   ok("uzlaştırma kapı dışı sürümü SORUN olarak raporlar, otomatik düzeltmez", uzSorun.sorun.some((x) => x.startsWith("20280128000050")) && uzSorun.tamamlanan.length === 0);
   await a.query("DELETE FROM supabase_migrations.schema_migrations WHERE version='20280128000050'");
-  e = await hata(() => uygula({ root: K, surum: R.seri_b.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: [], calistir: calistirIle(a) }));
+  e = await hata(() => uygula({ root: K, surum: R.seri_b.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: [], calistir: calistirIle(a), ...YEREL }));
   ok("güncel production geçmişi okunmadan → PROD_OKUNMADI", e?.kod === "PROD_OKUNMADI");
+  e = await hata(async () => uygula({ root: K, surum: R.seri_b.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), rev: "HEAD" }));
+  ok("varsayılan: SQL ana dala (origin/main) merge edilmemişse → MAIN_DEGIL (incelenmemiş dal SQL'i uygulanmaz)", e?.kod === "MAIN_DEGIL" && !(await varMi("t_seri_b")));
 
   // 3) Aynı sürüme EŞZAMANLI iki uygulama (ikinci: farklı içerikle aynı numarayı kullanmaya çalışan iş).
-  const p = hazirla({ root: K, surum: R.yaris_a.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis() });
-  const rakip = { ...p, ad: "rakip_is", ic: "\nCREATE TABLE public.t_yaris_rakip (id int);\n" };
+  const gecOnce = await prodGecmis(); // test 4 bu görüntüyü kullanır (test 3'ün doğrudan uygulaması deftere yazılmaz)
+  const p = hazirla({ root: K, surum: R.yaris_a.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), ...YEREL });
+  const rakip = { ...p, ad: "rakip_is", ic: "\nCREATE TABLE public.t_yaris_rakip (id int);\n", sql: "-- rakip metni\n" };
   const [c1, c2] = [await baglan(), await baglan()];
   const sonuc = await Promise.allSettled([calistirIle(c1)(korumaliSql(p)), calistirIle(c2)(korumaliSql(rakip))]);
   const red = sonuc.find((s) => s.status === "rejected")?.reason;
@@ -132,9 +136,9 @@ try {
   ok("aynı sürüme eşzamanlı iki uygulama → TAM BİRİ; diğeri kilit sonrası YSM01; tek tablo; geçmişte 1 satır", sonuc.filter((s) => s.status === "fulfilled").length === 1 && red?.code === "YSM01" && t1 !== t2 && (await gecmis(R.yaris_a.surum)) === 1, red?.message);
 
   // 4) Farklı sürümler eşzamanlı → danışma kilidi ile SIRAYLA.
-  const gec = await prodGecmis();
-  const pa = hazirla({ root: K, surum: R.seri_a.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: gec });
-  const pb = hazirla({ root: K, surum: R.seri_b.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: gec });
+  const gec = gecOnce;
+  const pa = hazirla({ root: K, surum: R.seri_a.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: gec, ...YEREL });
+  const pb = hazirla({ root: K, surum: R.seri_b.surum, defterText: okuUzak(K).text, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: gec, ...YEREL });
   const [d1, d2] = [await baglan(), await baglan()];
   const zaman = {};
   const t0 = Date.now();
@@ -143,6 +147,20 @@ try {
     new Promise((r) => setTimeout(r, 200)).then(() => d2.query(korumaliSql(pb))).then(() => (zaman.b = Date.now() - t0)),
   ]);
   ok("farklı sürümler eşzamanlı → danışma kilidiyle SIRAYA (B, A'nın 1,5 sn'lik işlemi bitmeden bitmedi); ikisi de uygulandı", zaman.b >= zaman.a && zaman.b >= 1400 && (await gecmis(R.seri_a.surum)) === 1 && (await gecmis(R.seri_b.surum)) === 1, JSON.stringify(zaman));
+
+  // 4b) Doğrudan korumalı SQL ile uygulananlar deftere yazılmadı → kapı bir sonraki uygulamayı UZLASMA ile durdurur; uzlaştırma
+  //     yalnız imzası + KAYITLI METNİ bağlı SHA ile eşleşenleri tamamlar (rakip kazandıysa onun kaydı içerik uyuşmazlığıyla SORUN).
+  e = await hata(() => uyg("ddl_hata"));
+  ok("deftere yazılmamış production uygulaması varken → UZLASMA ('pr' durumundaki sürüm production'da)", e?.kod === "UZLASMA");
+  let uz = uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE });
+  const bekUz = [R.seri_a, R.seri_b, ...(t1 ? [R.yaris_a] : [])].map((x) => x.surum).sort().join(",");
+  ok("uzlaştırma: imza + kayıtlı metin SHA'sı eşleşenler 'uygula'ya tamamlandı; rakibin (farklı metin) kaydı SORUN", uz.tamamlanan.slice().sort().join(",") === bekUz && uz.sorun.length === (t2 ? 1 : 0), JSON.stringify(uz));
+  if (t2) { await a.query("DELETE FROM supabase_migrations.schema_migrations WHERE version=$1", [R.yaris_a.surum]); await a.query("DROP TABLE public.t_yaris_rakip"); } // izole test temizliği
+  // Sahte imza (DB'ye yazabilen biri) ama kayıtlı metin farklı → uzlaştırma tamamlamaz.
+  await a.query("INSERT INTO supabase_migrations.schema_migrations(version,name,statements,created_by) VALUES ($1,'icerik',ARRAY['sahte metin'],$2)", [R.icerik.surum, `migration-numara pr#900 sha256:${durumu(R.icerik.surum).sha256}`]);
+  uz = uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE });
+  ok("sahte imza + farklı kayıtlı metin → uzlaştırma 'uygula' YAZMAZ, SORUN raporlar", uz.tamamlanan.length === 0 && uz.sorun.some((x) => x.startsWith(R.icerik.surum)) && durumu(R.icerik.surum).durum === "pr");
+  await a.query("DELETE FROM supabase_migrations.schema_migrations WHERE version=$1", [R.icerik.surum]);
 
   // 5) DDL hatası → tam geri alma.
   e = await hata(() => uyg("ddl_hata"));
@@ -153,13 +171,12 @@ try {
   await uyg("onkosul_var");
   ok("ön koşul sağlandı → uygulandı", (await a.query("SELECT count(*)::int n FROM information_schema.columns WHERE table_name='t_mutlu' AND column_name='y'")).rows[0].n === 1);
   // 7) DB COMMIT başarılı + defter yazımı başarısız (ağ) → uzlaştırma 'uygula'yı tamamlar; tekrar uygulama engellenir.
-  e = await hata(async () => uygula({ root: K, surum: R.defter_kopuk.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), defterText: okuUzak(K).text, cfg: { ...DEFAULTS, remote: "yok-boyle-uzak" } }));
+  e = await hata(async () => uygula({ root: K, surum: R.defter_kopuk.surum, beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), defterText: okuUzak(K).text, cfg: { ...DEFAULTS, remote: "yok-boyle-uzak" }, ...YEREL }));
   ok("DB commit oldu, defter yazılamadı (AG) → tablo + geçmiş VAR, defter hâlâ 'pr' (atomik olmayan nokta açıkça görünür)", e?.kod === "AG" && (await varMi("t_defter_kopuk")) && (await gecmis(R.defter_kopuk.surum)) === 1 && durumu(R.defter_kopuk.surum).durum === "pr");
   e = await hata(() => uyg("defter_kopuk"));
   ok("bu durumda yeniden uygulama → PROD_DOLU (çift uygulama yok)", e?.kod === "PROD_DOLU");
-  const uz = uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE });
-  const beklenenUz = [R.yaris_a, R.seri_a, R.seri_b, R.defter_kopuk].map((x) => x.surum).sort().join(",");
-  ok("uzlaştırma: imzası (PR + SHA) eşleşen ve deftere yazılmamış TÜM uygulamalar (doğrudan korumalı SQL ile uygulanan 3 + defteri kopan 1) 'uygula'ya tamamlandı; sorun yok", uz.tamamlanan.slice().sort().join(",") === beklenenUz && durumu(R.defter_kopuk.surum).durum === "uygulandi" && uz.sorun.length === 0, JSON.stringify(uz));
+  uz = uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE });
+  ok("uzlaştırma: defteri kopan uygulama (imza + kayıtlı metin eşleşti) 'uygula'ya tamamlandı; sorun yok", uz.tamamlanan.join(",") === R.defter_kopuk.surum && durumu(R.defter_kopuk.surum).durum === "uygulandi" && uz.sorun.length === 0, JSON.stringify(uz));
   ok("uzlaştırma tekrar → değişiklik yok (idempotent)", uzlastir({ root: K, prodGecmis: await prodGecmis(), beklenenProje: PROJE }).tamamlanan.length === 0);
 
   // 8) Kapılar + kötü niyetli / bozuk SQL (DB'ye gidilmeden).
@@ -174,12 +191,12 @@ try {
   ok("COMMIT'ten sonra deyim → SQL_YAPI", (await kapiKodu("sonrasi")) === "SQL_YAPI" && (await varMi("t_mutlu")));
   await uyg("dolar_ici");
   ok("$f$ gövdesi içindeki 'COMMIT;' metni yanlış alarm vermez → uygulandı", (await a.query("SELECT count(*)::int n FROM pg_proc WHERE proname='f_dolar'")).rows[0].n === 1);
-  e = await hata(async () => uygula({ root: K, surum: "20990101000000", beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a) }));
+  e = await hata(async () => uygula({ root: K, surum: "20990101000000", beklenenProje: PROJE, gercekProje: PROJE, prodGecmis: await prodGecmis(), calistir: calistirIle(a), ...YEREL }));
   ok("defterde ayrılmamış sürüm → AYIRMA", e?.kod === "AYIRMA");
 
   // 9) Tek güvenli uygulama yolu: uygula-prod.mjs (izole DSN).
   const dsn = `postgres://postgres:pw@localhost:${port}/postgres`;
-  const cli = (...x) => spawnSync(process.execPath, [UYGULA_CLI, ...x], { cwd: K, encoding: "utf8" });
+  const cli = (...x) => spawnSync(process.execPath, [UYGULA_CLI, ...x, "--ana-ref", "HEAD"], { cwd: K, encoding: "utf8" });
   let c = cli("--surum", R.cli_kuru.surum, "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", PROJE);
   ok("uygula-prod.mjs varsayılan KURU ÇALIŞTIRMA: kapılar PASS, veritabanına hiçbir şey yazılmadı", c.status === 0 && /KURU ÇALIŞTIRMA PASS/.test(c.stdout) && !(await varMi("t_cli")) && (await gecmis(R.cli_kuru.surum)) === 0, (c.stdout + c.stderr).trim().slice(0, 200));
   c = cli("--surum", R.cli_kuru.surum, "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", "baskaproje");
