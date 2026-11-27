@@ -10,17 +10,23 @@
   Listede olmayan hesap için "zorunluluğu aç" **409 NO_USABLE_METHOD** ile reddedilir.
 - **Kurtarma önce (Risk A kapandı):** Owner dışı hesapta kullanılmamış kurtarma kodu yoksa zorunluluk açılamaz
   (**409 RECOVERY_REQUIRED**; panel düğmesi kapalı). Kodlar MFA açılmadan ÖNCE, parola + kayıtlı adrese gelen kodla kurulur
-  (yalnız parolayı bilen biri kod üretemez).
+  (yalnız parolayı bilen biri kod üretemez). Kurulum hem API'de hem veritabanı fonksiyonunda AYNI kurallarla sınırlı: etkin,
+  onaylı (`approval_status='approved'`), arşivde değil, "Pasif" değil, demo değil, admin / uzman, e-postası doğrulanmış,
+  zorunluluğu henüz açılmamış VE test listesinde ETKİN kaydı olan hesap. API atlanıp fonksiyon doğrudan çağrılsa da (elinde
+  geçerli e-posta kodu olsa bile) bu kurallar aşılamaz (sentetik testle kanıtlı). Kapsam koşulu pilot dönemine özgüdür: MFA test
+  listesinin dışına genişletilirse kurulum fonksiyonu ayrı bir migration ile güncellenir (o zamana kadar kapalı).
 - **Süre dolumu (Risk B kapandı):** test listesi kaydının süresi dolan zorunlu hesap e-posta yöntemini kaybetmez; listeye hiç
   alınmamış hesaplarda yanlış kapsam ayarı yine asıl yöntem açmaz.
 - **Acil geri dönüş denetimli:** `auth_mfa_emergency_disable` (yalnız SQL konsolu; gerekçe; tek hesap; diğer hesapların MFA
   durumu işlem içinde karşılaştırılır, değişirse işlem geri alınır; `security_events` kaydı).
 
 ## Yayın ön koşulları (sırayla, her biri ayrı onay)
-1. **PR (F4 kurtarma güvenliği) merge** → production kodu. Kod, migration yokken kurulumu ve Risk B uzatmasını KAPALI tutar
-   (fail-closed); mevcut giriş davranışı değişmez.
-2. **Migration `20280129100000_auth_mfa_pilot_safety_f4.sql`** production'a (yeni fonksiyonlar; veri değişmez). Geri alma:
-   üç `DROP FUNCTION` (dosya başlığında).
+Önerilen sıra **migration → kod** (her iki sıra da güvenli: eski kod yeni fonksiyonları çağırmaz; yeni kod fonksiyon yokken
+kurulumu ve Risk B uzatmasını KAPALI tutar — fail-closed; mevcut giriş davranışı değişmez).
+1. **Migration `20280129100000_auth_mfa_pilot_safety_f4.sql`** production'a (yalnız yeni fonksiyonlar; tablo / veri değişmez).
+   Ön koşul denetimi: F2 zinciri + `users.archived_at / access_restricted_at / approval_status` kolonları; eksikse migration DURUR.
+   Geri alma: üç `DROP FUNCTION` (dosya başlığında).
+2. **PR (F4 kurtarma güvenliği) merge** → production kodu.
 3. Salt-okunur doğrulama: üç fonksiyon var; `auth_mfa_emergency_disable` service_role'e KAPALI; MFA zorunlu hesap 0.
 
 ## Canlı kabul sırası
@@ -37,6 +43,20 @@
 | 9 | Pilot kullanıcı | Çıkış → parola → **Kurtarma kodu kullan** (kâğıttaki bir kod) | Giriş; o kod artık geçmez | Başka kod |
 | 10 | Claude, salt-okunur | OTP `used`; oturum `mfa_method`; kurtarma kodu 9 aktif; MFA zorunlu yalnız 1; diğer 11 hesabın kayıt / oturum özeti aynı | PASS | Rapor + dur |
 | 11 | (14 gün sonra) | Liste kaydının süresi dolar | Pilot e-posta + kurtarma koduyla girmeye devam eder | — |
+
+## Test süresinin dolması — açık kurallar
+- **Süre dolumu MFA'yı OTOMATİK KALDIRMAZ.** `mfa_required` yalnız Owner (panel, taze MFA ile) veya `auth_mfa_emergency_disable`
+  ile kalkar. 14 gün dolunca pilot aynen e-posta kodu + kurtarma koduyla girmeye devam eder (Risk B kuralı).
+- Süre dolumu kapsamı GENİŞLETMEZ: listede olmayan, zorunlu olmayan hesaplar etkilenmez; kurulum da süresi dolmuş kayıtla kapanır.
+
+| Senaryo | Sonuç | Kanıt (sentetik test) |
+|---|---|---|
+| 14 gün doldu, zorunluluk açık | E-posta kodu + kurtarma kodu sunulur; parola tek başına oturum açmaz; `mfa_required` aynen `true` | f4-kurtarma-guvenligi C, F |
+| Owner test listesi kaydını SİLDİ | Yalnız kurtarma kodu sunulur (#833 kuralı); kurtarma koduyla giriş tamamlanır; zorunluluk DEĞİŞMEZ (açık kalır) | F1 |
+| E-posta hizmeti kesildi | Kod gönderilemez (hata), tamamlama oturum açmaz; kurtarma koduyla giriş tamamlanır | F2 |
+| `AUTH_MFA_METHODS` silindi | MFA kalkmaz; yalnız kurtarma kodu; parola yetmez (geri alma DEĞİL) | F3 |
+| MFA'sız Owner panelden kapatmak istedi | 403 (taze MFA şart); zorunluluk değişmez — atlatma yok | F3 |
+| Pilot kurtarma kodlarını da kaybetti | Acil geri dönüş (aşağıda) | D |
 
 ## Acil geri dönüş (pilot kilitlenirse / Owner kararı)
 Owner MFA'sızken başkasının zorunluluğunu panelden **kaldıramaz** (F2-G). Bu nedenle denetimli SQL fonksiyonu kullanılır

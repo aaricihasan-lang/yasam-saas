@@ -3,6 +3,8 @@
  *
  * Kurulum yalnız şu hesapta açılır (hepsi DB'den / oturumdan; istekten hiçbir şey alınmaz):
  *   - oturum sahibi (verifySelfSessionRequest), etkin, demo değil, admin / uzman;
+ *   - ONAYLI (approval_status='approved'), arşivde değil, "Pasif" (access_restricted_at) değil — Pasif hesapta giriş açık
+ *     olduğu için bu denetim ayrıca ŞART;
  *   - MFA zorunluluğu HENÜZ AÇILMAMIŞ (açıksa normal MFA'lı üretim yolu: auth_recovery_codes_generate);
  *   - e-postası doğrulanmış (posta kutusu kanıtı için kod bu adrese gider);
  *   - MFA kapsamında: AUTH_MFA_METHODS en az bir yöntem açıyor VE AUTH_MFA_METHOD_SCOPE bu hesabı içeriyor
@@ -18,7 +20,7 @@ import { isMfaTestAccount, resolveOfferedMfaMethods } from "@/lib/auth/mfaChalle
 type Env = Record<string, string | undefined>;
 
 export type RecoverySetupIssue =
-  | "demo" | "mfa_required" | "email_unverified" | "not_configured" | "not_in_mfa_scope" | "email_role" | "lookup_failed";
+  | "demo" | "account_state" | "mfa_required" | "email_unverified" | "not_configured" | "not_in_mfa_scope" | "email_role" | "lookup_failed";
 export type RecoverySetupEligibility =
   | { ok: true; email: string; name: string | null }
   | { ok: false; issue: RecoverySetupIssue };
@@ -30,9 +32,15 @@ export async function recoverySetupEligibility(
 ): Promise<RecoverySetupEligibility> {
   if (guard.isDemo) return { ok: false, issue: "demo" };
   try {
-    const { data, error } = await db.from("users").select("email, name, full_name, mfa_required, email_verified_at").eq("id", guard.userId).maybeSingle();
+    const { data, error } = await db.from("users")
+      .select("email, name, full_name, mfa_required, email_verified_at, active, approval_status, archived_at, access_restricted_at")
+      .eq("id", guard.userId).maybeSingle();
+    // Kolon eksikse (eski şema) sorgu hata verir → kapalı (fail-closed).
     if (error || !data) return { ok: false, issue: "lookup_failed" };
-    const u = data as { email?: unknown; name?: unknown; full_name?: unknown; mfa_required?: unknown; email_verified_at?: unknown };
+    const u = data as { email?: unknown; name?: unknown; full_name?: unknown; mfa_required?: unknown; email_verified_at?: unknown;
+      active?: unknown; approval_status?: unknown; archived_at?: unknown; access_restricted_at?: unknown };
+    if (u.active !== true || String(u.approval_status ?? "").trim().toLowerCase() !== "approved"
+      || (u.archived_at ?? null) !== null || (u.access_restricted_at ?? null) !== null) return { ok: false, issue: "account_state" };
     if (u.mfa_required === true) return { ok: false, issue: "mfa_required" };
     if (u.email_verified_at == null || typeof u.email !== "string" || !u.email.trim()) return { ok: false, issue: "email_unverified" };
     if (!emailOtpConfigured(env)) return { ok: false, issue: "not_configured" };

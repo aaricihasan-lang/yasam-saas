@@ -187,6 +187,8 @@ const steps = [
       ["F4_NEGATIF_KAPI", /NEGATİF KONTROL:[^\n]*kurtarma kodu şartı kaldırıldı[\s\S]*FAIL kurtarma kodu yok → 409 RECOVERY_REQUIRED/],
       ["F4_NEGATIF_RISKB", /NEGATİF KONTROL:[^\n]*süre dolumu korunması kaldırıldı[\s\S]*FAIL liste süresi doldu/],
       ["F4_NEGATIF_SQL", /NEGATİF KONTROL:[^\n]*SQL posta kutusu kanıtı çıkarıldı[\s\S]*FAIL doğrudan RPC: yanlış \/ eksik posta kutusu kanıtıyla/],
+      ["F4_NEGATIF_SQL_DURUM", /NEGATİF KONTROL:[^\n]*SQL hesap durumu \+ kapsam denetimi çıkarıldı[\s\S]*FAIL doğrudan RPC: Pasif[\s\S]*FAIL doğrudan RPC: test listesinde OLMAYAN/],
+      ["F4_NEGATIF_API_DURUM", /NEGATİF KONTROL:[^\n]*API hesap durumu denetimi kaldırıldı[\s\S]*FAIL API: Pasif/],
     ].map(([v, mustRe]) => ({ label: `f4-kurtarma-guvenligi NEGATİF (${v}=1 → FAIL beklenir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts"],
       env: { [v]: "1" }, expectFail: true, passRe: /f4-kurtarma-guvenligi: [0-9]+ PASS \/ [1-9][0-9]* FAIL/, mustRe })),

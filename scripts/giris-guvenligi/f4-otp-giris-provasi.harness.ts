@@ -48,6 +48,8 @@ async function main() {
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2n: true });
   const { admin } = db;
+  // Production şemasıyla eşlik: arşiv (20280101000600) ve "Pasif" (20280126000000) kolonları — taslak migration ön koşulu.
+  await admin.query(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS archived_at timestamptz, ADD COLUMN IF NOT EXISTS access_restricted_at timestamptz`);
   await admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql"), "utf8"));
   const sink = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "f4-pilot-")), "eposta.jsonl");
   try {

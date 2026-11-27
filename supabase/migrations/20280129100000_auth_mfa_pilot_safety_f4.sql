@@ -8,7 +8,11 @@
 --            yalnız elle SQL'di (SET LOCAL yasam.mfa_policy + UPDATE): hata yapmaya açık, denetim izi yok.
 --
 -- 1) auth_recovery_codes_setup(p_actor_token, p_code_hashes, p_otp_hash) — MFA ÖNCESİ kurtarma kodu kurulumu.
---    Yalnız zorunluluğu HENÜZ AÇILMAMIŞ, e-postası doğrulanmış, etkin, demo olmayan admin / uzman hesabında; MFA'SIZ oturum
+--    Yalnız zorunluluğu HENÜZ AÇILMAMIŞ, e-postası doğrulanmış, etkin, ONAYLI (approval_status='approved'), arşivde olmayan,
+--    "Pasif" (access_restricted_at) olmayan, demo olmayan admin / uzman hesabında VE kontrollü MFA test listesinde ETKİN kaydı
+--    olan (auth_mfa_is_test_account) hesapta. Uygulama katmanı aynı koşulları ayrıca denetler; bu fonksiyon API atlanıp doğrudan
+--    (service_role) çağrılsa da AYNI kuralları uygular. Kapsam (test listesi) koşulu pilot dönemine özgüdür: MFA kapsamı test
+--    listesinin dışına genişletilirse bu fonksiyon AYRI bir migration ile güncellenmelidir (o zamana kadar fail-closed). MFA'SIZ oturum
 --    yeterli AMA kayıtlı adrese gönderilen tek kullanımlık kod (posta kutusu kanıtı) ŞART: yalnız parolayı bilen biri kod
 --    ÜRETEMEZ (yoksa zorunluluk açıldıktan sonra parola + önceden hazırlanmış kodla MFA atlatılırdı).
 --    Kod mevcut auth_email_otp_verify ile (purpose='verify_email', ayrı HMAC kapsamı uygulamada) aynı işlemde TÜKETİLİR; 3 dk,
@@ -39,8 +43,15 @@ BEGIN
   IF to_regprocedure('public.auth_session_actor(text, boolean)') IS NULL
      OR to_regprocedure('public.auth_email_otp_verify(uuid, text, uuid, text)') IS NULL
      OR to_regprocedure('public.auth_recovery_log(uuid, uuid, text, jsonb)') IS NULL
-     OR to_regprocedure('public.users_mfa_policy_guard()') IS NULL THEN
+     OR to_regprocedure('public.users_mfa_policy_guard()') IS NULL
+     OR to_regprocedure('public.auth_mfa_is_test_account(uuid)') IS NULL THEN
     RAISE EXCEPTION 'F4 ön koşul: F2 giriş güvenliği zinciri (001300) eksik';
+  END IF;
+  -- Hesap durumu kolonları (arşiv 20280101000600, pasif 20280126000000, onay): yoksa fonksiyon bu kuralları uygulayamaz → DUR.
+  IF (SELECT count(*) FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users'
+         AND column_name IN ('archived_at', 'access_restricted_at', 'approval_status')) <> 3 THEN
+    RAISE EXCEPTION 'F4 ön koşul: users.archived_at / access_restricted_at / approval_status kolonları eksik';
   END IF;
 END $pre$;
 
@@ -76,6 +87,15 @@ BEGIN
   IF NOT FOUND OR v_user.active IS DISTINCT FROM true OR v_user.is_demo_account IS TRUE
      OR lower(btrim(coalesce(v_user.role::text, ''))) NOT IN ('admin', 'expert') THEN
     RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  -- Hesap durumu: arşiv / "Pasif" (giriş açık, modüller kilitli) / onaysız hesap kurulum YAPAMAZ.
+  IF v_user.archived_at IS NOT NULL OR v_user.access_restricted_at IS NOT NULL
+     OR lower(btrim(coalesce(v_user.approval_status::text, ''))) <> 'approved' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'account_state');
+  END IF;
+  -- Kapsam: yalnız Owner'ın kontrollü MFA test listesine ETKİN olarak aldığı hesap (süresi dolmuş / silinmiş kayıt → kapalı).
+  IF NOT public.auth_mfa_is_test_account(v_actor) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_in_scope');
   END IF;
   IF v_user.mfa_required IS TRUE THEN
     RETURN jsonb_build_object('ok', false, 'code', 'mfa_session_required');

@@ -60,8 +60,13 @@ async function main() {
       anchor: "if (!st.status.isOwnerAccount && st.status.memberRecoveryReady !== true) {", replacement: "if (false) {" },
     { envVar: "F4_NEGATIF_RISKB", file: "lib/auth/mfaChallenge.ts", label: "test listesi süre dolumu korunması kaldırıldı",
       anchor: "      if (req.status === \"required\") flags = resolveOfferedMfaMethods(true, env);", replacement: "      void req;" },
+    { envVar: "F4_NEGATIF_API_DURUM", file: "lib/auth/recoverySetup.ts", label: "API hesap durumu denetimi kaldırıldı",
+      anchor: "|| (u.archived_at ?? null) !== null || (u.access_restricted_at ?? null) !== null) return { ok: false, issue: \"account_state\" };",
+      replacement: "|| (u.archived_at ?? null) !== null || (u.access_restricted_at ?? null) !== null) void 0;" },
   ]);
-  if (muts.length || process.env.F4_NEGATIF_SQL === "1") console.log(`NEGATİF KONTROL: ${[...muts, ...(process.env.F4_NEGATIF_SQL === "1" ? ["SQL posta kutusu kanıtı çıkarıldı"] : [])].join(", ")}`);
+  const sqlNeg = [...(process.env.F4_NEGATIF_SQL === "1" ? ["SQL posta kutusu kanıtı çıkarıldı"] : []),
+    ...(process.env.F4_NEGATIF_SQL_DURUM === "1" ? ["SQL hesap durumu + kapsam denetimi çıkarıldı"] : [])];
+  if (muts.length || sqlNeg.length) console.log(`NEGATİF KONTROL: ${[...muts, ...sqlNeg].join(", ")}`);
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2n: true });
   const { admin } = db;
@@ -81,7 +86,8 @@ async function main() {
     const verifyRoute = await import("@/app/api/auth/mfa/email/verify/route");
     const meRecovery = await import("@/app/api/me/account-recovery/route");
     const mfaRoute = await import("@/app/api/admin/users/[id]/mfa/route");
-    const { issueAndSendOtp, verifyOtp } = await import("@/lib/auth/emailOtp");
+    const { issueAndSendOtp, verifyOtp, recoverySetupOtpHash } = await import("@/lib/auth/emailOtp");
+    const recoveryVerify = await import("@/app/api/auth/mfa/recovery/verify/route");
     const { generateRecoveryCodes, hashRecoveryCode } = await import("@/lib/auth/recoveryCodes");
     const { getServerDb } = await import("@/lib/supabase-server");
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
@@ -138,6 +144,13 @@ async function main() {
         if (a < 0 || b <= a) { console.error("F4_NEGATIF_SQL: mutasyon noktası bulunamadı"); process.exit(2); }
         sql = sql.slice(0, a) + sql.slice(b);
       }
+      if (process.env.F4_NEGATIF_SQL_DURUM === "1") {
+        const a = sql.indexOf("  -- Hesap durumu: arşiv /");
+        const end = "    RETURN jsonb_build_object('ok', false, 'code', 'not_in_scope');\n  END IF;\n";
+        const b = sql.indexOf(end, a) + end.length;
+        if (a < 0 || b <= a + end.length) { console.error("F4_NEGATIF_SQL_DURUM: mutasyon noktası bulunamadı"); process.exit(2); }
+        sql = sql.slice(0, a) + sql.slice(b);
+      }
       await admin.query(sql);
       await fresh(P);
       ok(true, "TASLAK migration sentetik DB'ye uygulandı");
@@ -157,6 +170,63 @@ async function main() {
       const gp = await recGet(P, pSid);
       const sp = gp.json.setup as J;
       ok(sp?.available === true && typeof sp?.emailHint === "string" && !gp.text.includes(PE), "pilot: kurulum AÇIK, adres maskeli", sp);
+      // Hesap durumu (API): Pasif hesapta giriş AÇIK olduğundan ayrıca denetlenmeli.
+      for (const [label, set, undo] of [
+        ["Pasif (access_restricted_at)", `access_restricted_at = now()`, `access_restricted_at = NULL`],
+        ["arşivde (archived_at)", `archived_at = now()`, `archived_at = NULL`],
+        ["onaysız (approval_status=pending)", `approval_status = 'pending'`, `approval_status = 'approved'`],
+      ] as const) {
+        await fix(`UPDATE public.users SET ${set} WHERE id = '${P}'`);
+        const b = mails().length;
+        const g = await recGet(P, pSid);
+        const sd = await rec(P, pSid, { action: "setup_send", password: pw(PE) });
+        await fix(`UPDATE public.users SET ${undo} WHERE id = '${P}'`);
+        ok((g.json.setup as J)?.available === false && (g.json.setup as J)?.issue === "account_state" && sd.status === 403 && sd.json.code === "SETUP_ACCOUNT_STATE" && mails().length === b,
+          `API: ${label} hesap → kurulum KAPALI, kod gönderilmez`, { g: g.json.setup, s: sd.status });
+      }
+    }
+
+    section("A1b) API atlanıp fonksiyon DOĞRUDAN çağrılsa da (GEÇERLİ e-posta koduyla) aynı kurallar");
+    {
+      const sb = createClient(db.shimUrl, "f4-kurtarma", { auth: { persistSession: false } }) as SupabaseClient;
+      // Kod ÖNCE (uygun hesapken) gönderilir, sonra hesap durumu değişir: en kötü durum = elinde geçerli kod olan saldırgan.
+      const direct = async (id: string, email: string, sid: string, after: () => Promise<unknown> = async () => {}) => {
+        await fresh(id);
+        const b = mails().length;
+        const o = await issueAndSendOtp(getServerDb(), { userId: id, email, purpose: "recovery_setup", challengeId: null });
+        const code = lastCode(email, b);
+        await after();
+        const r = await sb.rpc("auth_recovery_codes_setup", { p_actor_token: sid,
+          p_code_hashes: generateRecoveryCodes().map((c) => hashRecoveryCode(id, c)), p_otp_hash: recoverySetupOtpHash(id, email, code) });
+        // Kod çağrı anında GEÇERLİYDİ (gönderilmiş, etkin, süresi dolmamış) mı? — kanıt; sonra saatlik 6 kod tavanı tüketilmesin diye zaman kaydırılır.
+        const live = Number((await q(`SELECT count(*)::int n FROM public.auth_email_otps WHERE user_id = $1 AND state = 'active' AND expires_at > now()`, [id])).rows[0].n);
+        await q(`UPDATE public.auth_email_otps SET created_at = created_at - interval '2 hours', expires_at = expires_at - interval '2 hours' WHERE user_id = $1`, [id]);
+        return { sent: o.ok === true && /^[0-9]{6}$/.test(code) && live === 1, code: String((r.data as J | null)?.code ?? (r.error ? "hata" : "")), ok: (r.data as J | null)?.ok === true };
+      };
+      const cases: [string, string, string, string][] = [
+        ["Pasif", `access_restricted_at = now()`, `access_restricted_at = NULL`, "account_state"],
+        ["arşivde", `archived_at = now()`, `archived_at = NULL`, "account_state"],
+        ["onaysız (pending)", `approval_status = 'pending'`, `approval_status = 'approved'`, "account_state"],
+        ["onay durumu boş", `approval_status = NULL`, `approval_status = 'approved'`, "account_state"],
+        ["demo", `is_demo_account = true`, `is_demo_account = false`, "forbidden"],
+        ["etkin değil (active=false)", `active = false`, `active = true`, "forbidden"],
+      ];
+      for (const [label, set, undo, want] of cases) {
+        const r = await direct(P, PE, pSid, () => fix(`UPDATE public.users SET ${set} WHERE id = '${P}'`));
+        await fix(`UPDATE public.users SET ${undo} WHERE id = '${P}'`);
+        ok(r.sent && !r.ok && r.code === want, `doğrudan RPC: ${label} → ${want}, kod ÜRETİLMEDİ`, r);
+      }
+      // Kapsam: süresi dolmuş test listesi kaydı / listede hiç olmayan hesap
+      const exp = await direct(P, PE, pSid, () => q(`UPDATE public.auth_mfa_test_accounts SET created_at = now() - interval '15 days', expires_at = now() - interval '1 minute' WHERE user_id = $1`, [P]));
+      await q(`UPDATE public.auth_mfa_test_accounts SET created_at = now(), expires_at = now() + interval '14 days' WHERE user_id = $1`, [P]);
+      ok(exp.sent && !exp.ok && exp.code === "not_in_scope", "doğrudan RPC: test listesi kaydı süresi dolmuş → not_in_scope", exp);
+      await q(`UPDATE public.users SET email_verified_at = now() WHERE id = $1`, [O]);
+      const out = await direct(O, OE, oUserSid);
+      await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = $1`, [O]);
+      ok(out.sent && !out.ok && out.code === "not_in_scope", "doğrudan RPC: test listesinde OLMAYAN uzman (doğrulanmış e-posta + geçerli kod) → not_in_scope", out);
+      ok(await n(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = ANY($1::uuid[])`, [[P, O]]) === 0, "bu denemelerin hiçbiri kurtarma kodu ÜRETMEDİ");
+      await fresh(P);
+      await fresh(O);
     }
 
     section("A2) Posta kutusu kanıtı şart");
@@ -274,6 +344,60 @@ async function main() {
       await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = $1`, [AND1]);
     }
 
+    section("F) Süre dolumu / kayıt silinmesi / e-posta kesintisi / güvenli kapatma — kilitlenme YOK, MFA atlanmaz");
+    {
+      const mr = async () => (await q(`SELECT mfa_required, mfa_required_at FROM public.users WHERE id = $1`, [P])).rows[0] as { mfa_required: boolean; mfa_required_at: Date | null };
+      const m0 = await mr();
+      ok(m0.mfa_required === true && m0.mfa_required_at != null, "test listesi süresi DOLDU ama MFA zorunluluğu OTOMATİK KALKMADI (yalnız Owner / acil kapatma kaldırır)", m0);
+      const recLogin = async (code: string) => {
+        await fresh(P);
+        const l = await login(PE);
+        const v = await call(recoveryVerify.POST, "/api/auth/mfa/recovery/verify", "POST", { challengeId: l.json.challengeId, code }, web(l.bind));
+        const c = await call(completeRoute.POST, "/api/auth/mfa/complete", "POST", { challengeId: l.json.challengeId }, web(l.bind));
+        const sid = cookieVal(c.set, "__Host-yasam_sid");
+        const row = sid ? (await q(`SELECT user_id, mfa_method FROM public.user_sessions WHERE session_token = $1`, [sid])).rows[0] : null;
+        return { l, v, c, sid, row };
+      };
+      // F1) Owner test listesi kaydını SİLDİ (zorunluluk sürüyor)
+      await q(`DELETE FROM public.auth_mfa_test_accounts WHERE user_id = $1`, [P]);
+      {
+        const r = await recLogin(codes[0]);
+        ok(r.l.status === 202 && JSON.stringify(r.l.json.methods) === '["recovery_code"]' && !cookieVal(r.l.set, "__Host-yasam_sid"),
+          "kayıt silindi: parola tek başına oturum AÇMAZ; yalnız kurtarma kodu sunulur (#833)", r.l.json.methods);
+        ok(r.v.status === 200 && r.c.status === 200 && r.row?.user_id === P && r.row?.mfa_method === "recovery_code",
+          "kayıt silindi: kurtarma koduyla giriş tamamlandı → kilitlenme YOK (oturum mfa_method=recovery_code)", { v: r.v.status, c: r.c.status, row: r.row });
+        ok((await mr()).mfa_required === true, "kayıt silinmesi MFA zorunluluğunu KALDIRMADI");
+      }
+      await q(`INSERT INTO public.auth_mfa_test_accounts (user_id, note, added_by, created_at, expires_at) VALUES ($1, 'F4 kurtarma (süresi dolmuş)', $2, now() - interval '15 days', now() - interval '1 day')`, [P, U.owner]);
+      // F2) E-posta hizmeti kesintisi (sağlayıcı kapalı)
+      {
+        process.env.EMAIL_SYNTHETIC_FAIL = "provider_down";
+        await fresh(P);
+        const l = await login(PE);
+        const b = mails().length;
+        const s = await call(sendRoute.POST, "/api/auth/mfa/email/send", "POST", { challengeId: l.json.challengeId }, web(l.bind));
+        const c0 = await call(completeRoute.POST, "/api/auth/mfa/complete", "POST", { challengeId: l.json.challengeId }, web(l.bind));
+        ok(((l.json.methods ?? []) as string[]).includes("email_otp") && s.status >= 400 && mails().length === b && c0.status >= 400 && !cookieVal(c0.set, "__Host-yasam_sid"),
+          "e-posta kesintisi: kod gönderilemedi (hata döner), tamamlama oturum AÇMAZ", { send: s.status, complete: c0.status });
+        const r = await recLogin(codes[1]);
+        delete process.env.EMAIL_SYNTHETIC_FAIL;
+        ok(r.c.status === 200 && r.row?.mfa_method === "recovery_code", "e-posta kesintisi: kurtarma koduyla giriş → kilitlenme YOK", { c: r.c.status, row: r.row });
+      }
+      // F3) Pilotu güvenli kapatma: yöntem değişkenini kaldırmak GERİ ALMA DEĞİLDİR (zorunluluk sürer, MFA atlanmaz)
+      {
+        const saved = process.env.AUTH_MFA_METHODS;
+        delete process.env.AUTH_MFA_METHODS;
+        await fresh(P);
+        const l = await login(PE);
+        process.env.AUTH_MFA_METHODS = saved;
+        ok(l.status === 202 && JSON.stringify(l.json.methods) === '["recovery_code"]' && !cookieVal(l.set, "__Host-yasam_sid"),
+          "AUTH_MFA_METHODS kaldırıldı: MFA KALKMAZ, parola yetmez; yalnız kurtarma kodu (env silmek geri alma sayılmaz)", l.json.methods);
+        // MFA'sız Owner panelden kapatamaz (F2-G: taze MFA + işleme bağlı kanıt) → atlatma yok; doğru yol: MFA'lı Owner veya acil SQL.
+        const d = await call(mfaRoute.POST, `/api/admin/users/${P}/mfa`, "POST", { action: "disable", reason: "F4 pilot kapatma denemesi", confirm: true }, adm(oSid), ctxOf(P));
+        ok(d.status === 403 && (await mr()).mfa_required === true, "MFA'sız Owner oturumu panelden kapatamaz (403); zorunluluk değişmedi", { s: d.status, c: d.json.code });
+      }
+    }
+
     section("E) Yaşam döngüsü");
     {
       await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = $1`, [P]);   // adres değişikliği / doğrulama düşmesi
@@ -298,6 +422,7 @@ async function main() {
       ok(!!svc.error, "service_role (uygulama) acil kapatmayı ÇAĞIRAMAZ", svc.error?.message?.slice(0, 80));
       const short = (await q(`SELECT public.auth_mfa_emergency_disable($1, 'kısa') AS r`, [P])).rows[0].r as J;
       ok(short.ok === false && short.code === "bad_request", "gerekçesiz / kısa gerekçe reddedilir", short);
+      const codesBefore = await n(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = $1 AND state = 'active'`, [P]);
       const before = (await q(`SELECT id, mfa_required FROM public.users WHERE id <> $1 ORDER BY id`, [P])).rows;
       const r = (await q(`SELECT public.auth_mfa_emergency_disable($1, 'F4 pilot acil geri dönüş — sentetik') AS r`, [P])).rows[0].r as J;
       const after = (await q(`SELECT id, mfa_required FROM public.users WHERE id <> $1 ORDER BY id`, [P])).rows;
@@ -312,7 +437,8 @@ async function main() {
       await fresh(P);
       const l = await login(PE);
       ok(l.status === 200 && !!l.sid, "pilot yeniden parolayla girer (kurtarma kodları korunur)", l.status);
-      ok(await n(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = $1 AND state = 'active'`, [P]) >= 9, "acil kapatma kurtarma kodlarına DOKUNMADI");
+      const codesAfter = await n(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = $1 AND state = 'active'`, [P]);
+      ok(codesAfter === codesBefore && codesAfter > 0, "acil kapatma kurtarma kodlarına DOKUNMADI", { codesBefore, codesAfter });
     }
   } finally {
     await db.close();

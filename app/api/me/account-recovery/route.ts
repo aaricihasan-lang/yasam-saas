@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
               : "Geçerli bir kod yok. Yeni kod isteyin.";
         return jsonNoStore({ code: c.toUpperCase(), error: msg }, 400);
       }
-      return jsonNoStore({ code: c.toUpperCase(), error: "Kurtarma kodları oluşturulamadı." }, c === "forbidden" || c === "mfa_session_required" ? 403 : 400);
+      return jsonNoStore({ code: c.toUpperCase(), error: "Kurtarma kodları oluşturulamadı." }, c === "forbidden" || c === "mfa_session_required" || c === "account_state" || c === "not_in_scope" ? 403 : 400);
     }
     await sendSecurityNotice(guard.db, { userId: guard.userId, to: el.email, name: el.name, kind: "recovery_codes_generated" });
     return jsonNoStore({ codes: codes.map(formatRecoveryCode), revoked: Number(r.revoked) || 0 }, 200);
