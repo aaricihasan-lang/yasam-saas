@@ -143,9 +143,6 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
                           {movementStyleLabel(t.movement_style)}
                         </span>
                       ) : null}
-                      {t.is_active === false ? (
-                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">Pasif</span>
-                      ) : null}
                     </span>
                   </Link>
                 </li>

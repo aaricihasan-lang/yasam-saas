@@ -37,7 +37,7 @@ export default function HdBilgiBankasiLegacyPage() {
           Human Design — Bilgi Kayıtlarım
         </h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
-          Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar
+          Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Kaydettiğiniz kayıtlar
           Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir; Genel merkez kayıtları bu eşleşmeye ve
           otomatik raporlara dahil edilmez.
         </p>

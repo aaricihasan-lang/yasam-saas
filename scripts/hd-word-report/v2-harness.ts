@@ -388,7 +388,8 @@ async function main() {
   ok("B1 schemaVersion=hd-report-2 ve şema doğrulayıcı geçer", pure.schemaVersion === "hd-report-2" && V2.isHdReportSnapshotV2(pure) && V2.isAnyHdReportSnapshot(pure));
   ok("B2 yerel saat HH:mm (saniyesiz), UTC anı snapshot'ta YOK", pure.client.birthTime === "19:00" && !JSON.stringify(pure).includes("2018-07-20T16:00"));
   ok("B3 kimlik etiketleri Türkçe uygulama sözlüğünden", !!pure.identity.type && !!pure.identity.authority && !!pure.identity.profile && !!pure.identity.definition);
-  ok("B4 uzman kayıtları: yalnız aktif + dolu + bu tenant (pasif/boş/T2 yok)", pure.commentary.expert.entries.length === 2 && !JSON.stringify(pure).includes("PASİF-İÇERİK") && !JSON.stringify(pure).includes("BASKA-TENANT"));
+  // Owner kararı (28.11.2026): içerikli eski pasif kayıt kullanılır; boş kayıt ve başka tenant asla.
+  ok("B4 uzman kayıtları: yalnız dolu + bu tenant (içerikli eski pasif VAR; boş/T2 yok)", pure.commentary.expert.entries.length === 3 && JSON.stringify(pure).includes("PASİF-İÇERİK") && !pure.commentary.expert.entries.some((e) => e.title === "Boş Kayıt") && !JSON.stringify(pure).includes("BASKA-TENANT"));
   ok("B5 uzman özel notu (expert_notes) snapshot'a GİRMEZ", !JSON.stringify(pure).includes("ÖZEL-NOT-SIZMAMALI"));
   ok("B6 kategori sırası: Tipler önce Kapılar", pure.commentary.expert.entries[0].category === "Tipler");
 
@@ -539,7 +540,8 @@ async function main() {
     }
     const noPerm = await run({ tenantId: T1 }, { commentary: "both" });
     ok("P6c yetkisiz uzman 'both' gönderse de Sistem Yorumu EKLENMEZ; yalnız seçtiği açıklamalar", noPerm.row?.snapshot.commentary.system.status === "not_permitted" && !noPerm.text.includes(ROXY_DESC_MARK) && noPerm.text.includes("Tip Yorumum"));
-    ok("P7 başka tenant'ın / pasif / ilgisiz kodlu kayıtları hiçbir seçimde yok", all.concat([forged, noPerm]).every((x) => !x.text.includes("BASKA-TENANT") && !x.text.includes("PASİF-İÇERİK") && !x.text.includes("ESLESMEYEN-ICERIK")));
+    ok("P7 başka tenant'ın / ilgisiz kodlu kayıtları hiçbir seçimde yok", all.concat([forged, noPerm]).every((x) => !x.text.includes("BASKA-TENANT") && !x.text.includes("ESLESMEYEN-ICERIK")));
+    ok("P7b içerikli eski pasif kayıt YALNIZ Bilgi Bankası seçilince var (seçilmezse yok)", [kOnly, both2, forged, noPerm].every((x) => x.text.includes("PASİF-İÇERİK")) && [none, sOnly].every((x) => !x.text.includes("PASİF-İÇERİK")));
     // Kayıtlı eski Word: sonradan Bilgi Bankası değişse de indirilen içerik AYNI (donmuş snapshot).
     const before = kOnly.text;
     const tipRec = pdb.tables.human_design_knowledge_records.find((r) => String(r.code).startsWith("tip_") && r.tenant_id === T1 && r.is_active === true);
@@ -903,7 +905,7 @@ async function main() {
     const roxyUuid = db.tables.human_design_charts.find((c) => c.id === "c4a00000-0000-4000-8000-0000000000a1");
     if (roxyUuid) roxyUuid.id = "00000000-0000-4000-8000-0000000000aa";
     const own = await ask(sys, "00000000-0000-4000-8000-0000000000aa");
-    ok("W12 eşleşme sayısı = Word'e girecek aktif açıklama sayısı (yalnız sayı döner)", own.status === 200 && own.body.count === 2 && Object.keys(own.body).sort().join() === "count,ok", JSON.stringify(own.body));
+    ok("W12 eşleşme sayısı = Word'e girecek dolu açıklama sayısı (içerikli eski pasif dahil, boş hariç; yalnız sayı döner)", own.status === 200 && own.body.count === 3 && Object.keys(own.body).sort().join() === "count,ok", JSON.stringify(own.body));
     ok("W12b başka tenant aynı analiz için 404 (sayı sızmaz)", (await ask({ tenantId: T2 }, "00000000-0000-4000-8000-0000000000aa")).status === 404);
     ok("W12c geçersiz kimlik 400", (await ask(sys, "ch-roxy")).status === 400);
     const empty3 = await ask({ tenantId: T3 }, "00000000-0000-4000-8000-0000000000aa");

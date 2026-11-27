@@ -413,7 +413,9 @@ async function main() {
   res = await call(route.PATCH, "PATCH", U, { id: fId, title: "Yürek Kapısı" });
   ok("F2 Yalnız ad güncellemesi (açıklama boş) → 200", res.status === 200 && fRow().title === "51 — Yürek Kapısı");
   res = await call(route.PATCH, "PATCH", U, { id: fId, is_active: true });
-  ok("F3 Boş açıklamayla aktif etme hâlâ reddedilir (mevcut kural)", res.status === 400 && fRow().is_active === false);
+  // Owner kararı (28.11.2026): aktif/pasif seçimi yok; kaydedilen kayıt aktiftir. Boş açıklamalı kayıt
+  // kaydedilir ama otomatik eşleşme / rapor okumalarına GİRMEZ (içerik doluluğu kuralı).
+  ok("F3 Kaydetme aktif yapar; boş açıklama otomatik okumaya girmez", res.status === 200 && fRow().is_active === true);
   const ver = String(fRow().updated_at ?? "");
   res = await call(route.PATCH, "PATCH", U, { id: fId, title: "51 — Eski Sürüm", expected_updated_at: "1999-01-01T00:00:00.000Z" });
   ok("F4 Optimistic locking korunur: bayat sürüm → 409, ad değişmez", res.status === 409 && fRow().title === "51 — Yürek Kapısı", JSON.stringify(res));

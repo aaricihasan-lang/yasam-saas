@@ -48,7 +48,6 @@ const FIELDS: FieldDef[] = [
   { key: "scope_tags", label: "Kapsam Etiketleri (virgülle ayırın)", type: "tags" },
   { key: "source_note", label: "Kaynak Bilgisi (serbest)", type: "textarea" },
   { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
 ];
 
 export default function GuvenlikPage() {

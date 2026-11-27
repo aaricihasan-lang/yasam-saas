@@ -28,7 +28,7 @@ import { TA, TB, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth, 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-genel-merkez-browser");
 const PORT = 3993;
 const APP = `http://127.0.0.1:${PORT}`;
-const SHIM_PORT = 54627;
+const SHIM_PORT = Number(process.env.HD_E2E_SHIM_PORT ?? 54627);
 mkdirSync(OUT, { recursive: true });
 
 let pass = 0;
@@ -71,7 +71,7 @@ const CENTERS: Array<[string, string]> = [
 const GENERAL_NOTE = "Bu kayıt genel bilgi ve eğitim notları içindir. Danışan haritasıyla otomatik eşleşmez ve otomatik raporlara dahil edilmez.";
 const GENERAL_CONTENT_HELP = "Bu merkez hakkında eğitimlerinizden, kitaplarınızdan ve kendi çalışmalarınızdan edindiğiniz bilgileri yazabilirsiniz.";
 const CENTER_CONTENT_HELP = "Bu merkez hakkında eğitimlerinizden, kitaplarınızdan ve kendi çalışmalarınızdan edindiğiniz bilgileri yazabilirsiniz. Bu bilgiler yalnızca siz Word raporuna eklemeyi seçerseniz raporda yer alır.";
-const HEADER_TEXT = "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir; Genel merkez kayıtları bu eşleşmeye ve otomatik raporlara dahil edilmez.";
+const HEADER_TEXT = "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Kaydettiğiniz kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir; Genel merkez kayıtları bu eşleşmeye ve otomatik raporlara dahil edilmez.";
 const EXPECTED_LABELS = CENTERS.flatMap(([, l]) => [`Genel — ${l}`, `Tanımlı — ${l}`, `Tanımsız — ${l}`, `Açık — ${l}`]);
 
 async function newPage(browser: Browser, user: Json, token: string, d: Device): Promise<{ ctx: BrowserContext; page: Page; errors: string[]; external: string[] }> {
@@ -165,8 +165,17 @@ async function main() {
     ].filter((c): c is string => !!c);
     for (const c of preciseCodes) await ins(TA, c.startsWith("tip_") ? "Tipler" : "Merkezler", c, `ZZ ${c}`, `KESIN-METIN-${c}`, true);
     await ins(TB, "Merkezler", "merkez_genel_head", "Genel — Baş Merkezi (Head)", "B-TENANT-GENEL-METNI", true);
+    // Aktif/pasif kaldırma (Owner 28.11.2026): ESKİ kayıt durumları — içerikli pasif (taslak) kayıt
+    // artık kullanılır; içeriği boş (aktif / pasif) kayıt otomatik rapora boş açıklama olarak GİRMEZ.
+    const gateCodes = codes.filter((c) => c.startsWith("kapi_"));
+    const legacyPassive = gateCodes[0];
+    await ins(TA, "Kapılar", legacyPassive, `${legacyPassive.slice(5)} — ZZ Eski Pasif`, "ESKI-PASIF-ICERIKLI-METIN", false);
+    await ins(TA, "Kapılar", gateCodes[1], `${gateCodes[1].slice(5)} — ZZ Bos Aktif`, "", true);
+    await ins(TA, "Kapılar", gateCodes[2], `${gateCodes[2].slice(5)} — ZZ Bos Pasif`, "   ", false);
+    const uiCenterCode = codes.filter((c) => c.startsWith("merkez_tanimli_"))[1];
+    const uiCenter = CENTERS.find(([c]) => `merkez_tanimli_${c}` === uiCenterCode)!;
     const existingBefore = JSON.stringify((await su.query(`select id, tenant_id, code, title, content, expert_notes, is_active from public.human_design_knowledge_records order by id`)).rows);
-    ok(created.status === 200 && chart.json.ok === true && preciseCodes.length >= 3 && preciseCodes.some((c) => c.startsWith("merkez_tanimsiz_") || c.startsWith("merkez_tam_acik_")),
+    ok(created.status === 200 && chart.json.ok === true && preciseCodes.length >= 3 && preciseCodes.some((c) => c.startsWith("merkez_tanimsiz_") || c.startsWith("merkez_tam_acik_")) && gateCodes.length >= 3 && !!uiCenter,
       `tohum: danışan + kayıtlı analiz + ${preciseCodes.length} kesin kayıt (${preciseCodes.join(", ")}) + B kullanıcısının genel kaydı`);
 
     const appEnv: NodeJS.ProcessEnv = { ...process.env, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, NEXT_TELEMETRY_DISABLED: "1", HD_LOCATION_REF_SECRET: "zz-hd-flow-test-secret" };
@@ -179,7 +188,7 @@ async function main() {
     browser = await chromium.launch();
     const userA = userJson(UA, TA, "GMA");
 
-    // 9 merkez 3 cihaza paylaştırılır; her cihazda 2 aktif + 1 taslak.
+    // 9 merkez 3 cihaza paylaştırılır; aktif/pasif seçimi YOK — kaydedilen her kayıt otomatik aktif.
     const plan: Record<string, Array<[string, string]>> = { "375px": CENTERS.slice(0, 3), "390px": CENTERS.slice(3, 6), "masaüstü": CENTERS.slice(6, 9) };
     const recIds: Record<string, string> = {};
     for (const d of DEVICES) {
@@ -224,7 +233,6 @@ async function main() {
 
       section(`9/9 oluştur / kaydet / yeniden aç / düzenle — ${d.name}`);
       for (const [i, [c, label]] of plan[d.name].entries()) {
-        const active = i < 2;
         const sel = i === 0 ? titleSel : await openCreateForm(page);
         await sel.selectOption({ label: `Genel — ${label}` });
         const codeVal = await page.locator('label:text-is("Kod (otomatik)") + input').inputValue();
@@ -237,16 +245,17 @@ async function main() {
         await content.waitFor({ timeout: 60_000 });
         await content.fill(`GENEL-ICERIK-${c} ilk metin`);
         await page.locator("[data-hd-kb-notes-help] + textarea").fill(`GENEL-OZEL-NOT-${c}`);
-        const act = page.locator("#hd-editor-active");
-        if ((await act.isChecked()) !== active) await act.click();
+        ok((await page.locator("#hd-editor-active").count()) === 0 && (await page.getByText("Aktif kayıt", { exact: true }).count()) === 0
+          && (await page.getByText("Pasif", { exact: true }).count()) === 0 && (await page.getByText("Aktif", { exact: true }).count()) === 0,
+          `${d.name}: ${c} editörde "Aktif kayıt" kutusu ve Aktif/Pasif rozeti YOK`);
         const save1 = page.waitForResponse((r) => r.url().includes("/api/hd/knowledge") && r.request().method() === "PATCH", { timeout: 30_000 });
         await page.getByRole("button", { name: "Kaydet", exact: true }).click();
-        ok((await save1).status() === 200, `${d.name}: ${c} tam sayfa editörde ${active ? "AKTİF" : "TASLAK"} kaydedildi`);
+        ok((await save1).status() === 200, `${d.name}: ${c} tam sayfa editörde kaydedildi (ek aktifleştirme yok)`);
         await page.getByText("Kayıt güncellendi.").first().waitFor({ timeout: 20_000 });
         // Yeniden aç
         await reopen(page, `${c}-1-${d.name}`);
         const reTitle = await page.locator('label:text-is("Başlık *") + select').inputValue();
-        ok(reTitle === `genel_${c}` && (await content.inputValue()) === `GENEL-ICERIK-${c} ilk metin` && (await act.isChecked()) === active, `${d.name}: ${c} yeniden açıldı — başlık seçili, içerik ve durum aynen`);
+        ok(reTitle === `genel_${c}` && (await content.inputValue()) === `GENEL-ICERIK-${c} ilk metin`, `${d.name}: ${c} yeniden açıldı — başlık seçili, içerik aynen`);
         // Düzenle → kaydet → yeniden aç
         await content.fill(`GENEL-ICERIK-${c} düzenlendi`);
         const save2 = page.waitForResponse((r) => r.url().includes("/api/hd/knowledge") && r.request().method() === "PATCH", { timeout: 30_000 });
@@ -272,9 +281,9 @@ async function main() {
     section("Veritabanı: 9 genel kayıt");
     const gen = (await su.query(`select code, title, category, is_active, content, user_id from public.human_design_knowledge_records where tenant_id=$1 and code like 'merkez_genel_%' order by code`, [TA])).rows;
     ok(gen.length === 9 && CENTERS.every(([c, l]) => gen.some((g) => g.code === `merkez_genel_${c}` && g.title === `Genel — ${l}` && g.category === "Merkezler" && g.content === `GENEL-ICERIK-${c} düzenlendi` && g.user_id === UA.id)), "9/9 genel kayıt doğru kod / başlık / kategori / içerik / sahiple DB'de", gen.map((g) => g.code));
-    ok(gen.filter((g) => g.is_active).length === 6 && gen.filter((g) => !g.is_active).length === 3, "6 aktif + 3 taslak");
+    ok(gen.every((g) => g.is_active === true), "9/9 kaydedilen genel kayıt OTOMATİK aktif (kullanıcı işlemi olmadan)");
     const existingAfter = JSON.stringify((await su.query(`select id, tenant_id, code, title, content, expert_notes, is_active from public.human_design_knowledge_records where code not like 'merkez_genel_%' or tenant_id=$1 order by id`, [TB])).rows);
-    ok(existingAfter === existingBefore, "mevcut kayıtlar (A kesin kayıtları + B genel kaydı) DEĞİŞMEDİ / SİLİNMEDİ");
+    ok(existingAfter === existingBefore, "mevcut kayıtlar (kesin + eski pasif + boş kayıtlar + B genel kaydı) DEĞİŞMEDİ / SİLİNMEDİ (veri güncellemesi yok)");
 
     section("Mevcut (kesin) kayıtların editör bilgilendirmeleri korunur — 375px + masaüstü");
     for (const d of [DEVICES[0], DEVICES[2]]) {
@@ -293,6 +302,31 @@ async function main() {
       await p.ctx.close();
     }
 
+    section("Normal not: arayüzden oluştur → kaydet → otomatik aktif → raporda kullanılır (masaüstü)");
+    {
+      const p = await newPage(browser, userA, UA.token!, DEVICES[2]);
+      const sel = await openCreateForm(p.page);
+      ok((await p.page.getByText("aktif edebilirsiniz").count()) === 0 && (await p.page.getByText("taslak", { exact: true }).count()) === 0, "Yeni Kayıt formunda 'taslak oluşturulur / aktif edebilirsiniz' açıklaması YOK");
+      await sel.selectOption({ label: `Tanımlı — ${uiCenter[1]}` });
+      await p.page.getByRole("button", { name: "Oluştur ve Düzenle" }).click();
+      await p.page.waitForURL(/\/human-design\/bilgi-bankasi\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+      const content = p.page.locator("[data-hd-kb-content-help] + textarea");
+      await content.waitFor({ timeout: 60_000 });
+      await content.fill("YENI-NORMAL-NOT-METNI");
+      await p.page.locator("[data-hd-kb-notes-help] + textarea").fill("YENI-NORMAL-OZEL-NOT");
+      const sv = p.page.waitForResponse((r) => r.url().includes("/api/hd/knowledge") && r.request().method() === "PATCH", { timeout: 30_000 });
+      await p.page.getByRole("button", { name: "Kaydet", exact: true }).click();
+      ok((await sv).status() === 200, "normal not kaydedildi (aktifleştirme adımı yok)");
+      await p.page.getByText("Kayıt güncellendi.").first().waitFor({ timeout: 20_000 });
+      await reopen(p.page, "normal-not");
+      ok((await content.inputValue()) === "YENI-NORMAL-NOT-METNI", "normal not yeniden açıldı — içerik aynen");
+      const nr = (await su.query(`select is_active, content, expert_notes from public.human_design_knowledge_records where tenant_id=$1 and code=$2`, [TA, uiCenterCode])).rows[0];
+      ok(nr?.is_active === true && nr.content === "YENI-NORMAL-NOT-METNI" && nr.expert_notes === "YENI-NORMAL-OZEL-NOT", "normal not DB'de otomatik aktif, içerik + özel not aynen", nr);
+      allErrors.push(...p.errors);
+      allExternal.push(...p.external);
+      await p.ctx.close();
+    }
+
     const { ctx, page, errors, external } = await newPage(browser, userA, UA.token!, DEVICES[2]);
     section("Bilgi Bankası listesi (masaüstü)");
     await page.goto(`${APP}/human-design/bilgi-bankasi`);
@@ -300,7 +334,9 @@ async function main() {
     await page.getByLabel("Kategori filtresi").selectOption("Merkezler");
     await page.getByText("Genel — Baş Merkezi (Head)", { exact: true }).first().waitFor({ timeout: 30_000 });
     const listTitles = (await page.locator('input[aria-label$=" kaydını seç"]').evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")!.replace(/ kaydını seç$/, ""))));
-    ok(listTitles.filter((t) => t.startsWith("Genel — ")).length === 9, "listede 9 genel kayıt görünür (aktif + taslak)");
+    ok(listTitles.filter((t) => t.startsWith("Genel — ")).length === 9, "listede 9 genel kayıt görünür");
+    ok((await page.getByLabel("Durum filtresi").count()) === 0 && (await page.locator("th", { hasText: /^\s*Aktif\s*$/ }).count()) === 0 && (await page.locator("option", { hasText: /^Pasif$/ }).count()) === 0,
+      "listede Aktif/Pasif durum filtresi ve Aktif sütunu YOK");
     ok(!(await page.content()).includes("B-TENANT-GENEL-METNI"), "listede başka kullanıcının genel kaydı YOK");
     const idxGenelHead = listTitles.indexOf("Genel — Baş Merkezi (Head)");
     ok(idxGenelHead === 0, "liste sıralaması: Genel — Baş Merkezi ilk sırada", listTitles.slice(0, 4));
@@ -317,6 +353,8 @@ async function main() {
     ok(m.status === 200 && Array.isArray(mRows), "harita eşleşme ucu yanıt verdi", m.json);
     ok(!mRows.some((r) => r.code.startsWith("merkez_genel_")), "genel kodlar AÇIKÇA istense bile harita eşleşmesine GİRMEZ", mRows.map((r) => r.code));
     ok(preciseCodes.every((c) => mRows.some((r) => r.code === c)), "kesin Tanımlı / Tanımsız / Açık + tip kayıtları eşleşir (regresyon)", mRows.map((r) => r.code));
+    ok(mRows.some((r) => r.code === legacyPassive) && !mRows.some((r) => r.code === gateCodes[1] || r.code === gateCodes[2]) && mRows.some((r) => r.code === uiCenterCode),
+      "eşleşme: içerikli ESKİ PASİF kayıt + yeni normal not VAR; içeriği boş (aktif/pasif) kayıtlar YOK", mRows.map((r) => r.code));
     const bId = (await su.query(`select id from public.human_design_knowledge_records where tenant_id=$1`, [TB])).rows[0].id;
     const cross = await api(`?id=${bId}`);
     ok(cross.status !== 200 || !JSON.stringify(cross.json).includes("B-TENANT-GENEL-METNI"), "A, B'nin genel kaydını açamaz", cross.status);
@@ -332,7 +370,8 @@ async function main() {
     await dlg.getByRole("checkbox", { name: /Bilgi Bankamdaki Açıklamaları Ekle/ }).check();
     await dlg.locator("[data-hd-kb-match]").waitFor({ timeout: 20_000 });
     const matchText = ((await dlg.locator("[data-hd-kb-match]").textContent()) ?? "").trim();
-    ok(matchText.includes(`Bu analizle eşleşen ${preciseCodes.length} aktif açıklama eklenecek.`), `eşleşen açıklama sayısı = ${preciseCodes.length} kesin kayıt (6 aktif genel kayıt SAYILMAZ)`, matchText);
+    const expectedCount = preciseCodes.length + 2;
+    ok(matchText.includes(`Bu analizle eşleşen ${expectedCount} aktif açıklama eklenecek.`), `eşleşen açıklama sayısı = ${expectedCount} (kesin + eski pasif içerikli + yeni not; genel ve boş kayıtlar SAYILMAZ)`, matchText);
     await page.screenshot({ path: path.join(OUT, "word-secim-masaustu.png") });
     const dlP = page.waitForEvent("download", { timeout: 90_000 });
     await dlg.getByRole("button", { name: "Raporu Hazırla" }).click();
@@ -340,6 +379,13 @@ async function main() {
     ok(text.includes("Sentetik Genel"), "Word indirildi (danışan bilgisi var)");
     ok(!/GENEL-ICERIK-/.test(text) && !text.includes("Genel — "), "Word'de genel merkez içeriği / başlığı YOK", text.match(/GENEL-ICERIK-[a-z_]+/g));
     ok(preciseCodes.every((c) => text.includes(`KESIN-METIN-${c}`)), "Word'de kesin merkez + tip açıklamaları VAR (regresyon)");
+    ok(text.includes("ESKI-PASIF-ICERIKLI-METIN") && text.includes("YENI-NORMAL-NOT-METNI"), "Word'de içerikli ESKİ PASİF kayıt ve yeni normal not VAR");
+    // Kapı görünen adı (başlık) teknik tabloda kullanılabilir; burada AÇIKLAMA girdileri denetlenir (donmuş snapshot).
+    const snapRow = (await su.query(`select snapshot from public.human_design_reports where chart_id=$1 order by created_at desc limit 1`, [chartId])).rows[0];
+    const entryCodes = ((snapRow?.snapshot?.commentary?.expert?.entries ?? []) as Array<{ code: string; content: string }>);
+    ok(entryCodes.length === expectedCount && entryCodes.every((e) => (e.content ?? "").trim() !== "") && !entryCodes.some((e) => e.code === gateCodes[1] || e.code === gateCodes[2] || e.code.startsWith("merkez_genel_")),
+      "Word açıklama girdileri: içeriği boş (aktif/pasif) kayıt ve genel merkez kaydı YOK; boş açıklama girdisi YOK", entryCodes.map((e) => e.code));
+    ok(!text.includes("YENI-NORMAL-OZEL-NOT"), "Word'de yeni notun Özel Çalışma Notu YOK");
     ok(!/OZEL-NOT-|GENEL-OZEL-NOT-/.test(text) && !text.includes("B-TENANT-GENEL-METNI"), "Word'de özel notlar ve başka kullanıcı kaydı YOK");
     allErrors.push(...errors);
     allExternal.push(...external);

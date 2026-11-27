@@ -307,7 +307,7 @@ export function countReportableExpertEntries(records: BuildSnapshotV2Input["expe
 function freezeExpert(records: BuildSnapshotV2Input["expertRecords"]): FrozenExpertEntry[] {
   const entries: FrozenExpertEntry[] = [];
   for (const r of records) {
-    if (r.is_active === false) continue;
+    // Owner kararı (28.11.2026): is_active artık seçilmez; yalnız içerik/başlık/kod doluluğu belirler.
     // HD-09: yeni donan rapor XML 1.0'da geçersiz karakter taşımaz (Word'ün açamadığı dosya oluşmaz).
     const content = typeof r.content === "string" ? hdXmlSafeMultiline(r.content).trim() : "";
     const title = str(typeof r.title === "string" ? hdXmlSafeLine(r.title) : r.title);

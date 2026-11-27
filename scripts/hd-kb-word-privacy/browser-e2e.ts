@@ -197,7 +197,9 @@ async function main() {
       ok(c.k ? text.includes("KAPI-ACIKLAMA-METNI satır 1") && text.includes("satır 2 — aynen korunmalı") : !text.includes("KAPI-ACIKLAMA-METNI"), `${label}: Bilgi Bankası açıklaması ${c.k ? "AYNEN var" : "YOK"}`);
       ok(c.s ? /Sistem Yorumu/.test(text) : !/Kaynak: Harita hesaplanırken/.test(text), `${label}: Sistem Yorumu ${c.s ? "var" : "yok"}`);
       ok(!/OZEL-NOT-/.test(text), `${label}: Özel Çalışma Notları YOK`);
-      ok(!text.includes("PASIF-KAYIT-METNI") && !text.includes("ILGISIZ-KAYIT-METNI") && !text.includes("BASKA-TENANT-METNI") && !text.includes("SERBEST-NOT-METNI"), `${label}: pasif / ilgisiz / başka tenant / serbest kayıt YOK`);
+      ok(!text.includes("ILGISIZ-KAYIT-METNI") && !text.includes("BASKA-TENANT-METNI") && !text.includes("SERBEST-NOT-METNI"), `${label}: ilgisiz / başka tenant / serbest kayıt YOK`);
+      // Owner kararı (28.11.2026): aktif/pasif seçimi yok — içerikli eski pasif kayıt YALNIZ Bilgi Bankası seçilince rapora girer.
+      ok(c.k ? text.includes("PASIF-KAYIT-METNI") : !text.includes("PASIF-KAYIT-METNI"), `${label}: içerikli eski pasif kayıt ${c.k ? "VAR (seçildi)" : "YOK (seçilmedi)"}`);
       if (!c.k && !c.s) ok(!text.includes("Uzman Açıklamaları") && !text.includes("eşleşen kayıt bulunmadığından"), `${label}: gereksiz boş başlık yok`);
       // 2026-10-10 owner: ad doluysa son sayfada "RAPORU HAZIRLAYAN" imza kartı; boşsa kart tamamen gizli.
       ok(preparer ? text.includes("RAPORU HAZIRLAYAN") && text.includes(preparer) && !text.includes("Hazırlayan: ") : !text.includes("RAPORU HAZIRLAYAN") && !text.includes("Hazırlayan:") && !text.includes("Ad Soyad / Unvan"), `${label}: Hazırlayan ${preparer ? "imza kartında yazılan ad/unvan" : "imza kartı YOK (boş)"}; profil adı otomatik yazılmaz`);

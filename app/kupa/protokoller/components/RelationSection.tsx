@@ -95,14 +95,9 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
   const noteDirty = editingRel !== null && noteDraft.trim() !== String(editingRel.protocol_note ?? "").trim();
   useReportDirty(`rel-${kind}`, pending.length > 0 || noteDirty);
 
-  // FAZ 4 (owner-locked): PASİF teknik YENİ attachment picker'ında adaydeğildir. Zaten ekli
-  // pasif teknik relation listesinde render olmaya DEVAM eder (nameOf → doc.techniqueName;
-  // burada filtre YALNIZ picker aday kümesini etkiler — otomatik detach/arşiv/silme YOK).
-  // Global listTechniques DEĞİŞMEZ (ekli pasif kayıtların çözümlenmesi korunur).
-  const pickerMaster =
-    kind === "technique"
-      ? master.filter((m) => (m as { is_active?: boolean | null }).is_active !== false)
-      : master;
+  // Owner kararı (28.11.2026): aktif/pasif seçimi kaldırıldı — kayıtlı tüm teknikler (eski pasifler
+  // dahil) picker adayıdır (FAZ 4 pasif filtresinin yerine geçer). listTechniques DEĞİŞMEZ.
+  const pickerMaster = master;
 
   const items: PickerItem[] = pickerMaster.map((m) => {
     if (kind === "point") return { id: m.id, label: (m as { name: string }).name, meta: (m as { anatomical_region?: string | null }).anatomical_region ?? undefined };

@@ -16,7 +16,6 @@ export default function ProtokollerPage() {
   const { confirm } = useConfirm();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "passive">("all");
 
   const categories = useMemo(
     () => Array.from(new Set(protocols.map((p) => p.category).filter((c): c is string => !!c))).sort((a, b) => a.localeCompare(b, "tr")),
@@ -27,11 +26,9 @@ export default function ProtokollerPage() {
   const filtered = useMemo(() => {
     return protocols.filter((p) => {
       if (category && p.category !== category) return false;
-      if (status === "active" && p.is_active === false) return false;
-      if (status === "passive" && p.is_active !== false) return false;
       return protocolMatchesQuery(p, q);
     });
-  }, [protocols, q, category, status]);
+  }, [protocols, q, category]);
 
   async function handleDelete(p: CuppingProtocol) {
     const ok = await confirm({
@@ -76,11 +73,6 @@ export default function ProtokollerPage() {
               ))}
             </select>
           ) : null}
-          <select className={`${kupaInput} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value as "all" | "active" | "passive")} aria-label="Durum">
-            <option value="all">Tümü</option>
-            <option value="active">Aktif</option>
-            <option value="passive">Pasif</option>
-          </select>
         </div>
       ) : null}
 

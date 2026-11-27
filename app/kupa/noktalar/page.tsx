@@ -34,7 +34,6 @@ const FIELDS: FieldDef[] = [
   { key: "source_note", label: "Kaynak Bilgisi (serbest — yapısal atıf için Kaynaklar)", type: "textarea" },
   { key: "professional_note", label: "Profesyonel Not", type: "textarea" },
   { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
 ];
 
 export default function NoktalarPage() {
