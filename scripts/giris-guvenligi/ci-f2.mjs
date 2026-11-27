@@ -107,6 +107,15 @@ const TSX = [
   // F3 pilot: tek uzman hesabı için adres doğrulaması (AUTH_EMAIL_VERIFY_PILOT_USER_ID) — diğer kullanıcılar aynen, OTP kuralları,
   // IDOR/CSRF, adres değişikliği / bildirim / kurtarma / MFA açılmaz.
   "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts",
+  // F4: MFA pilotu kilitlenme güvenliği — MFA öncesi kurtarma kodu kurulumu (TASLAK migration 20280129100100 sentetik DB'de),
+  // kurtarma kodu şartı, test listesi süre dolumu, acil SQL kapatma, yaşam döngüsü.
+  "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts",
+  // F4: MFA atlatma denetimi — bütün oturum oluşturan yollar (web / Android / tamamlama / doğrudan RPC), oturum sabitleme, replay,
+  // hesap keşfi; pozitif kontrollerle (imza hatası ≠ koruma).
+  "scripts/giris-guvenligi/f4-mfa-atlatma.harness.ts",
+  // F4: girişte e-posta OTP pilotu (tek uzman) — planlanan production yapılandırmasının uçtan uca provası; diğer hesaplar
+  // değişmez, OTP / CSRF / kilit / kurtarma kodu / e-posta kesintisi / QR uyumu / acil geri dönüş.
+  "scripts/giris-guvenligi/f4-otp-giris-provasi.harness.ts",
   // Admin doğrudan URL geri dönüşü: güvenli yol kuralı (açık yönlendirme yok) + gerçek proxy yönlendirmesi.
   "scripts/giris-guvenligi/admin-cerez-donus.check.ts",
   // OTP e-postasında kod konu satırında YOK (bildirim önizlemesi / günlük sızıntısı), gövdede VAR.
@@ -177,6 +186,16 @@ const steps = [
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts"],
       env: { F3_PILOT_NEGATIF: "1" }, expectFail: true, passRe: /f3-dogrulama-pilotu: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL \(F3_PILOT_NEGATIF=1\)[\s\S]*FAIL pilot hesap pasif → kapalı[\s\S]*FAIL pilot hesap arşiv → kapalı/ },
+    // NEGATİF KONTROLLER (F4 kurtarma): her koruma kaldırılınca ilgili madde FAIL VERMELİ.
+    ...[
+      ["F4_NEGATIF_KAPI", /NEGATİF KONTROL:[^\n]*kurtarma kodu şartı kaldırıldı[\s\S]*FAIL kurtarma kodu yok → 409 RECOVERY_REQUIRED/],
+      ["F4_NEGATIF_RISKB", /NEGATİF KONTROL:[^\n]*süre dolumu korunması kaldırıldı[\s\S]*FAIL liste süresi doldu/],
+      ["F4_NEGATIF_SQL", /NEGATİF KONTROL:[^\n]*SQL posta kutusu kanıtı çıkarıldı[\s\S]*FAIL doğrudan RPC: yanlış \/ eksik posta kutusu kanıtıyla/],
+      ["F4_NEGATIF_SQL_DURUM", /NEGATİF KONTROL:[^\n]*SQL hesap durumu \+ kapsam denetimi çıkarıldı[\s\S]*FAIL doğrudan RPC: Pasif[\s\S]*FAIL doğrudan RPC: test listesinde OLMAYAN/],
+      ["F4_NEGATIF_API_DURUM", /NEGATİF KONTROL:[^\n]*API hesap durumu denetimi kaldırıldı[\s\S]*FAIL API: Pasif/],
+    ].map(([v, mustRe]) => ({ label: `f4-kurtarma-guvenligi NEGATİF (${v}=1 → FAIL beklenir)`, cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts"],
+      env: { [v]: "1" }, expectFail: true, passRe: /f4-kurtarma-guvenligi: [0-9]+ PASS \/ [1-9][0-9]* FAIL/, mustRe })),
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],
