@@ -84,8 +84,9 @@ async function main() {
     const adm = (sid: string) => ({ "x-admin-id": U.owner, cookie: `__Host-yasam_sid=${sid}` });
     const web = (bind: string, extra: Record<string, string> = {}) => ({ cookie: `__Host-yasam_mfa=${bind}`, ...extra });
     const ctxOf = (id: string) => ({ params: Promise.resolve({ id }) });
-    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string }); } catch { return []; } };
-    const lastCode = (to: string, after = 0) => { const m = mails().slice(after).filter((x) => x.to === to); return /([0-9]{6})/.exec(m[m.length - 1]?.subject ?? "")?.[1] ?? ""; };
+    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string; text?: string }); } catch { return []; } };
+    // Kod ileti GÖVDESİNDEN okunur (konu satırında kod yok — otpEmail şablonu).
+    const lastCode = (to: string, after = 0) => { const m = mails().slice(after).filter((x) => x.to === to); return /\b([0-9]{6})\b/.exec(m[m.length - 1]?.text ?? "")?.[1] ?? ""; };
     const n = async (sql: string, a: unknown[] = []) => Number((await q(sql, a)).rows[0].n);
     const login = async (email: string, password = pw(email)) => {
       const r = await call(sessionRoute.POST, "/api/auth/session", "POST", { email, password });
