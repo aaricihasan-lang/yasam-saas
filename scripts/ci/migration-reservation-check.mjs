@@ -56,7 +56,8 @@ const bitir = () => {
   process.exit(0);
 };
 
-// ── Güvenilir GitHub bağlamı ───────────────────────────────────────────────────────────────────────────────────────────
+// ── Güvenilir GitHub bağlamı (ci.yml: pull_request; db03-guvenilir.yml: pull_request_target — ikisinde de olay dosyası GitHub'ındır)
+const PR_OLAYLARI = new Set(["pull_request", "pull_request_target"]);
 function olayBaglami() {
   const ad = process.env.GITHUB_EVENT_NAME ?? null;
   const p = process.env.GITHUB_EVENT_PATH;
@@ -71,7 +72,7 @@ function olayBaglami() {
   const pr = olay?.pull_request;
   return {
     ad,
-    pr: ad === "pull_request" && Number.isInteger(pr?.number) ? pr.number : null,
+    pr: PR_OLAYLARI.has(ad) && Number.isInteger(pr?.number) ? pr.number : null,
     headRef: pr?.head?.ref ?? null,
     headDepo: pr?.head?.repo?.full_name ?? null,
     baseDepo: pr?.base?.repo?.full_name ?? olay?.repository?.full_name ?? process.env.GITHUB_REPOSITORY ?? null,
@@ -143,7 +144,7 @@ if (!satirlar.length && !bulgular.length) {
 if (eklenen.length) {
   // Aynı SQL'in başka numarayla yayımlanması: eklenen blob base'deki bir migration blob'uyla aynıysa RED.
   const baseBloblar = new Map(git(root, ["ls-tree", `${baseRef}:supabase/migrations`], { allowFail: true }).out.split("\n").filter(Boolean).map((l) => { const [meta, ad] = l.split("\t"); return [meta.split(" ")[2], ad]; }));
-  if (bag.ad !== "pull_request" || !bag.pr || !bag.headRef || !bag.baseDepo) bulgular.push(`Güvenilir PR bağlamı yok (GITHUB_EVENT_NAME=${bag.ad ?? "-"}; olay dosyasında PR numarası / dal / depo okunamadı) → migration ekleyen değişikliğin sahipliği doğrulanamaz.`);
+  if (!PR_OLAYLARI.has(bag.ad) || !bag.pr || !bag.headRef || !bag.baseDepo) bulgular.push(`Güvenilir PR bağlamı yok (GITHUB_EVENT_NAME=${bag.ad ?? "-"}; olay dosyasında PR numarası / dal / depo okunamadı) → migration ekleyen değişikliğin sahipliği doğrulanamaz.`);
   if (bag.headDepo && bag.baseDepo && bag.headDepo !== bag.baseDepo) bulgular.push(`Fork'tan gelen PR (${bag.headDepo}) migration ekleyemez: merkezi deftere yazamaz, sahiplik kanıtlanamaz.`);
   let st = null;
   try {

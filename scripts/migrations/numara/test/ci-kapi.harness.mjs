@@ -75,6 +75,10 @@ try {
     const g2 = kapi(A.d, olay(999, "work/kp-a"), "--head", "work/kp-a");
     sh(A.d, "checkout", "-q", "work/kp-a");
     ok("--head kipi (base checkout + PR ucu veri): meşru PR PASS, yanlış PR no FAIL", g.kod === 0 && /OK .*PR #101/.test(g.out) && g2.kod === 1, g.out.split("\n").find((l) => /OK|FAIL/.test(l)));
+    sh(A.d, "checkout", "-q", "--detach", "origin/main");
+    const pt = kapi(A.d, { ...olay(101, "work/kp-a"), GITHUB_EVENT_NAME: "pull_request_target" }, "--head", "work/kp-a");
+    sh(A.d, "checkout", "-q", "work/kp-a");
+    ok("güvenilir iş akışı olayı (pull_request_target) + --head: meşru PR PASS (canlı CI'da bulunan hata)", pt.kod === 0 && /OK .*PR #101/.test(pt.out), pt.out.split("\n").find((l) => /OK|FAIL/.test(l)));
   }
   // ── SHA-256 bütünlüğü
   {
