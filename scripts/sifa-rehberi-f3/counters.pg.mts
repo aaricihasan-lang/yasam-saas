@@ -109,6 +109,10 @@ async function restore(s: Scope, rootId: string) {
 }
 /** Ekranın gördüğü ana konu sayısı (sifa_v2_load → kök, çöpte değil). */
 async function screenCount(s: Scope): Promise<number> {
+  // Eski şemada sifa_v2_load kurum kayıtlarını da döndürür (F3'te kaldırıldı) → referans = kişisel, kök, çöpte olmayan (SQL).
+  if (process.env.SIFA_ESKI_SEMA === "1") {
+    return (await su.query("select count(*)::int n from public.sifa_topics where tenant_id=$1 and owner_key=$2 and scope='kisisel' and parent_id is null and deleted_at is null", [s.tenantId, s.userId])).rows[0].n;
+  }
   const r = await loadWorkspace(db, s, s.userId);
   if (!r.ok) throw new Error(r.error);
   return r.value.nodes.filter((n) => n.parentId === null && !n.deletedAt).length;
@@ -128,14 +132,18 @@ try {
   await su.query(DDL);
   await su.query(`alter table public.users add column if not exists trial_kind text, add column if not exists trial_status text;`);
   for (const m of U360_MIGS) await su.query(MIG(m));
-  for (const m of ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await su.query(MIG(m));
+  // SIFA_ESKI_SEMA=1: production'daki ŞU ANKİ Şifa şeması (yalnız çekirdek; yaşam döngüsü + F3 YOK) — yeni kodun sayaçları
+  // geçiş (bakım) penceresinde de doğru sayar mı (F4-R1)?
+  const ESKI = process.env.SIFA_ESKI_SEMA === "1";
+  for (const m of ESKI ? ["20280110000000_sifa_rehberi_v2_core.sql"] : ["20280110000000_sifa_rehberi_v2_core.sql", "20280124000000_sifa_v2_asset_lifecycle.sql", "20280130000200_sifa_rehberi_f3.sql"]) await su.query(MIG(m));
+  console.log(`  · şema: ${ESKI ? "ESKİ (production'daki gibi: yalnız çekirdek)" : "çekirdek + yaşam döngüsü + F3"}`);
   // Diğer sayaçların kaynak tabloları (asgari şema) — DEĞİŞMEDİKLERİ kanıtlansın.
   await su.query(`create table public.stones (id uuid primary key default gen_random_uuid(), tenant_id uuid, stone_name text, created_at timestamptz default now());
     create table public.dogaltas_inventory (id uuid primary key default gen_random_uuid(), tenant_id uuid, created_at timestamptz default now());
     create table public.personal_archives (id uuid primary key default gen_random_uuid(), tenant_id uuid, title text, created_at timestamptz default now());
     grant select, insert, update, delete on public.users, public.user_sessions, public.clients, public.healing_guides, public.stones,
       public.dogaltas_inventory, public.personal_archives to service_role;`);
-  ok(true, "V2 core + LC + F3 + Usage360 migration'ları kuruldu");
+  ok(true, `Usage360 + Şifa migration'ları kuruldu (${ESKI ? "eski şema" : "F3 şeması"})`);
   const priv = (await su.query(`select has_table_privilege('service_role','public.sifa_topics','SELECT') s, has_table_privilege('service_role','public.sifa_topics','UPDATE') u,
     has_table_privilege('anon','public.sifa_topics','SELECT') a`)).rows[0];
   ok(priv.s === true && priv.u === false && priv.a === false, "sayaç okuması mevcut yetkiyle: service_role SELECT var; UPDATE yok; tarayıcı rolü yok (yetki DEĞİŞMEDİ)", priv);

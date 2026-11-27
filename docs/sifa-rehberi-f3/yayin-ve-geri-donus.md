@@ -7,9 +7,9 @@ production'da hiçbir adım uygulanmamıştır. Her adım **ayrı Owner onayı**
 - Production'da şu an: `20280110000000` (çekirdek) + `20280110000100` (YH sahiplik) uygulanmış; `20280124000000` (görsel yaşam döngüsü) **uygulanmamış**.
 - Supabase **Free plan**: zamanlanmış yedek ve PITR **yok** → migration'dan önce manuel yedek ZORUNLU (§1).
 - Kullanıcı hesaplarına ve diğer modüllerin kayıtlarına dokunulmaz. Migration'lar yalnız `sifa_*` tablolarını, `sifa_*` fonksiyonlarını ve
-  (§2 adım 4) Şifa'ya özel bir YH tetikleyicisini ekler; genel `yh_cdc_enqueue()` ve diğer modüllerin tetikleyicileri DEĞİŞMEZ.
+  (`20280130000300`) Şifa'ya özel bir YH tetikleyicisini ekler; genel `yh_cdc_enqueue()` ve diğer modüllerin tetikleyicileri DEĞİŞMEZ.
 - Mevcut Şifa kayıtları (Owner: hepsi test amaçlı) **silinmez, taşınmaz, değiştirilmez** — F3 migration'ı yalnız sütun/kısıt/fonksiyon ekler.
-- Yaşam Hafızası **kapalı kalır**: `yh_source_activation('sifa_rehberi_v2:notes')` açılmaz; adım 4'teki tetikleyici kapalıyken sessiz no-op'tur.
+- Yaşam Hafızası **kapalı kalır**: `yh_source_activation('sifa_rehberi_v2:notes')` açılmaz; `20280130000300` tetikleyicisi kapalıyken sessiz no-op'tur.
 
 ## 1. Manuel yedek ve geri yükleme provası (Owner, migration'dan hemen önce — ZORUNLU)
 **Kapsam:**
@@ -31,23 +31,54 @@ production'da hiçbir adım uygulanmamıştır. Her adım **ayrı Owner onayı**
    bayt boyutu `storage.objects` ile karşılaştırılmalı. Eşleşme yoksa migration'a GEÇİLMEZ.
 4. Uygulama içi yedek (lib/backup) içerik kutularını notlarından SONRA yazar (`selfRef parent_block_id`; test: `backup-v2.pg` + `backup.harness`).
 
-## 2. Yayın sırası
-| # | Adım | Not |
-|---|---|---|
-| 1 | PR + CI (bu dal, güncel main üzerine) | Merge Owner onayıyla. Merge **otomatik deploy** başlatır → migration'lar merge'den ÖNCE uygulanmalı (aşağıda "Neden"). |
-| 2 | Migration `20280124000000_sifa_v2_asset_lifecycle.sql` | Yalnız fonksiyon; tablo/veri değişmez. DB-03 defterinde "geçmiş, production'a uygulanmamış". |
-| 3 | Migration `20280130000200_sifa_rehberi_f3.sql` | Yalnız EKLEME: 3 sütun, 3 kısıt, 1 tetikleyici, fonksiyon güncellemeleri. Eski kod bu şemayla çalışır (§3 seviye 1, test kanıtı). |
-| 4 | Migration `20280130000300_yh_sifa_f3_kutu_yayilimi.sql` | Önkoşul: adım 3 + `20280110000100` (prod'da var). Yalnız EKLEME: not çöpe/geri → içerik kutuları YH kuyruğuna. **YH kapalıyken etkisiz.** Önkoşul eksikse açık hatayla durur. |
-| 5 | Doğrulama (salt-okunur) | §1.3 sayıları DEĞİŞMEMİŞ; yeni sütunlar `node_kind`, `parent_block_id`, `content_updated_at` var; `yh_cdc_sifa_v2_note_trash_trg` var. |
-| 6 | Merge → deploy | `SIFA_REHBERI_V2_ENABLED=1` zaten tanımlı; yeni ekran açılır. Sayfa dinamik (ƒ): bayrak çalışma anında okunur. |
-| 7 | Canlı kabul (Owner izniyle, test hesabıyla) | Konu oluştur, not + içerik kutusu, görsel, kaynak, bağlantı, ⤢ pencere, kutu silme, Silinenler, mükerrer konu uyarısı, Word, Tümünü Oku; masaüstü + Android. Ana ekran ve Yönetim paneli Şifa sayacı. |
+## 2. Yayın sırası (F4-R1 — DB-03 kurallarına uygun KESİN sıra)
 
-**Migration uygulama yöntemi (DB-03, zorunlu):** production'a yalnız merkezi numara sisteminin uygulama kapısıyla
-(`scripts/migrations/numara/uygula-prod.mjs`; önce kuru çalıştırma, sonra `--uygula`) ve §2 sırasıyla uygulanır. F3 migration
-numaraları merkezi defterden ayrılır ve PR'a bağlanır (dosya adı elle seçilmez).
+DB-03 uygulama kapısı yalnız **main'e merge edilmiş** SQL'i uygular (`MAIN_DEGIL`) → migration'lar merge'den SONRA uygulanır.
+Yeni kod eski şemayla güvenle çalışsın diye merge'den doğan dağıtım **bakım modunda** açılır (Şifa kapalı; diğer modüller normal).
+Not: F3 ÖNCESİ kodda (bugünkü production) bayrak kapatmak bakım DEĞİLDİR — o kod bayrak kapalıyken V1 ekranını açar ve V1 API'leri
+bayrakla korunmaz. Gerçek bakım yalnız F3 kodu dağıtıldığında vardır; bu yüzden bayrak, merge'den ÖNCE 0 yapılır ve merge'in
+dağıtımı bakımda açılır.
 
-**Neden migration önce?** Yeni istemci içerik kutusunu `parent_block_id` ile gönderir. Eski şema bu alanı tanımaz ve kutuyu
-bağımsız not olarak yazar (veri karışır). Sıra: önce migration, sonra kod.
+| # | Adım | Kim | Başarı ölçütü | Başarısız olursa (güvenli geri dönüş) |
+|---|---|---|---|---|
+| 0 | DB-03: `20280124000000` için kapılı uygulama yolu (DB-03 oturumunun düzeltmesi; §2.1) merge edildi | DB-03 oturumu + Owner | `uygula-prod.mjs --surum 20280124000000` KURU çalıştırma RED vermez | Yayın başlamaz (hiçbir şey değişmedi). |
+| 1 | PR #875 CI güncel main üzerinde yeşil; DB-03 kapısı yeşil | Claude | 18/18 | Yayın başlamaz. |
+| 2 | Vercel Production ortam değişkeni `SIFA_REHBERI_V2_ENABLED=0` (yeniden dağıtım YOK; mevcut dağıtım kendi değeriyle sürer) | Owner | Değişken kayıtlı | Değeri `1`'e geri al (etkisi yok). |
+| 3 | Owner **merge** → otomatik dağıtım (F3 kodu, bayrak 0 → Şifa bakımda) | Owner | Dağıtım hazır; `/sifa-rehberi` "bakımda"; tüm `/api/sifa-rehberi-v2/*` 404; ana sayfa / giriş / diğer modüller 200 | Vercel'de önceki dağıtımı **Promote** (eski kod + eski şema = bugünkü hâl) ve değişkeni `1` yap. Veri değişmemiştir. |
+| 4 | **Manuel yedek + geri yükleme provası** (§1) | Claude/Owner | §1.3 eşleşmeleri birebir | DUR: migration UYGULANMAZ; Şifa bakımda kalır (veya adım 3'ün geri dönüşü). |
+| 5 | `uygula-prod.mjs` KURU çalıştırma ×3 (`20280124000000`, `20280130000200`, `20280130000300`) + `denetle` | Claude | Üçü de hazır; kapı dışı 0 / kayıp 0 | DUR; neden raporlanır. |
+| 6 | Sırayla `--uygula`: `20280124000000` → `20280130000200` → `20280130000300`; her birinden ÖNCE ve SONRA salt-okunur kontrol (§2.2) | Claude | Her biri kapıdan geçti; §2.2 kontrolleri PASS | Kapı tek işlemdedir: hata = tam geri alma → sonrakiler uygulanmaz, Şifa bakımda kalır. `UYGULAMA_BELIRSIZ` → önce `uzlastir`; yeniden deneme YOK. Felakette §1 yedeği (Owner kararı). |
+| 7 | Salt-okunur son doğrulama (§2.2) + `denetle` | Claude | PASS | Şifa bakımda kalır; sorun incelenir. |
+| 8 | `SIFA_REHBERI_V2_ENABLED=1` + aynı commit'in **yeniden dağıtımı** (Redeploy) | Owner | Şifa F3 ekranı açık | Değişkeni `0` yap + yeniden dağıtım (seviye 2 bakım). |
+| 9 | Canlı kabul (Owner izniyle, test hesabıyla; masaüstü + Android) | Owner + Claude | Kabul listesi | Seviye 2 bakım (§3). |
+
+**Geçiş penceresi (adım 3–8: F3 kodu + eski şema, Şifa bakımda) — yan etkiler (F4-R1'de test edildi):**
+- Şifa ekranı ve 7 API işleyicisinin TAMAMI bayrağı kimlik/veritabanından ÖNCE denetler → 404; açık eski sekme / Android yazamaz
+  (`real/bakim.real.mts`). Ana ekran ve Yönetim paneli Şifa sayaçları eski şemada doğru sayar (`counters.pg` `SIFA_ESKI_SEMA=1`).
+- **Uygulama içi yedek eski şemada ÇALIŞIR** (önceki "hata verir" notu YANLIŞTI): dışa aktarım `select *`; geri yüklemede şemada
+  olmayan sütun raporlanıp düşülür; yeni kayıt defteri yalnız çekirdek şemayla `backup-v2.pg` 39/0. Bu pencerede F3 biçimli
+  kayıt oluşmaz (Şifa kapalı) → yedekte F3 sütunu kaybı söz konusu değildir.
+- Yaşam Hafızası Şifa kaynağı production'da kapalı (aktivasyon kaydı yok, kuyruk 0) → F3 okuyucusu çalışmaz.
+- `trash.ts` (yaşam döngüsü fonksiyonları) hiçbir rotaya / zamanlanmış işe bağlı değil.
+- Bakımdan ÖNCE alınmış imzalı yükleme bağlantısı (en fazla ~2 saat geçerli) Storage'a dosya bırakabilir; kesinleştirme 404 →
+  **kayıt oluşmaz**, dosya sahipsiz kalır (veriye bağlanmaz; sonradan Owner onaylı temizlikle silinebilir).
+
+### 2.1 `20280124000000` — DB-03 engeli
+Merkezi defterde 253 sürüm "geçmiş, production'da değil" olarak dondurulmuştur ve kapı bunları uygulamaz (`AYIRMA`). `20280124000000`'ın
+nesneleri production'da GERÇEKTEN yoktur (salt-okunur kontrol 27.11.2026: `sifa_v2__asset_in_use`, `sifa_v2_gc_candidates`,
+`sifa_v2__block_dead` yok). F3 migration'ı bu fonksiyonlara dayandığından önce o uygulanmalıdır. Kapı atlatılmaz; DB-03 sistemine
+kapılı bir yol eklenir (DB-03 oturumu; teknik talimat Owner'da). O yol merge edilmeden yayın başlamaz.
+
+### 2.2 Migration öncesi / sonrası salt-okunur kontroller
+- Öncesi: proje kimliği `wctopfooajbpupeyukpd`; migration geçmişinde hedef sürüm YOK; §1.2 sayımları; `sifa_*` fonksiyon listesi.
+- `20280124000000` sonrası: `sifa_v2__asset_in_use`, `sifa_v2_gc_candidates`, `sifa_v2_gc_purge`, `sifa_v2_trash_purge` var; satır sayıları aynı.
+- `20280130000200` sonrası: `node_kind`, `parent_block_id`, `content_updated_at` sütunları + `sifa_blocks_guard_nest_trg` var;
+  eski sütunların satır md5'i öncesiyle BİREBİR; `sifa_v2_upload_usage` YOK (kullanıcı kotası yok).
+- `20280130000300` sonrası: `yh_cdc_sifa_v2_note_trash_trg` var; `yh_source_activation('sifa_rehberi_v2:notes')` kaydı YOK (YH kapalı).
+- Her adımda: diğer modüllerin tablo sayıları değişmez; `denetle` kapı dışı 0 / kayıp 0.
+
+**Migration uygulama yöntemi (DB-03, zorunlu):** yalnız `scripts/migrations/numara/uygula-prod.mjs` (önce kuru çalıştırma, sonra
+`--uygula`), her çağrı TEK sürüm, §2 sırasıyla.
 
 **Numara benzersizliği:** merkezi defter (DB-03) tekilliği garanti eder; CI kapısı (`migration-reservation-check`) PR'daki dosyanın
 SHA-256'sının deftere bağlı olduğunu doğrular. Merge'den hemen önce `node scripts/ci/migration-naming-check.mjs` yeniden çalıştırılır.
@@ -91,6 +122,7 @@ okuma önerilir. Kullanıcı başına kota YOKTUR (Owner kararı F3-R1); geri d�
 - `scripts/sifa-rehberi-f3/yh-kutu.pg.mts` — YH: çöpteki notun kutuları aramada yok; YH kapalıyken etkisiz; geri dönüşte yalnız yeni tetikleyici kalkar (CI).
 - `scripts/sifa-rehberi-f3/counters.pg.mts` — ana ekran + Yönetim paneli Şifa sayacı (CI).
 - `scripts/sifa-rehberi-f3/sinirsiz.pg.mts` — kullanıcı kotası / içerik sayısı sınırı YOK (CI).
+- `scripts/sifa-rehberi-f3/real/bakim.real.mts` — bakım modu (bayrak 0): ekran kapalı, açık sekme / Android yazamaz, veri birebir, diğer modüller çalışır.
 - `scripts/sifa-rehberi-f3/real/*` — gerçek sunucu + izole test projesi: 613 kabul kontrolü, API/güvenlik.
 
 ## 5. Production'da doğrulanmamış (NOT VERIFIED — yalnız yayında)
