@@ -139,7 +139,15 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
   DB commit + defter kopması + uzlaştırma; küçük harf `commit;`, gövdede ROLLBACK/BEGIN, COMMIT sonrası deyim, `$f$` içi metin,
   CONCURRENTLY; `uygula-prod.mjs` kuru çalıştırma / yanlış proje / uzak DSN reddi / `--uygula` / tekrar / uzlaştırma.
 
-## Etkinleştirme (Owner onayı gerekir — bu PR'da YAPILMADI)
+## Etkinleştirme durumu (2026-11-27, Owner onayıyla)
+
+- Ruleset `migration-rezervasyon-koruma` (id 28246400): `refs/heads/migration-rezervasyon`, deletion + non_fast_forward,
+  bypass yok. Canlı test (geçici dal): oluşturma / ileri sarma KABUL; force push, ataya geri sarma, silme RED.
+- Defter dalı oluşturuldu: tohum commit'i `a4e8ff229612dbf57ee1a92935ac8f1f13bc26fa` (main `411d776b` + production 190
+  kayıt → 443 sürüm). Bu commit `yapilandirma.json` → `capa`.
+- `zorunlu: true` bu belgeyle aynı PR'da açıldı.
+
+## Etkinleştirme adımları (kayıt)
 
 1. **Kural seti** (ayrı, yeni ruleset; `main-koruma`'ya dokunulmaz): hedef `refs/heads/migration-rezervasyon`, kurallar
    `deletion` + `non_fast_forward`, bypass yok. PR zorunluluğu / gerekli kontrol EKLENMEZ (araç doğrudan push eder).
