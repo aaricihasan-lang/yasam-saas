@@ -109,6 +109,8 @@ const TSX = [
   "scripts/giris-guvenligi/f3-dogrulama-pilotu.harness.ts",
   // Admin doğrudan URL geri dönüşü: güvenli yol kuralı (açık yönlendirme yok) + gerçek proxy yönlendirmesi.
   "scripts/giris-guvenligi/admin-cerez-donus.check.ts",
+  // OTP e-postasında kod konu satırında YOK (bildirim önizlemesi / günlük sızıntısı), gövdede VAR.
+  "scripts/giris-guvenligi/otp-konu.check.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,

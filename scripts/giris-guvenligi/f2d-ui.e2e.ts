@@ -47,8 +47,8 @@ async function waitCode(to: string, after: number): Promise<string> {
   for (let i = 0; i < 60; i++) {
     let lines: string[] = [];
     try { lines = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean); } catch { /* henüz yok */ }
-    const mails = lines.slice(after).map((l) => JSON.parse(l) as { to: string; subject: string }).filter((m) => m.to === to);
-    const code = /^([0-9]{6}) — /.exec(mails[mails.length - 1]?.subject ?? "")?.[1];
+    const mails = lines.slice(after).map((l) => JSON.parse(l) as { to: string; subject: string; text?: string }).filter((m) => m.to === to);
+    const code = /\b([0-9]{6})\b/.exec(mails[mails.length - 1]?.text ?? "")?.[1];
     if (code) return code;
     await sleep(250);
   }
