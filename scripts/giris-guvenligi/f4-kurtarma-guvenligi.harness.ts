@@ -26,7 +26,7 @@ import Module from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+
 import { NextRequest } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { installSourceMutations } from "./sourceMutation";
@@ -81,7 +81,7 @@ async function main() {
     const verifyRoute = await import("@/app/api/auth/mfa/email/verify/route");
     const meRecovery = await import("@/app/api/me/account-recovery/route");
     const mfaRoute = await import("@/app/api/admin/users/[id]/mfa/route");
-    const { issueAndSendOtp, verifyOtp, recoverySetupOtpHash } = await import("@/lib/auth/emailOtp");
+    const { issueAndSendOtp, verifyOtp } = await import("@/lib/auth/emailOtp");
     const { generateRecoveryCodes, hashRecoveryCode } = await import("@/lib/auth/recoveryCodes");
     const { getServerDb } = await import("@/lib/supabase-server");
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);

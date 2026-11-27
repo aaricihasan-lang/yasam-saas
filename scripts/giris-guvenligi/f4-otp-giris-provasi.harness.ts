@@ -1,7 +1,8 @@
 /**
  * GİRİŞ GÜVENLİĞİ F4 — GİRİŞTE E-POSTA OTP PİLOTU: kontrollü canlı kabulün SENTETİK provası (tek uzman hesabı).
  * Gerçek route'lar + gerçek PostgreSQL (en güncel F2 zinciri) + sentetik e-posta. Production / Turhost / gerçek hesap YOK.
- * Ürün kodu DEĞİŞMEZ: pilot, mevcut F2 altyapısının yapılandırmasıdır —
+ * F4 kilitlenme güvenliği sırası (taslak migration 20280129100000 sentetik DB'de): kurtarma kodları zorunluluktan ÖNCE
+ * (parola + e-posta kodu), zorunluluk kodsuz AÇILMAZ, acil geri dönüş denetimli SQL fonksiyonuyla. Pilot yapılandırması —
  *   AUTH_MFA_METHODS=email_otp · AUTH_MFA_METHOD_SCOPE=test_accounts · AUTH_MFA_EMAIL_ROLES=expert (varsayılan)
  *   + auth_mfa_test_accounts'ta YALNIZ pilot hesap (SQL konsolu, ≤ 90 gün) + pilotun doğrulanmış e-postası
  *   + Owner MFA yönetim ekranından YALNIZ pilot için "zorunluluğu aç".
@@ -47,6 +48,7 @@ async function main() {
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2n: true });
   const { admin } = db;
+  await admin.query(fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280129100000_auth_mfa_pilot_safety_f4.sql"), "utf8"));
   const sink = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "f4-pilot-")), "eposta.jsonl");
   try {
     Object.assign(process.env, {
@@ -122,8 +124,16 @@ async function main() {
         ok(en.status === 409 && en.json.code === "NO_USABLE_METHOD" && r === false, `${e}: test listesinde değil → zorunluluk AÇILAMAZ (409), değişmedi`, { s: en.status, c: en.json.code });
         await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = $1`, [id]);
       }
+      const noCodes = await call(mfaRoute.POST, `/api/admin/users/${P}/mfa`, "POST", { action: "enable", reason: "F4 giriş OTP pilotu", confirm: true }, adm(oSid), ctxOf(P));
+      ok(noCodes.status === 409 && noCodes.json.code === "RECOVERY_REQUIRED", "kurtarma kodu YOKKEN zorunluluk açılamaz (409 RECOVERY_REQUIRED)", noCodes.json.code);
+      // ÖNCE kurtarma: pilot MFA'sız oturumunda parola + kayıtlı adrese giden kodla 10 kurtarma kodu kurar.
+      const b0 = mails().length;
+      const ss = await call(meRecovery.POST, "/api/me/account-recovery", "POST", { action: "setup_send", password: pw(PE) }, self(P, p0.sid));
+      const sc = lastCode(PE, b0);
+      const sg = await call(meRecovery.POST, "/api/me/account-recovery", "POST", { action: "setup_generate", code: sc }, self(P, p0.sid));
+      ok(ss.status === 200 && sg.status === 200 && Array.isArray(sg.json.codes) && (sg.json.codes as unknown[]).length === 10, "MFA ÖNCESİ kurtarma kurulumu: 10 kod (parola + e-posta kodu)", { s: ss.status, g: sg.status });
       const en = await call(mfaRoute.POST, `/api/admin/users/${P}/mfa`, "POST", { action: "enable", reason: "F4 giriş OTP pilotu", confirm: true }, adm(oSid), ctxOf(P));
-      ok(en.status === 200 && en.json.ok === true, "pilot için zorunluluk AÇILDI (Owner, MFA yönetim ekranı)", en.json);
+      ok(en.status === 200 && en.json.ok === true, "kurtarma kodu varken pilot için zorunluluk AÇILDI (Owner, MFA yönetim ekranı)", en.json);
       const old = await call(profileRoute.GET, "/api/auth/profile", "GET", null, self(P, p0.sid));
       ok(old.status === 401, "pilotun MFA'sız eski oturumu KAPANDI", old.status);
       for (let i = 0; i < OTHERS.length; i++) {
@@ -141,8 +151,8 @@ async function main() {
       await fresh(P);
       const l = await login(PE);
       const methods = (l.json.methods ?? []) as string[];
-      ok(l.status === 202 && !l.sid && !!l.bind && JSON.stringify(methods) === '["email_otp"]' && typeof l.json.emailHint === "string" && !l.text.includes(PE),
-        "doğru parola → 202 MFA_REQUIRED, oturum YOK, yöntem yalnız e-posta, adres maskeli", { s: l.status, methods, hint: l.json.emailHint });
+      ok(l.status === 202 && !l.sid && !!l.bind && JSON.stringify(methods) === '["email_otp","recovery_code"]' && typeof l.json.emailHint === "string" && !l.text.includes(PE),
+        "doğru parola → 202 MFA_REQUIRED, oturum YOK, yöntemler e-posta + kurtarma kodu (önceden kuruldu), adres maskeli", { s: l.status, methods, hint: l.json.emailHint });
       const early = await call(completeRoute.POST, "/api/auth/mfa/complete", "POST", { challengeId: l.json.challengeId }, web(l.bind));
       ok(early.status >= 400 && !cookieVal(early.set, "__Host-yasam_sid"), "OTP doğrulanmadan oturum TAMAMLANAMAZ", early.status);
     }
@@ -210,7 +220,7 @@ async function main() {
     {
       const g = await call(meRecovery.POST, "/api/me/account-recovery", "POST", { action: "generate", password: pw(PE) }, self(P, sidP));
       rc = Array.isArray(g.json.codes) ? (g.json.codes as string[]) : [];
-      ok(g.status === 200 && rc.length === 10, "pilot e-posta MFA oturumundan 10 kurtarma kodu üretti (bir kez gösterilir)", { s: g.status, n: rc.length });
+      ok(g.status === 200 && rc.length === 10, "pilot e-posta MFA oturumundan kodları YENİLEDİ (10 yeni kod, eskiler geçersiz)", { s: g.status, n: rc.length });
       const saved = process.env.EMAIL_PROVIDER;
       delete process.env.EMAIL_PROVIDER; resetEmailProviderCache();
       await fresh(P);
@@ -227,13 +237,13 @@ async function main() {
       process.env.EMAIL_PROVIDER = saved; resetEmailProviderCache();
     }
 
-    section("6) Test listesi süresi dolarsa: e-posta yöntemi kalkar, kurtarma kodu sürer (fail-closed, kilitlenme yok)");
+    section("6) Test listesi süresi dolarsa (F4 Risk B): e-posta yöntemi KALIR, kurtarma kodu sürer; parola yetmez");
     {
       await q(`UPDATE public.auth_mfa_test_accounts SET created_at = now() - interval '20 days', expires_at = now() - interval '1 minute' WHERE user_id = $1`, [P]);
       await fresh(P);
       const l = await login(PE);
       const methods = (l.json.methods ?? []) as string[];
-      ok(l.status === 202 && !l.sid && JSON.stringify(methods) === '["recovery_code"]', "liste süresi doldu: yalnız kurtarma kodu; parola tek başına yetmez", methods);
+      ok(l.status === 202 && !l.sid && JSON.stringify(methods) === '["email_otp","recovery_code"]', "liste süresi doldu: e-posta + kurtarma kodu sürüyor (kilitlenme yok); parola tek başına yetmez", methods);
       await q(`UPDATE public.auth_mfa_test_accounts SET created_at = now(), expires_at = now() + interval '14 days' WHERE user_id = $1`, [P]);
     }
 
@@ -253,10 +263,11 @@ async function main() {
       ok(d.status === 403 && (d.json.code === "fresh_mfa_required" || d.json.code === "STEP_UP_REQUIRED"), "MFA'sız Owner başkasının zorunluluğunu panelden KALDIRAMAZ (F2-G, beklenen)", d.json.code);
       const direct = await q(`UPDATE public.users SET mfa_required = false WHERE id = $1`, [P]).then(() => "geçti", (e: { code?: string }) => e.code ?? "hata");
       ok(direct === "42501", "doğrudan UPDATE (koruma ayarı olmadan) REDDEDİLİR", direct);
-      await q(`BEGIN; SET LOCAL yasam.mfa_policy = 'on'; UPDATE public.users SET mfa_required = false, mfa_required_at = NULL WHERE id = '${P}'; COMMIT;`);
+      const em = (await q(`SELECT public.auth_mfa_emergency_disable($1, 'F4 pilot acil geri dönüş provası') AS r`, [P])).rows[0].r as J;
+      ok(em.ok === true && em.changed === true && em.others_unchanged === true && Number(em.mfa_required_after) === 0, "ACİL GERİ DÖNÜŞ (denetimli SQL fonksiyonu): yalnız pilot, diğerleri değişmedi", em);
       await fresh(P);
       const l = await login(PE);
-      ok(l.status === 200 && !!l.sid, "ACİL GERİ DÖNÜŞ (SQL konsolu, tek işlem, yasam.mfa_policy) → pilot yeniden parolayla girer", l.status);
+      ok(l.status === 200 && !!l.sid, "pilot yeniden parolayla girer", l.status);
       ok(await n(`SELECT count(*)::int n FROM public.users WHERE mfa_required`) === 0, "MFA zorunlu hesap kalmadı");
       const others2 = await snapOthers();
       ok(others2.u === others0.u, "pilot dışındaki hesapların kayıtları baştan sona DEĞİŞMEDİ");
