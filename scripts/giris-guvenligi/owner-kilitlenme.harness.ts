@@ -34,8 +34,10 @@ import { installSourceMutations } from "./sourceMutation";
 
 const MUTATIONS = installSourceMutations([
   { envVar: "OWNER_KILIT_ESKI_COZUMLEME", file: "lib/auth/mfaChallenge.ts", label: "eski yöntem çözümlemesi (bayraklar boşsa kurtarma da gizlenir)",
-    anchor: `  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);\n  const { data, error } = await db.rpc("auth_mfa_user_methods"`,
-    replacement: `  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);\n  if (flags.length === 0) return [];\n  const { data, error } = await db.rpc("auth_mfa_user_methods"` },
+    // F4: çözümlemede Risk B (test listesi süre dolumu) bloğu araya girdi; mutasyon artık DB okumasından hemen önce aynı eski
+    // kuralı ("bayraklar boşsa liste boş → kurtarma da gizlenir") uygular.
+    anchor: `  const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });`,
+    replacement: `  if (flags.length === 0) return [];\n  const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });` },
   { envVar: "OWNER_KIT_KORUMASIZ", file: "app/api/admin/users/[id]/mfa/route.ts", label: "Owner kit koruması kaldırıldı",
     anchor: `if (st.status.isOwnerAccount && st.status.ownerSelfRecoveryReady !== true) {`, replacement: `if (false) {` },
   { envVar: "OWNER_AYAR_KORUMASIZ", file: "app/api/admin/users/[id]/mfa/route.ts", label: "MFA ayar biçim koruması kaldırıldı",
@@ -99,7 +101,7 @@ async function main() {
     };
     const L = "http://localhost";
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
-    const lastCode = (to: string) => /^([0-9]{6}) — /.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.subject ?? "")?.[1] ?? "";
+    const lastCode = (to: string) => /\b([0-9]{6})\b/.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.text ?? "")?.[1] ?? "";
     const web = (bind: string) => ({ "sec-fetch-site": "same-origin", cookie: `__Host-yasam_mfa=${bind}` });
     const adminH = (id: string, sid: string) => ({ "x-admin-id": id, cookie: `__Host-yasam_sid=${sid}`, "sec-fetch-site": "same-origin" });
     const self = (id: string, sid: string) => ({ "x-user-id": id, cookie: `__Host-yasam_sid=${sid}`, "sec-fetch-site": "same-origin" });

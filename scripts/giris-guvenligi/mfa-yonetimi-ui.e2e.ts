@@ -114,8 +114,8 @@ async function main() {
     for (let i = 0; i < 60; i++) {
       let lines: string[] = [];
       try { lines = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean); } catch { /* yok */ }
-      const m = lines.slice(after).map((l) => JSON.parse(l) as { to?: string; subject?: string }).reverse().find((x) => x.to === to);
-      const c = /^([0-9]{6}) — /.exec(m?.subject ?? "")?.[1];
+      const m = lines.slice(after).map((l) => JSON.parse(l) as { to?: string; subject?: string; text?: string }).reverse().find((x) => x.to === to);
+      const c = /\b([0-9]{6})\b/.exec(m?.text ?? "")?.[1];
       if (c) return c;
       await sleep(500);
     }
@@ -129,6 +129,10 @@ async function main() {
   try {
     for (let i = 0; i < 150; i++) { try { const r = await fetch(`${BASE}/`); if (r.status < 500) break; } catch { /* bekle */ } await sleep(1000); }
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id IN ($1, $2, $3)`, [FREE, AND1, U.owner]);
+    // F4: Owner dışı hesapta zorunluluk için kurtarma kodu şartı (gerçek akış: üye kodlarını ÖNCE oluşturur). Sentetik özet satırları;
+    // kural ayrıca f4-kurtarma-guvenligi'nde (kodsuz → 409 RECOVERY_REQUIRED) sınanır.
+    await q(`INSERT INTO public.auth_recovery_codes (user_id, kind, batch_id, code_hash)
+             SELECT u, 'user', gen_random_uuid(), md5(random()::text) || md5(random()::text) FROM unnest($1::uuid[]) u`, [[FREE, AND1]]);
 
     /** Ardışık test girişleri arasında ZAMAN GEÇMESİNİ taklit eder (YALNIZ sentetik DB): yeniden gönderim beklemesi + saatlik 6 kod sınırı
      *  (CI 18.11: 7. kodda ürün kuralı doğru biçimde rate_limited verdi). Ürün kuralı DEĞİŞMEZ. */
@@ -158,11 +162,28 @@ async function main() {
         await page.getByRole("button", { name: /Doğrula ve giriş yap/ }).click();
       }
       const loggedIn = await page.waitForFunction(() => !!localStorage.getItem("yasam_user"), null, { timeout: 25000 }).then(() => true).catch(() => false);
+      // Yönetici hesabında arayüz /admin'e ANCAK admin kabuk çerezi (POST /api/auth/admin-session) yazıldıktan sonra geçer.
+      // localStorage çerezden ÖNCE dolar; test hemen /admin/* adresine giderse proxy ana sayfaya yönlendirir (tanı: yol=/,
+      // çerez bir an sonra geliyor — #868 bu kullanıcı yarışını ürün tarafında kapatır). Test, arayüzün beklediği sinyali bekler.
+      const isAdmin = loggedIn && await page.evaluate(() => {
+        try { return String((JSON.parse(localStorage.getItem("yasam_user") ?? "{}") as { role?: unknown }).role ?? "").toLowerCase().includes("admin"); } catch { return false; }
+      });
+      if (isAdmin) {
+        const deadline = Date.now() + 20000;
+        while (Date.now() < deadline && !(await page.context().cookies()).some((c) => c.name === "yasam_admin_session")) await page.waitForTimeout(200);
+      }
       return { status: r.status(), mfa, loggedIn };
     };
     const openMember = async (page: Page, id: string) => {
       await page.goto(`${BASE}/admin/users/${id}#hesap`, { waitUntil: "domcontentloaded" });
-      await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 });
+      await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 }).catch((e: unknown) => {
+        // Tanı (assertion gevşetilmez; hata aynen fırlatılır): sayfa nerede kaldı? Yalnız yol, sorgu adları ve çerez ADLARI.
+        const u = new URL(page.url());
+        return page.context().cookies().then((cs) => {
+          console.error(`TANI openMember: yol=${u.pathname} sorgu=[${[...u.searchParams.keys()].join(",")}] çerez-adları=[${cs.map((c) => c.name).sort().join(",")}]`);
+          throw e;
+        });
+      });
     };
     const renderCheck = async (page: Page, tag: string, w: number) => {
       const panel = page.locator("[data-mfa-panel]");

@@ -60,6 +60,8 @@ export type MfaAdminStatus = {
   configIssues: string[];
   /** Owner'ın kendi zorunluluğunu açması için kurtarma yolu hazır mı (diğer üyeler → null). */
   ownerSelfRecoveryReady: boolean | null;
+  /** F4: Owner dışı hesapta kurtarma kodu var mı (zorunluluk şartı). Owner hesabında null (kit kuralı geçerli). */
+  memberRecoveryReady: boolean | null;
   /** Girişte bugün gerçekten sunulacak yöntemler (giriş akışıyla aynı hesap). */
   loginMethods: string[];
   methods: { email_otp: MfaMethodState; qr_device: MfaMethodState };
@@ -80,6 +82,7 @@ export const MFA_REASON_TEXT: Readonly<Record<string, string>> = {
   no_active_device: "Aktif güvenilir Android cihazı yok.",
   db_unavailable: "Güvenlik durumu veritabanından okunamadı; işlem güvenli tarafta durduruldu.",
   no_usable_method: "Hesapta şu anda çalışan bir ikinci doğrulama yöntemi yok; zorunluluk açılırsa üye giriş yapamaz.",
+  recovery_codes_missing: "Üyenin kullanılmamış kurtarma kodu yok. Zorunluluk açılmadan önce üye kurtarma kodlarını oluşturmalı (Ayarlar → Giriş Yöntemlerim); aksi hâlde e-posta / telefon erişimi kaybolursa giriş yapamaz.",
   config_methods_unknown: "İkinci doğrulama ayarında tanınmayan bir yöntem adı var; ayar düzeltilmeden zorunluluk açılamaz.",
   config_methods_empty: "İkinci doğrulama yöntemleri sistem ayarlarında açık değil; zorunluluk açılamaz.",
   config_scope_invalid: "İkinci doğrulama kapsam ayarı tanınmıyor; ayar düzeltilmeden zorunluluk açılamaz.",
@@ -200,6 +203,8 @@ export async function loadMfaAdminStatus(
       ownerOfflineKitLeft,
       configIssues,
       ownerSelfRecoveryReady,
+      // F4 (Risk A): Owner DIŞI hesapta zorunluluk için en az bir kullanılmamış kurtarma kodu şartı (Owner: kit kuralı).
+      memberRecoveryReady: isOwnerAccount ? null : recoveryCodesLeft > 0,
       loginMethods,
       methods,
       ready,

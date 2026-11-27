@@ -125,7 +125,7 @@ async function main() {
     const L = "http://localhost";
     const count = async (sql: string, args: unknown[] = []) => Number((await admin.query(sql, args)).rows[0].n);
     const lastMailTo = (to: string) => [...syntheticOutbox()].reverse().find((x) => x.to === to);
-    const lastCode = (to: string): string => /^([0-9]{6}) — /.exec(lastMailTo(to)?.subject ?? "")?.[1] ?? "";
+    const lastCode = (to: string): string => /\b([0-9]{6})\b/.exec(lastMailTo(to)?.text ?? "")?.[1] ?? "";
     const ageOtps = (userId: string) =>
       admin.query(`UPDATE public.auth_email_otps SET created_at = created_at - interval '61 seconds', expires_at = expires_at - interval '61 seconds' WHERE user_id = $1`, [userId]);
     const expireOpen = (userId: string) =>

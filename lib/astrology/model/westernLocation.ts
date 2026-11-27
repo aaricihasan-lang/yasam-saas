@@ -6,7 +6,7 @@
 // (local space). Astrocartography çizgileri yalnız doğum ANINA bağlıdır (konumdan bağımsız).
 // Teknik katmana sağlayıcı serbest metni GİRMEZ; yorumlar ayrı "interp" tiplerindedir.
 
-import type { BodyId, EclipticPoint, HouseSystem, NatalHouse, SignId } from "./western";
+import type { BodyId, EclipticPoint, HouseSystem, NatalAspect, NatalHouse, SignId } from "./western";
 
 /** Konum referansı (hedef / gözlem noktası). Saat dilimi hesaba GİRMEZ (yalnız gösterim). */
 export type PlaceRef = { locationId: string | null; label: string; latitude: number; longitude: number; timezone: string | null };
@@ -67,8 +67,41 @@ export type RelocationTechnical = {
     direction: Compass16 | null;
   };
   /** Karşılaştırma için natal (aynı doğum anı, DOĞUM YERİ) — natal birimden birleştirilir; yoksa null. */
-  natal: { angles: { ascendant: EclipticPoint; midheaven: EclipticPoint } | null; houses: NatalHouse[]; bodyHouses: { id: BodyId; house: number | null }[] } | null;
+  natal: {
+    angles: { ascendant: EclipticPoint; midheaven: EclipticPoint } | null;
+    houses: NatalHouse[];
+    bodyHouses: { id: BodyId; house: number | null }[];
+    /**
+     * 2026-11-27: Relocation çarkının açı çizgileri. Açılar YALNIZ gezegen boylamlarına bağlıdır; doğum anı aynı olduğundan
+     * natal birimin açı listesi aynen geçerlidir (ASC/MC hedefli açı yoktur). Yalnız iki gövdenin boylamı relocation'da
+     * natal ile aynı olan açılar taşınır (relocationAspectsOf). Bu alandan önce kaydedilmiş analizlerde YOKTUR (undefined).
+     */
+    aspects?: NatalAspect[];
+  } | null;
 };
+/** Ekran ve Word/PDF: açı çizgilerinin kaynağı (relocation çarkı açıklaması). */
+export const RELOCATION_ASPECTS_NOTE = "Açı çizgileri natal açı listesidir: doğum anı aynı olduğu için gezegenler arası açılar değişmez; değişen yalnız Yükselen/MC ve evlerdir.";
+/** Açı listesinden ÖNCE kaydedilmiş relocation analizi: çark açısız çizilir, nedeni yazılır. */
+export const RELOCATION_NO_ASPECTS_NOTE = "Bu kayıtta açı listesi olmadığı için açı çizgisi çizilmez (analiz yeniden kaydedilirse eklenir).";
+
+/** Relocation ↔ natal gövde boylamı aynı sayılma sınırı (derece; sağlayıcı aynı anı aynı boylamla verir — ölçülen fark 0). */
+export const RELOCATION_SAME_LONGITUDE_DEG = 0.001;
+
+/**
+ * Natal açı listesinden relocation çarkına geçerli olanlar: iki gövde de relocation'da var ve boylamları natal ile AYNI
+ * (yeni hesap YOK; açı türü / orb / doğa natal kayıttan aynen).
+ */
+export function relocationAspectsOf(relBodies: { id: string; longitude: number }[], natalBodies: { id: string; longitude: number }[], natalAspects: NatalAspect[]): NatalAspect[] {
+  const rel = new Map(relBodies.map((b) => [b.id, b.longitude]));
+  const nat = new Map(natalBodies.map((b) => [b.id, b.longitude]));
+  const same = (id: string) => {
+    const r = rel.get(id);
+    const n = nat.get(id);
+    return r !== undefined && n !== undefined && Math.abs((((r - n) % 360) + 540) % 360 - 180) <= RELOCATION_SAME_LONGITUDE_DEG;
+  };
+  return natalAspects.filter((a) => same(a.a) && same(a.b));
+}
+
 export const RELOCATION_INTERP_SCHEMA = "astro.western.relocation.interp.v1" as const;
 export type RelocationInterpretation = {
   schema: typeof RELOCATION_INTERP_SCHEMA;

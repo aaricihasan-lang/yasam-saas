@@ -25,6 +25,7 @@ type Status = {
   configIssues: string[];
   configIssueText: string[];
   ownerSelfRecoveryReady: boolean | null;
+  memberRecoveryReady?: boolean | null;
   loginMethods: string[];
   methods: { email_otp: MethodState; qr_device: MethodState };
   ready: boolean;
@@ -115,7 +116,9 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
   const s = status;
   // Sunucu aynı kuralları ayrıca uygular (API 409); düğme yalnız kolaylık.
   const ownerBlocked = !!s && s.isOwnerAccount && s.ownerSelfRecoveryReady !== true;
-  const canEnable = !!s && !s.mfaRequired && s.ready && s.configIssues.length === 0 && !ownerBlocked;
+  // F4: Owner dışı hesapta kurtarma kodu şartı (sunucu da 409 RECOVERY_REQUIRED ile reddeder).
+  const memberRecoveryBlocked = !!s && !s.isOwnerAccount && s.memberRecoveryReady !== true;
+  const canEnable = !!s && !s.mfaRequired && s.ready && s.configIssues.length === 0 && !ownerBlocked && !memberRecoveryBlocked;
   const canDisable = !!s && s.mfaRequired && !isSelf;
   const reasonOk = reason.trim().length >= 3;
 
@@ -153,7 +156,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
             <div className={detailCss.infoCard} data-recovery="codes">
               <b>Kurtarma kodları</b>
               <span><Pill ok={s.recoveryCodesLeft > 0} yes="Hazır" no="Yok" /></span>
-              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Zorunluluk açıldıktan sonra Ayarlar'dan kurtarma kodu oluşturulabilir."}</span>
+              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Yok — üye zorunluluktan ÖNCE Ayarlar › Giriş Yöntemlerim'den oluşturmalı."}</span>
             </div>
             {s.isOwnerAccount ? (
               <div className={detailCss.infoCard} data-recovery="owner-kit" data-owner-kit={s.ownerOfflineKitLeft === null ? "unknown" : String(s.ownerOfflineKitLeft)}>
@@ -197,6 +200,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               {s.mfaRequired && isSelf ? <p className="text-sm font-semibold text-slate-600">Kendi zorunluluğunuz bu ekrandan kaldırılamaz.</p> : null}
               {!s.mfaRequired && !s.ready ? <p className="text-sm font-semibold text-slate-600">Önce üyenin çalışan bir doğrulama yöntemi olmalı; aksi hâlde giriş yapamaz.</p> : null}
               {!s.mfaRequired && s.ready && ownerBlocked ? <p className="text-sm font-semibold text-slate-600" data-mfa-owner-blocked>Kendi zorunluluğunuzu açmadan önce kullanılmamış çevrimdışı kurtarma kiti kodunuz olmalı.</p> : null}
+              {!s.mfaRequired && s.ready && memberRecoveryBlocked ? <p className="text-sm font-semibold text-slate-600" data-mfa-recovery-blocked>Zorunluluk açılmadan önce üye kendi kurtarma kodlarını oluşturmalı (Ayarlar → Giriş Yöntemlerim). Böylece e-posta veya telefon erişimini kaybederse kilitlenmez.</p> : null}
             </div>
           ) : (
             <div className="mt-5 grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4" data-mfa-form={mode}>

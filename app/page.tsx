@@ -30,8 +30,10 @@ import {
   sessionTokenHeader,
   saveYasamUser,
   saveSessionToken,
+  webUsesCookieTransport,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { ADMIN_RETURN_PARAM, safeAdminReturnPath } from "@/lib/auth/adminReturnPath";
 import { useSessionGuard } from "@/hooks/useSessionGuard";
 import { confirmSessionInvalid, consumeSessionEnded, type SessionEndReason } from "@/lib/auth/sessionExpiry";
 import {
@@ -715,19 +717,25 @@ export default function Home() {
     if (isAdminUser(stored)) {
       setProfileSynced(true);
       // Cookie refresh DB sync'ten önce (paralel) başlatılıyor.
-      // P0-1: sayfa yüklemesinde admin cookie tazelemesi yalnız GEÇERLİ oturum
-      // token'ı (credential-gated login'de üretilmiş) varsa yapılır. Token yoksa
-      // sessizce atlanır; erişim /admin nav veya yeniden login'de doğrulanır.
+      // P0-1: sayfa yüklemesinde admin cookie tazelemesi yalnız GEÇERLİ oturumla yapılır (sunucu doğrular). HttpOnly
+      // (cookie) taşımasında JS'te token YOKTUR (readSessionToken → null); bu durumda istek başlıksız gider ve sunucu
+      // __Host-yasam_sid çerezinden doğrular. (HttpOnly geçişinden beri bu adım atlanıyordu → 24 sa sonra doğrudan /admin "/"a düşüyordu.)
       const adminRefreshToken = readSessionToken();
-      adminCookiePromiseRef.current = adminRefreshToken
+      adminCookiePromiseRef.current = adminRefreshToken || webUsesCookieTransport()
         ? fetch("/api/auth/admin-session", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-session-token": adminRefreshToken,
+              ...sessionTokenHeader(adminRefreshToken),
             },
           }).then((r) => r.status).catch(() => null)
         : Promise.resolve(null);
+      // Proxy'nin "/?yonetim=<admin yolu>" geri dönüşü: YALNIZ sunucu çerezi yeniden kurduysa (200) ve yol güvenliyse gidilir.
+      void adminCookiePromiseRef.current.then((status) => {
+        if (status !== 200 || typeof window === "undefined") return;
+        const back = safeAdminReturnPath(new URLSearchParams(window.location.search).get(ADMIN_RETURN_PARAM));
+        if (back) router.replace(back);
+      });
       // WEB P1: admin oturumu sunucuda sona ermişse (401) bayat "Admin Paneli" kartında
       // bekletme — oturumu sunucudan doğrula; geçersizse giriş akışına dön.
       void adminCookiePromiseRef.current.then(async (status) => {

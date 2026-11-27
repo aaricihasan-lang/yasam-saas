@@ -90,7 +90,7 @@ GRANT EXECUTE ON FUNCTION public.auth_rate_limit_hit(text, integer, integer) TO 
     };
     const cookieVal = (set: string[], name: string) => (set.find((c) => c.startsWith(`${name}=`)) ?? "").split(";")[0].split("=").slice(1).join("=");
     const login = async (email: string) => cookieVal((await call(sessionRoute.POST, "/api/auth/session", "POST", { email, password: pw(email) })).set, "__Host-yasam_sid");
-    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string }); } catch { return []; } };
+    const mails = () => { try { return fs.readFileSync(sink, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; subject: string; text?: string }); } catch { return []; } };
     const n = async (sql: string, a: unknown[] = []) => Number((await q(sql, a)).rows[0].n);
     const ageTests = () => q(`UPDATE public.auth_email_deliveries SET created_at = created_at - interval '61 minutes' WHERE purpose = 'owner_test'`);
 
@@ -156,7 +156,7 @@ GRANT EXECUTE ON FUNCTION public.auth_rate_limit_hit(text, integer, integer) TO 
       const p = await send({ action: "test", target: "test_account", to: "saldirgan@kotu.example", email: "saldirgan@kotu.example", recipient: EMAIL.owner });
       const got = mails().slice(before);
       ok(p.status === 200 && p.json.ok === true && got.length === 1 && got[0].to === EMAIL.exp, "200; gövdedeki to/email/recipient YOK SAYILDI, ileti yalnız ayardaki kayıtlı hesaba", { s: p.status, to: got.map((x) => x.to) });
-      ok(!/[0-9]{6} — /.test(got[0]?.subject ?? ""), "iletide doğrulama kodu YOK (owner_test şablonu)");
+      ok(!/\b[0-9]{6}\b/.test(got[0]?.text ?? ""), "iletide doğrulama kodu YOK (owner_test şablonu)");
       const d = (await q(`SELECT purpose, provider, state, user_id, to_hash FROM public.auth_email_deliveries ORDER BY id DESC LIMIT 1`)).rows[0];
       ok(d?.purpose === "owner_test" && d?.state === "sent" && d?.user_id === U.owner && d?.to_hash === hashRecipient(EMAIL.exp, PEPPER),
         "denetim kaydı: owner_test, aktör Owner, alıcı yalnız özet (adres yok), sent", { p: d?.purpose, s: d?.state, owner: d?.user_id === U.owner });

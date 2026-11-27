@@ -71,7 +71,7 @@ async function main() {
     };
     const L = "http://localhost";
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
-    const lastCode = (to: string) => /^([0-9]{6}) — /.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.subject ?? "")?.[1] ?? "";
+    const lastCode = (to: string) => /\b([0-9]{6})\b/.exec([...syntheticOutbox()].reverse().find((m) => m.to === to)?.text ?? "")?.[1] ?? "";
 
     // Kurulum: Owner MFA zorunlu, doğrulanmış e-posta, gerçek P-256 anahtarlı etkin telefon.
     await q(`UPDATE public.users SET email_verified_at = now() - interval '1 day' WHERE id = $1`, [U.owner]);
