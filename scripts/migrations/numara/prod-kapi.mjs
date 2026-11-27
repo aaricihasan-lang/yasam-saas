@@ -169,6 +169,21 @@ export async function uygula({ root, surum, cfg = DEFAULTS, beklenenProje, gerce
  *  – diğer her uyumsuzluk → RAPOR (otomatik düzeltme YOK; Owner kararı).
  * Not: imza ve metin DB'ye yazma yetkisi olan biri tarafından taklit edilebilir; uzlaştırma kanıt değil tutarlılık denetimidir.
  */
+/**
+ * SAPMA DENETİMİ (salt-okunur; hiçbir şey yazmaz): production geçmişi ↔ DOĞRULANMIŞ defter.
+ *  – kapiDisi: production'da olup defterde 'gecmis' / 'uygulandi' olmayan sürüm (kapı DIŞINDAN uygulanmış: eski tek seferlik
+ *    uygulayıcı, `supabase db push`, SQL editörü… ya da uzlaştırma bekleyen kapılı uygulama);
+ *  – kayip: defterde 'uygulandi' olup production geçmişinde olmayan sürüm (geçmiş kaydı silinmiş / başka proje).
+ * DB-03 bu yolları ENGELLEYEMEZ (tek Owner kimliği DB'ye tam erişimli); bu denetim onları GÖRÜNÜR kılar.
+ */
+export function sapmaDenetimi({ prodGecmis, defterText }) {
+  const st = durum(ayristir(defterText));
+  const prod = new Set(prodGecmis.map((x) => x.surum));
+  const kapiDisi = prodGecmis.filter((x) => { const s = st.get(x.surum); return !s || !(s.gecmis || s.durum === "uygulandi"); }).map((x) => `${x.surum}|${x.ad}|${st.get(x.surum)?.durum ?? "defterde yok"}`);
+  const kayip = [...st.values()].filter((s) => !s.gecmis && s.durum === "uygulandi" && !prod.has(s.surum)).map((s) => `${s.surum}|${s.dosya}`);
+  return { kapiDisi, kayip, prod: prodGecmis.length, defter: st.size };
+}
+
 export function uzlastir({ root, cfg = DEFAULTS, prodGecmis, beklenenProje, capa = null }) {
   const st = durum(ayristir(dogrulanmisOku(root, cfg, { capa }).text));
   const tamamlanan = [], sorun = [];
