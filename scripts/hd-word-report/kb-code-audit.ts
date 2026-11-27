@@ -41,6 +41,8 @@ for (const c of HD_KNOWLEDGE_CATEGORIES) {
     if (c === "Profiller") chart.profile_code = o.code;
     if (c === "Tanımlar") chart.definition_code = o.code;
     let row: Record<string, unknown> = chart;
+    // Genel merkez başlıkları (genel_*) haritayla OTOMATİK EŞLEŞMEZ — aşağıda ayrıca ulaşılamazlığı denetlenir.
+    if (c === "Merkezler" && o.code.startsWith("genel_")) continue;
     if (c === "Merkezler") {
       const m = /^(tanimli|tanimsiz|tam_acik)_(.+)$/.exec(o.code);
       if (!m) throw new Error(`beklenmeyen merkez seçeneği: ${o.code}`);
@@ -66,6 +68,15 @@ for (const c of HD_KNOWLEDGE_CATEGORIES) {
       bad++;
       if (bad <= 15) console.log(`UYUŞMAZ ${c}: editör="${editorCode}"  Word=${JSON.stringify(wordCodes)}`);
     }
+  }
+}
+// Genel merkez kodları Word'ün üretebileceği hiçbir kod evreninde YER ALMAMALI.
+for (const o of opts("Merkezler") as Array<{ code: string }>) {
+  if (!o.code.startsWith("genel_")) continue;
+  const code = buildKnowledgeCodeFromValue("Merkezler" as never, o.code);
+  if (reachable.has(code)) {
+    bad++;
+    console.log(`GENEL MERKEZ EŞLEŞTİ (olmamalı): ${code}`);
   }
 }
 const counts = HD_KNOWLEDGE_CATEGORIES.map((c) => `${c}=${(opts(c) as unknown[]).length}`).join(" ");
