@@ -22,6 +22,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 
 {
   const M = Module as unknown as { _resolveFilename: (req: string, ...rest: unknown[]) => string };
@@ -77,6 +78,8 @@ async function main() {
     EMAIL_OWNER_TEST_RECIPIENT: EMAIL.exp,
     // F3 pilot: tek uzman hesabı (sentetik "free") için adres doğrulaması; diğer uzman (exp) kapalı kalır.
     AUTH_EMAIL_VERIFY_PILOT_USER_ID: U.free,
+    // Pilot adres sabitlemesi (zorunlu): sha256(küçük harf kayıtlı adres).
+    AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256: createHash("sha256").update(EMAIL.free.trim().toLowerCase(), "utf8").digest("hex"),
   };
   delete env.AUTH_EMAIL_SELF_SERVICE_ROLES;
   const app: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "localhost"],

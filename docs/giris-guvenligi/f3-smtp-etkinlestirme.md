@@ -102,8 +102,11 @@ yayını Vercel'de "Redeploy" ile yeniden yayınlanır (**Owner onayı**). Yeni 
    - Kod 3 dakika geçerli; önce bilerek **yanlış kod** (hata mesajı görünmeli), sonra doğru kod → "Doğrulandı".
    - 60 saniye dolmadan "yeni kod" istenirse bekleme mesajı görünmeli.
    - **Owner adresi posta kutusu değilse ilk gerçek OTP için tek hesaplık pilot:** Production'a
-     `AUTH_EMAIL_VERIFY_PILOT_USER_ID=<pilot uzmanın kullanıcı kimliği (UUID)>` (gizli değil; tam olarak bir değer) → yeniden yayın.
-     Yalnız o uzman hesabı (etkin, demo / arşiv / pasif değil) kendi KAYITLI adresini Ayarlar › Giriş Yöntemlerim'den kodla
+     `AUTH_EMAIL_VERIFY_PILOT_USER_ID=<pilot uzmanın kullanıcı kimliği (UUID)>` (gizli değil; tam olarak bir değer) ve
+     `AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256=<sha256(küçük harf kayıtlı adres)>` (ZORUNLU adres sabitlemesi; adres sonradan
+     değişirse pilot kapanır) → yeniden yayın. Özet, Owner'ın bilgisayarında: PowerShell
+     `[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes("adres@ornek.com".ToLower()))).Replace("-","").ToLower()`.
+     Yalnız o uzman hesabı (etkin, onaylı, demo / arşiv / pasif değil) kendi KAYITLI adresini Ayarlar › Giriş Yöntemlerim'den kodla
      doğrulayabilir; diğer uzmanlar kapalı kalır. Pilot adres değiştirme, güvenlik bildirimi, kurtarma ve MFA zorunluluğunu
      AÇMAZ. E-posta Durumu ekranında "Adres doğrulama pilotu: 1 uzman hesabı (uygun)" görünür. Bitince değişken silinir.
 3. İlk gönderim **başarısız** olursa: sistem güvenli durumda kalır (kod kullanılamaz, oturum açılmaz, MFA zaten kapalı).
