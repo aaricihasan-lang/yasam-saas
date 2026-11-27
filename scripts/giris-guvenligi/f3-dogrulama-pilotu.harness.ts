@@ -60,7 +60,7 @@ async function main() {
       SESSION_COOKIE_ALLOWED_ORIGINS: ORIGIN, RATE_LIMIT_SECRET: "f3-pilot-rate", LOGIN_IP_PEPPER: "f3-pilot-ip", REQUIRE_DB_SUPER_ADMIN_MARKER: "true",
       EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", EMAIL_SYNTHETIC_SINK: sink, AUTH_OTP_PEPPER: PEPPER,
     });
-    for (const k of ["AUTH_EMAIL_SELF_SERVICE_ROLES", "AUTH_EMAIL_VERIFY_PILOT_USER_ID", "AUTH_MFA_METHODS", "AUTH_MFA_METHOD_SCOPE", "AUTH_MFA_EMAIL_ROLES"]) delete process.env[k];
+    for (const k of ["AUTH_EMAIL_SELF_SERVICE_ROLES", "AUTH_EMAIL_VERIFY_PILOT_USER_ID", "AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256", "AUTH_MFA_METHODS", "AUTH_MFA_METHOD_SCOPE", "AUTH_MFA_EMAIL_ROLES"]) delete process.env[k];
     const sessionRoute = await import("@/app/api/auth/session/route");
     const meEmail = await import("@/app/api/me/email-verification/route");
     const meChange = await import("@/app/api/me/email-change/route");
@@ -116,10 +116,36 @@ async function main() {
     }
 
     section("2) Geçersiz pilot ayarı → pilot YOK");
+    const { emailVerifyPilotAddressHash } = await import("@/lib/auth/emailSelfService");
+    process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = emailVerifyPilotAddressHash(PE);   // adres sabitlemesi doğru; kimlik geçersiz
     for (const v of ["abc", `${P},${O}`, `${P} ${O}`, "*", P.replace(/-/g, "")]) {
       process.env.AUTH_EMAIL_VERIFY_PILOT_USER_ID = v;
       const s = await call(meEmail.POST, "/api/me/email-verification", "POST", { action: "send" }, self(P, sP));
       ok(s.status === 403, `AUTH_EMAIL_VERIFY_PILOT_USER_ID="${v.length > 20 ? v.slice(0, 20) + "…" : v}" → kapalı`, s.status);
+    }
+
+    section("2b) Adres sabitleme ve onay şartı (pilot kimliği DOĞRU)");
+    process.env.AUTH_EMAIL_VERIFY_PILOT_USER_ID = P;
+    {
+      const pinned = emailVerifyPilotAddressHash(PE);
+      const cases: [string, () => Promise<unknown>, () => Promise<unknown>][] = [
+        ["adres özeti tanımsız", async () => { delete process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256; }, async () => { process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = pinned; }],
+        ["adres özeti biçimsiz", async () => { process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = "abc"; }, async () => { process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = pinned; }],
+        ["adres özeti başka adresin", async () => { process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = emailVerifyPilotAddressHash("baska@test.local"); }, async () => { process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = pinned; }],
+        ["kayıtlı adres sonradan değişti", () => fix(`UPDATE public.users SET email = 'pilot-yeni@test.local' WHERE id = '${P}'`), () => fix(`UPDATE public.users SET email = '${PE}' WHERE id = '${P}'`)],
+        ["hesap onaylı değil (approval_status)", () => fix(`UPDATE public.users SET approval_status = 'pending' WHERE id = '${P}'`), () => fix(`UPDATE public.users SET approval_status = 'approved' WHERE id = '${P}'`)],
+      ];
+      for (const [label, prep, undo] of cases) {
+        await prep();
+        const before = mails().length;
+        const s = await call(meEmail.POST, "/api/me/email-verification", "POST", { action: "send" }, self(P, sP));
+        ok(s.status === 403 && mails().length === before, `${label} → pilot KAPALI, ileti yok`, s.status);
+        await undo();
+      }
+      process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = pinned.toUpperCase();
+      const g = await call(meEmail.GET, "/api/me/email-verification", "GET", null, self(P, sP));
+      ok(g.json.available === true, "özet büyük harfle yazılsa da (biçim) eşleşir", g.json.available);
+      process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = pinned;
     }
 
     section("3) Pilot = tek uzman kimliği");
@@ -211,12 +237,16 @@ async function main() {
       await fix(undo);
     }
     {
+      // Adres sabitlemesi her seferinde o hesabın KENDİ adresine göre (yalnız rol / demo kuralı sınanır).
       process.env.AUTH_EMAIL_VERIFY_PILOT_USER_ID = DEMO;
+      process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = emailVerifyPilotAddressHash("f3-pilot-demo@test.local");
       const s = await call(meEmail.POST, "/api/me/email-verification", "POST", { action: "send" }, self(DEMO, sDemo));
       process.env.AUTH_EMAIL_VERIFY_PILOT_USER_ID = ADM2;
+      process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = emailVerifyPilotAddressHash("f3-pilot-adm2@test.local");
       const a = await call(meEmail.POST, "/api/me/email-verification", "POST", { action: "send" }, self(ADM2, sAdm2));
       ok(s.status === 403 && a.status === 403, "pilot = demo hesabı / yönetici hesabı → kapalı (pilot yalnız uzman)", [s.status, a.status]);
       process.env.AUTH_EMAIL_VERIFY_PILOT_USER_ID = P;
+      process.env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = emailVerifyPilotAddressHash(PE);
     }
 
     section("9) Owner durum ekranı + diğer kayıtlar");
