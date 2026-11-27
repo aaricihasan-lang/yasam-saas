@@ -121,6 +121,20 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
     gibi eklentilerle işlem dışı iş yapılabilir (production'da kurulu değillerse risk yok).
   - Tekrar uygulama: defter (`UYGULANMIS`), kapı (`PROD_DOLU`) ve işlem içi kilit (`YSM01`) üç ayrı katmanda engellenir.
 
+## Kapı dışı uygulama yolları ve tespit
+
+DB-03 şu yolları ENGELLEYEMEZ (tek Owner kimliği veritabanına tam erişimli): tek seferlik `conn.mjs` + psql uygulayıcıları
+(eski paketlerdeki `apply*.mjs`, `*-prod.mjs` kalıbı), `supabase db push` / `migration repair`, Supabase SQL editörü.
+Bunlar **tespit** edilir:
+
+```bash
+node scripts/migrations/numara/uygula-prod.mjs denetle --proje <ref> --conn-mjs <yol>   # SALT-OKUNUR
+#   SAPMA DENETİMİ: production N sürüm, defter M sürüm; kapı dışı K, kayıp L   (K/L > 0 → çıkış 3)
+```
+
+`uygula-prod.mjs` her kapılı uygulamada aynı denetimi `UZLASMA` ile zorunlu yapar: kapı dışı bir uygulama varsa sonraki
+kapılı uygulama durur. Eski uygulayıcı sınıflandırması: kanıt klasörü `uygulayici-siniflandirma.md`.
+
 ## Doğrulama (otomatik, `npm run test:migration-numara`)
 
 - `git-eszamanlilik.harness.mjs` (40) — gerçek git + ayrı süreçler: tohumsuz defter; tohum raporu; ham CAS; farklı / aynı modül;
@@ -134,7 +148,7 @@ Production'a uygulama YALNIZ `scripts/migrations/numara/uygula-prod.mjs` ile ve 
   numarayla kopyalama; aynı SQL iki numarada; production numarası; ayırmasız dosya; iptal; uygulanmış içerik değişti; defter
   erişilemez (zorunlu / uyarı / yapılandırmadan zorunlu); sembolik bağlantı; PR'ın kipi kapatması (base yapılandırması);
   migration içermeyen PR; kurcalanmış defter; main push kipi; merge sonrası yeniden bağlama.
-- `prod-kapi-pg.harness.mjs` (36) — izole PostgreSQL: Supabase biçimi; tekrar; yarış (YSM01); kapı dışı sürüm (UZLASMA);
+- `prod-kapi-pg.harness.mjs` (38) — izole PostgreSQL: Supabase biçimi; tekrar; yarış (YSM01); kapı dışı sürüm (UZLASMA);
   geçmiş okunmadan; ana dalda olmayan commit (MAIN_DEGIL); deftere yazılmamış uygulama + uzlaştırma; sahte imza; aynı sürüme eşzamanlı iki uygulama; danışma kilidi sırası; DDL hatası tam geri alma; ön koşul (YSM02);
   DB commit + defter kopması + uzlaştırma; küçük harf `commit;`, gövdede ROLLBACK/BEGIN, COMMIT sonrası deyim, `$f$` içi metin,
   CONCURRENTLY; `uygula-prod.mjs` kuru çalıştırma / yanlış proje / uzak DSN reddi / `--uygula` / tekrar / uzlaştırma.

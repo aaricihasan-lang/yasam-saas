@@ -207,6 +207,14 @@ try {
   ok("uygula-prod.mjs --uygula: uygulandı + geçmiş + defter", c.status === 0 && (await varMi("t_cli")) && (await gecmis(R.cli_kuru.surum)) === 1 && durumu(R.cli_kuru.surum).durum === "uygulandi", (c.stdout + c.stderr).trim().slice(0, 200));
   c = cli("--surum", R.cli_kuru.surum, "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", PROJE, "--uygula");
   ok("uygula-prod.mjs aynı sürüm tekrar → RED", c.status === 2 && /UYGULANMIS/.test(c.stderr));
+  const yazmaOnce = (await a.query("SELECT count(*)::int n FROM supabase_migrations.schema_migrations")).rows[0].n;
+  const defterOnce = okuUzak(K).tip;
+  c = cli("denetle", "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", PROJE);
+  ok("denetle: tutarlı durumda kapı dışı 0 / kayıp 0, çıkış 0", c.status === 0 && /kapı dışı 0, kayıp 0/.test(c.stdout), c.stdout.trim().split("\n")[0]);
+  await a.query("INSERT INTO supabase_migrations.schema_migrations(version,name) VALUES ('20280128000060','db_push_ile_uygulandi')");
+  c = cli("denetle", "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", PROJE);
+  ok("denetle: kapı dışından (db push / tek seferlik betik) uygulanan sürüm → KAPI DIŞI raporu, çıkış 3; DB ve defter DEĞİŞMEDİ", c.status === 3 && /KAPI DIŞI 20280128000060\|db_push_ile_uygulandi\|defterde yok/.test(c.stdout) && (await a.query("SELECT count(*)::int n FROM supabase_migrations.schema_migrations")).rows[0].n === yazmaOnce + 1 && okuUzak(K).tip === defterOnce);
+  await a.query("DELETE FROM supabase_migrations.schema_migrations WHERE version='20280128000060'");
   c = cli("uzlastir", "--proje", PROJE, "--dsn", dsn, "--test-proje-kimligi", PROJE);
   ok("uygula-prod.mjs uzlastir: tamamlanacak yok, sorun yok", c.status === 0 && /tamamlanan 0/.test(c.stdout) && /sorun 0/.test(c.stdout), c.stdout.trim());
 } catch (err) {
