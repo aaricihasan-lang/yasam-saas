@@ -282,19 +282,21 @@ async function main() {
   ok("B9 Sistem Yorumu görünümü: Doğrulanamadı etiketi, 'Tamamen' yok", htmlN.includes("Doğrulanamadı") && !htmlN.includes("Tamamen"));
 
   // ─────────────────────────────────────────────────────────────────────────
-  section("C — Bilgi Bankası: 27 seçenek + eski acik_* kayıtları");
-  const opts = getStructuredCategoryOptions("Merkezler")!;
-  ok("C1 Merkezler: 9 × 3 = 27 kesin seçenek", opts.length === 27);
+  section("C — Bilgi Bankası: 27 kesin + 9 genel seçenek + eski acik_* kayıtları");
+  // Owner kararı (27.11): 9 "Genel — {merkez}" başlığı eklendi → toplam 36; 27 kesin seçenek aynen korunur.
+  const allOpts = getStructuredCategoryOptions("Merkezler")!;
+  const opts = allOpts.filter((o) => !o.code.startsWith("genel_"));
+  ok("C1 Merkezler: 9 × 3 = 27 kesin seçenek (+ 9 genel = 36)", opts.length === 27 && allOpts.length === 36);
   ok("C2 her merkez için Tanımlı / Tanımsız / Açık etiketleri", HD_CENTER_CODES.every((c) => ["tanimli", "tanimsiz", "tam_acik"].every((f) => opts.some((o) => o.code === `${f}_${c}`))) && opts.filter((o) => o.label.startsWith("Tanımlı — ")).length === 9 && opts.filter((o) => o.label.startsWith("Tanımsız — ")).length === 9 && opts.filter((o) => o.label.startsWith("Açık — ")).length === 9);
   ok("C3 kullanıcı etiketlerinde 'Tamamen Açık' YOK", !opts.some((o) => /Tamamen/.test(o.label)));
   ok("C4 eski genel acik_* yeni kayıtta sunulmaz", !opts.some((o) => /^acik_/.test(o.code)));
   ok("C5 örnek: 'Tanımlı/Tanımsız/Açık — Baş Merkezi (Head)'", ["Tanımlı — Baş Merkezi (Head)", "Tanımsız — Baş Merkezi (Head)", "Açık — Baş Merkezi (Head)"].every((l) => opts.some((o) => o.label === l)));
-  ok("C6 yeni teknik kodlar eski kodlarla ÇAKIŞMAZ", new Set(opts.map((o) => buildKnowledgeCodeFromValue("Merkezler", o.code))).size === 27 && !opts.some((o) => buildKnowledgeCodeFromValue("Merkezler", o.code).startsWith("merkez_acik_")));
+  ok("C6 yeni teknik kodlar eski kodlarla ÇAKIŞMAZ", new Set(allOpts.map((o) => buildKnowledgeCodeFromValue("Merkezler", o.code))).size === 36 && !allOpts.some((o) => buildKnowledgeCodeFromValue("Merkezler", o.code).startsWith("merkez_acik_")));
   ok("C7 yeniden açma: kesin kodlar düzenleyicide seçili görünür (round-trip)", opts.every((o) => deriveStructuredValue("Merkezler", buildKnowledgeCodeFromValue("Merkezler", o.code)) === o.code));
   ok("C8 eski acik_* kayıt düzenleyicide kaybolmaz (yapısal değer korunur)", deriveStructuredValue("Merkezler", "merkez_acik_head") === "acik_head");
   const editOpts = getStructuredCategoryOptionsForEdit("Merkezler", "acik_head")!;
-  ok("C9 eski kaydı düzenleme: yalnız KENDİ eski seçeneği + 27 kesin seçenek (bilinçli taşıma mümkün)", editOpts.length === 28 && editOpts.some((o) => o.code === "acik_head" && o.label.startsWith("Eski genel kayıt")) && !editOpts.some((o) => o.code === "acik_ajna"));
-  ok("C10 kesin kaydı düzenleme: eski seçenek eklenmez", getStructuredCategoryOptionsForEdit("Merkezler", "tanimsiz_head")!.length === 27);
+  ok("C9 eski kaydı düzenleme: yalnız KENDİ eski seçeneği + 36 seçenek (bilinçli taşıma mümkün)", editOpts.length === 37 && editOpts.some((o) => o.code === "acik_head" && o.label.startsWith("Eski genel kayıt")) && !editOpts.some((o) => o.code === "acik_ajna"));
+  ok("C10 kesin kaydı düzenleme: eski seçenek eklenmez", getStructuredCategoryOptionsForEdit("Merkezler", "tanimsiz_head")!.length === 36);
   ok("C11 merkez kodları canonical admin anahtarı DEĞİL (admin/uzman ayrımı değişmez)", !isHdCanonicalKey("merkez_tanimsiz_head") && !isHdCanonicalKey("merkez_tam_acik_head"));
   // Sıralama
   const sorted = sortHdKnowledgeRecords([

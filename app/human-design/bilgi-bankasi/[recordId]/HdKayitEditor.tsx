@@ -1,6 +1,7 @@
 "use client";
 
 import { KB_CONTENT_LABEL, KB_NOTES_HELP, KB_NOTES_LABEL, kbContentHelp } from "@/lib/human-design/knowledge/kbFieldLabels";
+import { HD_GENERAL_CENTER_CONTENT_HELP, HD_GENERAL_CENTER_NOTE, isGeneralCenterKnowledgeCode } from "@/lib/human-design/knowledge/centerKnowledge";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -527,6 +528,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
   }
 
   const isStructured = getStructuredCategoryOptions(form.category) !== null;
+  // Genel merkez kaydı: haritayla otomatik eşleşmez, otomatik rapora girmez (sunucu da eler).
+  const isGeneralCenter = isGeneralCenterKnowledgeCode(computeCode(form.category, form.title, form.structuredValue));
   const activeIsDraft = activeSourceId === DRAFT_SOURCE_ID && draftSource !== null;
   const activeSource = activeIsDraft
     ? draftSource
@@ -724,6 +727,8 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
               <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
                 {isHdGateChannelCategory(form.category) ? (
                   <>Kayıtlar otomatik sıralanır: kapılar numaraya, kanallar kapı çiftine göre.</>
+                ) : isGeneralCenter ? (
+                  <span data-hd-kb-general-center-note>{HD_GENERAL_CENTER_NOTE}</span>
                 ) : isStructured ? (
                   <><span className="font-bold">Yapısal kategori: </span>Kod dropdown seçiminden otomatik üretilir ve rapor kod eşleşmesinde kullanılır. Başlığı elle yazmayın.</>
                 ) : form.category ? (
@@ -738,7 +743,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
           <section className={cardCls}>
             <p className={sectionCls}>{KB_CONTENT_LABEL}</p>
             <div className="mb-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800" data-hd-kb-content-help>
-              {kbContentHelp(form.category)}
+              {isGeneralCenter ? HD_GENERAL_CENTER_CONTENT_HELP : kbContentHelp(form.category)}
             </div>
             <textarea
               value={form.content}

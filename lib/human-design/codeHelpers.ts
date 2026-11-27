@@ -134,7 +134,9 @@ export function getStructuredCategoryOptions(category: string): StructuredOption
 }
 
 // -------------------------------------------------------
-// HD-UZMAN-01 — Merkez seçenekleri: 9 merkez × 3 KESİN durum = 27 seçenek
+// HD-UZMAN-01 — Merkez seçenekleri: 9 merkez × (1 GENEL + 3 KESİN durum) = 36 seçenek
+//   genel_{merkez}     → Genel — merkezin genel bilgisi. Haritayla OTOMATİK EŞLEŞMEZ; otomatik
+//                        yorum/rapora girmez (sunucu excludeGeneralCenterKnowledge ile eler).
 //   tanimli_{merkez}   → Tanımlı  (Defined)
 //   tanimsiz_{merkez}  → Tanımsız (Undefined)          — YENİ kesin kod
 //   tam_acik_{merkez}  → Açık     (Completely Open)    — YENİ kesin kod; kullanıcıya yalnız "Açık"
@@ -144,6 +146,7 @@ export function getStructuredCategoryOptions(category: string): StructuredOption
 // -------------------------------------------------------
 
 export const HD_CENTER_KB_FAMILIES = {
+  general: "genel",
   defined: "tanimli",
   undefined: "tanimsiz",
   open: "tam_acik",
@@ -156,6 +159,7 @@ export const HD_LEGACY_CENTER_OPTION_PREFIX = "Eski genel kayıt (Tanımsız/Aç
 export function hdCenterKnowledgeOptions(includeLegacy: boolean): StructuredOption[] {
   const result: StructuredOption[] = [];
   for (const { code, label } of HUMAN_DESIGN_CENTERS) {
+    result.push({ code: `${HD_CENTER_KB_FAMILIES.general}_${code}`, label: `Genel — ${label}` });
     result.push({ code: `${HD_CENTER_KB_FAMILIES.defined}_${code}`, label: `Tanımlı — ${label}` });
     result.push({ code: `${HD_CENTER_KB_FAMILIES.undefined}_${code}`, label: `Tanımsız — ${label}` });
     result.push({ code: `${HD_CENTER_KB_FAMILIES.open}_${code}`, label: `Açık — ${label}` });
