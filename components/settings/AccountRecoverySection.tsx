@@ -26,6 +26,8 @@ type Status = {
   ownerOfflineActive: number | null;
   ownerBootstrapAvailable: boolean;
   openCase: { id: string; opened_at: string; not_before: string } | null;
+  /** F4: MFA öncesi kurulum (zorunluluk açılmadan, e-posta koduyla). */
+  setup?: { available: boolean; issue: string | null; emailHint: string | null };
 };
 type LiveDevice = { id: string; model: string | null; display_code: string | null; state: string };
 type Replace = { proofDeviceId: string | null; waiting: { old_device_id: string; display_code: string | null; model: string | null; expires_at: string } | null };
@@ -63,6 +65,8 @@ export default function AccountRecoverySection({
   const [notice, setNotice] = useState<string | null>(null);
 
   const [genPassword, setGenPassword] = useState("");
+  const [setupSent, setSetupSent] = useState<string | null>(null);
+  const [setupCode, setSetupCode] = useState("");
   const [codes, setCodes] = useState<string[] | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -122,6 +126,24 @@ export default function AccountRecoverySection({
     const { ok, j } = await post("/api/me/account-recovery", { action: "generate", password: genPassword });
     setGenPassword("");
     if (!ok || !Array.isArray(j.codes)) { setError(typeof j.error === "string" ? j.error : "Kodlar oluşturulamadı."); return; }
+    setCodes(j.codes.filter((c): c is string => typeof c === "string"));
+    setSaved(false);
+    void load();
+  });
+
+  // F4 (Risk A): MFA öncesi kurulum — parola → kayıtlı adrese kod → kod doğrulanınca 10 kurtarma kodu (bir kez gösterilir).
+  const setupSend = () => run("setup-send", async () => {
+    const { ok, j } = await post("/api/me/account-recovery", { action: "setup_send", password: genPassword });
+    setGenPassword("");
+    if (!ok) { setError(typeof j.error === "string" ? j.error : "Kod gönderilemedi."); return; }
+    setSetupSent(typeof j.emailHint === "string" ? j.emailHint : "kayıtlı adresiniz");
+    setSetupCode("");
+  });
+  const setupGenerate = () => run("setup-gen", async () => {
+    const { ok, j } = await post("/api/me/account-recovery", { action: "setup_generate", code: setupCode });
+    if (!ok || !Array.isArray(j.codes)) { setError(typeof j.error === "string" ? j.error : "Kodlar oluşturulamadı."); return; }
+    setSetupSent(null);
+    setSetupCode("");
     setCodes(j.codes.filter((c): c is string => typeof c === "string"));
     setSaved(false);
     void load();
@@ -281,6 +303,31 @@ export default function AccountRecoverySection({
             </label>
             <button type="button" data-testid="recovery-codes-close" disabled={!saved} onClick={closeCodes} className={`${primary} mt-2 w-full`}>Tamam, kodları gizle</button>
           </div>
+        ) : st?.setup?.available && !st.sessionMethod ? (
+          setupSent ? (
+            <form className="mt-3 space-y-2" data-testid="recovery-setup-code-form" onSubmit={(e) => { e.preventDefault(); void setupGenerate(); }}>
+              <p className="text-[11px] text-slate-600">{setupSent} adresine 6 haneli kod gönderildi (3 dakika geçerli).</p>
+              <input data-testid="recovery-setup-code" value={setupCode} onChange={(e) => setSetupCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric" autoComplete="one-time-code" aria-label="Doğrulama kodu" placeholder="6 haneli kod"
+                className={`${input} text-center font-mono tracking-[0.3em]`} />
+              <button type="submit" data-testid="recovery-setup-generate" disabled={busy !== null || setupCode.length !== 6} className={`${primary} w-full`}>
+                {busy === "setup-gen" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />} Kodu doğrula ve kurtarma kodlarını oluştur
+              </button>
+              <button type="button" className="w-full text-xs font-bold text-violet-700 hover:underline" onClick={() => setSetupSent(null)}>Vazgeç</button>
+            </form>
+          ) : (
+            <form className="mt-3 space-y-2" data-testid="recovery-setup-form" onSubmit={(e) => { e.preventDefault(); void setupSend(); }}>
+              <p className="text-[11px] leading-snug text-slate-600">
+                İki aşamalı giriş açılmadan ÖNCE kurtarma kodlarınızı oluşturun. Güvenlik için parolanız ve kayıtlı e-posta adresinize
+                ({st.setup.emailHint ?? "kayıtlı adres"}) gönderilecek kod birlikte istenir.
+              </p>
+              <PasswordInput wrapperClassName="w-full" data-testid="recovery-setup-password" value={genPassword} onChange={(e) => setGenPassword(e.target.value)}
+                autoComplete="current-password" aria-label="Parolanız" placeholder="Parolanız" className={input} />
+              <button type="submit" data-testid="recovery-setup-send" disabled={busy !== null || !genPassword} className={`${primary} w-full`}>
+                {busy === "setup-send" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />} E-postama doğrulama kodu gönder
+              </button>
+            </form>
+          )
         ) : (
           <form className="mt-3 flex flex-col gap-2 min-[480px]:flex-row" onSubmit={(e) => { e.preventDefault(); void generate(); }}>
             <PasswordInput wrapperClassName="w-full" data-testid="recovery-gen-password" value={genPassword} onChange={(e) => setGenPassword(e.target.value)}

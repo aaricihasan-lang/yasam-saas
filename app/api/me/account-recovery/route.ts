@@ -5,6 +5,8 @@ import { isMfaChallengeId } from "@/lib/auth/mfaChallenge";
 import { formatRecoveryCode, generateRecoveryCodes, hashRecoveryCode } from "@/lib/auth/recoveryCodes";
 import { reconfirmPassword } from "@/lib/auth/stepUp";
 import { sendSecurityNotice } from "@/lib/auth/securityNotice";
+import { issueAndSendOtp, maskEmail, recoverySetupOtpHash } from "@/lib/auth/emailOtp";
+import { recoverySetupEligibility } from "@/lib/auth/recoverySetup";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,10 @@ export const runtime = "nodejs";
  * POST { action: "cancel_case", caseId } → hesabım için açılmış kurtarma talebini iptal (MFA'lı oturum).
  * POST { action: "owner_bootstrap", password } → Owner, çevrimdışı kodla açılmış taze oturumdan yeni
  *        telefon için 15 dk'lık eşleştirme kodu (oturum başına bir kez).
+ * F4 (Risk A) — MFA ÖNCESİ kurulum (zorunluluk henüz açılmamış, MFA kapsamındaki, e-postası doğrulanmış hesap):
+ * POST { action: "setup_send", password } → parola yeniden doğrulanır, kayıtlı adrese 6 haneli kod (3 dk; 60 sn bekleme).
+ * POST { action: "setup_generate", code } → kod DB'de aynı işlemde tüketilir (auth_recovery_codes_setup) → 10 kod (YALNIZ
+ *        bu yanıtta). Yalnız parolayı bilen biri kod üretemez (posta kutusu kanıtı şart). GET → setup: { available, issue }.
  * Demo hesabında yazma kapalı.
  */
 export async function GET(req: NextRequest) {
@@ -37,6 +43,11 @@ export async function GET(req: NextRequest) {
     ownerOfflineActive: r.owner_offline_active ?? null,
     ownerBootstrapAvailable: r.owner_bootstrap_available === true,
     openCase: r.open_case ?? null,
+    // F4: MFA öncesi kurulum uygun mu (kod / adres DÖNMEZ; yalnız durum ve maske).
+    setup: await (async () => {
+      const e = await recoverySetupEligibility(guard.db, guard);
+      return e.ok ? { available: true, issue: null, emailHint: maskEmail(e.email) } : { available: false, issue: e.issue, emailHint: null };
+    })(),
   }, 200);
 }
 
@@ -44,7 +55,55 @@ export async function POST(req: NextRequest) {
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.isDemo) return demoReadOnlyResponse();
-  const body = (await req.json().catch(() => null)) as { action?: unknown; password?: unknown; caseId?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { action?: unknown; password?: unknown; caseId?: unknown; code?: unknown } | null;
+
+  if (body?.action === "setup_send" || body?.action === "setup_generate") {
+    const el = await recoverySetupEligibility(guard.db, guard);
+    if (!el.ok) {
+      const msg = el.issue === "mfa_required" ? "İkinci doğrulama bu hesapta açık; kurtarma kodlarını ikinci doğrulamayla açılmış oturumda oluşturun."
+        : el.issue === "email_unverified" ? "Önce e-posta adresinizi doğrulayın."
+          : "Kurtarma kodu kurulumu bu hesap için şu anda kullanılamıyor.";
+      return jsonNoStore({ code: `SETUP_${el.issue.toUpperCase()}`, error: msg }, 403);
+    }
+    if (body.action === "setup_send") {
+      const step = await reconfirmPassword(guard.db, req, guard.userId, body.password);
+      if (!step.ok) return jsonNoStore(step.body, step.status);
+      const out = await issueAndSendOtp(guard.db, { userId: guard.userId, email: el.email, name: el.name, purpose: "recovery_setup", challengeId: null });
+      if (out.ok) return jsonNoStore({ sent: true, expiresAt: out.expiresAt, emailHint: maskEmail(el.email) }, 200);
+      const status = out.code === "cooldown" || out.code === "rate_limited" ? 429 : out.code === "not_configured" || out.code === "quota_exhausted" || out.code === "send_failed" ? 503 : 400;
+      return jsonNoStore({ code: out.code.toUpperCase(), error: out.code === "cooldown" ? "Yeni kod istemeden önce biraz bekleyin." : "Kod gönderilemedi.", ...(out.retryAfter ? { retryAfter: out.retryAfter } : {}) }, status);
+    }
+    const code = typeof body.code === "string" ? body.code.replace(/\s/g, "") : "";
+    const otpHash = recoverySetupOtpHash(guard.userId, el.email, code);
+    if (!otpHash) return jsonNoStore({ code: "OTP_WRONG", error: "Kod 6 haneli olmalı." }, 400);
+    const codes = generateRecoveryCodes();
+    const { data, error } = await guard.db.rpc("auth_recovery_codes_setup", {
+      p_actor_token: guard.token,
+      p_code_hashes: codes.map((c) => hashRecoveryCode(guard.userId, c)),
+      p_otp_hash: otpHash,
+    });
+    if (error) {
+      const missing = String((error as { code?: unknown }).code ?? "");
+      if (missing === "PGRST202" || missing === "42883") return jsonNoStore({ code: "SETUP_UNAVAILABLE", error: "Kurtarma kodu kurulumu henüz etkin değil." }, 503);
+      return jsonNoStore({ error: "Kurtarma kodları oluşturulamadı." }, 500);
+    }
+    const r = (data ?? {}) as { ok?: unknown; code?: unknown; revoked?: unknown; attempts_left?: unknown };
+    if (r.ok !== true) {
+      const c = String(r.code ?? "error");
+      if (c === "rate_limited") return jsonNoStore({ code: "RATE_LIMITED", error: "Son 24 saatte en fazla 3 kez kod oluşturabilirsiniz." }, 429);
+      if (c.startsWith("otp_")) {
+        const left = Number(r.attempts_left);
+        const msg = c === "otp_wrong" ? `Kod hatalı.${Number.isFinite(left) ? ` Kalan deneme: ${left}.` : ""}`
+          : c === "otp_expired" ? "Kodun süresi doldu. Yeni kod isteyin."
+            : c === "otp_locked" ? "Kod 5 kez hatalı girildi. Yeni kod isteyin."
+              : "Geçerli bir kod yok. Yeni kod isteyin.";
+        return jsonNoStore({ code: c.toUpperCase(), error: msg }, 400);
+      }
+      return jsonNoStore({ code: c.toUpperCase(), error: "Kurtarma kodları oluşturulamadı." }, c === "forbidden" || c === "mfa_session_required" || c === "account_state" || c === "not_in_scope" ? 403 : 400);
+    }
+    await sendSecurityNotice(guard.db, { userId: guard.userId, to: el.email, name: el.name, kind: "recovery_codes_generated" });
+    return jsonNoStore({ codes: codes.map(formatRecoveryCode), revoked: Number(r.revoked) || 0 }, 200);
+  }
 
   if (body?.action === "generate") {
     const step = await reconfirmPassword(guard.db, req, guard.userId, body.password);
