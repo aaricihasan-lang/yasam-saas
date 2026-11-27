@@ -292,7 +292,7 @@ export const YH_INDEX_SOURCES = [
   {
     // Şifa Rehberi V2 — uzmanın KİŞİSEL notları (içerik kutuları). Kurum ortak kayıtları (scope 'kurum')
     // V1 healing_guides'ın türevidir → İNDEKSLENMEZ (mükerrer yok; V1 kaynakları yukarıda). Satır
-    // kapısı: scope = 'kisisel' + kutu ve TÜM üst konuları çöpte değil (okuyucu: supabaseIndexAdapters
+    // kapısı: scope = 'kisisel' + kutu, ANA NOTU (F3 parent_block_id) ve TÜM üst konuları çöpte değil (okuyucu: supabaseIndexAdapters
     // SIFA_V2_SOURCE_KEY). Sahiplik owner_key → indeks owner_user_id → arama yalnız sahibine.
     // CONTROLLED: kod enabled:true; DB yh_source_activation is_active=true olmadan olay işlenmez.
     sourceKey: "sifa_rehberi_v2:notes",
@@ -312,7 +312,7 @@ export const YH_INDEX_SOURCES = [
     statusColumn: "scope",
     eligibleStatuses: ["kisisel"],
     ownerColumn: "owner_key",
-    extraSelectColumns: ["topic_id", "deleted_at"],
+    extraSelectColumns: ["topic_id", "deleted_at", "parent_block_id"],
     enabled: true,
   },
 

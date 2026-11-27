@@ -9,21 +9,23 @@
  * PostgREST shim → ephemeral embedded-postgres (+ Storage taklidi); veri sentetik.
  * Çalıştır: npx tsx scripts/delete-safety/ui.harness.ts [--out <klasör>]
  *
- * A) Şifa Rehberi toplu silme (masaüstü + mobil): 2 kayıt → mevcut tek onay; 3 kayıt → 3 AYRI aşama;
- *    ESC / Vazgeç / yanlış ifade → DELETE YOK; API hatası → kayıtlar listede kalır + gerçek hata;
- *    çift tıklama → TEK DELETE; başarı → liste + sayaç sayfa yenilenmeden güncellenir; tümünü seç.
+ * A) Şifa Rehberi F3 (masaüstü + mobil; V1 toplu silme ekranı Owner kararıyla kaldırıldı): konu silme onay paneli
+ *    (etki + Kaydet'le kesinleşme); Vazgeç / ESC / Kaydetmeden Çık → istek YOK; API hatası → konu kaybolmaz + gerçek
+ *    hata; çift tıklama → TEK istek; başarı → liste sayfa yenilenmeden güncellenir + Silinenler'de; içerik kutusu
+ *    kalıcı silme yalnız Kaydet ile (sürüm kontrollü), Kaydetmeden Çık → kutu yerinde.
  * B) Admin › Üye Yönetimi › Arşiv (gerçek DB): owner "Kalıcı Sil" görür, normal admin görmez; 3 aşamalı
  *    dialog (uyarı → e-posta → ifade + parola); ESC → istek yok; yanlış parola → gerçek hata, veri yerinde;
  *    çift tıklama → TEK POST; satır anında düşer; DB'de hesap + tenant verisi + Storage silindi; diğer
  *    uzman verisi yerinde.
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { f3Workspace, HEAD_ID, NOTE_ID, ROOT_ID } from "../sifa-rehberi-f3/ui-mock/f3Mock.mjs";
 import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { chromium, type Browser, type BrowserContext, type Page, type Route } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Route } from "playwright";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
 import { startProxy } from "./storageProxy";
@@ -56,16 +58,15 @@ const EXPERT = {
   id: "aaaaaaaa-0000-4000-8000-000000000001", tenant_id: TENANT, full_name: "ZZ_UI Uzman", email: "zz.ui@example.test",
   role: "expert", active: true, approval_status: "approved", package_type: "premium", plan: "premium",
   membership_status: "active", subscription_status: "active",
-  module_permissions: { sifa_rehberi: true, healing_guide: true, clients: true }, is_demo_account: false,
+  module_permissions: { sifa_rehberi: true, clients: true }, is_demo_account: false,
 };
 const OWNER = { ...EXPERT, id: "aaaaaaaa-0000-4000-8000-0000000000aa", role: "admin", full_name: "ZZ_UI Owner", email: "zz.owner@example.test" };
 
-const guides = (n: number) =>
-  Array.from({ length: n }, (_, i) => ({
-    id: `bbbbbbbb-0000-4000-8000-00000000000${i}`, tenant_id: TENANT, name: `ZZ Rehber ${i + 1}`, category: "Genel",
-    healing_guide_sections: [], created_at: new Date(Date.now() - i * 60_000).toISOString(),
-    updated_at: new Date(Date.now() - i * 60_000).toISOString(),
-  }));
+const BOX_ID = "f3000000-0000-4000-8000-0000000000e1";
+type F3Ws = {
+  nodes: Array<{ id: string; parentId: string | null; deletedAt: string | null }>;
+  blocks: Array<Record<string, unknown> & { id: string }>;
+};
 
 type Api = { method: string; url: string; body: string | null };
 
@@ -96,14 +97,6 @@ async function mockApi(ctx: BrowserContext, log: Api[], handlers: (api: Api, rou
 const json = (route: Route, status: number, body: unknown) =>
   route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 
-const dialogTitle = (page: Page) => page.locator("#confirm-title").innerText().catch(() => "");
-
-async function selectRows(page: Page, names: string[]) {
-  for (const n of names) {
-    const row = page.locator("tr, li, article, div").filter({ hasText: n }).filter({ has: page.locator('input[type="checkbox"]') }).last();
-    await row.locator('input[type="checkbox"]').first().check({ force: true });
-  }
-}
 
 async function main() {
   let app: ChildProcess | null = null;
@@ -124,115 +117,133 @@ async function main() {
     await waitHttp(`${APP}/`, 120_000);
     browser = await chromium.launch();
 
-    // ── A) Şifa Rehberi ──────────────────────────────────────────────────────
+    // ── A) Şifa Rehberi (F3 kişisel kütüphane) — silme güvenliği ────────────────────────────
+    // Owner kararı 26.11.2026: V1 ekranı kaldırıldı. V1'in "toplu kalıcı silme + 3 aşamalı onay" işlevi F3'te YOK
+    // (kontrolleri işleviyle birlikte kaldırıldı). F3 silme modeli: konu/başlık/not → onay paneli → Silinenler (30 gün,
+    // geri alınabilir) ve YALNIZ Kaydet ile kesinleşir; içerik kutusu (Owner kararı R5) Kaydet'le kalıcı silinir.
+    // Geçerli silme güvenliği kuralları burada F3'te sınanır: onaysız/vazgeçilen silme istek üretmez, ESC kapatır,
+    // hata → kayıt kaybolmaz + gerçek hata görünür, çift tıklama → TEK istek, başarı → sayfa yenilenmeden güncellenir.
     for (const vp of [{ name: "masaüstü 1366x800", width: 1366, height: 800, mobile: false }, { name: "mobil 390x844", width: 390, height: 844, mobile: true }]) {
-      section(`A. Şifa Rehberi toplu silme — ${vp.name}`);
+      section(`A. Şifa Rehberi (F3) silme güvenliği — ${vp.name}`);
       const ctx = await newCtx(browser, EXPERT, vp, vp.mobile);
       const log: Api[] = [];
-      let rows = guides(5);
-      let deleteMode: "ok" | "error" = "ok";
+      let saveMode: "ok" | "error" = "ok";
+      let trashed = false;
+      let boxGone = false;
+      const ws = () => {
+        const w = f3Workspace(EXPERT.id as string) as unknown as F3Ws;
+        w.blocks.push({ ...w.blocks[0], id: BOX_ID, parentBlockId: NOTE_ID, title: "ZZ Kutu", contentText: "ZZ kutu metni",
+          contentJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "ZZ kutu metni" }] }] } });
+        if (boxGone) w.blocks = w.blocks.filter((b) => b.id !== BOX_ID);
+        if (trashed) for (const n of w.nodes) if (n.id === ROOT_ID || n.parentId === ROOT_ID) n.deletedAt = new Date().toISOString();
+        return w;
+      };
       await mockApi(ctx, log, async (api, route) => {
-        if (api.url.startsWith("/api/sifa-rehberi/guides/categories")) { await json(route, 200, { ok: true, categories: [] }); return true; }
-        if (api.url.startsWith("/api/sifa-rehberi/guides") && api.method === "GET") {
-          await json(route, 200, { ok: true, rows, hasMore: false, nextCursor: null, total: rows.length }); return true;
-        }
-        if (api.url.startsWith("/api/sifa-rehberi/guides") && api.method === "DELETE") {
+        if (api.url === "/api/sifa-rehberi-v2/workspace" && api.method === "GET") { await json(route, 200, { ok: true, workspace: ws() }); return true; }
+        if (api.url === "/api/sifa-rehberi-v2/workspace" && api.method === "POST") {
           await new Promise((r) => setTimeout(r, 300));
-          if (deleteMode === "error") { await json(route, 500, { ok: false, error: "ZZ sunucu hatası" }); return true; }
-          const ids = (JSON.parse(api.body ?? "{}") as { ids?: string[] }).ids ?? [];
-          rows = rows.filter((r) => !ids.includes(r.id));
-          await json(route, 200, { ok: true, deletedIds: ids }); return true;
+          if (saveMode === "error") { await json(route, 500, { ok: false, error: "ZZ sunucu hatası" }); return true; }
+          const b = JSON.parse(api.body ?? "{}") as { topics?: Array<{ id: string; deleted_at: string | null }>; blocks_delete?: Array<{ id: string }> };
+          if ((b.topics ?? []).some((t) => t.id === ROOT_ID && t.deleted_at)) trashed = true;
+          if ((b.blocks_delete ?? []).some((x) => x.id === BOX_ID)) boxGone = true;
+          await json(route, 200, { ok: true }); return true;
         }
         return false;
       });
       const page = await ctx.newPage();
       page.on("pageerror", (e) => pageErrors.push(`şifa ${vp.name}: ${e.message}`));
-      await page.goto(`${APP}/sifa-rehberi?view=list`);
-      await page.getByText("ZZ Rehber 1").first().waitFor({ timeout: 30_000 });
-      const deletes = () => log.filter((a) => a.method === "DELETE").length;
-      const delBtn = page.getByRole("button", { name: /Seçilenleri Sil|Seçilileri Sil|Sil \(/ }).first();
+      const saves = () => log.filter((a) => a.method === "POST" && a.url === "/api/sifa-rehberi-v2/workspace");
+      const tap = (sel: string) => (vp.mobile ? page.locator(sel).first().tap() : page.locator(sel).first().click());
+      const toast = () => page.locator("[data-testid=toast]").allInnerTexts().then((x) => x.join(" | "));
+      await page.goto(`${APP}/sifa-rehberi#/konu/${ROOT_ID}/${ROOT_ID}`);
+      await page.getByTestId("edit").waitFor({ timeout: 30_000 });
+      await page.evaluate(() => { (window as unknown as { __zzNoReload: boolean }).__zzNoReload = true; });
+      await tap("[data-testid=edit]");
+      const openDelete = async () => { await tap("[data-testid=menu]"); await tap("[data-testid=mi-delete]"); await page.getByTestId("delete-confirm").waitFor(); };
 
-      // 2 kayıt → mevcut onay (3 aşama YOK)
-      await selectRows(page, ["ZZ Rehber 1", "ZZ Rehber 2"]);
-      await delBtn.click();
-      await page.locator("#confirm-title").waitFor();
-      const t2 = await dialogTitle(page);
-      ok(!/Adım 1\/3/.test(t2), `2 kayıt → mevcut onay (başlık: "${t2}")`);
-      await page.getByTestId("confirm-cancel").click();
-      await page.waitForTimeout(150);
-      ok(deletes() === 0, "2 kayıt onayı iptal → DELETE yok");
-
-      // 3 kayıt → aşama 1, ESC
-      await selectRows(page, ["ZZ Rehber 3"]);
-      await delBtn.click();
-      await page.locator("#confirm-title").waitFor();
-      ok(/Adım 1\/3/.test(await dialogTitle(page)), "3 kayıt → Adım 1/3");
-      ok(/3 şifa rehberi kaydı kalıcı olarak silinecek\. Bu işlem geri alınamaz\./.test(await page.locator("#confirm-message").innerText()),
-        "aşama 1: açık uyarı metni");
-      ok(await page.locator("#confirm-require-text").count() === 0, "aşama 1'de gizli doğrulama alanı YOK (ayrı aşama)");
+      // Onay paneli: açık uyarı + etki; Vazgeç / ESC → istek YOK
+      await openDelete();
+      const msg = await page.getByTestId("delete-confirm").innerText();
+      ok(/“ZZ Migren” konusu Silinenler'e taşınacak/.test(msg) && /\d+ alt başlık, 1 not/.test(msg) && /Kaydet/.test(msg), "onay paneli: ne silineceği, etkisi (alt başlık/not) ve Kaydet'le kesinleşeceği yazıyor", msg.slice(0, 200));
+      await tap("[data-testid=delete-no]");
+      ok(saves().length === 0 && (await page.getByTestId("delete-confirm").count()) === 0, "Vazgeç → panel kapandı, istek YOK");
+      await openDelete();
       await page.keyboard.press("Escape");
       await page.waitForTimeout(150);
-      ok(deletes() === 0 && await page.locator("#confirm-title").count() === 0, "ESC → pencere kapandı, DELETE yok");
-
-      // aşama 2: yanlış ifade → buton kapalı; aşama 3'te Vazgeç → DELETE yok
-      await delBtn.click();
-      await page.getByTestId("confirm-ok").click();
-      ok(/Adım 2\/3/.test(await dialogTitle(page)), "Devam Et → Adım 2/3");
-      const input = page.getByTestId("confirm-require-text");
-      await input.fill("3 KAYDI");
-      ok(await page.getByTestId("confirm-ok").isDisabled(), "eksik ifade → Devam Et kapalı");
-      await input.fill("30 KAYDI SİL");
-      ok(await page.getByTestId("confirm-ok").isDisabled(), "yanlış sayı → Devam Et kapalı");
-      await input.fill("3 kaydi sil");
-      ok(await page.getByTestId("confirm-ok").isEnabled(), "doğru ifade (küçük harf, ı/i) → Devam Et açık");
-      // Aşama 2 "Devam Et" ile aşama 3 "Kalıcı Olarak Sil" aynı konumda: çift tıklama son onayı ATLAYAMAZ.
-      await page.getByTestId("confirm-ok").dblclick();
-      await page.waitForTimeout(600);
-      const t3 = await dialogTitle(page);
-      ok(deletes() === 0 && /Son Onay/.test(t3), "aşama 2'de çift tıklama → son onay atlanmadı, DELETE yok");
-      ok(/Son Onay — Bu işlem geri alınamaz\./.test(t3), "Adım 3: Son Onay başlığı");
-      ok(/3 şifa rehberi kaydı/.test(await page.locator("#confirm-message").innerText()) &&
-         /Kalıcı Olarak Sil \(3\)/.test(await page.getByTestId("confirm-ok").innerText()), "Adım 3: sayı tekrar + Kalıcı Olarak Sil (3)");
+      ok(saves().length === 0 && (await page.getByTestId("delete-confirm").count()) === 0, "ESC → panel kapandı, istek YOK");
       if (vp.mobile) {
-        const inView = await page.getByTestId("confirm-ok").evaluate((el) => { const r = el.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
-        ok(inView, "mobil: son onay butonu kaydırmadan görünür");
-        await page.screenshot({ path: path.join(OUT, `sifa-adim3-${vp.width}.png`) });
+        await openDelete();
+        const inView = await page.getByTestId("delete-yes").evaluate((el) => { const r = el.getBoundingClientRect(); return r.bottom <= window.innerHeight && r.top >= 0; });
+        ok(inView, "mobil: onay düğmesi kaydırmadan görünür");
+        await page.screenshot({ path: path.join(OUT, `sifa-f3-onay-${vp.width}.png`) });
+        await tap("[data-testid=delete-no]");
       }
-      await page.getByTestId("confirm-cancel").click();
-      await page.waitForTimeout(150);
-      ok(deletes() === 0, "son onay verilmeden kapatma → DELETE yok");
 
-      // API hatası → kayıtlar listede kalır + gerçek hata
-      deleteMode = "error";
-      await delBtn.click();
-      await page.getByTestId("confirm-ok").click();
-      await page.getByTestId("confirm-require-text").fill("3 KAYDI SİL");
-      await page.getByTestId("confirm-ok").click();
-      await page.getByTestId("confirm-ok").click();
-      await page.waitForTimeout(800);
-      ok(deletes() === 1, "hata senaryosu: tek DELETE gönderildi");
-      const body1 = await page.locator("body").innerText();
-      ok(/ZZ sunucu hatası/.test(body1), "API hatası kullanıcıya gösterildi");
-      ok(["ZZ Rehber 1", "ZZ Rehber 2", "ZZ Rehber 3"].every((n) => body1.includes(n)), "başarısız silmede kayıtlar listede KALDI");
+      // Onay → henüz istek YOK; Kaydetmeden Çık → silme geri alınır (veri yerinde)
+      await openDelete();
+      await tap("[data-testid=delete-yes]");
+      await page.waitForTimeout(200);
+      ok(saves().length === 0, "onay verildi ama Kaydet'e basılmadı → istek YOK");
+      await tap("[data-testid=discard]");
+      await tap("[data-testid=leave-drop]");
+      await page.waitForTimeout(300);
+      await page.goto(`${APP}/sifa-rehberi#/kutuphane`);
+      await page.getByTestId("library").waitFor();
+      ok(saves().length === 0 && (await page.getByTestId("lib-item").filter({ hasText: "ZZ Migren" }).count()) === 1, "Kaydetmeden Çık → silme uygulanmadı, konu yerinde");
 
-      // başarı + çift tıklama → tek DELETE, liste anında güncellenir
-      deleteMode = "ok";
-      const before = deletes();
-      await delBtn.click();
-      await page.getByTestId("confirm-ok").click();
-      await page.getByTestId("confirm-require-text").fill("3 KAYDI SİL");
-      await page.getByTestId("confirm-ok").click();
-      await page.getByTestId("confirm-ok").dblclick().catch(() => undefined);
-      await page.waitForTimeout(900);
-      ok(deletes() - before === 1, `çift tıklama → TEK DELETE (${deletes() - before})`);
-      const body2 = await page.locator("body").innerText();
-      await page.screenshot({ path: path.join(OUT, `sifa-sonrasi-${vp.width}.png`), fullPage: true });
-      ok(!body2.includes("ZZ Rehber 1") && !body2.includes("ZZ Rehber 3") && body2.includes("ZZ Rehber 4"),
-        "başarılı silme → satırlar sayfa yenilenmeden kayboldu, diğerleri duruyor",
-        { visible: body2.split("\n").filter((l) => /ZZ Rehber|silin/i.test(l)).slice(0, 12),
-          deleteBodies: log.filter((x) => x.method === "DELETE").map((x) => x.body) });
-      const navs = log.filter((a) => a.method === "GET" && a.url.startsWith("/api/sifa-rehberi/guides?")).length;
-      ok(navs >= 1, "sayfa yeniden yüklenmedi (SPA içinde güncellendi)");
+      // API hatası → konu kaybolmaz + gerçek hata; Kaydet tekrar denenebilir
+      saveMode = "error";
+      await page.goto(`${APP}/sifa-rehberi#/konu/${ROOT_ID}/${ROOT_ID}`);
+      await page.getByTestId("edit").waitFor();
+      await tap("[data-testid=edit]");
+      await openDelete();
+      await tap("[data-testid=delete-yes]");
+      await tap("[data-testid=save]");
+      await page.getByTestId("toast").filter({ hasText: "Kaydedilemedi" }).waitFor({ timeout: 8000 }).catch(() => undefined);
+      ok(saves().length === 1, "hata senaryosu: tek kayıt isteği gönderildi");
+      ok(/Kaydedilemedi: ZZ sunucu hatası/.test(await toast()), "API hatası kullanıcıya gösterildi", await toast());
+      ok(await page.getByTestId("save").first().isEnabled(), "başarısız kayıtta silme taslakta KALDI (tekrar denenebilir; veri sunucuda yerinde)");
+      ok(!trashed, "sunucu tarafı: konu çöpe taşınmadı");
+
+      // Başarı + çift tıklama → TEK istek; liste sayfa yenilenmeden güncellenir
+      saveMode = "ok";
+      const before = saves().length;
+      await page.getByTestId("save").first().dblclick();
+      await page.getByTestId("toast").filter({ hasText: "Kaydedildi." }).waitFor({ timeout: 8000 }).catch(() => undefined);
+      ok(saves().length - before === 1, `çift tıklama → TEK kayıt isteği (${saves().length - before})`);
+      const last = JSON.parse(saves().at(-1)?.body ?? "{}") as { topics?: Array<{ id: string; deleted_at: string | null }>; blocks_delete?: unknown[] };
+      ok((last.topics ?? []).some((t) => t.id === ROOT_ID && !!t.deleted_at) && !(last.blocks_delete ?? []).length, "istek konuyu Silinenler'e taşır (kalıcı silme DEĞİL)");
+      await page.goto(`${APP}/sifa-rehberi#/kutuphane`);
+      await page.getByTestId("library").waitFor();
+      const libText = await page.getByTestId("library").innerText();
+      ok(!libText.includes("ZZ Migren") && libText.includes("ZZ Uyku"), "başarılı silme → konu listeden kalktı, diğer konu duruyor");
+      await page.goto(`${APP}/sifa-rehberi#/silinenler`);
+      await page.getByTestId("trash-view").waitFor();
+      ok((await page.getByTestId("restore").filter({ hasText: "Geri al" }).count()) >= 1 && /ZZ Migren/.test(await page.getByTestId("trash-view").innerText()), "silinen konu Silinenler'de, Geri al ile");
+      ok(await page.evaluate(() => (window as unknown as { __zzNoReload?: boolean }).__zzNoReload === true), "sayfa yeniden yüklenmedi (SPA içinde güncellendi)");
+      await page.screenshot({ path: path.join(OUT, `sifa-f3-sonrasi-${vp.width}.png`), fullPage: true });
+
+      // İçerik kutusu: kalıcı silme YALNIZ Kaydet ile; Kaydetmeden Çık → kutu yerinde
+      trashed = false; // (taklit) konu Silinenler'den geri alınmış hâl — sunucudan yeniden yüklenir
+      await page.goto(`${APP}/sifa-rehberi#/konu/${ROOT_ID}/${HEAD_ID}`);
+      await page.reload();
+      await page.getByTestId("edit").waitFor();
+      await tap("[data-testid=edit]");
+      await tap("[data-testid=box-delete]");
+      ok((await page.getByTestId("box-editor").count()) === 0, "kutu taslaktan çıktı (Owner kararı R5: uyarısız, geri al satırı yok)");
+      const n0 = saves().length;
+      await tap("[data-testid=discard]");
+      await tap("[data-testid=leave-drop]");
+      await page.waitForTimeout(300);
+      ok(saves().length === n0 && !boxGone && /ZZ kutu metni/.test(await page.locator("body").innerText()), "Kaydetmeden Çık → kalıcı silme YOK, kutu yerinde");
+      await tap("[data-testid=edit]");
+      await tap("[data-testid=box-delete]");
+      await page.getByTestId("save").first().dblclick();
+      await page.getByTestId("toast").filter({ hasText: "Kaydedildi." }).waitFor({ timeout: 8000 }).catch(() => undefined);
+      const boxReq = JSON.parse(saves().at(-1)?.body ?? "{}") as { blocks_delete?: Array<{ id: string; base_version: number }> };
+      ok(saves().length - n0 === 1 && (boxReq.blocks_delete ?? []).length === 1 && boxReq.blocks_delete?.[0]?.id === BOX_ID && typeof boxReq.blocks_delete?.[0]?.base_version === "number",
+        "Kaydet (çift tık) → TEK istek; yalnız o kutu, sürüm kontrolüyle kalıcı silinir");
+      ok(boxGone && !(await page.locator("body").innerText()).includes("ZZ kutu metni") && /ZZ not metni/.test(await page.locator("body").innerText()), "kutu kalktı; ana not yerinde");
       await ctx.close();
     }
 

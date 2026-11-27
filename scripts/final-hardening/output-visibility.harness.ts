@@ -162,8 +162,6 @@ const WORD_CTA_FILES = [
   "app/refleksoloji/kayitli-protokoller/components/KayitliProtokolDetayLayout.tsx",
   "app/refleksoloji/kayitli-protokoller/components/KayitliProtokollerLayout.tsx",
   "app/settings/BackupSections.tsx",
-  "app/sifa-rehberi/[id]/page.tsx",
-  "app/sifa-rehberi/page.tsx",
   "app/urun-stok/canli-stok/page.tsx",
   "app/video-ceviri/page.tsx",
 ];
@@ -241,9 +239,10 @@ const UNGUARDED_46 = [
   "dogaltas/knowledge-report", "dogaltas/mineral-report", "dogaltas/minerals/[id]/word-report",
   "dogaltas/stones/[id]/word-report", "dogaltas/word-report", "hacamat/word-report", "kupa/calendar/plans/[id]/word-report",
   "kupa/protocols/[id]/word-report", "numeroloji/knowledge-report", "numeroloji/word-report", "refleksoloji/protocol-report",
-  "settings/export", "sifa-rehberi/word-report", "urun-stok/stock-report", "video-ceviri/export-word",
+  "settings/export", "urun-stok/stock-report", "video-ceviri/export-word",
 ];
-ok(UNGUARDED_46.length === 46, `46 kapsam içi Word route'u listelendi (${UNGUARDED_46.length})`);
+// Şifa V1 Word rotası F3 ile kaldırıldı (Owner kararı 26.11.2026) → 46 − 1 = 45.
+ok(UNGUARDED_46.length === 45, `45 kapsam içi Word route'u listelendi (${UNGUARDED_46.length})`);
 for (const r of UNGUARDED_46) {
   const f = `app/api/${r}/route.ts`;
   const src = existsSync(join(ROOT, f)) ? read(f) : "MISSING";
@@ -323,7 +322,6 @@ section("J. Görsel yükleme: optimizasyon + kamera bağlantısı");
     ["app/dashboard/clients/[id]/components/StonesTab.tsx", /optimizeImageFile\(/],
     ["app/dogaltas/dogaltas-kayit/page.tsx", /optimizeImageFile\(/],
     ["app/dogaltas/dogaltas-listesi/[id]/page.tsx", /optimizeImageFile\(/],
-    ["lib/sifa-rehberi/stonePhotoClient.ts", /optimizeImageFile\(/],
     ["app/refleksoloji/notlar/lib/readAttachmentFile.ts", /optimizeImageFile\(/],
     ["lib/urun-stok/photoValidation.ts", /optimizeImageFile\(/],
     ["app/admin/magaza/components/ImageManager.tsx", /optimizeImageFile\(/],
@@ -334,9 +332,6 @@ section("J. Görsel yükleme: optimizasyon + kamera bağlantısı");
     "app/dashboard/clients/[id]/components/StonesTab.tsx",
     "app/dogaltas/dogaltas-kayit/page.tsx",
     "app/dogaltas/dogaltas-listesi/[id]/page.tsx",
-    "app/sifa-rehberi/page.tsx",
-    "app/sifa-rehberi/[id]/page.tsx",
-    "components/sifa-rehberi/SectionEditor.tsx",
     "app/refleksoloji/notlar/components/AttachmentsPanel.tsx",
     "app/refleksoloji/notlar/components/NotDetayLayout.tsx",
     "app/urun-stok/yag/page.tsx",

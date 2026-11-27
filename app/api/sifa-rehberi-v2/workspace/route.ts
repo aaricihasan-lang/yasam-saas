@@ -24,5 +24,5 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) return demoReadOnlyResponse();
   const c = sifaV2Context(guard);
-  return handleSave(c.db, c.scope, req);
+  return handleSave(c.db, c.scope, req, c.storage);
 }

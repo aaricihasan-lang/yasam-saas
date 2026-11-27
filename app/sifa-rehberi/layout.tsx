@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
-import SifaV2Prototype from "@/components/sifa-rehberi-v2/SifaV2Prototype";
+import SifaRehberi from "@/components/sifa-rehberi-f3/SifaRehberi";
 import { sifaScreen, sifaV2EnabledFromEnv } from "@/lib/sifa-rehberi-v2/versionRoute";
-import "@/components/sifa-rehberi-v2/sifaV2.css";
 
 /**
- * Şifa Rehberi — SÜRÜM SEÇİMİ (Owner kararı, yöntem B). YENİ dosya; mevcut V1 sayfalarına dokunmaz.
- * SIFA_REHBERI_V2_ENABLED=1 → V2 ekranı (/sifa-rehberi ve alt yolları); aksi hâlde V1 sayfaları AYNEN.
- * Kullanıcıya V1/V2 düğmesi yok; aynı anda tek sürüm. Ayrıntılar: lib/sifa-rehberi-v2/versionRoute.ts
+ * Şifa Rehberi — ürün ekranı (F3: onaylı F2 Revizyon 7 tasarımı). Kişisel kütüphane; tüm alt yollar bu ekrandır
+ * (ekran içi gezinme adres çubuğunun # kısmıyla yapılır).
+ * SIFA_REHBERI_V2_ENABLED=1 değilse ekran ve API'si kapalıdır (acil durum anahtarı; API de 404 döner).
  */
-export default function SifaRehberiSurumLayout({ children }: { children: ReactNode }) {
-  return sifaScreen(sifaV2EnabledFromEnv()) === "v2" ? <SifaV2Prototype mode="canli" /> : children;
+export default function SifaRehberiLayout({ children }: { children: ReactNode }) {
+  void children;
+  if (sifaScreen(sifaV2EnabledFromEnv()) === "v2") return <SifaRehberi />;
+  return (
+    <main style={{ maxWidth: 640, margin: "48px auto", padding: "0 16px", fontSize: 16, lineHeight: 1.6 }} data-testid="sifa-kapali">
+      <h1 style={{ fontSize: 24, marginBottom: 8 }}>Şifa Rehberi</h1>
+      <p>Şifa Rehberi şu anda bakımda. Kayıtlarınız korunuyor; kısa süre sonra yeniden kullanılabilir olacak.</p>
+    </main>
+  );
 }

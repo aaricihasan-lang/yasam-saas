@@ -326,9 +326,12 @@ ok("V2 registry kayıtları: modül sifa_rehberi, ownerScope owner_key, userColu
   return e.module === "sifa_rehberi" && e.ownerScope?.column === "owner_key" && e.userColumns.length === 0 && e.absentTolerant === true;
 }));
 ok("absentTolerant YALNIZ V2 tablolarında", BACKUP_REGISTRY.filter((e) => e.absentTolerant).map((e) => e.table).sort().join(",") === [...V2].sort().join(","));
-const diff = execSync("git diff --unified=0 origin/main -- lib/backup/registry.ts", { cwd: ROOT, encoding: "utf8" });
-const removed = diff.split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
-ok("registry.ts: origin/main'e göre SİLİNEN/DEĞİŞEN satır yok (V1 ve diğer modüller aynı; yalnız ekleme)", removed.length === 0, removed);
+// F3 (26.11.2026): Şifa'nın KENDİ kaydı güncellenebilir (içerik kutusu = parent_block_id); diğer modüllerin satırları aynen kalmalı.
+// Karşılaştırma dal tabanına (merge-base) göre — origin/main ilerledikçe başka dalların eklemeleri sahte fark üretmesin.
+const BASE = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+const diff = execSync(`git diff --unified=0 ${BASE} -- lib/backup/registry.ts`, { cwd: ROOT, encoding: "utf8" });
+const removed = diff.split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---") && !/sifa_/.test(l));
+ok("registry.ts: dal tabanına göre Şifa DIŞI SİLİNEN/DEĞİŞEN satır yok (V1 ve diğer modüller aynı)", removed.length === 0, removed);
 
 console.log(`\nSONUÇ: ${pass} PASS, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

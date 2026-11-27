@@ -194,10 +194,7 @@ function routeGuardChecks(): void {
   add("proto-route-client-ownership", proto.includes(".eq(\"tenant_id\", tenantId)") && proto.includes("Danışan bulunamadı veya erişim yok"));
   add("proto-route-no-protocol-mutation", !/\.from\("reflexology_protocols"\)[\s\S]{0,80}\.(update|insert|delete|upsert)\(/.test(proto));
 
-  const sifa = read("app/api/sifa-rehberi/word-report/route.ts");
-  add("sifa-route-imports-section", sifa.includes("buildSnapshotSection") && sifa.includes("readSnapshotsForDelivery"));
-  add("sifa-route-single-only", sifa.includes('exportMode === "single"') && sifa.includes('targetKind: "guide"'));
-  add("sifa-route-no-guide-mutation", !/\.from\("healing_guides?(_sections)?"\)[\s\S]{0,80}\.(update|insert|delete|upsert)\(/.test(sifa));
+  // Şifa V1 Word rotası (YH eki) F3 ile kaldırıldı (Owner kararı 26.11.2026) — kontrolleri de kaldırıldı.
 
   // Snapshot API route ownership + flag gate
   const snapRoute = read("app/api/clients/[id]/yasam-hafizasi/snapshots/route.ts");

@@ -433,6 +433,7 @@ async function readBeslenmeExact(
 /** sources.ts "sifa_rehberi_v2:notes" ile birebir (statik). */
 export const SIFA_V2_SOURCE_KEY = "sifa_rehberi_v2:notes";
 const SIFA_V2_TOPICS_TABLE = "sifa_topics";
+const SIFA_V2_BLOCKS_TABLE = "sifa_topic_blocks";
 /** Ağaç derinlik tavanı (V2 tetikleyicisi 20 seviye zorlar; savunma için biraz üstü). */
 const SIFA_V2_MAX_DEPTH = 25;
 
@@ -440,6 +441,8 @@ const SIFA_V2_MAX_DEPTH = 25;
  * Kutu çöpteyse (deleted_at) veya konusu / üst konularından BİRİ çöpteyse ya da zincir çözülemiyorsa
  * satır DÜŞÜRÜLÜR → indekslenmez (exact yolda "kaynak yok" → defensive deindex). Konular yalnız aynı
  * tenant + aynı sahip (owner_key) kapsamında okunur; başka uzmanın konusu zincire giremez (fail-closed).
+ * F3: içerik kutusunun ANA NOTU (parent_block_id) çöpteyse veya aynı kapsamda bulunamıyorsa kutu da düşer
+ * (not çöpü → migration 20280130000100 alt kutuları kuyruğa alır).
  */
 async function filterSifaV2Live(db: IndexDbClient, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
   const live = rows.filter((r) => r["deleted_at"] === null || r["deleted_at"] === undefined);
@@ -464,8 +467,31 @@ async function filterSifaV2Live(db: IndexDbClient, rows: Record<string, unknown>
       topics.set(`${key}|${id}`, { parent: typeof parent === "string" ? parent : null, deleted: t["deleted_at"] !== null && t["deleted_at"] !== undefined, scope: key });
     }
   }
+  // F3 ana notlar: yalnız aynı tenant + sahip kapsamında, yalnız gerekli kimlikler.
+  const parentNotes = new Map<string, boolean>(); // `${scope}|${id}` → çöpte mi
+  for (const [key, s] of scopes) {
+    const ids = [...new Set(live
+      .filter((r) => `${String(r["tenant_id"])}|${String(r["owner_key"])}` === key && typeof r["parent_block_id"] === "string")
+      .map((r) => r["parent_block_id"] as string))];
+    if (ids.length === 0) continue;
+    const { data, error } = await db
+      .from(SIFA_V2_BLOCKS_TABLE)
+      .select("id,deleted_at")
+      .eq("tenant_id", s.tenant)
+      .eq("owner_key", s.owner)
+      .in("id", ids);
+    if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
+    for (const p of data ?? []) {
+      if (typeof p["id"] === "string") parentNotes.set(`${key}|${p["id"]}`, p["deleted_at"] !== null && p["deleted_at"] !== undefined);
+    }
+  }
   return live.filter((r) => {
     const key = `${String(r["tenant_id"])}|${String(r["owner_key"])}`;
+    const parentNote = r["parent_block_id"];
+    if (typeof parentNote === "string") {
+      const dead = parentNotes.get(`${key}|${parentNote}`);
+      if (dead === undefined || dead) return false; // ana not bulunamadı / başka kapsam / çöpte → düşür
+    }
     let cur: string | null = typeof r["topic_id"] === "string" ? (r["topic_id"] as string) : null;
     if (cur === null) return false;
     for (let depth = 0; cur !== null; depth++) {

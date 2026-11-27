@@ -24,7 +24,7 @@ import os from "node:os";
 import path from "node:path";
 import { seedWorkspace } from "@/lib/sifa-rehberi-v2/seed";
 import { applySaveResult, buildChangeset } from "@/lib/sifa-rehberi-v2/changeset";
-import { copySharedToPersonal, loadWorkspace, registerUpload, saveChangeset, visibleAssets, type Scope } from "@/lib/sifa-rehberi-v2/server/service";
+import { loadWorkspace, mapDbError, registerUpload, saveChangeset, visibleAssets, type Scope } from "@/lib/sifa-rehberi-v2/server/service";
 import { pgDb } from "@/lib/sifa-rehberi-v2/server/dbAdapters";
 import { planLegacyImport, uuidV5, type MapRow, type V1Guide, type V1Section } from "@/lib/sifa-rehberi-v2/server/legacyImport";
 import { buildTopicWord } from "@/lib/sifa-rehberi-v2/word";
@@ -32,6 +32,16 @@ import { addBlock, addLink, addNode, childrenOf, moveNode, nodeById, pathOf, ren
 import { RELATED_SECTION_KEY } from "@/lib/sifa-rehberi-v2/related";
 import { TEMPLATE_ENTRIES } from "@/lib/sifa-rehberi-v2/template";
 import type { Workspace } from "@/lib/sifa-rehberi-v2/types";
+
+/** F3: servis sarmalayıcısı kaldırıldı (kurum kopyası ucu yok); DB fonksiyonu burada doğrudan sınanır. */
+async function copySharedToPersonal(db: { rpc(fn: string, a: Record<string, unknown>): Promise<unknown> }, s: Scope, rootId: string) {
+  try {
+    const r = (await db.rpc("sifa_v2_copy_shared", { p_tenant: s.tenantId, p_user: s.userId, p_root: rootId })) as { root_id: string; created: boolean };
+    return { ok: true as const, value: { rootId: String(r.root_id), created: Boolean(r.created) } };
+  } catch (e) {
+    return { ok: false as const, ...mapDbError(e) };
+  }
+}
 
 // ── Test çerçevesi ───────────────────────────────────────────────────────────
 type Status = "PASS" | "FAIL";
@@ -649,21 +659,18 @@ try {
     assert(v2rows > 0, "V2 tabloları boş/silinmiş");
     return `V1 özeti aynı; V2'de ${v2rows} başlık bekliyor (silinmedi)`;
   });
-  await test("V1 kodu (ekran/API/lib) V2 çalışmasında DEĞİŞMEDİ (origin/main ile fark yok)", async () => {
-    // origin/main'e göre (commit edilmiş + çalışma ağacı + izlenmeyen): mevcut hiçbir V1 / migration dosyası
-    // DEĞİŞMEZ ya da SİLİNMEZ; eklenenler TAM OLARAK sürüm seçimi layout'u + iki V2 migration'ıdır.
-    const PATHS = "app/sifa-rehberi components/sifa-rehberi lib/sifa-rehberi app/api/sifa-rehberi app/api/admin/sifa-rehberi supabase/migrations";
-    const lines = (cmd: string) => execSync(cmd, { encoding: "utf8" }).split("\n").map((l) => l.trim()).filter(Boolean);
-    const changed = [
-      ...lines(`git diff --name-status origin/main -- ${PATHS}`).map((l) => l.replace(/\s+/, " ")),
-      ...lines(`git ls-files --others --exclude-standard -- ${PATHS}`).map((f) => `A ${f}`),
-    ].sort();
-    const ALLOWED = [
-      "A app/sifa-rehberi/layout.tsx",
-      "A supabase/migrations/20280110000000_sifa_rehberi_v2_core.sql",
-      "A supabase/migrations/20280110000100_yh_owner_scope_sifa_v2.sql",
-    ];
-    assert(JSON.stringify(changed) === JSON.stringify(ALLOWED), changed.join(" | "));
+  await test("F3 (Owner kararı 26.11.2026): V1 ekranı + API'si KALDIRILDI; kalan V1 kütüphaneleri ve mevcut migration'lar DEĞİŞMEDİ", async () => {
+    // Dal tabanına (merge-base) göre: V1 ekran/API dosyaları yok; hazır başlık şablonunun kaynağı (topicTree/sectionModel)
+    // ve iki yardımcı aynen; MEVCUT hiçbir migration değişmedi/silinmedi (yalnız ekleme). V1 VERİSİ DB'de korunur (yukarıdaki test).
+    const base = execSync("git merge-base HEAD origin/main", { encoding: "utf8" }).trim();
+    const lines = (cmd: string) => execSync(cmd, { encoding: "utf8" }).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const mig = lines(`git diff --name-status ${base} -- supabase/migrations`).filter((l) => !l.startsWith("A"));
+    assert(mig.length === 0, `mevcut migration değişti/silindi: ${mig.join(" | ")}`);
+    const kept = ["lib/sifa-rehberi/topicTree.ts", "lib/sifa-rehberi/sectionModel.ts", "lib/sifa-rehberi/normalizeTr.ts", "lib/sifa-rehberi/stonePhotoStorage.ts"];
+    assert(lines(`git diff --name-status ${base} -- ${kept.join(" ")}`).length === 0, "kalan V1 kütüphanesi değişti");
+    const { existsSync } = await import("node:fs");
+    for (const gone of ["app/api/sifa-rehberi", "app/sifa-rehberi/[id]", "components/sifa-rehberi", "lib/sifa-rehberi/healingGuideLiveData.ts"]) assert(!existsSync(gone), `V1 kalıntısı: ${gone}`);
+    return `taban ${base.slice(0, 8)}`;
   });
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -36,7 +36,8 @@ const USERS: Record<string, Row> = {
   },
 };
 const TOKENS: Record<string, string> = { "tok-expert": "u-expert", "tok-expired": "u-expired", "tok-admin": "u-admin" };
-const COUNTS: Record<string, number> = { stones: 7, dogaltas_inventory: 4, healing_guides: 3, personal_archives: 2 };
+// Şifa Rehberi F3 (Owner kararı 26.11.2026): sayaç kişisel kütüphaneden (sifa_topics), V1 healing_guides DEĞİL.
+const COUNTS: Record<string, number> = { stones: 7, dogaltas_inventory: 4, sifa_topics: 3, personal_archives: 2 };
 let failTable: string | null = null;
 const tableQueries: Array<{ table: string; query: string }> = [];
 
@@ -111,7 +112,8 @@ async function main() {
   // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): MEVCUT bayrak (owner test hesabı) arşiv sayacını korur.
   ok("izinli: stones=7, stok=4 (gate stones), arşiv=2 (mevcut bayrak)", counts.stones === 7 && counts.stok === 4 && counts.digital_content === 2);
   ok("izinsiz Şifa Rehberi → null", counts.sifa_rehberi === null);
-  ok("izinsiz tabloya sorgu ATILMADI (healing_guides)", !tableQueries.some((q) => q.table === "healing_guides"));
+  ok("izinsiz tabloya sorgu ATILMADI (sifa_topics)", !tableQueries.some((q) => q.table === "sifa_topics"));
+  ok("V1 healing_guides artık hiç sorgulanmaz", !tableQueries.some((q) => q.table === "healing_guides"));
   ok(
     "her tablo sorgusu oturum tenant'ı ile (query'deki tenant_id=B yok sayıldı)",
     tableQueries.length > 0 && tableQueries.every((q) => q.query.includes(`tenant_id=eq.${TENANT_A}`) && !q.query.includes(TENANT_B)),
@@ -123,6 +125,12 @@ async function main() {
   const a = await call({ "x-user-id": "u-admin", "x-session-token": "tok-admin" });
   const ac = a.body.counts as Record<string, number | null>;
   ok("admin → tüm sayaçlar (Şifa dahil)", a.status === 200 && ac.sifa_rehberi === 3 && ac.stones === 7);
+  const sq = tableQueries.find((q) => q.table === "sifa_topics")?.query ?? "";
+  ok(
+    "Şifa sayacı: oturum kullanıcısının KİŞİSEL, kök, çöpte olmayan konuları (owner_key/scope/parent_id/deleted_at)",
+    sq.includes("owner_key=eq.u-admin") && sq.includes("scope=eq.kisisel") && sq.includes("parent_id=is.null") && sq.includes("deleted_at=is.null"),
+  );
+  ok("V1 healing_guides admin için de sorgulanmaz", !tableQueries.some((q) => q.table === "healing_guides"));
   ok("admin arşiv sayacı korunur (arşiv=2)", ac.digital_content === 2);
   ok("admin sorguları kendi tenant'ı (B)", tableQueries.every((q) => q.query.includes(`tenant_id=eq.${TENANT_B}`)));
 

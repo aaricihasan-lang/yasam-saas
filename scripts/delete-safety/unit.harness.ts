@@ -136,7 +136,6 @@ async function main(): Promise<void> {
   // ── E) Statik kapsam ───────────────────────────────────────────────────────
   console.log("\n[E] Statik kapsam — toplu silme yüzeyleri");
   const viaDeleteConfirmCount = [
-    "app/sifa-rehberi/page.tsx",
     "app/danisan-yolculugu/liste/page.tsx",
     "app/numeroloji/liste/page.tsx",
     "app/dogaltas/tas-bilgi-kutuphanesi/page.tsx",
@@ -184,7 +183,7 @@ async function main(): Promise<void> {
   for (const p of [
     "app/api/aromaterapi/oils/route.ts", "app/api/dogaltas/stones/bulk-delete/route.ts",
     "app/api/dogaltas/minerals/bulk-delete/route.ts", "app/api/dogaltas/knowledge/route.ts",
-    "app/api/dogaltas/stone-exclusions/route.ts", "app/api/sifa-rehberi/guides/route.ts", "app/api/hd/knowledge/route.ts",
+    "app/api/dogaltas/stone-exclusions/route.ts", "app/api/hd/knowledge/route.ts",
   ]) ok(read(p).includes("exceedsBulkDeleteLimit("), `${p}: üst sınır`);
   const transfer = read("app/api/admin/veri-paylasimi/transfer/route.ts");
   ok(/rollbackGroup\(db, cfg, batchId, targetTenantId\)/.test(transfer) && transfer.includes('.eq("tenant_id", targetTenantId);'),

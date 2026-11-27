@@ -507,11 +507,6 @@
    "timeoutSec": 115
   },
   {
-   "file": "scripts/dogal-destek-p2/sifa/routes.harness.ts",
-   "tsx": true,
-   "timeoutSec": 68
-  },
-  {
    "file": "scripts/dogaltas-mineral-turkish-search/harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -560,6 +555,31 @@
    "file": "scripts/dy-canli-denetim/m6-trigger.harness.ts",
    "tsx": true,
    "timeoutSec": 180
+  },
+  {
+   "file": "scripts/sifa-rehberi-f3/db.pg.mts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/sifa-rehberi-f3/counters.pg.mts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/sifa-rehberi-f3/yh-kutu.pg.mts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/sifa-rehberi-f3/geri-donus.pg.mts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/sifa-rehberi-f3/sinirsiz.pg.mts",
+   "tsx": true,
+   "timeoutSec": 300
   },
   {
    "file": "scripts/yh-m6/client-outbox-e2e.pg.harness.ts",
@@ -936,66 +956,6 @@
    "timeoutSec": 60
   },
   {
-   "file": "scripts/sif02-word-limit/routes.harness.ts",
-   "tsx": true,
-   "timeoutSec": 62
-  },
-  {
-   "file": "scripts/sif03-sections-cache/routes.harness.ts",
-   "tsx": true,
-   "timeoutSec": 63
-  },
-  {
-   "file": "scripts/sifa-rehberi-atomic-idempotency-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-faz1-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-faz2-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-faz3-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-premium-v2-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-route-uuid-guard-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-rehberi-storage-p1-harness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-search/harness.ts",
-   "tsx": true,
-   "timeoutSec": 128
-  },
-  {
-   "file": "scripts/sifa-search/wordPremiumHarness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/sifa-search/wordScaleHarness.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
    "file": "scripts/stk01-dogaltas-cas/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 66
@@ -1214,11 +1174,6 @@
   },
   {
    "file": "scripts/workspace/schema.test.ts",
-   "tsx": true,
-   "timeoutSec": 60
-  },
-  {
-   "file": "scripts/wt4/session-sifa.harness.ts",
    "tsx": true,
    "timeoutSec": 60
   },

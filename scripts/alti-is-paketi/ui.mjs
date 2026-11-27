@@ -5,6 +5,7 @@ import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
+import { f3TopicUrl, f3Workspace } from "../sifa-rehberi-f3/ui-mock/f3Mock.mjs";
 
 const BASE = process.env.UI_BASE ?? "http://127.0.0.1:3961";
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "alti-is-ui");
@@ -112,75 +113,71 @@ async function testW04() {
   }
 }
 
-// ─── W12 — Şifa Rehberi: Yeni Rahatsızlık'ta Kaynak Türü yok; düzenleme ekranı aynen ───────────
-const GUIDE_ID = "c1000000-0000-4000-8000-0000000000a1";
-const SECTION_ID = "c2000000-0000-4000-8000-0000000000a1";
-function guideRow() {
-  return {
-    id: GUIDE_ID, tenant_id: TENANT, name: "ZZ Baş Ağrısı", category: null, symptoms: null, images: [],
-    created_at: "2026-10-01T09:00:00.000Z", updated_at: "2026-10-01T09:00:00.000Z",
-    healing_guide_sections: [{
-      id: SECTION_ID, guide_id: GUIDE_ID, tenant_id: TENANT, section_type: "reasons", mode: "genel_ozet", title: null,
-      note: "ZZ mevcut içerik", source: "ZZ Kaynak Kitabı", source_kind: "Kitap", expert_note: null, attention: null, images: [], sort_order: 0,
-      created_at: "2026-10-01T09:00:00.000Z", updated_at: "2026-10-01T09:00:00.000Z",
-    }],
-  };
-}
+// ─── W12 — Şifa Rehberi (F3): kaynak İSTEĞE BAĞLI — kaynak girmeden not kaydedilir; mevcut kaynak korunur ───────
+// Owner kararı 26.11.2026: V1 ekranı kaldırıldı. V1'e özgü "Yeni Rahatsızlık formunda Kaynak Türü yok / düzenlemede
+// Kaynak Türü var" kontrolü işleviyle birlikte kaldırıldı; geçerli kural (kaynak zorunlu değil, mevcut kaynak bozulmaz,
+// ayrı bir kaynak türü seçimi yok) F3 ekranında sınanır.
+const F3_WS = /^\/api\/sifa-rehberi-v2\/workspace$/;
 async function testW12(vp) {
   const G = `W12 ${vp.tag}`;
-  const routes = [
-    ["POST", /^\/api\/sifa-rehberi\/guides$/, () => ({ status: 200, json: { ok: true, guide: { id: GUIDE_ID } } })],
-    ["GET", new RegExp(`^/api/sifa-rehberi/guides/${GUIDE_ID}$`), () => ({ status: 200, json: { ok: true, row: guideRow() } })],
-    ["GET", /^\/api\/sifa-rehberi\/guides(\?.*)?$/, () => ({ status: 200, json: { ok: true, rows: [], count: 0 } })],
-  ];
-  // 1) Yeni Rahatsızlık
+  const withSource = () => {
+    const ws = f3Workspace(USER.id);
+    ws.blocks[0].sources = [{ id: "f3000000-0000-4000-8000-0000000000d1", kind: "kitap", title: "ZZ Kaynak Kitabı" }];
+    return ws;
+  };
+  // 1) Yeni konu + not, kaynak girmeden Kaydet
   {
+    const routes = [
+      ["GET", F3_WS, () => ({ status: 200, json: { ok: true, workspace: f3Workspace(USER.id) } })],
+      ["POST", F3_WS, () => ({ status: 200, json: { ok: true } })],
+    ];
     const { ctx, page, calls, pageErrors } = await newPage(vp, routes);
-    await page.goto(`${BASE}/sifa-rehberi?view=new`, { waitUntil: "domcontentloaded" });
-    const heading = page.getByText("Yeni Rahatsızlık Oluştur").first();
-    ok(G, "Yeni Rahatsızlık formu açıldı", await waitFor(() => heading.isVisible(), 20000));
-    // Ad (Rahatsızlık düğümü) → konu (Tıbbi Nedenler) → Yeni Not
-    const nameInput = page.getByPlaceholder("Örn. Migren").first();
-    ok(G, "rahatsızlık adı alanı yerinde", await waitFor(() => nameInput.isVisible(), 8000));
-    await nameInput.fill("ZZ Baş Ağrısı");
-    const topic = page.getByRole("button", { name: /Tıbbi Nedenler/ }).first();
-    if (await topic.count()) await topic.click();
-    const addBtn = page.getByRole("button", { name: /Yeni Not Ekle/ }).first();
-    if (await waitFor(() => addBtn.isVisible(), 8000)) await addBtn.click();
-    await sleep(400);
-    const editor = page.locator("body");
-    const kaynakLabel = editor.getByText("Kaynak (opsiyonel)", { exact: true });
-    ok(G, "not eklendi; 'Kaynak (opsiyonel)' alanı yerinde", await waitFor(() => kaynakLabel.first().isVisible(), 8000));
-    ok(G, "'Kaynak Türü' etiketi ve açılır menüsü YOK", (await editor.getByText(/Kaynak Türü/).count()) === 0 && (await editor.locator("select option", { hasText: "Eğitim / Ders" }).count()) === 0);
-    ok(G, "Uzman Notu / İçerik / Dikkat alanları yerinde", (await editor.getByText("İçerik", { exact: true }).count()) >= 1 && (await editor.getByText("Uzman Notu (opsiyonel)").count()) >= 1 && (await editor.getByText(/Dikkat Edilmesi Gerekenler/).count()) >= 1);
-    // Kaynak girmeden kaydet (yalnız içerik)
-    // İçerik alanı geniş editörle yazılır (mevcut davranış: "Forma Uygula" yalnız taslağa aktarır)
-    await page.getByPlaceholder("Profesyonel içerik (uzunluk sınırı yoktur)…").first().click();
-    const dlg = page.getByRole("dialog", { name: "İçerik" });
-    await dlg.waitFor({ timeout: 8000 });
-    await dlg.locator("textarea").first().fill("ZZ not içeriği");
-    await dlg.getByRole("button", { name: "Forma Uygula" }).click();
-    ok(G, "İçerik geniş editörle forma uygulandı", await waitFor(async () => (await page.getByPlaceholder("Profesyonel içerik (uzunluk sınırı yoktur)…").first().inputValue()) === "ZZ not içeriği", 5000));
-    await page.getByRole("button", { name: "Kaydet", exact: true }).first().click();
-    const posted = await waitFor(async () => calls.some((c) => c.method === "POST" && c.path === "/api/sifa-rehberi/guides"), 10000);
-    const post = calls.find((c) => c.method === "POST" && c.path === "/api/sifa-rehberi/guides");
-    ok(G, "Kaynak girilmeden Kaydet → oluşturma isteği gitti", posted, calls.map((c) => `${c.method} ${c.path}`).slice(-8));
-    const secs = post?.body?.sections ?? [];
-    ok(G, "istekte ad doğru; not gönderildi; kaynak boş, kaynak türü boş", post?.body?.name === "ZZ Baş Ağrısı" && secs.length >= 1 && secs.some((s) => s.note === "ZZ not içeriği") && secs.every((s) => !s.source && !s.source_kind), post?.body);
-    ok(G, "başarıda detay ekranına yönlendi", await waitFor(async () => page.url().includes(`/sifa-rehberi/${GUIDE_ID}`), 10000), page.url());
+    await page.goto(`${BASE}/sifa-rehberi#/yeni`, { waitUntil: "domcontentloaded" });
+    const title = page.getByTestId("new-title");
+    ok(G, "yeni konu formu açıldı", await waitFor(() => title.isVisible(), 20000));
+    await title.fill("ZZ Baş Ağrısı");
+    await page.getByTestId("new-create").click();
+    const editor = page.getByTestId("editor").first();
+    ok(G, "konu açıldı; not alanı yazmaya hazır", await waitFor(() => editor.isVisible(), 10000));
+    await editor.click();
+    await page.keyboard.type("ZZ not içeriği");
+    ok(G, "kaynak eklemek isteğe bağlı: 'Kaynak ekle' düğmesi var, kaynak formu kendiliğinden açılmıyor",
+      (await page.getByTestId("add-source").count()) >= 1 && (await page.getByTestId("source-form").count()) === 0);
+    ok(G, "ayrı 'Kaynak Türü' alanı / açılır menüsü YOK", (await page.getByText(/Kaynak Türü/).count()) === 0 && (await page.locator("select option", { hasText: "Eğitim / Ders" }).count()) === 0);
+    await page.getByTestId("save").first().click();
+    const posted = await waitFor(async () => calls.some((c) => c.method === "POST" && F3_WS.test(c.path)), 10000);
+    const post = calls.find((c) => c.method === "POST" && F3_WS.test(c.path));
+    ok(G, "Kaynak girilmeden Kaydet → kayıt isteği gitti", posted, calls.map((c) => `${c.method} ${c.path}`).slice(-8));
+    const root = (post?.body?.topics ?? []).find((t) => t.parent_id === null);
+    const note = (post?.body?.blocks ?? []).find((b) => /ZZ not içeriği/.test(b.content_text ?? ""));
+    ok(G, "istekte konu adı doğru; not gönderildi; kaynak listesi boş", root?.title === "ZZ Baş Ağrısı" && !!note && (note.sources ?? []).length === 0, { root: root?.title, sources: note?.sources });
+    ok(G, "başarı mesajı", await waitFor(async () => /Kaydedildi\./.test((await page.getByTestId("toast").allInnerTexts()).join(" ")), 8000));
+    // Bu taklitte yeniden yükleme yeni konuyu DÖNDÜRMEZ (= başka sekmede/cihazda silinmiş): ekran çökmeden Kütüphanem'e döner.
+    ok(G, "kayıttan sonra konu sunucuda yoksa ekran çökmez → Kütüphanem", await waitFor(() => page.getByTestId("library").isVisible(), 8000) && /#\/kutuphane/.test(page.url()), page.url());
     await page.screenshot({ path: path.join(OUT, `w12-yeni-${vp.tag}.png`) });
     ok(G, "yatay taşma yok + sayfa hatası yok", (await noHScroll(page)) && pageErrors.length === 0, pageErrors);
     await ctx.close();
   }
-  // 2) Mevcut kayıt: görüntüleme + düzenleme ekranı DEĞİŞMEDİ (Kaynak Türü burada duruyor)
+  // 2) Mevcut not: kaynak görüntülenir; düzenlemede mevcut değerle açılır, başka not değişikliği kaynağı bozmaz
   {
-    const { ctx, page, pageErrors } = await newPage(vp, routes);
-    await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "domcontentloaded" });
-    ok(G, "mevcut kayıt görüntüleniyor (ad + içerik + kaynak)", await waitFor(async () => (await page.getByText("ZZ mevcut içerik").count()) > 0 && (await page.getByText("ZZ Kaynak Kitabı").count()) > 0, 20000));
-    await page.getByRole("button", { name: "Düzenle", exact: true }).first().click();
-    const kindSelect = page.locator("select").filter({ has: page.locator("option", { hasText: "Eğitim / Ders" }) });
-    ok(G, "düzenleme ekranında 'Kaynak Türü' aynen duruyor ve mevcut değer (Kitap) seçili", await waitFor(async () => (await kindSelect.count()) > 0 && (await kindSelect.first().inputValue()) === "Kitap", 10000));
-    ok(G, "düzenleme ekranında Kaynak alanı mevcut değerle", await waitFor(async () => (await page.locator('input[placeholder="Kitap/eğitim/kaynak adı…"]').first().inputValue()) === "ZZ Kaynak Kitabı", 5000));
+    const routes = [
+      ["GET", F3_WS, () => ({ status: 200, json: { ok: true, workspace: withSource() } })],
+      ["POST", F3_WS, () => ({ status: 200, json: { ok: true } })],
+    ];
+    const { ctx, page, calls, pageErrors } = await newPage(vp, routes);
+    await page.goto(f3TopicUrl(BASE), { waitUntil: "domcontentloaded" });
+    ok(G, "mevcut not görüntüleniyor (içerik + kaynak)", await waitFor(async () => (await page.getByText("ZZ not metni").count()) > 0 && (await page.getByText("ZZ Kaynak Kitabı").count()) > 0, 20000));
+    await page.getByTestId("edit").click();
+    await page.getByTestId("source-edit").first().click();
+    ok(G, "düzenleme: kaynak formu mevcut değerle açılır", await waitFor(async () => (await page.getByTestId("source-title").inputValue()) === "ZZ Kaynak Kitabı", 8000));
+    ok(G, "düzenleme: ayrı 'Kaynak Türü' seçimi YOK", (await page.getByTestId("source-form").locator("select").count()) === 0);
+    await page.getByTestId("source-form").getByRole("button", { name: "Vazgeç" }).click();
+    await page.getByTestId("note-title-input").first().fill("ZZ Not yeni ad");
+    await page.getByTestId("save").first().click();
+    await waitFor(async () => calls.some((c) => c.method === "POST" && F3_WS.test(c.path)), 10000);
+    const post = calls.find((c) => c.method === "POST" && F3_WS.test(c.path));
+    const b = (post?.body?.blocks ?? []).find((x) => x.title === "ZZ Not yeni ad");
+    ok(G, "not adı değişince kaynak AYNEN korunur (tür + ad)", b && (b.sources ?? []).length === 1 && b.sources[0].title === "ZZ Kaynak Kitabı" && b.sources[0].kind === "kitap", b?.sources);
     await page.screenshot({ path: path.join(OUT, `w12-duzenle-${vp.tag}.png`) });
     ok(G, "düzenleme: sayfa hatası yok", pageErrors.length === 0, pageErrors);
     await ctx.close();

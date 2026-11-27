@@ -112,6 +112,12 @@ export async function GET(req: NextRequest): Promise<Response> {
         if (src.excludeTransferred) {
           q = q.is("origin_transfer_batch_id", null).or("origin_type.is.null,origin_type.neq.admin_transfer");
         }
+        // Kişisel kayıt tablosu (Şifa F3): yalnız hedef uzmanın kendi satırları.
+        if (src.personal) {
+          q = q.eq(src.personal.ownerColumn, target.userId);
+          for (const [col, val] of Object.entries(src.personal.eq ?? {})) q = q.eq(col, val);
+          for (const col of src.personal.isNull ?? []) q = q.is(col, null);
+        }
         const { count, error } = await q;
         if (error) {
           failed = true;
