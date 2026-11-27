@@ -17,6 +17,7 @@
  * güvenlik bildirimi gönderilmez, yerine security_events'e "scope_closed" nedeniyle "gönderilmedi" kaydı düşer
  * (denetim izi korunur). Rol ve Owner kararı İSTEKTEN değil, oturumun bağlı olduğu kullanıcının DB kaydından gelir.
  */
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Env = Record<string, string | undefined>;
@@ -79,24 +80,44 @@ export const EMAIL_NOT_IN_SCOPE_TEXT = "E-posta ile doğrulama ve adres değişi
  * AUTH_EMAIL_VERIFY_PILOT_USER_ID: TAM OLARAK BİR kullanıcı kimliği (UUID). Boş / biçimsiz / birden çok değer → pilot YOK.
  * Pilot YALNIZ /api/me/email-verification (kendi kayıtlı adresini kodla doğrulama) için geçerlidir; adres değiştirme,
  * güvenlik bildirimleri, kurtarma ve MFA bu pilotla AÇILMAZ (onlar emailSelfServiceAllowed'a bağlı kalır).
- * Kimlik oturumun bağlı olduğu kullanıcıdır (istekten gelmez). Hesap DB'de etkin + uzman + demo değil + arşivde değil +
- * "Pasif" değil olmalı; okuma hatası → KAPALI. Geri alma: değişkeni silmek + yeniden yayın.
+ * Kimlik oturumun bağlı olduğu kullanıcıdır (istekten gelmez). Hesap DB'de etkin + uzman + onaylı (approval_status =
+ * 'approved') + demo değil + arşivde değil + "Pasif" değil olmalı; okuma hatası → KAPALI.
+ * Adres sabitleme (ZORUNLU): AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 = sha256(küçük harf + kırpılmış kayıtlı adres), 64 hex.
+ * Tanımsız / biçimsiz / kayıtlı adresle uyuşmuyor → pilot KAPALI: adres sonradan değişirse (ör. yönetici düzenlemesi) kod
+ * Owner'ın onaylamadığı bir adrese GİTMEZ. Geri alma: değişkenleri silmek + yeniden yayın.
  */
 const PILOT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const PILOT_HASH_RE = /^[0-9a-f]{64}$/;
 
 export function emailVerifyPilotUserId(env: Env = process.env): string | null {
   const raw = String(env.AUTH_EMAIL_VERIFY_PILOT_USER_ID ?? "").trim().toLowerCase();
   return PILOT_UUID_RE.test(raw) ? raw : null;
 }
 
+/** Pilot adres özeti (Owner'ın sabitlediği adres): sha256(adres.trim().toLowerCase()) hex. */
+export function emailVerifyPilotAddressHash(email: string): string {
+  return createHash("sha256").update(String(email ?? "").trim().toLowerCase(), "utf8").digest("hex");
+}
+
+function emailVerifyPilotPinnedHash(env: Env): string | null {
+  const raw = String(env.AUTH_EMAIL_VERIFY_PILOT_EMAIL_SHA256 ?? "").trim().toLowerCase();
+  return PILOT_HASH_RE.test(raw) ? raw : null;
+}
+
 export async function emailVerifyPilotAllowed(db: SupabaseClient, userId: string, env: Env = process.env): Promise<boolean> {
   const pilot = emailVerifyPilotUserId(env);
-  if (!pilot || String(userId ?? "").trim().toLowerCase() !== pilot) return false;
+  const pinned = emailVerifyPilotPinnedHash(env);
+  if (!pilot || !pinned || String(userId ?? "").trim().toLowerCase() !== pilot) return false;
   try {
     const { data, error } = await db.from("users").select("*").eq("id", pilot).maybeSingle();
     if (error || !data) return false;
     const u = data as Record<string, unknown>;
+    if (typeof u.email !== "string" || !u.email.trim()) return false;
+    const a = Buffer.from(emailVerifyPilotAddressHash(u.email), "hex");
+    const b = Buffer.from(pinned, "hex");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
     return u.active === true && u.is_demo_account !== true && String(u.role ?? "").trim().toLowerCase() === "expert"
+      && String(u.approval_status ?? "").trim().toLowerCase() === "approved"
       && (u.archived_at ?? null) === null && (u.access_restricted_at ?? null) === null;
   } catch {
     return false;
