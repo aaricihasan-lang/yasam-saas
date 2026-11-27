@@ -83,6 +83,7 @@ async function main() {
   type Browser = import("playwright").Browser;
   type Locator = import("playwright").Locator;
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
+  const { ADMIN_SESSION_COOKIE } = await import("../../lib/auth/adminShellSession");
   const db = await startF2cDb({ withF2d: true, withF2e: true, withF2g: true, withF2h: true, withF2i: true, withF2j: true, withF2k: true });
   await db.admin.query(UYE_DETAY_SEMA);
   const FREE = U.free;
@@ -138,11 +139,24 @@ async function main() {
       await q(`UPDATE public.auth_mfa_challenges SET state = 'expired' WHERE purpose IS DISTINCT FROM 'step_up' AND state IN ('pending','verified')
                 AND user_id = (SELECT id FROM public.users WHERE email = $1)`, [email]);
     };
-    /** Arayüzden giriş; MFA istenirse e-posta koduyla (sentetik kutu) tamamlar. */
-    const login = async (page: Page, email: string) => {
+    /**
+     * Arayüzden giriş; MFA istenirse e-posta koduyla (sentetik kutu) tamamlar.
+     * Yönetici girişi (`admin: true`, varsayılan) uygulamada İKİ adımda biter: `localStorage.yasam_user` yazılır, ARDINDAN
+     * `POST /api/auth/admin-session` yönetici kabuğu çerezini verir ve `router.push("/admin")` çalışır (app/page.tsx completeLogin).
+     * Yalnız localStorage'ı beklemek, çerez yazılmadan `/admin/*`'a gitmeye yol açıyordu (proxy.ts → `/`; 25.11 kök neden analizi).
+     * Bu yüzden yönetici girişinde admin-session yanıtı (2xx), `/admin` yönlendirmesi ve çerezin gerçekten bağlamda olması
+     * BEKLENİR ve doğrulanır (sabit bekleme yok; beklenti gevşemez, sıkılaşır). Çerez DEĞERİ okunmaz / yazdırılmaz.
+     * Yönetici olmayan girişte (`admin: false`) admin-session yanıtı ve çerez BEKLENMEZ.
+     */
+    const login = async (page: Page, email: string, opts: { admin?: boolean } = {}) => {
+      const admin = opts.admin ?? true;
       await ageOtps(email);
       await page.goto(BASE, { waitUntil: "domcontentloaded" });
       const resp = page.waitForResponse((r) => r.url().endsWith("/api/auth/session") && r.request().method() === "POST", { timeout: 30000 });
+      // Tıklamadan ÖNCE kaydedilir (MFA'lı girişte yanıt kod doğrulamasından sonra gelir; süre kod bekleme payını kapsar).
+      const adminRespP = admin
+        ? page.waitForResponse((r) => r.url().endsWith("/api/auth/admin-session") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null)
+        : Promise.resolve(null);
       await page.getByRole("button", { name: "Giriş Yap", exact: true }).first().click();
       await page.locator("#login-email").fill(email);
       await page.locator("#login-password").fill(pw(email));
@@ -158,7 +172,20 @@ async function main() {
         await page.getByRole("button", { name: /Doğrula ve giriş yap/ }).click();
       }
       const loggedIn = await page.waitForFunction(() => !!localStorage.getItem("yasam_user"), null, { timeout: 25000 }).then(() => true).catch(() => false);
-      return { status: r.status(), mfa, loggedIn };
+      let adminSession: number | null = null;
+      let adminRedirect = false;
+      let adminCookie = false;
+      const adminResp = await adminRespP;
+      if (adminResp) {
+        adminSession = adminResp.status();
+        if (adminResp.ok()) {
+          adminRedirect = await page.waitForURL((u) => /^\/admin(\/|$)/.test(u.pathname), { timeout: 20000 }).then(() => true).catch(() => false);
+          adminCookie = (await page.context().cookies(BASE)).some((c) => c.name === ADMIN_SESSION_COOKIE && c.value.length > 0);
+        }
+      }
+      // Yönetici girişi: admin-session 2xx + /admin yönlendirmesi + çerez bağlamda → ancak o zaman "giriş tamam".
+      const adminOk = !admin || (adminSession !== null && adminSession >= 200 && adminSession < 300 && adminRedirect && adminCookie);
+      return { status: r.status(), mfa, loggedIn: loggedIn && adminOk, adminSession, adminRedirect, adminCookie };
     };
     const openMember = async (page: Page, id: string) => {
       await page.goto(`${BASE}/admin/users/${id}#hesap`, { waitUntil: "domcontentloaded" });
