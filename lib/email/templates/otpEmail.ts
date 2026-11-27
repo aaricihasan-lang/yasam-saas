@@ -21,7 +21,9 @@ export function renderOtpEmail(input: { purpose: OtpPurpose; code?: string; name
     : input.purpose === "change_email" ? "Yaşam Sistemi hesabınızın e-posta adresini bu adresle değiştirme"
       : input.purpose === "step_up" ? "Yaşam Sistemi yönetim panelindeki kritik bir işlemi onaylama"
       : "Yaşam Sistemi e-posta adresinizi doğrulama";
-  const subject = `${code} — Yaşam Sistemi doğrulama kodunuz`;
+  // Kod KONU satırına yazılmaz: kilit ekranı / bildirim önizlemeleri, posta istemcisi listeleri ve sağlayıcı günlükleri konuyu
+  // gösterir. Kod yalnız ileti gövdesinde (metin + HTML) bulunur.
+  const subject = "Yaşam Sistemi doğrulama kodunuz";
   const text = [
     hello,
     "",

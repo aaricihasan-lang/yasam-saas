@@ -228,7 +228,7 @@ async function main() {
       const noSidBefore = !(await sid(c));
       await c.eval(`(() => { const b = document.querySelector('[data-testid=mfa-email-send]'); if (b) b.click(); return true; })()`);
       let code = "";
-      for (let i = 0; i < 60 && !code; i++) { await sleep(500); try { const l = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).slice(before); code = /^([0-9]{6}) — /.exec((JSON.parse(l[l.length - 1] ?? "{}") as { subject?: string }).subject ?? "")?.[1] ?? ""; } catch { /* */ } }
+      for (let i = 0; i < 60 && !code; i++) { await sleep(500); try { const l = fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).slice(before); code = /\b([0-9]{6})\b/.exec((JSON.parse(l[l.length - 1] ?? "{}") as { subject?: string; text?: string }).text ?? "")?.[1] ?? ""; } catch { /* */ } }
       await waitSel(c, "[data-testid=mfa-email-code]");
       await fill(c, "[data-testid=mfa-email-code]", code);
       await c.eval(`(() => { const b = document.querySelector('[data-testid=mfa-email-verify]'); if (b) b.click(); return true; })()`);
