@@ -17,12 +17,10 @@ import { applyTemplate, missingTemplateCount, TEMPLATE_ENTRIES, templateEntry } 
 import { TOPIC_GROUPS } from "@/lib/sifa-rehberi/topicTree";
 import { addRelatedSection, isRelatedSection, linkRelated, relatedEntries, relatedSectionOf, upgradeLegacyLabels, RELATED_SECTION_TITLE } from "@/lib/sifa-rehberi-v2/related";
 import { buildReading, rootOf, type ReadingSection } from "@/lib/sifa-rehberi-v2/reading";
-import { navHref, readNav, resolveSelection } from "@/components/sifa-rehberi-v2/navigation";
 import { RELATED_SECTION_KEY } from "@/lib/sifa-rehberi-v2/related";
 import { applySaveResult, buildChangeset, isEmptyChangeset, parseChangeset } from "@/lib/sifa-rehberi-v2/changeset";
 import { planLegacyImport, uuidV5 } from "@/lib/sifa-rehberi-v2/server/legacyImport";
 import { directV2Decision, sifaScreen, sifaV2EnabledFromEnv } from "@/lib/sifa-rehberi-v2/versionRoute";
-import { rebaseOnto } from "@/components/sifa-rehberi-v2/scopeUi";
 
 let pass = 0;
 let failCount = 0;
@@ -492,26 +490,8 @@ test("ayrım metne bakmaz: AKCİĞER altındaki 'Migren' alt başlığı bağım
   assert.equal(childrenOf(ws, null).filter((n) => n.title === "Migren").length, 1, "tek bağımsız Migren");
   assert.equal(childrenOf(ws, null).find((n) => n.title === "Migren")!.id, "proto-uzman-n-migren", "kimliği aynı");
   assert.equal(rootOf(ws, r.node.id)!.id, AK, "aynı adlı alt başlığın kökü AKCİĞER");
-  assert.equal(resolveSelection(ws, "proto-uzman-n-migren", r.node.id), "proto-uzman-n-migren", "başka ağacın başlığı Migren ekranında açılmaz");
 });
-test("adres güvenliği: yalnız kimlik + üst-alt ilişkisi; geçersiz → ana konu / Ana Konularım", () => {
-  let ws = seedWorkspace("proto-uzman");
-  assert.equal(resolveSelection(ws, AK, BRONSIT), BRONSIT);
-  assert.equal(resolveSelection(ws, AK, null), AK);
-  assert.equal(resolveSelection(ws, BRONSIT, null), null, "ana konu olmayan kimlik ana konu sayılmaz");
-  assert.equal(resolveSelection(ws, "yok", null), null);
-  assert.equal(resolveSelection(seedWorkspace("proto-ayse"), AK, BRONSIT), null, "başka kullanıcının konusu açılmaz");
-  ws = must(softDeleteNode(ws, BRONSIT, ctx)).ws;
-  assert.equal(resolveSelection(ws, AK, BRONSIT), AK, "silinen başlık açılmaz");
-});
-test("adres: yaz/oku tutarlı; ana konu yokken başlık/sekme yazılmaz; diğer parametreler korunur", () => {
-  const base = "http://x/p?gorunum=gelismis";
-  const u = navHref(base, { ownerId: "proto-uzman", rootId: AK, nodeId: BRONSIT, tab: "okuma" });
-  assert.deepEqual(readNav(u), { ownerId: "proto-uzman", rootId: AK, nodeId: BRONSIT, tab: "okuma", view: "gelismis" });
-  const home = navHref(u, { ownerId: "proto-ayse", rootId: null, nodeId: BRONSIT, tab: "okuma" });
-  assert.deepEqual(readNav(home), { ownerId: "proto-ayse", rootId: null, nodeId: null, tab: "notlar", view: "gelismis" });
-  assert.ok(!navHref(base, { ownerId: "proto-uzman", rootId: AK, nodeId: AK, tab: "notlar" }).includes("baslik"), "kök için başlık yazılmaz");
-});
+// F3 (26.11.2026): eski V2 arayüzünün adres modülü (components/sifa-rehberi-v2/navigation) kaldırıldı → adres testleri de kaldırıldı.
 
 // ── 6. AŞAMA: kararlı sistem anahtarı · değişiklik kümesi · aktarım planı ──────
 test("İlişkili Rahatsızlıklar ADLA değil KARARLI anahtarla tanınır; aynı adlı kullanıcı başlığı sistem bölümü değildir", () => {
@@ -621,26 +601,7 @@ test("Değişiklik kümesi KURUM kayıtlarını hiçbir zaman göndermez (yereld
   const cs = buildChangeset(shared, draft);
   assert.ok(isEmptyChangeset(cs), JSON.stringify(cs).slice(0, 200));
 });
-test("Çakışma çözümü (rebaseOnto): kendi değişikliğim son kaydın ÜSTÜNE, sunucu sürümüyle; diğer değişiklikler korunur", () => {
-  const base: Workspace = { ...seedWorkspace("proto-uzman") };
-  const v = (ws: Workspace, n: number): Workspace => ({ ...ws, nodes: ws.nodes.map((x) => ({ ...x, version: n })), blocks: ws.blocks.map((x) => ({ ...x, version: n })) });
-  const saved = v(base, 1);
-  const myBlock = saved.blocks.find((b) => b.nodeId === AK)!;
-  const mine: Workspace = { ...saved, blocks: saved.blocks.map((b) => (b.id === myBlock.id ? { ...b, contentText: "BENİM" } : b)) };
-  const otherBlock = saved.blocks.find((b) => b.nodeId !== AK)!;
-  const server: Workspace = v(
-    { ...saved, blocks: saved.blocks.map((b) => (b.id === myBlock.id ? { ...b, contentText: "ONLARIN" } : b.id === otherBlock.id ? { ...b, contentText: "BAŞKA DEĞİŞİKLİK" } : b)) },
-    2,
-  );
-  const r = rebaseOnto(saved, mine, server);
-  const mb = r.blocks.find((b) => b.id === myBlock.id)!;
-  assert.equal(mb.contentText, "BENİM");
-  assert.equal(mb.version, 2, "sunucu sürümüyle → sonraki Kaydet kabul edilir");
-  assert.equal(r.blocks.find((b) => b.id === otherBlock.id)!.contentText, "BAŞKA DEĞİŞİKLİK", "diğer penceredeki başka kayıt değişikliği korunur");
-  const cs = buildChangeset(server, r);
-  assert.deepEqual(cs.blocks.map((b) => [b.id, b.base_version]), [[myBlock.id, 2]]);
-});
-
+// F3: eski V2 arayüzünün çakışma penceresi (rebaseOnto) kaldırıldı; çakışma sunucuda 409 ile sınanır (scripts/sifa-rehberi-f3).
 test("Değişiklik algılama KANONİK: DB'nin (jsonb) anahtar sırası farklı ama içerik aynı → değişmemiş sayılır", () => {
   const base = seedWorkspace("proto-uzman");
   const reorder = (x: unknown): unknown =>

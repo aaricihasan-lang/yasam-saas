@@ -56,8 +56,6 @@ const NON_STONES_CONSUMERS = [
   "app/dashboard/biyoenerji/components/BilincaltiSebepleri.tsx",
   "app/dashboard/biyoenerji/components/BilincaltiSebepleriDetail.tsx",
   "app/numeroloji/liste/page.tsx",
-  "app/sifa-rehberi/[id]/page.tsx",
-  "app/sifa-rehberi/page.tsx",
 ];
 
 // ── GATE A: localized workspace copy değerleri + parity ──────────────────────

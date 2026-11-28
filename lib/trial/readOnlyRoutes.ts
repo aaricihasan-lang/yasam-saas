@@ -28,9 +28,7 @@ const PATTERNS: readonly RegExp[] = [
   /^\/api\/hacamat\/(?:pdf-report|word-report)$/,
   /^\/api\/numeroloji\/(?:word-report|knowledge-report)$/,
   /^\/api\/refleksoloji\/(?:atlas-report|protocol-report)$/,
-  /^\/api\/sifa-rehberi\/word-report$/,
-  /^\/api\/sifa-rehberi\/photos\/signed-urls$/,
-  // Şifa Rehberi V2: yalnız kayıtlı veriden Word + görsel okuma bağlantısı (yazma/yükleme/kopya DIŞARIDA).
+  // Şifa Rehberi (F3; eski V1 uçları kaldırıldı): yalnız kayıtlı veriden Word + görsel okuma bağlantısı (yazma/yükleme DIŞARIDA).
   /^\/api\/sifa-rehberi-v2\/word$/,
   /^\/api\/sifa-rehberi-v2\/assets\/signed-urls$/,
   /^\/api\/urun-stok\/stock-report$/,

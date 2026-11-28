@@ -60,7 +60,6 @@ async function main(): Promise<void> {
 
     const ws = await import("../../../app/api/sifa-rehberi-v2/workspace/route");
     const word = await import("../../../app/api/sifa-rehberi-v2/word/route");
-    const copy = await import("../../../app/api/sifa-rehberi-v2/copy/route");
     const prep = await import("../../../app/api/sifa-rehberi-v2/assets/prepare/route");
     const fin = await import("../../../app/api/sifa-rehberi-v2/assets/finalize/route");
     const urls = await import("../../../app/api/sifa-rehberi-v2/assets/signed-urls/route");
@@ -167,14 +166,16 @@ async function main(): Promise<void> {
     const w1 = await load(U.U1);
     const w2 = await load(U.U2);
     const w3 = await load(U.U3);
-    ok(w1.nodes.some((n) => n.id === SH && n.scope === "kurum") && w2.nodes.some((n) => n.id === SH && n.scope === "kurum"), "kurum kaydını T1'in İKİ uzmanı da okur", { w1: w1.nodes.map((n) => [n.id === SH, n.scope, n.title]), w2: w2.nodes.length });
+    // F3 (Owner kararı 26.11.2026): Şifa Rehberi yalnız KİŞİSEL kütüphane — eski kurum (ortak) kayıtları okunmaz.
+    ok(!w1.nodes.some((n) => n.id === SH) && !w2.nodes.some((n) => n.id === SH), "F3: kurum (ortak) kaydı T1 uzmanlarına da GELMEZ (yalnız kişisel)", { w1: w1.nodes.length, w2: w2.nodes.length });
     ok(!w3.nodes.some((n) => n.id === SH), "T2 uzmanı T1 kurum kaydını GÖREMEZ");
     ok(!w2.nodes.some((n) => n.id === P1) && !JSON.stringify(w2).includes("U1 GİZLİ NOT"), "Uzman 2, Uzman 1'in kişisel kaydını GÖREMEZ");
     ok(!w3.nodes.some((n) => n.id === P1), "T2 uzmanı Uzman 1'in kişisel kaydını GÖREMEZ");
     const b1 = (w1.blocks.find((b) => b.nodeId === P1) ?? {}) as Json;
     const tamper = await call(ws.POST, "POST", "workspace", as(U.U2), { blocks: [{ ...blockRow(P1, "ELE GEÇİRİLDİ"), id: b1.id, base_version: b1.version }] });
     ok(tamper.status === 404, "Uzman 2 → Uzman 1'in kutusunu güncelleme → 404", tamper.json);
-    const sh1 = w1.blocks.find((b) => b.id === SHB) as Json;
+    // F3: kurum kutusu artık okunmaz → sürüm doğrudan DB'den (yazma girişimi yine 404 olmalı).
+    const sh1 = (await env.su.query("select version from public.sifa_topic_blocks where id = $1", [SHB])).rows[0] as Json;
     const shEdit = await call(ws.POST, "POST", "workspace", as(U.U1), { blocks: [{ ...blockRow(SH, "KURUM DEĞİŞTİ"), id: SHB, base_version: sh1.version }] });
     ok(shEdit.status === 404, "Uzman 1 → kurum kutusunu güncelleme → 404 (salt-okunur)", shEdit.json);
     const shChild = await call(ws.POST, "POST", "workspace", as(U.U2), { blocks: [blockRow(SH, "Kuruma kişisel ek")] });
@@ -196,14 +197,10 @@ async function main(): Promise<void> {
     const conflicts = secondSave.json.conflicts as { id: string; title: string }[] | undefined;
     ok(Array.isArray(conflicts) && conflicts.length === 1 && conflicts[0].id === bb.id && conflicts[0].title === "Not", "409 yanıtı çakışan kaydı (kimlik + başlık) listeler — kullanıcıya çözüm için", conflicts);
 
-    section("4. Kurum kaydından kişisel kopya");
-    const c1 = await call(copy.POST, "POST", "copy", as(U.U1), { rootId: SH });
-    ok(c1.status === 200 && c1.json.created === true, "Uzman 1 kopya → 200 created", c1.json);
-    const c1b = await call(copy.POST, "POST", "copy", as(U.U1), { rootId: SH });
-    ok(c1b.status === 200 && c1b.json.created === false && c1b.json.rootId === c1.json.rootId, "tekrar → aynı kopya (mükerrer yok)");
-    ok((await call(copy.POST, "POST", "copy", as(U.U3), { rootId: SH })).status === 404, "T2 uzmanı T1 kurum kaydını kopyalayamaz → 404");
-    ok((await call(copy.POST, "POST", "copy", as(U.U2), { rootId: P1 })).status === 404, "Uzman 2, Uzman 1'in KİŞİSEL konusunu 'kopyalayamaz' → 404");
-    ok(!(await load(U.U2)).nodes.some((n) => n.id === c1.json.rootId), "Uzman 1'in kopyası Uzman 2'ye görünmez");
+    // F3 (Owner kararı 26.11.2026): Şifa Rehberi yalnız KİŞİSEL kütüphane — kurum kopyası ucu kaldırıldı.
+    // Veritabanı fonksiyonu (sifa_v2_copy_shared) integration.pg.mts'de doğrudan sınanmaya devam eder.
+    section("4. Kurum kaydından kişisel kopya — uç KALDIRILDI (F3)");
+    ok(!(await import("node:fs")).existsSync("app/api/sifa-rehberi-v2/copy/route.ts"), "kurum kopyası ucu (/copy) kaldırıldı");
     ok((await env.su.query("select content_text from public.sifa_topic_blocks where id = $1", [SHB])).rows[0].content_text === "Kurum notu ÇĞİÖŞÜ", "özgün kurum kaydı değişmedi");
 
     section("5. Görsel yükleme (özel bucket) + bayt doğrulaması");
@@ -261,7 +258,7 @@ async function main(): Promise<void> {
     ok(media.length === 1 && xml.includes("Görselli not ÇĞİÖŞÜ"), "Word: Storage'daki görsel gömüldü + Türkçe metin", media);
     ok((await call(word.POST, "POST", "word", as(U.U2), { rootId: P1 })).status === 404, "Uzman 2 → Uzman 1'in konusunun Word'ü → 404");
     const wsh = await call(word.POST, "POST", "word", as(U.U2), { rootId: SH });
-    ok(wsh.status === 200, "Uzman 2 → kurum kaydının Word'ü → 200");
+    ok(wsh.status === 404, "F3: kurum (ortak) kaydının Word'ü artık alınamaz → 404 (yalnız kişisel kütüphane)");
     ok((await call(word.POST, "POST", "word", as(U.U3), { rootId: SH })).status === 404, "T2 uzmanı → T1 kurum Word'ü → 404");
     __resetRateLimitStore();
     let last = 0;
@@ -277,9 +274,9 @@ async function main(): Promise<void> {
     ok((await call(ws.GET, "GET", "workspace", as(U.TRIAL))).status === 200, "süresi dolmuş deneme: okuma → 200");
     const tsave = await call(ws.POST, "POST", "workspace", as(U.TRIAL), { topics: [topic("Deneme")] });
     ok(tsave.status === 403, "süresi dolmuş deneme: Kaydet → 403", tsave.json);
-    ok((await call(copy.POST, "POST", "copy", as(U.TRIAL), { rootId: SH })).status === 403, "süresi dolmuş deneme: kopya → 403");
     ok((await call(prep.POST, "POST", "assets/prepare", as(U.TRIAL), { mimeType: "image/png", size: 10 })).status === 403, "süresi dolmuş deneme: yükleme → 403");
-    ok((await call(word.POST, "POST", "word", as(U.TRIAL), { rootId: SH })).status === 200, "süresi dolmuş deneme: Word (dışa aktarma) → 200");
+    const tw = (await call(word.POST, "POST", "word", as(U.TRIAL), { rootId: SH })).status;
+    ok(tw !== 403 && tw !== 401, "süresi dolmuş deneme: Word (dışa aktarma) deneme kapısından GEÇER (403 değil; F3'te kurum kaydı okunmaz → 404)", tw);
     ok((await call(urls.POST, "POST", "assets/signed-urls", as(U.TRIAL), { ids: [LEG] })).status === 200, "süresi dolmuş deneme: görsel okuma bağlantısı → 200");
 
     section("9. Çöp Kutusu — 30 gün sonra güvenli kalıcı temizlik (gerçek RPC adaptörü + Storage)");
@@ -290,10 +287,13 @@ async function main(): Promise<void> {
     await env.su.query("update public.sifa_topics set deleted_at = now() - interval '40 days', delete_batch_id = gen_random_uuid() where title = 'Sahte kapsam'");
     const stFail = { ...st, remove: async () => [] as string[] }; // Storage silme hatası taklidi (adaptör)
     const rFail = await purgeTrash(db, stFail);
-    ok(rFail.failedObjects === 1 && rFail.deleted.blocks === 0, "Storage silme BAŞARISIZ → görselli kutu SİLİNMEZ (iz kaybolmaz)", rFail);
+    // Temizlik GENEL çalışır; ortak test projesinde önceki koşulardan kalan çöp artıkları olabilir → beklentiler
+    // bu koşunun KENDİ kutusu / görseli / nesnesi üzerinden (sayı eşitliği yerine).
+    const ownBlock = async () => (await env.su.query("select count(*)::int n from public.sifa_topic_blocks where id = $1", [imgBlock.id])).rows[0].n;
+    ok(rFail.failedObjects >= 1 && (await ownBlock()) === 1, "Storage silme BAŞARISIZ → görselli kutu SİLİNMEZ (iz kaybolmaz)", rFail);
     ok((await env.su.query("select count(*)::int n from public.sifa_block_assets where id = $1", [OWN])).rows[0].n === 1, "→ görsel satırı duruyor (sonraki tur yeniden dener)");
     const rOk = await purgeTrash(db, st);
-    ok(rOk.removedObjects === 1 && rOk.deleted.blocks >= 1 && rFail.deleted.topics + rOk.deleted.topics >= 1 && (await env.su.query("select count(*)::int n from public.sifa_topics where title = 'Sahte kapsam' and tenant_id = $1", [T1])).rows[0].n === 0, "Storage silme BAŞARILI → nesne + satırlar kalıcı silindi", rOk);
+    ok(rOk.removedObjects >= 1 && (await ownBlock()) === 0 && (await env.su.query("select count(*)::int n from public.sifa_block_assets where id = $1", [OWN])).rows[0].n === 0 && (await env.su.query("select count(*)::int n from public.sifa_topics where title = 'Sahte kapsam' and tenant_id = $1", [T1])).rows[0].n === 0, "Storage silme BAŞARILI → nesne + satırlar kalıcı silindi", rOk);
     ok(!(await exists("sifa-arastirma", String(pr.json.path))), "→ nesne GERÇEK Storage'da yok");
     ok((await env.su.query("select count(*)::int n from public.sifa_topics where scope = 'kurum' and tenant_id = $1", [T1])).rows[0].n === 1 && (await env.su.query("select count(*)::int n from public.sifa_block_assets where id = $1", [LEG])).rows[0].n === 1, "kurum kaydı ve kurum görseli temizlikten ETKİLENMEDİ");
     ok(await exists("stone-photos", legacyPath), "V1 görsel nesnesine (stone-photos) DOKUNULMADI");
@@ -306,11 +306,11 @@ async function main(): Promise<void> {
       const st = execSync(`git status --porcelain -- ${f}`, { encoding: "utf8" }).trim();
       ok(d === "" && st === "", `${f} origin/main ile birebir ayni (astroloji donmus-fark korumalari bozulmaz)`, d || st);
     }
-    const v1Diff = execSync("git diff --stat origin/main -- app/sifa-rehberi", { encoding: "utf8" }).trim();
-    const v1New = execSync("git status --porcelain -- app/sifa-rehberi", { encoding: "utf8" }).trim();
-    ok(v1Diff === "" && v1New === "?? app/sifa-rehberi/layout.tsx", "V1 sayfa dosyalari DEGISMEDI; yalniz yeni layout.tsx eklendi", { v1Diff, v1New });
+    // F3 (Owner kararı 26.11.2026): V1 ekranı ve API'si kaldırıldı → V1-değişmezlik kontrolü yerine F3 değişmezi.
+    const { existsSync } = await import("node:fs");
+    ok(!existsSync("app/sifa-rehberi/[id]/page.tsx") && !existsSync("app/api/sifa-rehberi"), "F3: V1 detay ekranı ve V1 API'si kaldırıldı");
     const layoutSrc = readFileSync("app/sifa-rehberi/layout.tsx", "utf8");
-    ok(/sifaScreen\(sifaV2EnabledFromEnv\(\)\) === "v2" \? <SifaV2Prototype mode="canli" \/> : children/.test(layoutSrc), "layout: bayrak kapaliyken V1 cocuklarini AYNEN dondurur (kaynak dogrulamasi)");
+    ok(/if \(await sifaEkranAcik\(getServerDb\(\)\)\) return <SifaRehberi \/>/.test(layoutSrc) && /bakımda/.test(layoutSrc), "layout: bayrak AÇIK + üç migration tamam → F3 ekranı; aksi hâlde 'bakımda' iletisi (kaynak doğrulaması)");
   } finally {
     await env.su.end().catch(() => {});
   }

@@ -262,7 +262,6 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
 
   // ── 6) Statik kapılar: sahip olunan dosyalar ────────────────────────────────────────
   const LIST_FILES: Array<[string, RegExp]> = [
-    ["app/sifa-rehberi/page.tsx", /filteredRows\.filter\(\(r\) => selectedForExport\.has\(r\.id\)\)/],
     ["app/dogaltas/tas-bilgi-kutuphanesi/page.tsx", /filtered\.filter\(\(r\) => selectedIds\.has\(r\.id\)\)/],
     ["app/numeroloji/liste/page.tsx", /visibleSelection\(selectedIds, filteredRows\.map/],
     ["app/urun-stok/aksesuar/page.tsx", /displayed\.filter\(\(i\) => selectedIds\.has\(i\.id\)\)/],
@@ -309,7 +308,6 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
   }
   await t("liste silme onayları ad listesi taşır", () => {
     for (const f of [
-      "app/sifa-rehberi/page.tsx",
       "app/dogaltas/dogaltas-listesi/page.tsx",
       "app/dogaltas/tas-bilgi-kutuphanesi/page.tsx",
       "app/dogaltas/mineral-listesi/page.tsx",
@@ -337,9 +335,6 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
     const sab = read("app/beslenme/sablonlar/page.tsx");
     assert.match(sab, /await deleteConfirm\(/);
     assert.doesNotMatch(sab, /confirmDeleteId/, "aynı noktada iki adımlı buton kaldırıldı");
-    const sifa = read("app/sifa-rehberi/[id]/page.tsx");
-    assert.match(sifa, /title: "Görseli sil"/);
-    assert.match(sifa, /disabled=\{imageRemoving\}/);
     assert.match(read("app/human-design/danisanlar/components/HdChartImageUpload.tsx"), /title: "Harita görselini sil"/);
   });
   await t("submit kilitleri", () => {
@@ -364,7 +359,6 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
   });
   await t("istemci indirme adları sunucudan (UTC 'dün' yok)", () => {
     const files = [
-      "app/sifa-rehberi/page.tsx", "app/sifa-rehberi/[id]/page.tsx",
       "app/dogaltas/page.tsx", "app/dogaltas/dogaltas-listesi/page.tsx", "app/dogaltas/dogaltas-listesi/[id]/page.tsx",
       "app/dogaltas/mineral-listesi/page.tsx", "app/dogaltas/mineral-listesi/[id]/page.tsx",
       "app/dogaltas/tas-bilgi-kutuphanesi/page.tsx", "app/dogaltas/kombinasyonlar/page.tsx", "app/dogaltas/kombinasyonlar/[title]/page.tsx",

@@ -271,7 +271,7 @@ const MODULE_STAT_TABLES: Partial<Record<ModulePermissionKey, string>> = {
   clients: "clients",
   stones: "stones",
   stok: "dogaltas_inventory",
-  sifa_rehberi: "healing_guides",
+  sifa_rehberi: "sifa_topics", // F3 kişisel kütüphane — sayım /api/dashboard/summary
   digital_content: "personal_archives",
   numerology: "numerology_analyses",
 };

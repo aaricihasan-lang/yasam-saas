@@ -11,7 +11,7 @@
  *  - Başka uzmanın/tenant'ın satırına dokunan istek bileşik anahtar + sahiplik filtresiyle REDDEDİLİR,
  *    işlemin TAMAMI geri alınır. Hata mesajı başka uzmana ait kaydın VARLIĞINI sızdırmaz.
  */
-import { ChangesetError, parseChangeset, type Conflict, type SaveResult } from "@/lib/sifa-rehberi-v2/changeset";
+import { ChangesetError, parseChangeset, type Conflict, type RemovedAsset, type SaveResult } from "@/lib/sifa-rehberi-v2/changeset";
 import type { Block, BlockClass, RecordScope, TopicLink, TopicNode, Workspace } from "@/lib/sifa-rehberi-v2/types";
 
 export type Scope = { tenantId: string; userId: string };
@@ -73,7 +73,10 @@ export function mapDbError(e: unknown): ServiceError {
     return { status: 404, code: "SIFA_V2_NOT_FOUND", error: "Kaydedilemedi: değiştirilmek istenen kayıt bulunamadı ya da size ait değil (kurum kayıtları salt-okunurdur). Hiçbir değişiklik yazılmadı." };
   }
   if (msg.includes("sifa_template_locked") || msg.includes("sifa_system_section_not_under_root") || msg.includes("sifa_scope_immutable")) {
-    return { status: 422, code: "SIFA_V2_LOCKED", error: "Hazır başlık / sistem bölümü / kayıt kapsamı değiştirilemez. Hiçbir değişiklik yazılmadı." };
+    return { status: 422, code: "SIFA_V2_LOCKED", error: "Hazır başlığın yeri değiştirilemez / kayıt kapsamı değiştirilemez. Hiçbir değişiklik yazılmadı." };
+  }
+  if (msg.includes("sifa_block_nesting") || msg.includes("sifa_block_not_box")) {
+    return { status: 422, code: "SIFA_V2_NESTING", error: "İçerik kutusu yalnız bir notun içinde olabilir ve yalnız kutu kalıcı silinebilir. Hiçbir değişiklik yazılmadı." };
   }
   if (msg.includes("sifa_topic_cycle") || msg.includes("sifa_topic_depth_exceeded")) {
     return { status: 422, code: "SIFA_V2_TREE", error: "Başlık yapısı geçersiz (döngü veya 20 seviye sınırı). Hiçbir değişiklik yazılmadı." };
@@ -104,6 +107,7 @@ export function rowsToWorkspace(raw: unknown, ownerKey: string): Workspace {
     title: String(t.title),
     sortKey: String(t.sort_key),
     templateKey: s(t.template_key),
+    nodeKind: t.node_kind === "grup" ? "grup" : null,
     version: Number(t.version),
     scope: scopeOf(t.scope),
     createdAt: String(t.created_at),
@@ -115,6 +119,7 @@ export function rowsToWorkspace(raw: unknown, ownerKey: string): Workspace {
     id: String(b.id),
     ownerId: ownerKey,
     nodeId: String(b.topic_id),
+    parentBlockId: s(b.parent_block_id),
     title: String(b.title),
     contentJson: (b.content_json as Block["contentJson"]) ?? null,
     contentText: String(b.content_text ?? ""),
@@ -133,6 +138,13 @@ export function rowsToWorkspace(raw: unknown, ownerKey: string): Workspace {
     scope: scopeOf(b.scope),
     createdAt: String(b.created_at),
     updatedAt: String(b.updated_at),
+    contentUpdatedAt: s(b.content_updated_at),
+    assets: ((b.assets as Row[]) ?? []).map((a) => ({
+      id: String(a.id),
+      caption: s(a.caption),
+      mimeType: s(a.mime_type),
+      createdAt: String(a.created_at),
+    })),
     deletedAt: s(b.deleted_at),
     deleteBatchId: s(b.delete_batch_id),
   }));
@@ -158,8 +170,9 @@ export async function loadWorkspace(db: SifaV2Db, scope: Scope, ownerKey: string
   }
 }
 
-/** Kaydet: doğrula → TEK DB işlemi. Başarısızlıkta hiçbir satır yazılmaz; sahte başarı yok. */
-export async function saveChangeset(db: SifaV2Db, scope: Scope, body: unknown): Promise<ServiceResult<SaveResult>> {
+/** Kaydet: doğrula → TEK DB işlemi. Başarısızlıkta hiçbir satır yazılmaz; sahte başarı yok.
+ *  removedAssets: DB'den kaldırılan kendi yüklemelerinin nesne yolları (çağıran Storage'dan siler; istemciye dönmez). */
+export async function saveChangeset(db: SifaV2Db, scope: Scope, body: unknown): Promise<ServiceResult<SaveResult & { removedAssets: RemovedAsset[] }>> {
   if (!scopeOk(scope)) return { ok: false, ...badScope() };
   let changes;
   try {
@@ -169,20 +182,11 @@ export async function saveChangeset(db: SifaV2Db, scope: Scope, body: unknown): 
     throw e;
   }
   try {
-    const raw = (await db.rpc("sifa_v2_apply_changeset", { p_tenant: scope.tenantId, p_user: scope.userId, p_changes: changes })) as SaveResult;
-    return { ok: true, value: { topics: raw?.topics ?? {}, blocks: raw?.blocks ?? {} } };
-  } catch (e) {
-    return { ok: false, ...mapDbError(e) };
-  }
-}
-
-/** Kurum kaydını kişisel kopyaya dönüştürür (özgün kayda dokunmaz; tekrarında mevcut kopya döner). */
-export async function copySharedToPersonal(db: SifaV2Db, scope: Scope, rootId: unknown): Promise<ServiceResult<{ rootId: string; created: boolean }>> {
-  if (!scopeOk(scope)) return { ok: false, ...badScope() };
-  if (typeof rootId !== "string" || !UUID.test(rootId)) return { ok: false, status: 400, code: "SIFA_V2_BAD_REQUEST", error: "Geçersiz konu." };
-  try {
-    const r = (await db.rpc("sifa_v2_copy_shared", { p_tenant: scope.tenantId, p_user: scope.userId, p_root: rootId })) as { root_id: string; created: boolean };
-    return { ok: true, value: { rootId: String(r.root_id), created: Boolean(r.created) } };
+    const raw = (await db.rpc("sifa_v2_apply_changeset", { p_tenant: scope.tenantId, p_user: scope.userId, p_changes: changes })) as SaveResult & { removed_assets?: RemovedAsset[] };
+    const removedAssets = (Array.isArray(raw?.removed_assets) ? raw.removed_assets : []).filter(
+      (a): a is RemovedAsset => !!a && typeof a.bucket === "string" && typeof a.storage_path === "string",
+    );
+    return { ok: true, value: { topics: raw?.topics ?? {}, blocks: raw?.blocks ?? {}, removedAssets } };
   } catch (e) {
     return { ok: false, ...mapDbError(e) };
   }

@@ -207,7 +207,8 @@ ok(/selectionGroup: string;\s*scope: YhModuleScope;\s*\},\s*\): Promise<Snapshot
 ok(/\.filter\(\(r\) => isYhSourceModuleInScope\(args\.scope, r\.source_module\)\)/.test(snapStoreSrc), "Word teslim okuması source_module'ü aktif kapsamla süzer");
 ok(/items: visibleRows\(ctx, res\.rows\)\.map\(toSnapshotDto\)/.test(snapStoreSrc) && /const rows = after\.ok \? visibleRows\(ctx, after\.rows\) : \[\]/.test(snapStoreSrc), "snapshot GET + POST yanıtı yalnız aktif kapsamı döner");
 ok(!/\.delete\(\)[\s\S]{0,200}source_module/.test(snapStoreSrc), "kapsam dışı snapshot için SİLME yolu yok (yalnız gizleme)");
-for (const f of ["app/api/clients/[id]/word-report/route.ts", "app/api/sifa-rehberi/word-report/route.ts", "app/api/refleksoloji/protocol-report/route.ts"]) {
+// Şifa V1 Word rotası F3 ile kaldırıldı (Owner kararı 26.11.2026); Şifa Word'ü YH eki taşımaz.
+for (const f of ["app/api/clients/[id]/word-report/route.ts", "app/api/refleksoloji/protocol-report/route.ts"]) {
   const src = read(f);
   ok(/resolveYhModuleScope\(guard\.profile\?\.role, guard\.profile\?\.module_permissions\)/.test(src) && /readSnapshotsForDelivery\(db, \{[\s\S]{0,260}scope/.test(src), `${f.split("/").slice(2, -1).join("/")}: Word eki GÜNCEL module_permissions kapsamıyla`);
 }

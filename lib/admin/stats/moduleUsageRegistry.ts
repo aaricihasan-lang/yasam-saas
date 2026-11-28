@@ -30,6 +30,11 @@ export type ModuleRecordSource = {
    * sayımından ÇIKARILIR (içerik okunmadan, yalnız gösterge kolonlarıyla).
    */
   excludeTransferred?: boolean;
+  /**
+   * Kişisel kayıt tablosu: sayım hedef uzmanın KENDİ satırlarıyla sınırlanır (ownerColumn = uzmanın
+   * kullanıcı kimliği) + ek sabit süzgeçler. Şifa Rehberi F3 (Owner kararı 26.11.2026) bunu kullanır.
+   */
+  personal?: { ownerColumn: string; eq?: Record<string, string>; isNull?: readonly string[] };
 };
 
 export type ModuleUsageDescriptor = {
@@ -95,7 +100,14 @@ export const MODULE_USAGE_REGISTRY: Record<UsageTrackedModuleKey, ModuleUsageDes
     key: "sifa_rehberi",
     label: "Şifa Rehberi",
     hasDurableTrace: true,
-    recordSources: [{ table: "healing_guides", tenantColumn: "tenant_id", createdColumn: "created_at", excludeTransferred: true }],
+    // F3: tamamen kişisel kütüphane — uzmanın çöpte olmayan ana konuları (kök; hazır başlıklar kök olamaz).
+    // Admin kütüphane aktarımı Şifa F3'te yok (kişisel satıra aktarım göstergesi yok) → excludeTransferred gereksiz.
+    recordSources: [{
+      table: "sifa_topics",
+      tenantColumn: "tenant_id",
+      createdColumn: "created_at",
+      personal: { ownerColumn: "owner_key", eq: { scope: "kisisel" }, isNull: ["parent_id", "deleted_at"] },
+    }],
   },
   energy_body: {
     key: "energy_body",
