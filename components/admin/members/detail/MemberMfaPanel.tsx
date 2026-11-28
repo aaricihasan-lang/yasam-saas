@@ -7,6 +7,7 @@
  * doğrulanınca aynı istek BİR KEZ yeniden gönderilir (kanıt DB'de aynı işlemde tüketilir).
  */
 import { useCallback, useEffect, useState } from "react";
+import PasswordInput from "@/components/ui/PasswordInput";
 import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
@@ -234,8 +235,8 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               {mode === "access_reset" ? (
                 <label className="grid gap-1 text-sm font-bold text-slate-700">
                   Kendi parolanız (Owner)
-                  <input type="password" autoComplete="current-password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)}
-                    className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-semibold text-slate-900" data-mfa-owner-password />
+                  <PasswordInput autoComplete="current-password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)}
+                    className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 pr-12 text-base font-semibold text-slate-900" data-mfa-owner-password />
                 </label>
               ) : null}
               <label className="flex items-start gap-2 text-sm font-bold text-slate-700">
