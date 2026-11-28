@@ -1,4 +1,8 @@
 /**
+ * ⚠️ TARİHÎ (CI'da ÇALIŞMAZ): 28.11 Owner kararıyla uzmanlara kurtarma kodu seçeneği GÖSTERİLMEZ (yalnız Owner);
+ * bu dosyanın "uzman Ayarlar'dan kod oluşturur" bölümü artık geçerli değildir. Güncel kapsam: f4-kurtarma-ui.e2e.ts
+ * (uzmanda kart yok, Owner'da var) + owner-erisim-sifirlama.harness.ts (Owner destekli giriş erişimi sıfırlama).
+ *
  * GİRİŞ GÜVENLİĞİ F2-E — TARAYICI uçtan uca + görsel kabul: hesap kurtarma ekranları.
  * Tarayıcılar: Chrome, Edge (masaüstü), WebKit iPhone emülasyonu (Safari motoru; HTTPS vekil), Chromium
  * Android emülasyonu + 320 / 375 / 390 px mobil görünümler. GERÇEK CİHAZ / GERÇEK SAFARI / GERÇEK GMAIL

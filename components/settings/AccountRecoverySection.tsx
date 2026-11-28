@@ -244,7 +244,7 @@ export default function AccountRecoverySection({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <p>
             Bu oturum <strong>{st.sessionRecoveryKind === "case_ticket" ? "kurtarma biletiyle" : st.sessionRecoveryKind === "owner_offline" ? "çevrimdışı Owner koduyla" : "kurtarma koduyla"}</strong> açıldı.
-            Kaybettiğiniz telefonu aşağıdaki listeden iptal edin, gerekirse e-posta adresinizi güncelleyin ve yeni kurtarma kodları oluşturun.
+            Kaybettiğiniz telefonu aşağıdaki listeden iptal edin ve gerekirse e-posta adresinizi güncelleyin{st.isOwner ? "; ardından yeni kurtarma kodları oluşturun" : ""}.
           </p>
         </div>
       )}
@@ -266,7 +266,9 @@ export default function AccountRecoverySection({
       {error && <p role="alert" data-testid="recovery-error" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</p>}
       {notice && <p role="status" data-testid="recovery-notice" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{notice}</p>}
 
-      {/* Kurtarma kodları */}
+      {/* Kurtarma kodları — YALNIZ Owner (Owner kararı 28.11): uzmanlar erişimini kaybederse Owner destekli sıfırlama kullanılır.
+          Mevcut kodlar silinmez; uzmanın daha önce oluşturduğu kod girişte geçerliliğini korur. */}
+      {st?.isOwner && (
       <div className={card} data-testid="recovery-codes-card">
         <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-900">
           <KeyRound className="h-4 w-4 text-violet-600" aria-hidden />
@@ -342,6 +344,7 @@ export default function AccountRecoverySection({
           <p className="mt-1.5 text-[11px] text-amber-700">Yeni kod oluşturursanız eski kodlarınızın hepsi geçersiz olur.</p>
         )}
       </div>
+      )}
 
       {/* E-posta değişikliği */}
       <details className={card} data-testid="email-change-card">
@@ -349,8 +352,8 @@ export default function AccountRecoverySection({
           <Mail className="h-4 w-4 text-slate-500" aria-hidden /> E-posta adresimi değiştir
         </summary>
         <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          Eski e-posta adresinize erişemiyorsanız buradan yeni adres tanımlayın. Güvenlik için telefonla (QR) veya kurtarma koduyla giriş yapmış olmanız,
-          parolanızı girmeniz ve yeni adrese gelen kodu doğrulamanız gerekir. Danışanlarınız ve kayıtlarınız etkilenmez.
+          Eski e-posta adresinize erişemiyorsanız buradan yeni adres tanımlayın. Güvenlik için telefonla (QR){st?.isOwner ? " veya kurtarma koduyla" : ""} giriş yapmış olmanız,
+          parolanızı girmeniz ve yeni adrese gelen kodu doğrulamanız gerekir. Telefonunuz yoksa sistem sahibiyle iletişime geçin. Danışanlarınız ve kayıtlarınız etkilenmez.
         </p>
         {emailChangeAvailable === false && (
           <p data-testid="email-change-unavailable" className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
@@ -359,7 +362,7 @@ export default function AccountRecoverySection({
         )}
         {emailChangeAvailable !== false && !strongSession && st && (
           <p data-testid="email-change-needs-strong" className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
-            Bu oturum e-posta koduyla açıldı. Adresi değiştirmek için çıkış yapıp telefonla (QR) veya kurtarma koduyla giriş yapın.
+            Bu oturum e-posta koduyla açıldı. Adresi değiştirmek için çıkış yapıp telefonla (QR){st.isOwner ? " veya kurtarma koduyla" : ""} giriş yapın ya da sistem sahibiyle iletişime geçin.
           </p>
         )}
         {emailChangeAvailable === false ? null : !emailReq ? (
