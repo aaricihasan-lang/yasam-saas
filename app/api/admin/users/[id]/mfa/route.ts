@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { isMfaChallengeId } from "@/lib/auth/mfaChallenge";
 import { loadMfaAdminStatus, MFA_REASON_TEXT } from "@/lib/auth/mfaAdminStatus";
+import { reconfirmPassword } from "@/lib/auth/stepUp";
 
 export const runtime = "nodejs";
 
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   const action = body?.action;
   const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
+  if (action === "access_reset") return accessReset(req, o.guard, id, body, reason);
   if (action !== "enable" && action !== "disable") return json({ error: "Geçersiz işlem." }, 400);
   if (body?.confirm !== true) return json({ code: "CONFIRM_REQUIRED", error: "İşlemi açıkça onaylamanız gerekiyor." }, 400);
   if (reason.length < 3 || reason.length > 500) return json({ code: "reason_required", error: SET_ERRORS.reason_required[1] }, 400);
@@ -103,10 +105,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
         if (!st.status.ready) {
           return json({ code: "NO_USABLE_METHOD", error: MFA_REASON_TEXT.no_usable_method, status: withReasonText(st) }, 409);
         }
-        // F4 (Risk A): Owner DIŞI hesapta kullanılmamış kurtarma kodu yoksa açılmaz (e-posta / telefon erişimi kaybolursa kilitlenme).
-        if (!st.status.isOwnerAccount && st.status.memberRecoveryReady !== true) {
-          return json({ code: "RECOVERY_REQUIRED", error: MFA_REASON_TEXT.recovery_codes_missing, status: withReasonText(st) }, 409);
-        }
+        // Kurtarma kodu ŞART DEĞİL (Owner kararı 28.11): erişimini kaybeden kullanıcı Owner destekli sıfırlamayla
+        // (action: "access_reset") yeniden girer.
         // Owner hesabı (yalnız kendisi olabilir): kurtarma kiti yoksa / okunamazsa açılmaz.
         if (st.status.isOwnerAccount && st.status.ownerSelfRecoveryReady !== true) {
           const reason = isSelf && st.status.ownerOfflineKitLeft !== null ? "owner_kit_missing" : "owner_recovery_unreadable";
@@ -143,4 +143,50 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   } catch {
     return json({ error: "İşlem tamamlanamadı." }, 500);
   }
+}
+
+/** auth_owner_access_reset sonuç kodları → HTTP + sade Türkçe. */
+const RESET_ERRORS: Record<string, [number, string]> = {
+  forbidden: [403, OWNER_ONLY],
+  bad_request: [400, "Gerekçe yazın (10–500 karakter)."],
+  target_forbidden: [403, "Kendi hesabınızın ya da Owner hesabının erişimi bu ekrandan sıfırlanamaz."],
+  not_found: [404, "Üye bulunamadı."],
+  fresh_mfa_required: SET_ERRORS.fresh_mfa_required,
+  step_up_required: SET_ERRORS.step_up_required,
+};
+
+/**
+ * OWNER DESTEKLİ GİRİŞ ERİŞİMİ SIFIRLAMA (Owner kişiyi sistem DIŞINDA teyit eder).
+ * POST { action: "access_reset", reason, password (Owner'ın kendi parolası), confirm: true }
+ * Tek işlemde (DB): MFA zorunluluğu kalkar, güvenilir cihazlar iptal, bütün oturumlar kapanır, kullanılmamış kurtarma
+ * kodları / e-posta kodları geçersiz; security_events denetim kaydı. Kullanıcı verisi, parola ve e-posta adresi DEĞİŞMEZ
+ * (gerekirse ayrıca: şifre sıfırlama / adres değişikliği — yeni adres kullanıcı doğrulayana kadar doğrulanmamış sayılır).
+ */
+async function accessReset(
+  req: NextRequest,
+  guard: { db: Parameters<typeof reconfirmPassword>[0]; adminId: string; sessionToken: string },
+  id: string,
+  body: Record<string, unknown> | null,
+  reason: string,
+) {
+  if (body?.confirm !== true) return json({ code: "CONFIRM_REQUIRED", error: "Kişiyi sistem dışında teyit ettiğinizi onaylayın." }, 400);
+  if (reason.length < 10 || reason.length > 500) return json({ code: "reason_required", error: RESET_ERRORS.bad_request[1] }, 400);
+  if (id === guard.adminId) return json({ code: "target_forbidden", error: RESET_ERRORS.target_forbidden[1] }, 403);
+  // Owner parolası işlemden HEMEN önce yeniden doğrulanır (kilit / oran sınırlı): yalnız Owner çerezi yetmez.
+  const step = await reconfirmPassword(guard.db, req, guard.adminId, body?.password);
+  if (!step.ok) return json(step.body, step.status);
+  const { data, error } = await guard.db.rpc("auth_owner_access_reset", { p_actor_token: guard.sessionToken, p_user_id: id, p_reason: reason });
+  if (error) {
+    const code = String((error as { code?: unknown }).code ?? "");
+    if (code === "PGRST202" || code === "42883") return json({ code: "UNAVAILABLE", error: "Giriş erişimi sıfırlama henüz etkin değil." }, 503);
+    return json({ code: "UNAVAILABLE", error: MFA_REASON_TEXT.db_unavailable }, 503);
+  }
+  const r = (data ?? {}) as Record<string, unknown>;
+  if (r.ok !== true) {
+    const c = String(r.code ?? "forbidden");
+    const e = RESET_ERRORS[c] ?? RESET_ERRORS.forbidden;
+    return json({ code: c === "step_up_required" ? "STEP_UP_REQUIRED" : c, error: e[1], ...(c === "step_up_required" ? { action: "mfa_disable", target: id } : {}) }, e[0]);
+  }
+  return json({ ok: true, mfaRequiredBefore: r.mfa_required_before === true, devicesRevoked: Number(r.devices_revoked) || 0,
+    sessionsClosed: Number(r.sessions_closed) || 0, codesRevoked: Number(r.codes_revoked) || 0 }, 200);
 }

@@ -113,6 +113,9 @@ const TSX = [
   // F4: MFA atlatma denetimi — bütün oturum oluşturan yollar (web / Android / tamamlama / doğrudan RPC), oturum sabitleme, replay,
   // hesap keşfi; pozitif kontrollerle (imza hatası ≠ koruma).
   "scripts/giris-guvenligi/f4-mfa-atlatma.harness.ts",
+  // Owner destekli giriş erişimi sıfırlama (kurtarma kodu zorunluluğunun yerine, 28.11): Owner + parola + gerekçe + teyit;
+  // MFA / cihaz / oturum / kod sıfırlanır, veri / parola / adres değişmez, diğer hesaplar değişmez; MFA'lı Owner'da F2-G korunur.
+  "scripts/giris-guvenligi/owner-erisim-sifirlama.harness.ts",
   // F4: girişte e-posta OTP pilotu (tek uzman) — planlanan production yapılandırmasının uçtan uca provası; diğer hesaplar
   // değişmez, OTP / CSRF / kilit / kurtarma kodu / e-posta kesintisi / QR uyumu / acil geri dönüş.
   "scripts/giris-guvenligi/f4-otp-giris-provasi.harness.ts",
@@ -188,7 +191,6 @@ const steps = [
       mustRe: /NEGATİF KONTROL \(F3_PILOT_NEGATIF=1\)[\s\S]*FAIL pilot hesap pasif → kapalı[\s\S]*FAIL pilot hesap arşiv → kapalı/ },
     // NEGATİF KONTROLLER (F4 kurtarma): her koruma kaldırılınca ilgili madde FAIL VERMELİ.
     ...[
-      ["F4_NEGATIF_KAPI", /NEGATİF KONTROL:[^\n]*kurtarma kodu şartı kaldırıldı[\s\S]*FAIL kurtarma kodu yok → 409 RECOVERY_REQUIRED/],
       ["F4_NEGATIF_RISKB", /NEGATİF KONTROL:[^\n]*süre dolumu korunması kaldırıldı[\s\S]*FAIL liste süresi doldu/],
       ["F4_NEGATIF_SQL", /NEGATİF KONTROL:[^\n]*SQL posta kutusu kanıtı çıkarıldı[\s\S]*FAIL doğrudan RPC: yanlış \/ eksik posta kutusu kanıtıyla/],
       ["F4_NEGATIF_SQL_DURUM", /NEGATİF KONTROL:[^\n]*SQL hesap durumu \+ kapsam denetimi çıkarıldı[\s\S]*FAIL doğrudan RPC: Pasif[\s\S]*FAIL doğrudan RPC: test listesinde OLMAYAN/],
@@ -196,6 +198,11 @@ const steps = [
     ].map(([v, mustRe]) => ({ label: `f4-kurtarma-guvenligi NEGATİF (${v}=1 → FAIL beklenir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts"],
       env: { [v]: "1" }, expectFail: true, passRe: /f4-kurtarma-guvenligi: [0-9]+ PASS \/ [1-9][0-9]* FAIL/, mustRe })),
+    // NEGATİF KONTROL: Owner parolası doğrulaması kaldırılınca parolasız / yanlış parolalı sıfırlama FAIL VERMELİ.
+    { label: "owner-erisim-sifirlama NEGATİF (OWNER_SIFIRLAMA_PAROLASIZ=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/owner-erisim-sifirlama.harness.ts"],
+      env: { OWNER_SIFIRLAMA_PAROLASIZ: "1" }, expectFail: true, passRe: /owner-erisim-sifirlama: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL:[^\n]*Owner parolası doğrulaması kaldırıldı[\s\S]*FAIL Owner — parola YOK[\s\S]*FAIL Owner — parola YANLIŞ/ },
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],

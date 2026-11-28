@@ -207,7 +207,7 @@ async function main() {
           ok((await page.getByTestId("recovery-setup-form").count()) === 0, `${tag}: listede olmayan uzmanda MFA öncesi kurulum formu YOK`);
           await ctx.close();
         }
-        // ── Owner: kurtarma kodu şartı ──
+        // ── Owner: kurtarma kodu ŞART DEĞİL (28.11) + "Giriş erişimini sıfırla" düğmesi ──
         if (w === 390 || w === 1280) {
           const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
           const page = await ctx.newPage();
@@ -218,8 +218,9 @@ async function main() {
           await page.goto(`${BASE}/admin/users/${O}#hesap`, { waitUntil: "domcontentloaded" });
           await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 });
           await page.locator("[data-mfa-ready=yes]").waitFor({ timeout: 20000 });
-          ok(await page.locator("[data-mfa-action=enable]").isDisabled() && (await page.locator("[data-mfa-recovery-blocked]").count()) === 1,
-            `${tag}: kodsuz üyede "Zorunluluğu aç" KAPALI, açıklama görünür`);
+          ok(await page.locator("[data-mfa-action=enable]").isEnabled() && (await page.locator("[data-mfa-recovery-blocked]").count()) === 0
+            && (await page.locator("[data-mfa-action=access_reset]").count()) === 1,
+            `${tag}: kodsuz üyede "Zorunluluğu aç" AÇIK (kod şartı yok), "Giriş erişimini sıfırla" görünür`);
           await page.locator("[data-mfa-panel]").screenshot({ path: path.join(OUT, `${slug}-owner-kodsuz-uye.png`) });
           await page.goto(`${BASE}/admin/users/${P}#hesap`, { waitUntil: "domcontentloaded" });
           await page.reload({ waitUntil: "domcontentloaded" });

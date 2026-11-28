@@ -31,7 +31,7 @@ type Status = {
   ready: boolean;
   readyReasonText: string[];
 };
-type Mode = null | "enable" | "disable";
+type Mode = null | "enable" | "disable" | "access_reset";
 
 const fmt = (iso: string | null) => {
   if (!iso) return "—";
@@ -58,6 +58,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [stepUp, setStepUp] = useState(false);
+  const [ownerPassword, setOwnerPassword] = useState("");
 
   const load = useCallback(async () => {
     const headers = ownerAdminHeaders();
@@ -78,7 +79,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
     return () => window.clearTimeout(t);
   }, [load]);
 
-  const openMode = (m: Mode) => { setMode(m); setReason(""); setConfirmed(false); setMessage(null); };
+  const openMode = (m: Mode) => { setMode(m); setReason(""); setConfirmed(false); setOwnerPassword(""); setMessage(null); };
 
   const submit = useCallback(async () => {
     if (!mode) return;
@@ -88,9 +89,16 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
     try {
       const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/mfa`, {
         method: "POST", headers, cache: "no-store",
-        body: JSON.stringify({ action: mode, reason: reason.trim(), confirm: confirmed }),
+        body: JSON.stringify({ action: mode, reason: reason.trim(), confirm: confirmed, ...(mode === "access_reset" ? { password: ownerPassword } : {}) }),
       });
-      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; code?: string; error?: string; changed?: boolean; reloginRequired?: boolean; status?: Status | null };
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; code?: string; error?: string; changed?: boolean; reloginRequired?: boolean; status?: Status | null;
+        devicesRevoked?: number; sessionsClosed?: number };
+      if (res.ok && j.ok && mode === "access_reset") {
+        setMode(null); setOwnerPassword("");
+        setMessage({ kind: "ok", text: `Giriş erişimi sıfırlandı: ikinci doğrulama zorunluluğu kaldırıldı, ${j.devicesRevoked ?? 0} cihaz iptal edildi, ${j.sessionsClosed ?? 0} oturum kapatıldı. Üye parolasıyla giriş yapabilir; gerekirse şifresini sıfırlayın veya e-posta adresini güncelleyin (yeni adresi üye doğrulayana kadar doğrulanmamış sayılır).` });
+        void load();
+        return;
+      }
       if (res.ok && j.ok) {
         if (j.status) setStatus(j.status);
         setMode(null);
@@ -109,18 +117,18 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
     } finally {
       setBusy(false);
     }
-  }, [mode, reason, confirmed, userId]);
+  }, [mode, reason, confirmed, ownerPassword, userId, load]);
 
   if (!visible) return null;
 
   const s = status;
   // Sunucu aynı kuralları ayrıca uygular (API 409); düğme yalnız kolaylık.
   const ownerBlocked = !!s && s.isOwnerAccount && s.ownerSelfRecoveryReady !== true;
-  // F4: Owner dışı hesapta kurtarma kodu şartı (sunucu da 409 RECOVERY_REQUIRED ile reddeder).
-  const memberRecoveryBlocked = !!s && !s.isOwnerAccount && s.memberRecoveryReady !== true;
-  const canEnable = !!s && !s.mfaRequired && s.ready && s.configIssues.length === 0 && !ownerBlocked && !memberRecoveryBlocked;
+  const canEnable = !!s && !s.mfaRequired && s.ready && s.configIssues.length === 0 && !ownerBlocked;
   const canDisable = !!s && s.mfaRequired && !isSelf;
-  const reasonOk = reason.trim().length >= 3;
+  const canReset = !!s && !isSelf && !s.isOwnerAccount;
+  const reasonOk = reason.trim().length >= (mode === "access_reset" ? 10 : 3);
+  const passwordOk = mode !== "access_reset" || ownerPassword.length > 0;
 
   return (
     <section id="uye-mfa-yonetimi" className="min-w-0 rounded-[28px] border-2 border-white/80 bg-white/90 p-6 sm:p-8" aria-labelledby="uye-mfa-baslik" data-mfa-panel>
@@ -154,9 +162,9 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               {s.methods.qr_device.reasonText.map((t) => <span key={t} className="break-words">{t}</span>)}
             </div>
             <div className={detailCss.infoCard} data-recovery="codes">
-              <b>Kurtarma kodları</b>
-              <span><Pill ok={s.recoveryCodesLeft > 0} yes="Hazır" no="Yok" /></span>
-              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Yok — üye zorunluluktan ÖNCE Ayarlar › Giriş Yöntemlerim'den oluşturmalı."}</span>
+              <b>Kurtarma kodları (isteğe bağlı)</b>
+              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Yok"}</span>
+              <span className="break-words">Erişimini kaybeden üye Owner destekli sıfırlamayla yeniden girer.</span>
             </div>
             {s.isOwnerAccount ? (
               <div className={detailCss.infoCard} data-recovery="owner-kit" data-owner-kit={s.ownerOfflineKitLeft === null ? "unknown" : String(s.ownerOfflineKitLeft)}>
@@ -200,7 +208,12 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               {s.mfaRequired && isSelf ? <p className="text-sm font-semibold text-slate-600">Kendi zorunluluğunuz bu ekrandan kaldırılamaz.</p> : null}
               {!s.mfaRequired && !s.ready ? <p className="text-sm font-semibold text-slate-600">Önce üyenin çalışan bir doğrulama yöntemi olmalı; aksi hâlde giriş yapamaz.</p> : null}
               {!s.mfaRequired && s.ready && ownerBlocked ? <p className="text-sm font-semibold text-slate-600" data-mfa-owner-blocked>Kendi zorunluluğunuzu açmadan önce kullanılmamış çevrimdışı kurtarma kiti kodunuz olmalı.</p> : null}
-              {!s.mfaRequired && s.ready && memberRecoveryBlocked ? <p className="text-sm font-semibold text-slate-600" data-mfa-recovery-blocked>Zorunluluk açılmadan önce üye kendi kurtarma kodlarını oluşturmalı (Ayarlar → Giriş Yöntemlerim). Böylece e-posta veya telefon erişimini kaybederse kilitlenmez.</p> : null}
+              {canReset ? (
+                <button type="button" onClick={() => openMode("access_reset")}
+                  className="min-h-11 w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-800 sm:w-auto" data-mfa-action="access_reset">
+                  Giriş erişimini sıfırla
+                </button>
+              ) : null}
             </div>
           ) : (
             <div className="mt-5 grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4" data-mfa-form={mode}>
@@ -209,21 +222,30 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
                   ? isSelf
                     ? "Kendi hesabınızda ikinci doğrulamayı zorunlu yapıyorsunuz. İkinci doğrulamasız açılmış oturumlarınız (bu oturum dahil) hemen kapanır; telefonunuz veya e-posta kodunuzla yeniden giriş yapmanız gerekir."
                     : "Üye bundan sonra her girişte ikinci doğrulama yapacak. İkinci doğrulamasız açık oturumları hemen kapanır."
-                  : "Zorunluluğu kaldırmak hesabın korumasını azaltır. Telefonunuz veya e-posta kodunuzla ek doğrulama istenecek."}
+                  : mode === "access_reset"
+                    ? "Üye bütün giriş yöntemlerine erişimini kaybettiyse ve kişiyi sistem dışında teyit ettiyseniz kullanın. İkinci doğrulama zorunluluğu kalkar, güvenilir cihazları iptal edilir ve bütün oturumları kapanır. Danışanlar, notlar, raporlar ve diğer veriler DEĞİŞMEZ."
+                    : "Zorunluluğu kaldırmak hesabın korumasını azaltır. Telefonunuz veya e-posta kodunuzla ek doğrulama istenecek."}
               </p>
               <label className="grid gap-1 text-sm font-bold text-slate-700">
                 Gerekçe
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={2}
                   className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-semibold text-slate-900" data-mfa-reason />
               </label>
+              {mode === "access_reset" ? (
+                <label className="grid gap-1 text-sm font-bold text-slate-700">
+                  Kendi parolanız (Owner)
+                  <input type="password" autoComplete="current-password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)}
+                    className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-semibold text-slate-900" data-mfa-owner-password />
+                </label>
+              ) : null}
               <label className="flex items-start gap-2 text-sm font-bold text-slate-700">
                 <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 h-5 w-5 shrink-0" data-mfa-confirm />
-                <span className="break-words">{mode === "enable" ? "Üyenin çalışan bir doğrulama yöntemi olduğunu ve girişlerin değişeceğini anladım." : "Bu hesabın ikinci doğrulama korumasını kaldırmayı onaylıyorum."}</span>
+                <span className="break-words">{mode === "enable" ? "Üyenin çalışan bir doğrulama yöntemi olduğunu ve girişlerin değişeceğini anladım." : mode === "access_reset" ? "Kişinin kimliğini sistem dışında teyit ettim; yalnız bu üyenin giriş erişimini sıfırlıyorum." : "Bu hesabın ikinci doğrulama korumasını kaldırmayı onaylıyorum."}</span>
               </label>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={() => void submit()} disabled={busy || !reasonOk || !confirmed}
+                <button type="button" onClick={() => void submit()} disabled={busy || !reasonOk || !confirmed || !passwordOk}
                   className="min-h-11 w-full rounded-xl bg-[#793843] px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" data-mfa-submit>
-                  {busy ? "İşleniyor…" : mode === "enable" ? "Zorunluluğu aç" : "Zorunluluğu kaldır"}
+                  {busy ? "İşleniyor…" : mode === "enable" ? "Zorunluluğu aç" : mode === "access_reset" ? "Erişimi sıfırla" : "Zorunluluğu kaldır"}
                 </button>
                 <button type="button" onClick={() => setMode(null)} disabled={busy}
                   className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 sm:w-auto">
@@ -239,7 +261,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
         <OwnerStepUpDialog
           action="mfa_disable"
           targetId={userId}
-          onCancel={() => { setStepUp(false); setMessage({ kind: "error", text: "Ek doğrulama tamamlanmadı; zorunluluk değişmedi." }); }}
+          onCancel={() => { setStepUp(false); setMessage({ kind: "error", text: "Ek doğrulama tamamlanmadı; hiçbir şey değişmedi." }); }}
           onVerified={() => { setStepUp(false); void submit(); }}
         />
       ) : null}

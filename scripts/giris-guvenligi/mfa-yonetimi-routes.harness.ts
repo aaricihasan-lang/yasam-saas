@@ -132,7 +132,7 @@ async function main() {
     const a3 = await setMfa(MOB1.id, mob.sid, MOB1.id, ENABLE());
     ok(a3.res.status >= 401 && a3.res.status <= 403 && (await required(MOB1.id)).mfa_required === false, "uzman kendi isteğiyle açamaz (yönetici değil)", { s: a3.res.status });
     // F4: Owner dışı hesapta zorunluluk için kurtarma kodu şartı (gerçek akış: üye kodlarını ÖNCE oluşturur). Sentetik özet satırları;
-    // kural ayrıca f4-kurtarma-guvenligi'nde (kodsuz → 409 RECOVERY_REQUIRED) sınanır.
+    // (kurtarma kodu şartı 28.11'de kaldırıldı; erişim kaybı → owner-erisim-sifirlama).
     await q(`INSERT INTO public.auth_recovery_codes (user_id, kind, batch_id, code_hash)
              SELECT u, 'user', gen_random_uuid(), md5(random()::text) || md5(random()::text) FROM unnest($1::uuid[]) u`, [[MOB1.id, U.and1, EXC.id]]);
     const a4 = await setMfa(U.owner, adm2.sid, MOB1.id, ENABLE());
