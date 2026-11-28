@@ -130,7 +130,7 @@ async function main() {
     for (let i = 0; i < 150; i++) { try { const r = await fetch(`${BASE}/`); if (r.status < 500) break; } catch { /* bekle */ } await sleep(1000); }
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id IN ($1, $2, $3)`, [FREE, AND1, U.owner]);
     // F4: Owner dışı hesapta zorunluluk için kurtarma kodu şartı (gerçek akış: üye kodlarını ÖNCE oluşturur). Sentetik özet satırları;
-    // kural ayrıca f4-kurtarma-guvenligi'nde (kodsuz → 409 RECOVERY_REQUIRED) sınanır.
+    // (kurtarma kodu şartı 28.11'de kaldırıldı; erişim kaybı → owner-erisim-sifirlama).
     await q(`INSERT INTO public.auth_recovery_codes (user_id, kind, batch_id, code_hash)
              SELECT u, 'user', gen_random_uuid(), md5(random()::text) || md5(random()::text) FROM unnest($1::uuid[]) u`, [[FREE, AND1]]);
 

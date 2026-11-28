@@ -1,4 +1,8 @@
 /**
+ * 28.11 Owner kararı: uzmanlara kurtarma kodu seçeneği GÖSTERİLMEZ (yalnız Owner). Bu test uzman ekranında kartın
+ * OLMADIĞINI doğrular; önceden oluşturulmuş kodların girişte çalışmaya devam ettiğini sınamak için kodlar mevcut sunucu
+ * ucundan (MFA'lı oturum + parola) üretilir. Owner destekli sıfırlama: owner-erisim-sifirlama.harness.ts.
+ *
  * GİRİŞ GÜVENLİĞİ F2-E — TARAYICI uçtan uca + görsel kabul: hesap kurtarma ekranları.
  * Tarayıcılar: Chrome, Edge (masaüstü), WebKit iPhone emülasyonu (Safari motoru; HTTPS vekil), Chromium
  * Android emülasyonu + 320 / 375 / 390 px mobil görünümler. GERÇEK CİHAZ / GERÇEK SAFARI / GERÇEK GMAIL
@@ -141,47 +145,32 @@ async function main() {
       return l;
     };
 
-    console.log("\n── Chrome: Ayarlar › kurtarma kodları oluştur ──");
+    console.log("\n── Chrome: uzmanda kurtarma kodu seçeneği YOK (28.11); mevcut kodlar girişte geçerli ──");
     let codes: string[] = [];
     {
-      const ctx = await chrome.newContext({ viewport: { width: 1280, height: 900 }, locale: "tr-TR", acceptDownloads: true });
+      const ctx = await chrome.newContext({ viewport: { width: 1280, height: 900 }, locale: "tr-TR" });
       const page = await ctx.newPage();
       const l = await emailLogin(page, VE);
-      ok(l.code === "MFA_REQUIRED" && JSON.stringify(l.methods) === '["email_otp"]', "kod oluşturulmadan önce yalnız e-posta yöntemi", l.methods);
+      ok(l.code === "MFA_REQUIRED" && JSON.stringify(l.methods) === '["email_otp"]', "kod yokken yalnız e-posta yöntemi", l.methods);
       await page.goto(`${BASE}/settings`, { waitUntil: "domcontentloaded" });
-      const card = page.getByTestId("recovery-codes-card");
-      await card.waitFor({ timeout: 20000 });
-      await page.getByTestId("recovery-codes-count").waitFor({ timeout: 15000 });
-      ok((await page.getByTestId("recovery-codes-count").innerText()).includes("Kod yok"), "başlangıçta kod yok");
-      await card.screenshot({ path: path.join(OUT, "1-kurtarma-kodlari-yok.png") });
-      await page.getByTestId("recovery-gen-password").fill("yanlis-parola");
-      await page.getByTestId("recovery-generate").click();
-      await page.getByTestId("recovery-error").waitFor({ timeout: 10000 });
-      ok(/Parola hatalı/.test(await page.getByTestId("recovery-error").innerText()), "yanlış parola uyarısı");
-      await page.getByTestId("recovery-gen-password").fill(pw(VE.email));
-      await page.getByTestId("recovery-generate").click();
-      await page.getByTestId("recovery-codes-shown").waitFor({ timeout: 15000 });
-      const items = await page.getByTestId("recovery-code-item").allInnerTexts();
-      codes = items.map((t) => /([A-Z2-7]{4}(?:-[A-Z2-7]{4}){6})/.exec(t)?.[1] ?? "").filter(Boolean);
-      ok(codes.length === 10 && new Set(codes).size === 10, `10 kod bir kez gösterildi (${codes.length})`);
-      await page.screenshot({ path: path.join(OUT, "2-kurtarma-kodlari-gosterildi.png"), fullPage: true });
-      const dl = page.waitForEvent("download", { timeout: 10000 });
-      await page.getByTestId("recovery-codes-download").click();
-      const file = await dl;
-      const saved = path.join(OUT, "indirilen-kodlar-ornek.txt");
-      await file.saveAs(saved);
-      const txt = fs.readFileSync(saved, "utf8");
-      ok(codes.every((c) => txt.includes(c)), "metin dosyası yerel olarak indirildi (sunucuya gitmez)");
-      fs.writeFileSync(saved, "(test kanıtı: içerik doğrulandı, kodlar kanıt klasöründe saklanmaz)\n");
-      ok(await page.getByTestId("recovery-codes-close").isDisabled(), "'kaydettim' işaretlenmeden kapatılamaz");
-      await page.getByTestId("recovery-codes-saved").check();
-      await page.getByTestId("recovery-codes-close").click();
-      await page.getByTestId("recovery-notice").waitFor({ timeout: 5000 });
-      ok(await page.getByTestId("recovery-codes-shown").count() === 0, "kodlar gizlendi");
-      ok((await page.content()).indexOf(codes[0]) === -1, "sayfada kod kalmadı");
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByTestId("recovery-codes-count").waitFor({ timeout: 15000 });
-      ok((await page.getByTestId("recovery-codes-count").innerText()).includes("10 kullanılmamış"), "yenilemede kodlar GÖRÜNMEZ; yalnız sayı");
+      await page.getByTestId("account-recovery-section").waitFor({ timeout: 20000 });
+      await page.getByTestId("email-change-card").waitFor({ timeout: 20000 });
+      await sleep(1500);
+      ok((await page.getByTestId("recovery-codes-card").count()) === 0 && (await page.getByTestId("recovery-generate").count()) === 0,
+        "uzmanın Ayarlar ekranında kurtarma kodu kartı / oluşturma düğmesi YOK (Owner kararı 28.11)");
+      await page.getByTestId("account-recovery-section").screenshot({ path: path.join(OUT, "1-uzman-kurtarma-kodu-yok.png") });
+      // Önceden oluşturulmuş kodların girişte çalışmaya devam ettiğini sınamak için kodlar, AYNI (MFA'lı) oturumla mevcut
+      // sunucu ucundan üretilir (arayüzde seçenek yok; uç parola + MFA'lı oturum ister).
+      const gen = (password: string) => page.evaluate(async ({ password, id }) => {
+        const res = await fetch("/api/me/account-recovery", { method: "POST", headers: { "Content-Type": "application/json", "x-user-id": id },
+          body: JSON.stringify({ action: "generate", password }) });
+        return { status: res.status, j: await res.json().catch(() => ({})) as { codes?: string[]; error?: string } };
+      }, { password, id: VE.id });
+      const bad = await gen("yanlis-parola");
+      ok(bad.status === 400 && /Parola hatalı/.test(String(bad.j.error)), "yanlış parola → reddedildi", bad);
+      const good = await gen(pw(VE.email));
+      codes = (good.j.codes ?? []).map((t) => /([A-Z2-7]{4}(?:-[A-Z2-7]{4}){6})/.exec(t)?.[1] ?? "").filter(Boolean);
+      ok(good.status === 200 && codes.length === 10 && new Set(codes).size === 10, `10 kod üretildi (${codes.length})`);
       ok(!sinkLines().some((m) => codes.some((c) => (m.text + m.html + m.subject).includes(c))), "hiçbir e-postada kod yok");
       await ctx.close();
     }

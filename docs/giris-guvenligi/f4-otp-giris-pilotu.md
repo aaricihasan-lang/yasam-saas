@@ -8,8 +8,13 @@
 - Girişte ikinci doğrulama YALNIZ `users.mfa_required = true` olan hesapta istenir; ortam ayarı tek başına kimseye MFA açmaz.
 - `AUTH_MFA_METHOD_SCOPE=test_accounts`: yöntemler yalnız `auth_mfa_test_accounts` listesindeki hesaplara sunulur.
   Listede olmayan hesap için "zorunluluğu aç" **409 NO_USABLE_METHOD** ile reddedilir.
-- **Kurtarma önce (Risk A kapandı):** Owner dışı hesapta kullanılmamış kurtarma kodu yoksa zorunluluk açılamaz
-  (**409 RECOVERY_REQUIRED**; panel düğmesi kapalı). Kodlar MFA açılmadan ÖNCE, parola + kayıtlı adrese gelen kodla kurulur
+- **Kurtarma = Owner destekli sıfırlama (Owner kararı 28.11):** kurtarma kodu ZORUNLU DEĞİL (eski 409 RECOVERY_REQUIRED
+  kaldırıldı). Bütün giriş yöntemlerine erişimini kaybeden üye Owner'a başvurur; Owner kişiyi sistem DIŞINDA teyit eder ve
+  Üye Detayı › İki Aşamalı Giriş › **Giriş erişimini sıfırla** (kendi parolası + gerekçe 10–500 + teyit onayı) ile yalnız o üyenin
+  MFA zorunluluğunu, güvenilir cihazlarını, oturumlarını ve kullanılmamış kodlarını sıfırlar (`auth_owner_access_reset`, tek işlem,
+  `security_events` 'owner_access_reset' critical). Veri / parola / adres DEĞİŞMEZ; gerekirse ayrıca şifre sıfırlama ve adres
+  değişikliği (yeni adres, üye doğrulayana kadar doğrulanmamış). MFA kullanan Owner'da F2-G (taze MFA + işlem kanıtı) korunur.
+  Kurtarma kodları İSTEĞE BAĞLI olarak hâlâ kurulabilir: parola + kayıtlı adrese gelen kod
   (yalnız parolayı bilen biri kod üretemez). Kurulum hem API'de hem veritabanı fonksiyonunda AYNI kurallarla sınırlı: etkin,
   onaylı (`approval_status='approved'`), arşivde değil, "Pasif" değil, demo değil, admin / uzman, e-postası doğrulanmış,
   zorunluluğu henüz açılmamış VE test listesinde ETKİN kaydı olan hesap. API atlanıp fonksiyon doğrudan çağrılsa da (elinde

@@ -92,6 +92,7 @@ async function main() {
   const browsers: Browser[] = [];
   const q = (sql: string, a: unknown[] = []) => db.admin.query(sql, a);
   const mails = () => { try { return fs.readFileSync(SINK, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to?: string; text?: string }); } catch { return []; } };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- uzman kurulum akışı 28.11 kaldırıldı; yardımcı ileride Owner akışında kullanılabilir
   const waitCode = async (to: string, after: number) => {
     for (let i = 0; i < 60; i++) {
       const m = mails().slice(after).reverse().find((x) => x.to === to);
@@ -151,63 +152,39 @@ async function main() {
       for (const w of WIDTHS) {
         const tag = `${prof.name} ${w}px`;
         const slug = tag.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-        // ── Pilot: MFA öncesi kurulum ──
-        {
+        // ── Uzmanlar (pilot dahil): kurtarma kodu seçeneği GÖSTERİLMEZ (Owner kararı 28.11) ──
+        for (const [who, email] of [["pilot (test listesinde, uygun)", PE], ["listede olmayan uzman", EMAIL.free]] as const) {
+          if (who.startsWith("listede") && !(w === 375 || w === 1280)) continue;
           const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
           const page = await ctx.newPage();
-          const l = await login(page, PE);
-          ok(l.status === 200 && l.loggedIn, `${tag}: pilot parola girişi`, l);
+          const l = await login(page, email);
+          ok(l.status === 200 && l.loggedIn, `${tag}: ${who} parola girişi`, l);
           await page.goto(`${BASE}/settings`, { waitUntil: "domcontentloaded" });
-          const form = page.getByTestId("recovery-setup-form");
-          await form.waitFor({ timeout: 30000 });
-          ok(await form.isVisible() && /ÖNCE kurtarma kodlarınızı oluşturun/.test(await form.innerText()), `${tag}: pilotta "önce kurtarma" kurulum formu görünür`);
-          await layout(page, '[data-testid="recovery-codes-card"]', `${tag} pilot`, w, PE);
-          if ((prof.name === "Chrome" && w === 375) || (prof.name === "Edge" && w === 390)) {
-            const send = page.getByTestId("recovery-setup-send");
-            ok(await send.isDisabled(), `${tag}: parola girilmeden "kod gönder" KAPALI`);
-            await page.getByTestId("recovery-setup-password").fill(pw(PE));
-            const before = mails().length;
-            await send.click();
-            const code = await waitCode(PE, before);
-            ok(/^[0-9]{6}$/.test(code) && mails().slice(before).every((m) => m.to === PE), `${tag}: kod yalnız pilotun kayıtlı adresine`);
-            const input = page.getByTestId("recovery-setup-code");
-            await input.waitFor({ timeout: 15000 });
-            ok((await input.getAttribute("aria-label")) === "Doğrulama kodu" && (await input.getAttribute("autocomplete")) === "one-time-code", `${tag}: kod alanı etiketli`);
-            await input.fill(code === "000000" ? "111111" : "000000");
-            await page.getByTestId("recovery-setup-generate").click();
-            const err = page.getByTestId("recovery-error");
-            await err.waitFor({ timeout: 15000 });
-            ok(/Kod hatalı/.test(await err.innerText()), `${tag}: yanlış kod uyarısı görünür`);
-            await input.fill(code);
-            await page.getByTestId("recovery-setup-generate").click();
-            const shown = page.getByTestId("recovery-codes-shown");
-            await shown.waitFor({ timeout: 20000 });
-            const items = await page.getByTestId("recovery-code-item").count();
-            const close = page.getByTestId("recovery-codes-close");
-            ok(items === 10 && await close.isDisabled(), `${tag}: 10 kurtarma kodu gösterildi; "kaydettim" onayı olmadan gizlenemez`, items);
-            // Kodların gösterildiği an ekran görüntüsüne ALINMAZ (sentetik de olsa kod içeren görsel kanıta konmaz).
-            await page.getByTestId("recovery-codes-saved").check();
-            await close.click();
-            await page.getByTestId("recovery-notice").waitFor({ timeout: 10000 });
-            const n = Number((await q(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = $1 AND state = 'active'`, [P])).rows[0].n);
-            ok(n === 10 && (await page.getByTestId("recovery-codes-shown").count()) === 0, `${tag}: kodlar gizlendi; DB'de 10 aktif özet`, n);
+          await page.getByTestId("account-recovery-section").waitFor({ timeout: 30000 });
+          await page.getByTestId("email-change-card").waitFor({ timeout: 30000 });
+          await sleep(1500);
+          const txt = await page.getByTestId("account-recovery-section").innerText();
+          ok((await page.getByTestId("recovery-codes-card").count()) === 0 && (await page.getByTestId("recovery-setup-form").count()) === 0
+            && (await page.getByTestId("recovery-generate").count()) === 0 && !/kurtarma kod/i.test(txt),
+            `${tag}: ${who}: kurtarma kodu kartı / kurulum / oluşturma YOK, metinde "kurtarma kodu" geçmez`);
+          if (who.startsWith("pilot")) {
+            await layout(page, '[data-testid="account-recovery-section"]', `${tag} pilot`, w, PE);
+            await page.getByTestId("account-recovery-section").screenshot({ path: path.join(OUT, `${slug}-pilot-giris-yontemleri.png`) });
           }
-          await page.getByTestId("recovery-codes-card").screenshot({ path: path.join(OUT, `${slug}-pilot-kurtarma-karti.png`) });
           await ctx.close();
         }
-        // ── Listede olmayan uzman: kurulum formu YOK ──
-        if (w === 375 || w === 1280) {
+        // ── Owner: kendi kurtarma güvenliği KORUNUR (Ayarlar'da kurtarma kodları + çevrimdışı kit kartı) ──
+        if (w === 390 || w === 1280) {
           const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
           const page = await ctx.newPage();
-          const l = await login(page, EMAIL.free);
-          ok(l.loggedIn, `${tag}: listede olmayan uzman girişi`, l);
+          const l = await login(page, EMAIL.owner);
+          ok(l.loggedIn, `${tag}: Owner girişi (Ayarlar)`, l);
           await page.goto(`${BASE}/settings`, { waitUntil: "domcontentloaded" });
           await page.getByTestId("recovery-codes-card").waitFor({ timeout: 30000 });
-          await sleep(1500);
-          ok((await page.getByTestId("recovery-setup-form").count()) === 0, `${tag}: listede olmayan uzmanda MFA öncesi kurulum formu YOK`);
+          ok((await page.getByTestId("owner-recovery-card").count()) === 1, `${tag}: Owner'da kurtarma kodları + çevrimdışı kurtarma kartı GÖRÜNÜR`);
           await ctx.close();
         }
-        // ── Owner: kurtarma kodu şartı ──
+        // ── Owner: kurtarma kodu ŞART DEĞİL (28.11) + "Giriş erişimini sıfırla" düğmesi ──
         if (w === 390 || w === 1280) {
           const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, locale: "tr-TR" });
           const page = await ctx.newPage();
@@ -218,8 +195,9 @@ async function main() {
           await page.goto(`${BASE}/admin/users/${O}#hesap`, { waitUntil: "domcontentloaded" });
           await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 });
           await page.locator("[data-mfa-ready=yes]").waitFor({ timeout: 20000 });
-          ok(await page.locator("[data-mfa-action=enable]").isDisabled() && (await page.locator("[data-mfa-recovery-blocked]").count()) === 1,
-            `${tag}: kodsuz üyede "Zorunluluğu aç" KAPALI, açıklama görünür`);
+          ok(await page.locator("[data-mfa-action=enable]").isEnabled() && (await page.locator("[data-mfa-recovery-blocked]").count()) === 0
+            && (await page.locator("[data-mfa-action=access_reset]").count()) === 1,
+            `${tag}: kodsuz üyede "Zorunluluğu aç" AÇIK (kod şartı yok), "Giriş erişimini sıfırla" görünür`);
           await page.locator("[data-mfa-panel]").screenshot({ path: path.join(OUT, `${slug}-owner-kodsuz-uye.png`) });
           await page.goto(`${BASE}/admin/users/${P}#hesap`, { waitUntil: "domcontentloaded" });
           await page.reload({ waitUntil: "domcontentloaded" });
@@ -234,7 +212,7 @@ async function main() {
         }
       }
     }
-    ok(mails().every((m) => m.to === EMAIL.exp), "bütün koşu boyunca iletiler YALNIZ pilotun kayıtlı adresine", [...new Set(mails().map((m) => m.to))]);
+    ok(mails().length === 0, "bütün koşu boyunca e-posta GÖNDERİLMEDİ (uzmana kurtarma kurulumu sunulmuyor)", mails().length);
   } finally {
     const nt = notTested.length ? ` · NOT TESTED: ${notTested.join(", ")}` : "";
     console.log(`\nf4-kurtarma-ui: ${pass} PASS, ${fail} FAIL${nt}`);

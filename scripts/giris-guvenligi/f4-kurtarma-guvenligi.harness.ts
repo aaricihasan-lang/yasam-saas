@@ -8,7 +8,8 @@
  *      RPC'de de) · kurulum kodu ile adres doğrulama kodu birbirinin yerine GEÇMEZ · yanlış / 5 yanlış kilit / 60 sn · paralel
  *      tüketimde tek kazanan · 10 kod yalnız yanıtta, DB'de yalnız özet · denetim kaydı · 24 sa'te 3 sınırı · zorunluluk
  *      açıldıktan sonra kurulum kapalı (normal MFA'lı yol).
- *   B) Owner ekranı: Owner dışı hesapta kurtarma kodu yokken zorunluluk AÇILAMAZ (409 RECOVERY_REQUIRED); kod varsa açılır.
+ *   B) Owner ekranı: kurtarma kodu ŞART DEĞİL (Owner kararı 28.11) — kodsuz üyede de zorunluluk açılır (erişim kaybı →
+ *      Owner destekli sıfırlama, ayrı test: owner-erisim-sifirlama).
  *   C) Risk B: zorunluluğu açık hesap test listesinden düşse (süre dolumu) de e-posta yöntemi KALIR; listede olmayan ve zorunlu
  *      olmayan hesap yine kapsam dışı (genişleme yok).
  *   D) Acil kapatma: yalnız SQL konsolu (service_role reddedilir) · gerekçe şartı · tek hesap · diğer hesapların MFA durumu
@@ -18,7 +19,6 @@
  *
  * Çalıştır: npx tsx scripts/giris-guvenligi/f4-kurtarma-guvenligi.harness.ts
  * Negatif kontroller (yalnız test süreci; üretim kodunda bayrak YOK):
- *   F4_NEGATIF_KAPI=1  → Owner ekranındaki kurtarma kodu şartı kaldırılır (sourceMutation) → B maddesi FAIL VERMELİ.
  *   F4_NEGATIF_RISKB=1 → test listesi süre dolumu korunması kaldırılır (sourceMutation) → C maddesi FAIL VERMELİ.
  *   F4_NEGATIF_SQL=1   → taslak migration'daki posta kutusu kanıtı (OTP tüketimi) bellekte çıkarılır → A2/A3 FAIL VERMELİ.
  */
@@ -56,8 +56,6 @@ const MIG = "supabase/migrations/20280129100100_auth_mfa_pilot_safety_f4.sql";
 
 async function main() {
   const muts = installSourceMutations([
-    { envVar: "F4_NEGATIF_KAPI", file: "app/api/admin/users/[id]/mfa/route.ts", label: "kurtarma kodu şartı kaldırıldı",
-      anchor: "if (!st.status.isOwnerAccount && st.status.memberRecoveryReady !== true) {", replacement: "if (false) {" },
     { envVar: "F4_NEGATIF_RISKB", file: "lib/auth/mfaChallenge.ts", label: "test listesi süre dolumu korunması kaldırıldı",
       anchor: "      if (req.status === \"required\") flags = resolveOfferedMfaMethods(true, env);", replacement: "      void req;" },
     { envVar: "F4_NEGATIF_API_DURUM", file: "lib/auth/recoverySetup.ts", label: "API hesap durumu denetimi kaldırıldı",
@@ -290,7 +288,7 @@ async function main() {
       ok(still === 10, "başarısız denemeler mevcut kodları DEĞİŞTİRMEDİ", still);
     }
 
-    section("B) Owner ekranı: kurtarma kodu şartı");
+    section("B) Owner ekranı: kurtarma kodu ŞART DEĞİL");
     {
       // Başka bir test hesabı: listede, e-posta doğrulanmış, kurtarma kodu YOK
       await q(`INSERT INTO public.auth_mfa_test_accounts (user_id, note, added_by, created_at, expires_at) VALUES ($1, 'F4 kurtarma (kodsuz)', $2, now(), now() + interval '14 days')`, [O, U.owner]);
@@ -298,7 +296,8 @@ async function main() {
       const st = await call(mfaRoute.GET, `/api/admin/users/${O}/mfa`, "GET", null, adm(oSid), ctxOf(O));
       const no = await call(mfaRoute.POST, `/api/admin/users/${O}/mfa`, "POST", { action: "enable", reason: "kodsuz deneme", confirm: true }, adm(oSid), ctxOf(O));
       const rO = (await q(`SELECT mfa_required FROM public.users WHERE id = $1`, [O])).rows[0].mfa_required;
-      ok((st.json.status as J)?.memberRecoveryReady === false && no.status === 409 && no.json.code === "RECOVERY_REQUIRED" && rO === false, "kurtarma kodu yok → 409 RECOVERY_REQUIRED, zorunluluk açılmadı", { s: no.status, c: no.json.code });
+      await q(`BEGIN; SET LOCAL yasam.mfa_policy = 'on'; UPDATE public.users SET mfa_required = false, mfa_required_at = NULL WHERE id = '${O}'; COMMIT;`);
+      ok((st.json.status as J)?.memberRecoveryReady === false && no.status === 200 && rO === true, "kurtarma kodu YOK ama üye hazır → zorunluluk AÇILDI (kod şartı kaldırıldı)", { s: no.status, c: no.json.code });
       const yes = await call(mfaRoute.POST, `/api/admin/users/${P}/mfa`, "POST", { action: "enable", reason: "F4 pilot", confirm: true }, adm(oSid), ctxOf(P));
       ok(yes.status === 200, "pilotun 10 kodu var → zorunluluk açıldı", yes.json);
       await q(`DELETE FROM public.auth_mfa_test_accounts WHERE user_id = $1`, [O]);

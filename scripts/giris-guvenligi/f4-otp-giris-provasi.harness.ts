@@ -127,9 +127,8 @@ async function main() {
         ok(en.status === 409 && en.json.code === "NO_USABLE_METHOD" && r === false, `${e}: test listesinde değil → zorunluluk AÇILAMAZ (409), değişmedi`, { s: en.status, c: en.json.code });
         await q(`UPDATE public.users SET email_verified_at = NULL WHERE id = $1`, [id]);
       }
-      const noCodes = await call(mfaRoute.POST, `/api/admin/users/${P}/mfa`, "POST", { action: "enable", reason: "F4 giriş OTP pilotu", confirm: true }, adm(oSid), ctxOf(P));
-      ok(noCodes.status === 409 && noCodes.json.code === "RECOVERY_REQUIRED", "kurtarma kodu YOKKEN zorunluluk açılamaz (409 RECOVERY_REQUIRED)", noCodes.json.code);
-      // ÖNCE kurtarma: pilot MFA'sız oturumunda parola + kayıtlı adrese giden kodla 10 kurtarma kodu kurar.
+      // Kurtarma kodu ŞART DEĞİL (Owner kararı 28.11; erişim kaybında Owner destekli sıfırlama). Prova İSTEĞE BAĞLI kurulumu da
+      // sınar: pilot MFA'sız oturumunda parola + kayıtlı adrese giden kodla 10 kurtarma kodu kurabilir.
       const b0 = mails().length;
       const ss = await call(meRecovery.POST, "/api/me/account-recovery", "POST", { action: "setup_send", password: pw(PE) }, self(P, p0.sid));
       const sc = lastCode(PE, b0);
