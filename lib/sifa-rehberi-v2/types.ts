@@ -37,6 +37,8 @@ export type TopicNode = {
    * Hazır başlığın adı ve yeri korunur; altına sınırsız başlık/kutu eklenebilir.
    */
   templateKey?: string | null;
+  /** F3: kullanıcının "grup" olarak açtığı başlık (not yazılmaz). Hazır gruplar templateKey "grup:" ile tanınır. */
+  nodeKind?: "grup" | null;
   /** Kalıcı kayıtta iyimser kilit sürümü (DB `version`); yerel prototipte yok. */
   version?: number;
   /** Kayıt kapsamı: "kurum" = tenant ortak (V1'den, salt-okunur) · "kisisel" (varsayılan) = uzmanın kendi. */
@@ -59,7 +61,7 @@ export type BlockClass = (typeof BLOCK_CLASSES)[number]["id"];
 
 export type SourceRef = {
   id: string;
-  kind: "makale" | "kitap" | "web" | "geleneksel" | "diger";
+  kind: "makale" | "kitap" | "web" | "geleneksel" | "diger" | "baglanti";
   title: string;
   authors?: string;
   year?: string;
@@ -67,10 +69,15 @@ export type SourceRef = {
   url?: string;
 };
 
+/** F3: nota/kutuya bağlı (galeri) görsel — nesne özel Storage'da; burada yalnız kimlik + açıklama. */
+export type BlockAsset = { id: string; caption: string | null; mimeType: string | null; createdAt: string };
+
 export type Block = {
   id: string;
   ownerId: string;
   nodeId: string;
+  /** F3: not = null; içerik kutusu = üst notun kimliği. */
+  parentBlockId?: string | null;
   title: string;
   contentJson: JSONContent | null;
   /** Arama için düz metin (editörden türetilir). */
@@ -83,6 +90,10 @@ export type Block = {
   scope?: RecordScope;
   createdAt: string;
   updatedAt: string;
+  /** F3: yalnız gerçek içerik değişiminde (sunucu yazar); eski kayıtlarda boş → updatedAt gösterilir. */
+  contentUpdatedAt?: string | null;
+  /** F3: bağlı galeri görselleri. */
+  assets?: BlockAsset[];
   deletedAt: string | null;
   deleteBatchId: string | null;
 };

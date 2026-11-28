@@ -19,13 +19,31 @@ export const runtime = "nodejs";
  */
 type CountKey = "stones" | "stok" | "sifa_rehberi" | "digital_content";
 
-const COUNT_SOURCES: ReadonlyArray<{ key: CountKey; table: string; gate: ModuleGateKey }> = [
+/**
+ * personal: sayım OTURUM kullanıcısının kişisel kayıtlarıyla sınırlanır (tenant filtresine EK).
+ * Şifa Rehberi F3 (Owner kararı 26.11.2026): tamamen kişisel kütüphane — sayaç = kişinin çöpte
+ * olmayan ANA konuları (kök düğüm; hazır başlıklar kök olamaz → sayılmaz). V1 healing_guides artık
+ * ekranda yok; sayılmaz.
+ */
+type CountSource = {
+  key: CountKey;
+  table: string;
+  gate: ModuleGateKey;
+  personal?: { ownerColumn: string; eq?: Record<string, string>; isNull?: readonly string[] };
+};
+
+const COUNT_SOURCES: ReadonlyArray<CountSource> = [
   // app/api/dogaltas/stones → gate "stones"
   { key: "stones", table: "stones", gate: "stones" },
   // app/api/dogaltas/inventory → gate "stones"
   { key: "stok", table: "dogaltas_inventory", gate: "stones" },
-  // app/api/sifa-rehberi/guides → gate "sifa_rehberi"
-  { key: "sifa_rehberi", table: "healing_guides", gate: "sifa_rehberi" },
+  // app/api/sifa-rehberi-v2/workspace → gate "sifa_rehberi" (kişisel kütüphane; sifa_v2_load ile aynı kapsam)
+  {
+    key: "sifa_rehberi",
+    table: "sifa_topics",
+    gate: "sifa_rehberi",
+    personal: { ownerColumn: "owner_key", eq: { scope: "kisisel" }, isNull: ["parent_id", "deleted_at"] },
+  },
   // app/api/kisisel-arsiv → gate "personal_archive"
   { key: "digital_content", table: "personal_archives", gate: "personal_archive" },
 ];
@@ -40,7 +58,7 @@ const RECENT_LIMIT = 3;
 export async function GET(req: NextRequest) {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
-  const { db, tenantId } = guard;
+  const { db, tenantId, userId } = guard;
   const profile = guard.profile ?? {};
   // TRIAL7: süresi dolmuş deneme panel özetini görebilir (GET; membershipGateForRequest tek kaynak).
   const membershipDenied = membershipGateForRequest(req, profile);
@@ -56,15 +74,21 @@ export async function GET(req: NextRequest) {
   const recent: Record<string, Array<{ label: string | null; created_at: string | null }>> = {};
 
   await Promise.all([
-    ...COUNT_SOURCES.map(async ({ key, table, gate }) => {
+    ...COUNT_SOURCES.map(async ({ key, table, gate, personal }) => {
       if (!allowed(gate)) {
         counts[key] = null;
         return;
       }
-      const { count, error } = await db
+      let q = db
         .from(table)
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId);
+      if (personal) {
+        q = q.eq(personal.ownerColumn, userId);
+        for (const [col, val] of Object.entries(personal.eq ?? {})) q = q.eq(col, val);
+        for (const col of personal.isNull ?? []) q = q.is(col, null);
+      }
+      const { count, error } = await q;
       if (error) {
         logServerError({ route: "dashboard/summary", action: `count.${table}`, tenantId, cause: error });
         counts[key] = null;

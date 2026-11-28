@@ -1,11 +1,11 @@
-// WT4 — oturum/yetki + Şifa Rehberi UI davranış testleri (Playwright, yerel build, ağ-mock).
+// WT4 — oturum/yetki + Şifa Rehberi UI davranış testleri (Playwright, yerel build, ağ-mock). Taşıyıcı ekran: Şifa Rehberi F3.
 // Prod'a / dış ağa temas YOK: tüm /api/* istekleri burada mock'lanır; 127.0.0.1 dışı her istek abort.
 // Çalıştırma: scripts/pre-sale-a2b/ui/README.md ile aynı (fake-supabase-sink + sahte env build + start);
 //   node scripts/wt4/ui-wt4.mjs   (UI_BASE ile port değiştirilebilir)
 import { chromium } from "playwright";
+import { f3LibraryUrl, f3TopicUrl, f3Workspace, NOTE_ID, ROOT_ID } from "../sifa-rehberi-f3/ui-mock/f3Mock.mjs";
 
 const BASE = process.env.UI_BASE ?? "http://127.0.0.1:3911";
-const GUIDE_ID = "11111111-2222-4333-8444-555555555555";
 const ALL_PERMS = Object.fromEntries(
   ["clients", "appointments", "numerology", "stones", "stok", "sifa_rehberi", "energy_body", "reflexology",
     "aromatherapy", "personal_archive", "belge_ceviri", "human_design", "digital_content", "cosmic_calendar",
@@ -18,18 +18,6 @@ function makeUser(role = "admin", perms = ALL_PERMS) {
     email: `zz-${role}@example.invalid`, full_name: `ZZ ${role}`, name: `ZZ ${role}`, role, active: true,
     approval_status: "approved", package_type: "premium", membership_status: "active",
     tenant_id: "aaaaaaaa-0000-4000-8000-00000000000a", is_demo_account: false, module_permissions: perms,
-  };
-}
-
-function guideRow(updatedAt = "2026-10-08T09:00:00.000Z") {
-  return {
-    id: GUIDE_ID, tenant_id: "aaaaaaaa-0000-4000-8000-00000000000a", name: "ZZ Migren", category: "Sinir Sistemi",
-    symptoms: null, created_at: "2026-10-01T09:00:00.000Z", updated_at: updatedAt, images: [],
-    healing_guide_sections: [{
-      id: "99999999-2222-4333-8444-555555555555", guide_id: GUIDE_ID, section_type: "reasons", mode: "medical",
-      title: "ZZ Tıbbi", note: "ZZ not metni", source: null, source_kind: null, expert_note: null, attention: null,
-      sort_order: 0, images: [], created_at: "2026-10-01T09:00:00.000Z",
-    }],
   };
 }
 
@@ -80,6 +68,7 @@ async function newPage({ user, routes = [], viewport = { width: 1280, height: 90
     for (const [m, re, fn] of routes) {
       if ((m === "*" || m === req.method()) && re.test(url.pathname + url.search)) {
         const r = await fn(req, url, body);
+        if (r.abort) { entry.status = 0; return route.abort("failed"); } // ağ hatası benzetimi
         if (r.delay) await sleep(r.delay);
         entry.status = r.status;
         return route.fulfill({ status: r.status, json: r.json ?? {} });
@@ -93,54 +82,61 @@ async function newPage({ user, routes = [], viewport = { width: 1280, height: 90
   return { ctx, page, calls, pageErrors };
 }
 
-const guideRoutes = (over = {}) => [
-  ["GET", /^\/api\/sifa-rehberi\/guides\/[0-9a-f-]{36}$/, () => ({ status: 200, json: { ok: true, row: guideRow() } })],
-  ["PATCH", /^\/api\/sifa-rehberi\/guides\/[0-9a-f-]{36}$/, over.patch ?? (() => ({ status: 200, json: { ok: true, updated_at: "2026-10-08T09:05:00.000Z" }, delay: 300 }))],
-  ["PUT", /^\/api\/sifa-rehberi\/guides\/[0-9a-f-]{36}\/sections$/, over.put ?? (() => ({ status: 200, json: { ok: true, updated_at: "2026-10-08T09:05:01.000Z" } }))],
-  ["DELETE", /^\/api\/sifa-rehberi\/guides\/[0-9a-f-]{36}$/, over.del ?? (() => ({ status: 200, json: { ok: true }, delay: 300 }))],
-  ["GET", /^\/api\/sifa-rehberi\/guides/, () => ({ status: 200, json: { ok: true, guides: [], nextCursor: null, categories: [] } })],
+// ── F3 taşıyıcısı (Owner kararı 26.11.2026: V1 ekranı kaldırıldı; kişisel kütüphane) ──────────────────────────
+// Oturum/yetki kuralları (A–F, K, L) AYNEN; ekran F3. Kayıt/hata/silme (G–I) F3'ün Kaydet modeline uyarlandı.
+// J (kategori seçimi) V1'e özgüydü — F3'te kategori YOK → kaldırıldı (işlev ürünle birlikte kaldırıldı).
+const F3_WS = /^\/api\/sifa-rehberi-v2\/workspace$/;
+const f3Routes = (user, over = {}) => [
+  ["GET", F3_WS, over.load ?? (() => ({ status: 200, json: { ok: true, workspace: f3Workspace(user.id) } }))],
+  ["POST", F3_WS, over.save ?? (() => ({ status: 200, json: { ok: true }, delay: 300 }))],
 ];
+const saves = (calls) => calls.filter((c) => c.method === "POST" && F3_WS.test(c.path));
+const onF3 = (page) => new URL(page.url()).pathname === "/sifa-rehberi";
+const toastText = (page) => page.locator("[data-testid=toast]").allInnerTexts().then((x) => x.join(" | "));
 
 const ls = (page) => page.evaluate(() => ({ user: localStorage.getItem("yasam_user"), token: localStorage.getItem("yasam_session_token") }));
 const bodyText = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, " "));
 
+/** Konu ekranında düzenleme modu; düzenlenecek alan = seçili notun başlığı. */
 async function openEdit(page) {
-  await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "load" });
-  await page.getByRole("button", { name: /^Düzenle$/ }).first().waitFor({ timeout: 15000 });
-  await page.getByRole("button", { name: /^Düzenle$/ }).first().click();
-  const name = page.getByPlaceholder("Rahatsızlık adı");
-  await name.waitFor({ timeout: 8000 });
-  return name;
+  await page.goto(f3TopicUrl(BASE), { waitUntil: "load" });
+  await page.getByTestId("edit").waitFor({ timeout: 20000 });
+  await page.getByTestId("edit").click();
+  const title = page.getByTestId("note-title-input").first();
+  await title.waitFor({ timeout: 8000 });
+  return title;
 }
 
 async function run() {
   // ── A) Geçici doğrulama hatası (503) → çıkış YOK ─────────────────────────────────────────
   {
     const g = "A-503";
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), sessionGet: () => ({ status: 503, json: { valid: null, unavailable: true } }) });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user), sessionGet: () => ({ status: 503, json: { valid: null, unavailable: true } }) });
     try {
-      await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "load" });
+      await page.goto(f3TopicUrl(BASE), { waitUntil: "load" });
       await sleep(7500); // ilk doğrulama 5 sn
       const s = await ls(page);
       ok(g, "oturum doğrulaması gerçekten çağrıldı", calls.some((c) => c.path === "/api/auth/session" && c.method === "GET"));
       ok(g, "localStorage oturumu KORUNDU", !!s.user && !!s.token);
       ok(g, "sunucuya logout (DELETE) GÖNDERİLMEDİ", !calls.some((c) => c.path === "/api/auth/session" && c.method === "DELETE"));
-      ok(g, "sayfada kalındı (ana sayfaya atılmadı)", page.url().includes(`/sifa-rehberi/${GUIDE_ID}`), page.url());
+      ok(g, "sayfada kalındı (ana sayfaya atılmadı)", onF3(page) && page.url().includes(ROOT_ID), page.url());
     } finally { await ctx.close(); }
   }
 
   // ── B) Tek "geçersiz" sonra "geçerli" (anlık) → çıkış YOK ─────────────────────────────────
   {
     const g = "B-flap";
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), sessionGet: (i) => (i === 0 ? { status: 200, json: { valid: false, reason: "revoked" } } : { status: 200, json: { valid: true } }) });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user), sessionGet: (i) => (i === 0 ? { status: 200, json: { valid: false, reason: "revoked" } } : { status: 200, json: { valid: true } }) });
     try {
-      await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "load" });
+      await page.goto(f3TopicUrl(BASE), { waitUntil: "load" });
       await sleep(8000);
       const s = await ls(page);
       const gets = calls.filter((c) => c.path === "/api/auth/session" && c.method === "GET").length;
       ok(g, "ikinci doğrulama yapıldı (iki aşamalı karar)", gets >= 2, `GET=${gets}`);
       ok(g, "oturum korundu, DELETE yok", !!s.user && !calls.some((c) => c.path === "/api/auth/session" && c.method === "DELETE"));
-      ok(g, "sayfada kalındı", page.url().includes(`/sifa-rehberi/${GUIDE_ID}`));
+      ok(g, "sayfada kalındı", onF3(page) && page.url().includes(ROOT_ID));
     } finally { await ctx.close(); }
   }
 
@@ -148,12 +144,14 @@ async function run() {
   {
     const g = "C-real-end-dirty";
     let invalid = false;
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), sessionGet: () => (invalid ? { status: 200, json: { valid: false, reason: "expired" } } : { status: 200, json: { valid: true } }) });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user), sessionGet: () => (invalid ? { status: 200, json: { valid: false, reason: "expired" } } : { status: 200, json: { valid: true } }) });
     let dialogs = 0;
     page.on("dialog", (d) => { dialogs++; void d.dismiss(); }); // "Sayfada kal" seçilse bile
     try {
-      const name = await openEdit(page);
-      await name.fill("ZZ Migren DEĞİŞTİ");
+      const title = await openEdit(page);
+      await title.fill("ZZ Not DEĞİŞTİ");
+      ok(g, "taslak gerçekten kirli (Kaydet etkin)", await page.getByTestId("save").first().isEnabled());
       invalid = true;
       await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
       await page.waitForURL((u) => new URL(u).pathname === "/", { timeout: 12000 }).catch(() => {});
@@ -165,36 +163,39 @@ async function run() {
       const txt = await bodyText(page);
       ok(g, "giriş ekranında süre dolumu mesajı", /Oturum süreniz doldu/.test(txt), txt.slice(0, 200));
       ok(g, "iki kesin geçersiz yanıt istendi", calls.filter((c) => c.path === "/api/auth/session" && c.method === "GET").length >= 2);
+      ok(g, "oturum sonunda kayıt isteği GİTMEDİ", saves(calls).length === 0);
     } finally { await ctx.close(); }
   }
 
   // ── D) Başka sekmede çıkış → bu sekme bayat oturumla KALMAZ ───────────────────────────────
   {
     const g = "D-other-tab";
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes() });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user) });
     try {
-      const name = await openEdit(page);
-      await name.fill("ZZ değişiklik");
+      const title = await openEdit(page);
+      await title.fill("ZZ değişiklik");
       const other = await ctx.newPage();
       await other.goto(`${BASE}/gizlilik-politikasi`, { waitUntil: "load" });
       await other.evaluate(() => { localStorage.removeItem("yasam_user"); localStorage.removeItem("yasam_session_token"); });
       await page.waitForURL((u) => new URL(u).pathname === "/", { timeout: 8000 }).catch(() => {});
       ok(g, "diğer sekmede çıkış → bu sekme giriş akışına döndü", new URL(page.url()).pathname === "/", page.url());
-      const patches = calls.filter((c) => c.method === "PATCH").length;
-      ok(g, "oturumsuz Kaydet denemesi yapılmadı (boş x-user-id ile PATCH yok)", patches === 0);
+      ok(g, "oturumsuz Kaydet denemesi yapılmadı (kayıt isteği yok)", saves(calls).length === 0);
     } finally { await ctx.close(); }
   }
 
   // ── E) Oturumsuz modül rotası → "Oturumunuz Sona Erdi" + Giriş Yap ───────────────────────
   {
     const g = "E-no-session-route";
-    const { page, ctx } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), seed: false });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user), seed: false });
     try {
-      await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "load" });
+      await page.goto(f3TopicUrl(BASE), { waitUntil: "load" });
       await page.getByText(/Oturumunuz Sona Erdi/).waitFor({ timeout: 10000 }).catch(() => {});
       const txt = await bodyText(page);
       ok(g, "'Oturumunuz Sona Erdi' gösterilir", /Oturumunuz Sona Erdi/.test(txt), txt.slice(0, 160));
       ok(g, "'Yetkiniz Bulunmuyor' GÖSTERİLMEZ", !/Yetkiniz Bulunmuyor/.test(txt));
+      ok(g, "Şifa ekranı açılmadı, kütüphane isteği gitmedi", (await page.getByTestId("sifa-f3").count()) === 0 && !calls.some((c) => F3_WS.test(c.path)));
       const href = await page.getByRole("link", { name: /Giriş Yap/ }).getAttribute("href");
       ok(g, "düğme doğrudan girişe (/?login=1)", href === "/?login=1", String(href));
       await page.getByRole("link", { name: /Giriş Yap/ }).click();
@@ -207,11 +208,13 @@ async function run() {
   {
     const g = "F-real-deny";
     const perms = { ...ALL_PERMS, sifa_rehberi: false };
-    const { page, ctx, calls } = await newPage({ user: makeUser("expert", perms), routes: guideRoutes() });
+    const user = makeUser("expert", perms);
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user) });
     try {
       await page.goto(`${BASE}/sifa-rehberi`, { waitUntil: "load" });
       await page.getByText(/Yetkiniz Bulunmuyor/).waitFor({ timeout: 10000 }).catch(() => {});
       ok(g, "izinsiz uzman: 'Yetkiniz Bulunmuyor'", /Yetkiniz Bulunmuyor/.test(await bodyText(page)));
+      ok(g, "izinsiz uzmanda Şifa ekranı çizilmedi, kütüphane isteği gitmedi", (await page.getByTestId("sifa-f3").count()) === 0 && !calls.some((c) => F3_WS.test(c.path)));
       await page.getByRole("link", { name: /Ana Panele Dön/ }).click();
       await page.waitForURL((u) => new URL(u).pathname === "/", { timeout: 8000 }).catch(() => {});
       await sleep(2500);
@@ -222,159 +225,146 @@ async function run() {
     } finally { await ctx.close(); }
   }
 
-  // ── G) Üst + alt Kaydet (çift tık → tek PATCH) — masaüstü + mobil ────────────────────────
+  // ── G) Kaydet (çift tık → TEK kayıt isteği) — masaüstü + mobil ───────────────────────────
   for (const vp of [{ width: 1280, height: 900, tag: "web" }, { width: 390, height: 844, tag: "mobil" }]) {
     const g = `G-save-${vp.tag}`;
-    const { page, ctx, calls, pageErrors } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), viewport: vp });
+    const user = makeUser("admin");
+    const { page, ctx, calls, pageErrors } = await newPage({ user, routes: f3Routes(user), viewport: vp });
     try {
-      const name = await openEdit(page);
-      await name.fill("ZZ Migren alt kaydet");
-      const bottom = page.getByTestId("sifa-save-bottom");
-      ok(g, "alt Kaydet düzenleme modunda görünür", await bottom.isVisible());
-      await bottom.scrollIntoViewIfNeeded();
-      await bottom.dblclick();
-      await page.getByText("Kayıt güncellendi.").waitFor({ timeout: 8000 }).catch(() => {});
-      const patches = calls.filter((c) => c.method === "PATCH");
-      ok(g, "çift tık → TEK PATCH", patches.length === 1, `PATCH=${patches.length}`);
-      ok(g, "PATCH yeni adı taşır", patches[0]?.body?.name === "ZZ Migren alt kaydet");
-      ok(g, "bölümler PUT tek kez", calls.filter((c) => c.method === "PUT").length === 1);
-      ok(g, "başarı mesajı + düzenleme kapandı", /Kayıt güncellendi/.test(await bodyText(page)) && (await page.getByTestId("sifa-save-bottom").count()) === 0);
-      // Üst Kaydet aynı eylem
-      await page.getByRole("button", { name: /^Düzenle$/ }).first().click();
-      await page.getByPlaceholder("Rahatsızlık adı").fill("ZZ üst kaydet");
-      await page.getByRole("button", { name: /^Kaydet$/ }).first().click();
-      await page.getByText("Kayıt güncellendi.").waitFor({ timeout: 8000 }).catch(() => {});
+      const title = await openEdit(page);
+      await title.fill("ZZ Not çift tık");
+      const save = page.getByTestId("save").first();
+      ok(g, "Kaydet düzenleme modunda görünür ve etkin", (await save.isVisible()) && (await save.isEnabled()));
+      await save.dblclick();
+      await page.getByTestId("toast").filter({ hasText: "Kaydedildi." }).waitFor({ timeout: 8000 }).catch(() => {});
+      const s1 = saves(calls);
+      ok(g, "çift tık → TEK kayıt isteği", s1.length === 1, `POST=${s1.length}`);
+      ok(g, "istek yeni not başlığını taşır", (s1[0]?.body?.blocks ?? []).some((b) => b.id === NOTE_ID && b.title === "ZZ Not çift tık"), JSON.stringify(s1[0]?.body?.blocks?.map((b) => b.title)));
+      ok(g, "başarı mesajı + düzenleme kapandı", /Kaydedildi\./.test(await toastText(page)) && (await page.getByTestId("edit").count()) === 1);
+      // İkinci düzenleme → bir istek daha
+      await page.getByTestId("edit").click();
+      await page.getByTestId("note-title-input").first().fill("ZZ ikinci kayıt");
+      await page.getByTestId("save").first().click();
+      await page.getByTestId("toast").filter({ hasText: "Kaydedildi." }).waitFor({ timeout: 8000 }).catch(() => {});
       await sleep(800);
-      const p2 = calls.filter((c) => c.method === "PATCH");
-      ok(g, "üst Kaydet → 1 PATCH daha (toplam 2)", p2.length === 2 && p2[1]?.body?.name === "ZZ üst kaydet", `PATCH=${p2.length}`);
+      const s2 = saves(calls);
+      ok(g, "ikinci Kaydet → 1 istek daha (toplam 2)", s2.length === 2 && (s2[1]?.body?.blocks ?? []).some((b) => b.title === "ZZ ikinci kayıt"), `POST=${s2.length}`);
       ok(g, "JS hata yok", pageErrors.length === 0, pageErrors.join(" ; "));
     } finally { await ctx.close(); }
   }
 
-  // ── H) Kaydet hatası (500 / 401) → mesaj, taslak korunur ─────────────────────────────────
-  for (const [tag, resp, re] of [["500", { status: 500, json: { ok: false, error: "İşlem tamamlanamadı." } }, /Kayıt güncellenemedi: İşlem tamamlanamadı/],
-    ["401", { status: 401, json: { error: "Yetki gerekli." } }, /Oturumunuz sona ermiş görünüyor/]]) {
+  // ── H) Kaydet hatası (500 / 401 / ağ) → mesaj, taslak korunur ────────────────────────────
+  for (const [tag, resp, re] of [["500", { status: 500, json: { ok: false, error: "İşlem tamamlanamadı." } }, /Kaydedilemedi: İşlem tamamlanamadı/],
+    ["401", { status: 401, json: { error: "Yetki gerekli." } }, /Kaydedilemedi: Oturumunuz sona ermiş görünüyor/],
+    ["ag", "abort", /Kaydedilemedi: Sunucuya ulaşılamadı/]]) {
     const g = `H-save-fail-${tag}`;
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes({ patch: () => resp }), viewport: { width: 390, height: 844 } });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user, { save: () => (resp === "abort" ? { abort: true } : resp) }), viewport: { width: 390, height: 844 } });
     try {
-      const name = await openEdit(page);
-      await name.fill("ZZ korunacak taslak");
-      await page.getByTestId("sifa-save-bottom").click();
-      await sleep(1500);
-      const alerts = await page.locator("[role=alert]").allInnerTexts();
-      ok(g, "hata alt Kaydet yanında görünür", alerts.some((t) => re.test(t)), alerts.join(" | "));
-      ok(g, "ham 'Yetki gerekli' gösterilmez", !alerts.some((t) => /Yetki gerekli/.test(t)));
-      ok(g, "taslak korunur + düzenleme modunda kalınır", (await page.getByPlaceholder("Rahatsızlık adı").inputValue()) === "ZZ korunacak taslak");
-      ok(g, "PUT çağrılmadı", !calls.some((c) => c.method === "PUT"));
+      const title = await openEdit(page);
+      await title.fill("ZZ korunacak taslak");
+      await page.getByTestId("save").first().click();
+      await page.getByTestId("toast").waitFor({ timeout: 8000 }).catch(() => {});
+      const t = await toastText(page);
+      ok(g, "hata mesajı görünür", re.test(t), t);
+      ok(g, "ham 'Yetki gerekli' / İngilizce ağ iletisi gösterilmez", !/Yetki gerekli|Failed to fetch|NetworkError/i.test(t));
+      ok(g, "mesaj taslağın durduğunu söyler", /Değişiklikleriniz ekranda duruyor/.test(t));
+      ok(g, "taslak korunur + düzenleme modunda kalınır", (await page.getByTestId("note-title-input").first().inputValue()) === "ZZ korunacak taslak" && (await page.getByTestId("save").first().isEnabled()));
+      ok(g, "tek kayıt denemesi (otomatik tekrar yok)", saves(calls).length === 1);
     } finally { await ctx.close(); }
   }
 
-  // ── I) Silme: hata → TEK onay, modal kapanır, döngü yok; çift tık → tek DELETE; başarı ──
-  for (const [tag, del] of [["401", () => ({ status: 401, json: { error: "Yetki gerekli." } })],
+  // ── I) Silme (konu → Silinenler; Kaydet ile kesinleşir): hata → tek mesaj, taslak korunur; çift tık → tek istek; başarı
+  for (const [tag, respond] of [["401", () => ({ status: 401, json: { error: "Yetki gerekli." } })],
     ["500", () => ({ status: 500, json: { ok: false, error: "İşlem tamamlanamadı." } })],
     ["ok", () => ({ status: 200, json: { ok: true }, delay: 400 })]]) {
     const g = `I-delete-${tag}`;
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes({ del }) });
+    const user = makeUser("admin");
+    let deleted = false;
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user, {
+      save: (_req, _url, body) => {
+        const r = respond();
+        if (r.status === 200 && (body?.topics ?? []).some((t) => t.id === ROOT_ID && t.deleted_at)) deleted = true;
+        return r;
+      },
+      load: () => {
+        const ws = f3Workspace(user.id);
+        if (deleted) for (const n of ws.nodes) if (n.id === ROOT_ID || n.parentId === ROOT_ID) n.deletedAt = "2026-10-08T09:05:00.000Z";
+        return { status: 200, json: { ok: true, workspace: ws } };
+      },
+    }) });
     try {
-      await page.goto(`${BASE}/sifa-rehberi/${GUIDE_ID}`, { waitUntil: "load" });
-      await page.getByRole("button", { name: /^Sil$/ }).first().waitFor({ timeout: 15000 });
-      await page.getByRole("button", { name: /^Sil$/ }).first().click();
-      const yes = page.getByRole("button", { name: /Evet, Sil/ });
+      await page.goto(f3TopicUrl(BASE, ROOT_ID, ROOT_ID), { waitUntil: "load" });
+      await page.getByTestId("edit").waitFor({ timeout: 20000 });
+      await page.getByTestId("edit").click();
+      await page.getByTestId("menu").click();
+      await page.getByTestId("mi-delete").click();
+      const yes = page.getByTestId("delete-yes");
       await yes.waitFor({ timeout: 5000 });
-      await yes.dblclick();
+      ok(g, "silme onay paneli: Silinenler'e taşınacağını ve Kaydet'le kesinleşeceğini söyler", /Silinenler'e taşınacak[\s\S]*Kaydet/.test(await page.getByTestId("delete-confirm").innerText()));
+      await yes.click();
+      ok(g, "onay → henüz istek YOK (Kaydet bekleniyor)", saves(calls).length === 0);
+      await page.getByTestId("save").first().dblclick();
       await sleep(2000);
-      const dels = calls.filter((c) => c.method === "DELETE" && c.path.startsWith("/api/sifa-rehberi/guides/")).length;
-      ok(g, "çift tık → TEK DELETE", dels === 1, `DELETE=${dels}`);
-      const dialogOpen = await page.getByRole("dialog").filter({ hasText: "Bu kaydı silmek istiyor musunuz?" }).count();
+      const n = saves(calls).length;
+      ok(g, "çift tık → TEK kayıt isteği", n === 1, `POST=${n}`);
+      const body = saves(calls)[0]?.body;
+      ok(g, "istek konuyu çöpe taşır (kalıcı silme değil)", (body?.topics ?? []).some((t) => t.id === ROOT_ID && t.deleted_at) && !(body?.blocks_delete ?? []).length);
+      const t = await toastText(page);
       if (tag === "ok") {
-        await page.waitForURL((u) => new URL(u).pathname === "/sifa-rehberi", { timeout: 8000 }).catch(() => {});
-        ok(g, "başarı → listeye dönüldü", new URL(page.url()).pathname === "/sifa-rehberi", page.url());
+        await sleep(500);
+        ok(g, "başarı → kütüphanede konu yok", (await page.getByTestId("lib-item").filter({ hasText: "ZZ Migren" }).count()) === 0);
+        ok(g, "başarı mesajı", /Kaydedildi\./.test(t), t);
       } else {
-        ok(g, "onay penceresi KAPANDI (döngü yok)", dialogOpen === 0);
-        const txt = await bodyText(page);
-        ok(g, "hata bir kez görünür", /Silinemedi:/.test(txt) && (txt.match(/Silinemedi:/g) ?? []).length === 1, txt.slice(0, 200));
-        if (tag === "401") ok(g, "401 → oturum mesajı (ham 'Yetki gerekli' değil)", /Oturumunuz sona ermiş/.test(txt) && !/Yetki gerekli/.test(txt));
-        ok(g, "sayfada kalındı", page.url().includes(GUIDE_ID));
+        ok(g, "hata bir kez görünür", /Kaydedilemedi:/.test(t) && (t.match(/Kaydedilemedi:/g) ?? []).length === 1, t);
+        if (tag === "401") ok(g, "401 → oturum mesajı (ham 'Yetki gerekli' değil)", /Oturumunuz sona ermiş/.test(t) && !/Yetki gerekli/.test(t));
+        ok(g, "taslak korunur: Kaydet hâlâ etkin (silme kaybolmadı, tekrar denenebilir)", await page.getByTestId("save").first().isEnabled());
+        ok(g, "Şifa ekranında kalındı", onF3(page));
       }
-    } finally { await ctx.close(); }
-  }
-
-  // ── J) Kategori: seçimden sonra yeniden aç/değiştir, Diğer, datalist yok (yeni + düzenle) ─
-  for (const vp of [{ width: 1280, height: 900, tag: "web" }, { width: 390, height: 844, tag: "mobil" }]) {
-    const g = `J-category-${vp.tag}`;
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: [
-      ["POST", /^\/api\/sifa-rehberi\/guides$/, () => ({ status: 200, json: { ok: true, guide: { id: GUIDE_ID } } })],
-      ...guideRoutes(),
-    ], viewport: vp });
-    try {
-      await page.goto(`${BASE}/sifa-rehberi?view=new`, { waitUntil: "load" });
-      const sel = page.getByTestId("sifa-category-select");
-      await sel.waitFor({ timeout: 15000 });
-      ok(g, "datalist YOK", (await page.locator("datalist").count()) === 0 && (await page.locator("input[list]").count()) === 0);
-      await sel.selectOption("Sinir Sistemi");
-      ok(g, "ilk seçim", (await sel.inputValue()) === "Sinir Sistemi");
-      const opts = await sel.locator("option").count();
-      ok(g, "seçimden sonra TAM liste (süzme yok)", opts >= 19, `options=${opts}`);
-      await sel.selectOption("Cilt");
-      ok(g, "yeniden seçim → başka kategori", (await sel.inputValue()) === "Cilt");
-      await sel.selectOption({ label: "Diğer (kendim yazayım)…" });
-      const custom = page.getByTestId("sifa-category-custom");
-      ok(g, "Diğer → özel metin kutusu", await custom.isVisible());
-      await custom.fill("ZZ Özel Kategori");
-      await sel.selectOption("Uyku");
-      ok(g, "özelden önerilene geri dönülebilir; metin kutusu kapanır", (await sel.inputValue()) === "Uyku" && (await custom.count()) === 0);
-      await page.getByPlaceholder("Örn. Migren").fill("ZZ Yeni Kayıt");
-      await page.getByRole("button", { name: /^Kaydet$/ }).first().click();
-      await sleep(2000);
-      const post = calls.find((c) => c.method === "POST" && c.path === "/api/sifa-rehberi/guides");
-      ok(g, "kayıt gövdesinde son seçilen kategori", post?.body?.category === "Uyku", JSON.stringify(post?.body?.category));
-      // Düzenleme ekranı: mevcut kategori seçili gelir, değiştirilebilir
-      const name = await openEdit(page);
-      const esel = page.getByTestId("sifa-category-select");
-      ok(g, "düzenle: mevcut kategori seçili", (await esel.inputValue()) === "Sinir Sistemi");
-      await esel.selectOption("Göz");
-      await name.fill("ZZ Migren");
-      await page.getByTestId("sifa-save-bottom").click();
-      await sleep(1500);
-      const patch = calls.filter((c) => c.method === "PATCH").pop();
-      ok(g, "düzenle: yeni kategori PATCH'te", patch?.body?.category === "Göz", JSON.stringify(patch?.body?.category));
     } finally { await ctx.close(); }
   }
 
   // ── K) Kaydedilmemiş değişiklik guard'ı KORUNDU + geri tuşu oturumu bozmaz ───────────────
   {
     const g = "K-unsaved-back";
-    const { page, ctx, calls } = await newPage({ user: makeUser("admin"), routes: guideRoutes(), viewport: { width: 390, height: 844 } });
+    const user = makeUser("admin");
+    const { page, ctx, calls } = await newPage({ user, routes: f3Routes(user), viewport: { width: 390, height: 844 } });
     const dialogs = [];
     page.on("dialog", (d) => { dialogs.push(d.message()); void d.dismiss(); });
     try {
-      await page.goto(`${BASE}/sifa-rehberi?view=list`, { waitUntil: "load" });
+      await page.goto(f3LibraryUrl(BASE), { waitUntil: "load" });
       await sleep(1000);
-      const name = await openEdit(page);
-      await name.fill("ZZ kaydedilmemiş");
-      // Uygulama-içi Vazgeç → onay
-      await page.getByRole("button", { name: /^Vazgeç$/ }).first().click();
-      const discard = page.getByRole("button", { name: "Değişiklikleri sil ve çık" });
-      ok(g, "Vazgeç → 'Değişiklikleri sil ve çık' onayı", await discard.isVisible().catch(() => false) || (await discard.waitFor({ timeout: 3000 }).then(() => true).catch(() => false)));
-      await page.getByRole("button", { name: "Düzenlemeye devam et" }).click();
-      ok(g, "devam → taslak korunur", (await page.getByPlaceholder("Rahatsızlık adı").inputValue()) === "ZZ kaydedilmemiş");
-      // Fiziksel geri (dirty) → native onay; "kal" → sayfada kalınır
+      const title = await openEdit(page);
+      await title.fill("ZZ kaydedilmemiş");
+      // Uygulama-içi Vazgeç → üç seçenekli onay (onaylı F2 tasarımı)
+      await page.getByTestId("discard").first().click();
+      const dlg = page.getByTestId("leave-dialog");
+      const shown = await dlg.waitFor({ timeout: 3000 }).then(() => true).catch(() => false);
+      ok(g, "Vazgeç → 'Kaydetmeden Çık' onayı (üç seçenek)", shown && (await page.getByTestId("leave-drop").count()) === 1 && (await page.getByTestId("leave-save").count()) === 1 && (await page.getByTestId("leave-continue").count()) === 1);
+      await page.getByTestId("leave-continue").click();
+      ok(g, "devam → taslak korunur", (await page.getByTestId("note-title-input").first().inputValue()) === "ZZ kaydedilmemiş");
+      // Fiziksel geri (dirty) → uygulama içi onay; "devam" → sayfada kalınır
       await page.goBack();
       await sleep(800);
-      ok(g, "geri tuşu (dirty) → onay sorulur", dialogs.length >= 1, `dialogs=${dialogs.length}`);
-      ok(g, "kal → aynı sayfa + taslak", page.url().includes(GUIDE_ID) && (await page.getByPlaceholder("Rahatsızlık adı").inputValue()) === "ZZ kaydedilmemiş");
-      // Değişiklikleri sil ve çık → geri → geri: oturum KORUNUR, "Yetkiniz Bulunmuyor" YOK
-      await page.getByRole("button", { name: /^Vazgeç$/ }).first().click();
-      await page.getByRole("button", { name: "Değişiklikleri sil ve çık" }).click();
+      ok(g, "geri tuşu (dirty) → onay sorulur", (await page.getByTestId("leave-dialog").count()) === 1 || dialogs.length >= 1, `dialogs=${dialogs.length}`);
+      if (await page.getByTestId("leave-continue").count()) await page.getByTestId("leave-continue").click();
+      ok(g, "kal → aynı konu + taslak", page.url().includes(ROOT_ID) && (await page.getByTestId("note-title-input").first().inputValue()) === "ZZ kaydedilmemiş");
+      // Kaydetmeden Çık → geri → geri: oturum KORUNUR, "Yetkiniz Bulunmuyor" YOK
+      await page.getByTestId("discard").first().click();
+      await page.getByTestId("leave-drop").click();
       await sleep(500);
-      for (let i = 0; i < 3 && new URL(page.url()).pathname !== "/sifa-rehberi"; i++) { await page.goBack(); await sleep(900); }
+      for (let i = 0; i < 3 && !/#\/kutuphane/.test(page.url()); i++) {
+        await page.goBack();
+        await sleep(900);
+        if (await page.getByTestId("leave-drop").count()) await page.getByTestId("leave-drop").click();
+      }
       await sleep(1200);
       const s = await ls(page);
       const txt = await bodyText(page);
       ok(g, "geri tuşu sonrası oturum KORUNDU", !!s.user && !!s.token);
       ok(g, "'Yetkiniz Bulunmuyor' YOK", !/Yetkiniz Bulunmuyor/.test(txt));
-      ok(g, "önceki güvenli sayfaya dönüldü (liste)", new URL(page.url()).pathname === "/sifa-rehberi", page.url());
-      ok(g, "logout isteği YOK", !calls.some((c) => c.path === "/api/auth/session" && c.method === "DELETE"));
+      ok(g, "önceki güvenli ekrana dönüldü (kütüphane)", onF3(page) && /#\/kutuphane/.test(page.url()), page.url());
+      ok(g, "logout isteği YOK; kayıt isteği YOK", !calls.some((c) => c.path === "/api/auth/session" && c.method === "DELETE") && saves(calls).length === 0);
     } finally { await ctx.close(); }
   }
 

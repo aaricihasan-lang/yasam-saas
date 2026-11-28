@@ -231,6 +231,8 @@ export async function uploadSifaImage(file: File, caption = ""): Promise<{ src: 
   }
   const p = prep.j as { ok?: boolean; assetId?: string; path?: string; token?: string; error?: string } | null;
   if (!prep.res.ok || !p?.ok || !p.assetId || !p.path || !p.token) {
+    // 401 = oturum kapanmış: ham "Yetki gerekli." gösterilmez (WT4 kuralı; SifaRehberi.tsx ile aynı metin).
+    if (prep.res.status === 401) throw new AssetUploadError("Oturumunuz sona ermiş görünüyor; yeniden giriş yapın");
     throw new AssetUploadError(p?.error ?? `Görsel yüklenemedi (HTTP ${prep.res.status}).`);
   }
   // Supabase istemcisi yalnız yüklemede (tembel) — modül, sunucu/test içe aktarımında ortam istemez.

@@ -141,8 +141,6 @@ const mustUse: [string, RegExp][] = [
   ["app/api/dogaltas/stones/[id]/word-report/buildStoneReport.ts", /reportFileDate/],
   ["app/api/numeroloji/knowledge-report/route.ts", /reportFileDate/],
   ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", /formatInstantDateTime/],
-  ["app/api/sifa-rehberi/word-report/route.ts", /reportFileDate/],
-  ["lib/sifa-rehberi/wordDocument.ts", /formatInstantDate/],
   ["app/api/urun-stok/stock-report/route.ts", /reportFileDate/],
   ["lib/aromaterapi/report/theme.ts", /zonedDayKey/],
   ["lib/yasam-hafizasi/client/snapshotReport.ts", /formatDateLoose/],
@@ -177,8 +175,6 @@ for (const f of ["app/api/clients/[id]/word-report/clientReportBuilder.ts"]) {
 {
   const dy = readFileSync(join(ROOT, "app/api/clients/[id]/word-report/clientReportBuilder.ts"), "utf8");
   check("DY: expert_note yalnız includeExpertNotes ile", /includeExpertNotes\s*(===\s*true\s*)?&&\s*hw\.expert_note/.test(dy) && !/if \(hw\.expert_note\?\.trim\(\)\)/.test(dy));
-  const sifa = readFileSync(join(ROOT, "lib/sifa-rehberi/wordDocument.ts"), "utf8");
-  check("Şifa: Uzman Notu yalnız includeExpertNotes ile", /includeExpertNotes \? meaningful\(s\.expert_note\) : ""/.test(sifa));
 }
 // FA-16: danışana giden üreticilerde not var; Refleksoloji/Kupa'ya ikinci not EKLENMEDİ.
 {
@@ -188,7 +184,6 @@ for (const f of ["app/api/clients/[id]/word-report/clientReportBuilder.ts"]) {
     ["app/api/biyoenerji/chakra-report/route.ts", "biyoenerji"],
     ["app/api/dogaltas/stones/[id]/word-report/buildStoneReport.ts", "dogaltas"],
     ["app/api/dogaltas/word-report/route.ts", "dogaltas"],
-    ["app/api/sifa-rehberi/word-report/route.ts", "sifa"],
     ["lib/aromaterapi/report/document.ts", "aromaterapi"],
     ["app/api/numeroloji/knowledge-report/route.ts", "numeroloji"],
     ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", "numeroloji"],

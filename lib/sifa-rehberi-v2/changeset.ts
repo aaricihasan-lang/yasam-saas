@@ -16,6 +16,8 @@ export type TopicChange = {
   title: string;
   sort_key: string;
   template_key: string | null;
+  /** F3: kullanıcı grup başlığı ('grup') — anahtar yoksa sunucu mevcut değeri korur. */
+  node_kind?: "grup" | null;
   deleted_at: string | null;
   delete_batch_id: string | null;
   base_version: number | null;
@@ -24,6 +26,8 @@ export type SourceChange = { id: string; kind: SourceRef["kind"]; title: string;
 export type BlockChange = {
   id: string;
   topic_id: string;
+  /** F3: not = null; içerik kutusu = üst notun kimliği (yalnız oluştururken anlamlı; sonradan değişmez). */
+  parent_block_id?: string | null;
   title: string;
   content_json: JSONContent | null;
   content_text: string;
@@ -41,15 +45,28 @@ export type Changeset = {
   links_remove: string[];
   /** Yeni/değişen kutularda başvurulan kendi taslak görsellerini kutuya bağlar. */
   asset_links?: { asset_id: string; block_id: string }[];
+  /** F3: yalnız İÇERİK KUTUSU kalıcı silinir (kaynakları ve görselleriyle); sürüm denetimli. */
+  blocks_delete?: { id: string; base_version: number }[];
+  /** F3: kendi yüklemesini nota/kutuya bağlar + açıklama (başka kutudan taşıma DB'de reddedilir). */
+  assets_set?: { id: string; block_id: string; caption: string | null }[];
+  /** F3: kendi yüklemesini kaldırır (nesne sunucuda Storage'dan silinir). */
+  assets_delete?: string[];
 };
 export type Conflict = { kind: "topic" | "block"; id: string; title: string };
 export type SaveResult = { topics: Record<string, number>; blocks: Record<string, number> };
+/** DB'nin döndürdüğü, kayıttan sonra Storage'dan silinecek nesneler (yalnız sunucu kullanır). */
+export type RemovedAsset = { bucket: string; storage_path: string };
 
+/**
+ * İSTEK BAŞINA teknik sınırlar (kötüye kullanım / aşırı yük koruması) — kullanıcı başına TOPLAM kullanım kotası DEĞİLDİR.
+ * Owner kararı (F3-R1, 27.11.2026): konu, not, kutu, görsel, kaynak, bağlantı SAYISINA kullanıcı sınırı yok. Bir kayıt yalnız
+ * değişen satırları taşır (lib/sifa-rehberi-f3/model.ts orderKeys); toplam sayı bu sınırlara takılmaz.
+ */
 export const CHANGESET_LIMITS = {
   maxTopics: 2000,
   maxBlocks: 2000,
   maxLinks: 2000,
-  maxSourcesPerBlock: 200,
+  maxAssets: 2000,
   maxBlockJsonBytes: 2_000_000,
   maxContentTextBytes: 1_000_000,
   maxBodyBytes: 20_000_000,
@@ -131,7 +148,10 @@ export function buildChangeset(saved: Workspace, draft: Workspace): Changeset {
 }
 
 export function isEmptyChangeset(c: Changeset): boolean {
-  return !c.topics.length && !c.blocks.length && !c.links_add.length && !c.links_remove.length && !c.asset_links?.length;
+  return (
+    !c.topics.length && !c.blocks.length && !c.links_add.length && !c.links_remove.length && !c.asset_links?.length &&
+    !c.blocks_delete?.length && !c.assets_set?.length && !c.assets_delete?.length
+  );
 }
 
 /** Başarılı kayıttan sonra yeni sürümleri çalışma alanına işler. */
@@ -148,7 +168,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const SORT_KEY = /^[0-9a-z]*[1-9a-z]$/;
 const TEMPLATE_KEY = /^(grup|konu|bolum):[a-z0-9_]+$/;
 const CLASSES = new Set(["bilimsel", "geleneksel", "dini", "uzman_notu", "diger"]);
-const SOURCE_KINDS = new Set(["makale", "kitap", "web", "geleneksel", "diger"]);
+const SOURCE_KINDS = new Set(["makale", "kitap", "web", "geleneksel", "diger", "baglanti"]);
 const DOI = /^10\.[0-9]{4,9}\/\S+$/;
 const URL_RE = /^https?:\/\/\S+$/i;
 
@@ -198,7 +218,7 @@ function arr(v: unknown, field: string, max: number): unknown[] {
 export function parseChangeset(body: unknown): Changeset {
   if (!isObj(body)) throw new ChangesetError("Gövde nesne olmalı");
   for (const k of Object.keys(body)) {
-    if (!["topics", "blocks", "links_add", "links_remove", "asset_links"].includes(k)) throw new ChangesetError(`Bilinmeyen alan: ${k}`);
+    if (!["topics", "blocks", "links_add", "links_remove", "asset_links", "blocks_delete", "assets_set", "assets_delete"].includes(k)) throw new ChangesetError(`Bilinmeyen alan: ${k}`);
   }
   const topics = arr(body.topics, "topics", CHANGESET_LIMITS.maxTopics).map((raw, i): TopicChange => {
     if (!isObj(raw)) throw new ChangesetError(`topics[${i}]`);
@@ -209,12 +229,14 @@ export function parseChangeset(body: unknown): Changeset {
     const deleted_at = ts(raw.deleted_at, "deleted_at");
     const delete_batch_id = nullableUuid(raw.delete_batch_id, "delete_batch_id");
     if ((deleted_at === null) !== (delete_batch_id === null)) throw new ChangesetError("silme alanları birlikte olmalı");
+    if (raw.node_kind !== undefined && raw.node_kind !== null && raw.node_kind !== "grup") throw new ChangesetError("node_kind: geçersiz");
     return {
       id: uuid(raw.id, "topics.id"),
       parent_id: nullableUuid(raw.parent_id, "parent_id"),
       title: str(raw.title, "title", 1, 200),
       sort_key: sk,
       template_key: tk,
+      ...(raw.node_kind !== undefined ? { node_kind: raw.node_kind === "grup" ? ("grup" as const) : null } : {}),
       deleted_at,
       delete_batch_id,
       base_version: version(raw.base_version),
@@ -233,7 +255,8 @@ export function parseChangeset(body: unknown): Changeset {
     const deleted_at = ts(raw.deleted_at, "deleted_at");
     const delete_batch_id = nullableUuid(raw.delete_batch_id, "delete_batch_id");
     if ((deleted_at === null) !== (delete_batch_id === null)) throw new ChangesetError("silme alanları birlikte olmalı");
-    const sources = arr(raw.sources, "sources", CHANGESET_LIMITS.maxSourcesPerBlock).map((s, j): SourceChange => {
+    // Not/kutu başına kaynak SAYISI sınırı yok (F3-R1); istek boyutu maxBodyBytes ile sınırlıdır.
+    const sources = arr(raw.sources, "sources", Number.MAX_SAFE_INTEGER).map((s, j): SourceChange => {
       if (!isObj(s)) throw new ChangesetError(`sources[${j}]`);
       const kind = String(s.kind);
       if (!SOURCE_KINDS.has(kind)) throw new ChangesetError("source.kind: geçersiz");
@@ -250,7 +273,9 @@ export function parseChangeset(body: unknown): Changeset {
     return {
       id: uuid(raw.id, "blocks.id"),
       topic_id: uuid(raw.topic_id, "topic_id"),
-      title: str(raw.title, "title", 1, 200),
+      ...(raw.parent_block_id !== undefined ? { parent_block_id: nullableUuid(raw.parent_block_id, "parent_block_id") } : {}),
+      // F3: not / kutu adı isteğe bağlı ("Başlıksız not" / "Adsız kutu").
+      title: str(raw.title, "title", 0, 200),
       content_json: content,
       content_text: text,
       classification: cls,
@@ -273,10 +298,41 @@ export function parseChangeset(body: unknown): Changeset {
     if (!isObj(raw)) throw new ChangesetError(`asset_links[${i}]`);
     return { asset_id: uuid(raw.asset_id, "asset_id"), block_id: uuid(raw.block_id, "block_id") };
   });
+  const blocks_delete = arr(body.blocks_delete, "blocks_delete", CHANGESET_LIMITS.maxBlocks).map((raw, i) => {
+    if (!isObj(raw)) throw new ChangesetError(`blocks_delete[${i}]`);
+    const v = version(raw.base_version);
+    if (v === null) throw new ChangesetError("blocks_delete.base_version gerekli");
+    return { id: uuid(raw.id, "blocks_delete.id"), base_version: v };
+  });
+  const assets = arr(body.assets_set, "assets_set", CHANGESET_LIMITS.maxAssets).map((raw, i) => {
+    if (!isObj(raw)) throw new ChangesetError(`assets_set[${i}]`);
+    const caption = raw.caption === null || raw.caption === undefined ? null : String(raw.caption);
+    if (caption !== null && caption.length > 300) throw new ChangesetError("Görsel açıklaması en fazla 300 karakter");
+    return { id: uuid(raw.id, "assets.id"), block_id: uuid(raw.block_id, "assets.block_id"), caption: caption && caption.trim() ? caption : null };
+  });
+  const assets_delete = arr(body.assets_delete, "assets_delete", CHANGESET_LIMITS.maxAssets).map((v) => uuid(v, "assets_delete"));
   const ids = new Set<string>();
   for (const x of [...topics, ...blocks]) {
     if (ids.has(x.id)) throw new ChangesetError("Aynı kimlik iki kez");
     ids.add(x.id);
   }
-  return { topics, blocks, links_add, links_remove, ...(asset_links.length ? { asset_links } : {}) };
+  for (const x of blocks_delete) {
+    if (ids.has(x.id)) throw new ChangesetError("Silinen kutu aynı kayıtta güncellenemez");
+    ids.add(x.id);
+  }
+  const assetIds = new Set<string>();
+  for (const a of [...assets.map((x) => x.id), ...assets_delete]) {
+    if (assetIds.has(a)) throw new ChangesetError("Aynı görsel iki kez");
+    assetIds.add(a);
+  }
+  return {
+    topics,
+    blocks,
+    links_add,
+    links_remove,
+    ...(asset_links.length ? { asset_links } : {}),
+    ...(blocks_delete.length ? { blocks_delete } : {}),
+    ...(assets.length ? { assets_set: assets } : {}),
+    ...(assets_delete.length ? { assets_delete } : {}),
+  };
 }

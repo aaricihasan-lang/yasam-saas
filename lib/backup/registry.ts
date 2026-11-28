@@ -373,7 +373,9 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   }),
   entry("sifa_topic_blocks", "sifa_rehberi", "backup", "Şifa Rehberi V2 İçerik Kutuları", {
     ownerScope: SIFA_V2_OWNER,
-    fkParents: [fk("topic_id", "sifa_topics")],
+    // F3: içerik kutusu = notun alt kutusu (parent_block_id; tek seviye) → geri yüklemede not, kutusundan ÖNCE yazılır.
+    selfRef: "parent_block_id",
+    fkParents: [fk("topic_id", "sifa_topics"), fk("parent_block_id", "sifa_topic_blocks", true)],
     userColumns: [],
     absentTolerant: true,
   }),

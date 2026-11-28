@@ -27,7 +27,6 @@ import {
 import { buildAjandaReportDoc, ajandaStatusLabel } from "@/app/api/ajanda/word-report/buildAjandaReport";
 import { buildBioSessionReportDoc } from "@/app/api/biyoenerji/session-report/buildSessionReport";
 import { buildStoneReportDoc, type StoneReportRow } from "@/app/api/dogaltas/stones/[id]/word-report/buildStoneReport";
-import { buildSifaReportChildren, type WordGuideRaw, type WordSectionRow } from "@/lib/sifa-rehberi/wordDocument";
 import { buildAromaDoc } from "@/lib/aromaterapi/report/document";
 import { renderBlendFormula } from "@/lib/aromaterapi/report/render/blends";
 import type { BlendExportRow } from "@/lib/aromaterapi/report/reads";
@@ -207,32 +206,7 @@ async function main(): Promise<void> {
   check("Doğaltaş: Hazırlayan", stx.doc.includes(HAZ));
   check("Doğaltaş: dosya adı yerel gün", st.filename === "dogaltas-iolit-2026-09-27.docx", st.filename);
 
-  // ════════ 5) Şifa Rehberi ═════════════════════════════════════════════════
-  console.log("\n── Şifa Rehberi ──");
-  const sec = (p: Partial<WordSectionRow>): WordSectionRow => ({
-    id: "sec" + Math.random().toString(36).slice(2), guide_id: "g1", section_type: "reasons", mode: null, title: null,
-    note: null, source: null, source_kind: null, expert_note: null, attention: null, sort_order: null,
-    created_at: "2026-01-01T00:00:00Z", images: null, ...p,
-  });
-  const guide = (secs: WordSectionRow[]): WordGuideRaw => ({
-    id: "g1", name: "Baş ağrısı", category: "Nöroloji", symptoms: "Zonklama", created_at: "2026-09-26T21:30:00Z", updated_at: null,
-    general_summary: null, medical_causes: null, subconscious_causes: null, temperament_causes: null, other_causes: null,
-    iridology_match: null, hand_analysis_match: null, cupping_leech: null, reflexology: null, diet_recommendations: null,
-    herbal_methods: null, stone_recommendations: null, aromatherapy: null, meditation: null, breathwork: null, bioenergy: null,
-    massage: null, daily_routine: null, sleep_routine: null, supportive_alternative_methods: null, islamic_recommendations: null,
-    images: null, healing_guide_sections: secs,
-  });
-  const sifaGuides = [guide([sec({ note: "Stres kaynaklı gerginlik.", expert_note: "GIZLI_SIFA_UZMAN" }), sec({ section_type: "diet", expert_note: "YALNIZ_UZMAN_BOLUMU" })])];
-  const sifaDoc = (children: ReturnType<typeof buildSifaReportChildren>) =>
-    new DocxDocument({ sections: [{ properties: {}, footers: { default: buildFooter("Şifa Rehberi Raporu · Yaşam Sistemi", { note: "sifa" }) }, children }] });
-  const sf = await render(sifaDoc(buildSifaReportChildren({ guides: sifaGuides, exportMode: "single", today: "27 Eylül 2026", wellnessNote: true, expertName: EXPERT })));
-  check("Şifa: kayıt tarihi 21:30Z → yerel '27 Eylül 2026'", sf.doc.includes("27 Eylül 2026") && !sf.doc.includes("26 Eylül 2026"));
-  check("Şifa: 'Uzman Notu' VARSAYILAN yok", !sf.doc.includes("GIZLI_SIFA_UZMAN") && !sf.doc.includes("Uzman Notu"));
-  check("Şifa: yalnız-uzman-notu bölümü (hariçken) hiç basılmaz", !sf.doc.includes("YALNIZ_UZMAN_BOLUMU") && !sf.doc.includes("Diyet"));
-  check("Şifa: normal içerik korunur", sf.doc.includes("Stres kaynaklı gerginlik."));
-  check("Şifa: bilgilendirme tam + footer kısa + Hazırlayan", sf.doc.includes(wellnessNote("sifa").full) && sf.footer.includes(wellnessNote("sifa").short) && sf.doc.includes(HAZ));
-  const sfOpt = await render(sifaDoc(buildSifaReportChildren({ guides: sifaGuides, exportMode: "single", today: "27 Eylül 2026", includeExpertNotes: true })));
-  check("Şifa: includeExpertNotes=true → Uzman Notu var", sfOpt.doc.includes("GIZLI_SIFA_UZMAN") && sfOpt.doc.includes("YALNIZ_UZMAN_BOLUMU"));
+  // ════════ 5) Şifa Rehberi — V1 Word üreticisi F3 ile kaldırıldı (Owner kararı 26.11.2026); F3 Word: scripts/sifa-rehberi-f3.
 
   // ════════ 6) Aromaterapi karışım ══════════════════════════════════════════
   console.log("\n── Aromaterapi karışım ──");
